@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]/"test-media"
 DATA=ROOT/"evaluation.json"
-CATEGORIES={"object","scene","color","object+color","activity","person-attribute","sports","animals","food","vehicle","weather","indoor/outdoor","OCR","document","multi-concept","video","video+activity","person+color+scene"}
+CATEGORIES={"object","scene","color","object+color","activity","person-attribute","sports","animals","food","vehicle","weather","indoor/outdoor","OCR","document","multi-concept","video","video+activity","person+color+scene","no-match"}
 DIFFICULTIES={"easy","medium","hard"}
 
 def load():
@@ -39,7 +39,7 @@ def export():
     enc=lambda value:base64.b64encode(str(value).encode()).decode()
     for row in load():
         expected=row.get("expected",[]);window=row.get("expected_timestamp") or {}
-        print("\t".join([enc(row.get("query","")),enc("\x1f".join(expected)),enc(row.get("category","uncategorized")),enc(row.get("difficulty","")),str(window.get("start","")),str(window.get("end",""))]))
+        print("\t".join([enc(row.get("query","")),enc("\x1f".join(expected)),enc(row.get("category","uncategorized")),enc(row.get("difficulty","")),str(window.get("start","")),str(window.get("end","")),str(bool(row.get("no_match",False))).lower()]))
 
 if __name__=="__main__":
     command=sys.argv[1] if len(sys.argv)>1 else ""

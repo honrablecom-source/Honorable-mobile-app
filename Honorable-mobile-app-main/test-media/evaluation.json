@@ -1,1 +1,25 @@
-[]
+[
+  {"query":"steam train crossing a stone bridge","expected":["jack-anstey-XVoyX7l9ocY-unsplash.jpg"],"category":"vehicle","difficulty":"easy"},
+  {"query":"red passenger train through green hills","expected":["jack-anstey-XVoyX7l9ocY-unsplash.jpg"],"category":"multi-concept","difficulty":"medium"},
+  {"query":"locomotive on a curved viaduct","expected":["jack-anstey-XVoyX7l9ocY-unsplash.jpg"],"category":"multi-concept","difficulty":"hard"},
+  {"query":"person alone in a snowy canyon at night","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg"],"category":"person+color+scene","difficulty":"hard"},
+  {"query":"dark blue mountains under the stars","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg"],"category":"scene","difficulty":"medium"},
+  {"query":"tiny person illuminated between icy cliffs","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg"],"category":"multi-concept","difficulty":"hard"},
+  {"query":"snowy mountains and evergreen forest","expected":["kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"scene","difficulty":"easy"},
+  {"query":"wide mountain valley beneath white clouds","expected":["kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"multi-concept","difficulty":"medium"},
+  {"query":"blue sky over pine trees and distant glacier","expected":["kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"multi-concept","difficulty":"hard"},
+  {"query":"pink sunset beach with a mountain reflection","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg"],"category":"multi-concept","difficulty":"medium"},
+  {"query":"black sand beach beside a jagged mountain","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg"],"category":"scene","difficulty":"hard"},
+  {"query":"purple sky reflected in wet sand","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg"],"category":"color","difficulty":"medium"},
+  {"query":"speedboat crossing the water at red sunset","expected":["mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"multi-concept","difficulty":"easy"},
+  {"query":"boat leaving a long white wake across the ocean","expected":["mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"multi-concept","difficulty":"medium"},
+  {"query":"small lighthouse below a dark forested shore","expected":["mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"multi-concept","difficulty":"hard"},
+  {"query":"white flowers against a bright blue sky","expected":["mink-mingle-96JD67agngE-unsplash.jpg"],"category":"object+color","difficulty":"easy"},
+  {"query":"close up of pale blossoms from below","expected":["mink-mingle-96JD67agngE-unsplash.jpg"],"category":"object","difficulty":"medium"},
+  {"query":"delicate flower stems reaching upward","expected":["mink-mingle-96JD67agngE-unsplash.jpg"],"category":"object","difficulty":"hard"},
+  {"query":"snow covered mountains","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg","kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"scene","difficulty":"easy"},
+  {"query":"pink sunset over water","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg","mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"color","difficulty":"medium"},
+  {"query":"birthday cake with candles indoors","expected":[],"category":"no-match","difficulty":"medium","no_match":true},
+  {"query":"dog playing tennis on a court","expected":[],"category":"no-match","difficulty":"hard","no_match":true},
+  {"query":"screenshot showing flight confirmation number","expected":[],"category":"no-match","difficulty":"hard","no_match":true}
+]

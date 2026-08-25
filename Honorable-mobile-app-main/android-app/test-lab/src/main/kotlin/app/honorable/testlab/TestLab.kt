@@ -32,7 +32,7 @@ interface FileMediaSource { fun inspect():List<DiscoveryEntry>;fun discover(): L
 class DirectoryMediaSource(private val root: Path) : FileMediaSource {
     override fun inspect():List<DiscoveryEntry> {
         require(root.exists()) { "Missing test-media directory: $root" }
-        return Files.walk(root).use { paths -> paths.iterator().asSequence().filter { !Files.isSymbolicLink(it)&&it.isRegularFile()&&!it.fileName.toString().startsWith(".")&&it.extension.isNotBlank()&&it.extension.lowercase() !in setOf("md","json") }.sorted().map{path->
+        return Files.walk(root).use { paths -> paths.iterator().asSequence().filter { path->!Files.isSymbolicLink(path)&&path.isRegularFile()&&root.relativize(path).none{it.toString().startsWith(".")||it.toString()=="eval-derived"}&&path.extension.isNotBlank()&&path.extension.lowercase() !in setOf("md","json") }.sorted().map{path->
             val ext=path.extension.lowercase();val relative=root.relativize(path).toString().replace(File.separatorChar,'/')
             when { ext in imageExt->DiscoveryEntry(path,relative,ext,MediaKind.IMAGE,true);ext in videoExt->DiscoveryEntry(path,relative,ext,MediaKind.VIDEO,commandExists("ffmpeg")&&videoDuration(path)!=null,if(commandExists("ffmpeg")&&videoDuration(path)!=null)null else "FFmpeg cannot decode/probe this file");ext in heifExt->DiscoveryEntry(path,relative,ext,MediaKind.IMAGE,false,"HEIC/HEIF decoder unavailable in this Codespace; convert to JPG/PNG for testing");else->DiscoveryEntry(path,relative,ext,null,false,"unsupported media format")
             }
@@ -86,10 +86,11 @@ fun main(args: Array<String>) {
         "enrich" -> enrichCommand(option(args,"--limit")?.toIntOrNull() ?: 10)
         "search" -> searchCommand(option(args, "--query") ?: error("Missing --query"), option(args, "--top")?.toIntOrNull() ?: 10,"--debug" in args,"--show-ranking" in args)
         "evaluate" -> evaluateCommand()
+        "evaluate-degraded" -> evaluateDegradedCommand()
         "interactive" -> interactiveCommand()
         "list" -> listCommand()
         "serve" -> serve(option(args, "--port")?.toIntOrNull() ?: 4174)
-        else -> error("Use: index | enrich [--limit N] | search --query TEXT [--top N] | interactive | evaluate | serve [--port N]")
+        else -> error("Use: index | enrich [--limit N] | search --query TEXT [--top N] | interactive | evaluate | evaluate-degraded | serve [--port N]")
     }
 }
 
@@ -269,9 +270,9 @@ private fun timestamp(ms:Long)="%02d:%02d".format(ms/60000,(ms/1000)%60)
 private fun evaluateCommand() {
     val helper=Paths.get("android-app/test-lab/evaluation_labels.py").toAbsolutePath();val process=ProcessBuilder("python3",helper.toString(),"export").start();val lines=process.inputStream.bufferedReader().readLines();require(process.waitFor()==0){process.errorStream.bufferedReader().readText()};require(lines.isNotEmpty()){ "evaluation.json has no cases" }
     fun decode(value:String)=String(Base64.getDecoder().decode(value),UTF_8)
-    data class Truth(val query:String,val expected:Set<String>,val category:String,val difficulty:String,val startMs:Long?,val endMs:Long?)
-    val truths=lines.map{line->val p=line.split('\t');require(p.size==6){"Invalid evaluation export"};Truth(decode(p[0]),decode(p[1]).split('\u001f').filter(String::isNotBlank).toSet(),decode(p[2]),decode(p[3]).ifBlank{"unspecified"},p[4].toDoubleOrNull()?.times(1000)?.toLong(),p[5].toDoubleOrNull()?.times(1000)?.toLong())}
-    val initial=readIndex();val evalCases=truths.map{truth->val ids=initial.records.filter{it.displayName in truth.expected||it.uri in truth.expected}.map{it.id}.toSet();require(ids.isNotEmpty()){ "Expected media is not indexed for query '${truth.query}': ${truth.expected}" };EvaluationCase(truth.query,ids,truth.difficulty,truth.category)}
+    data class Truth(val query:String,val expected:Set<String>,val category:String,val difficulty:String,val startMs:Long?,val endMs:Long?,val noMatch:Boolean)
+    val truths=lines.map{line->val p=line.split('\t');require(p.size==7){"Invalid evaluation export"};Truth(decode(p[0]),decode(p[1]).split('\u001f').filter(String::isNotBlank).toSet(),decode(p[2]),decode(p[3]).ifBlank{"unspecified"},p[4].toDoubleOrNull()?.times(1000)?.toLong(),p[5].toDoubleOrNull()?.times(1000)?.toLong(),p[6].toBoolean())}
+    val initial=readIndex();val expectedIds=truths.map{truth->initial.records.filter{it.displayName in truth.expected||it.uri in truth.expected}.map{it.id}.toSet().also{ids->require(truth.noMatch||ids.isNotEmpty()){ "Expected media is not indexed for query '${truth.query}': ${truth.expected}" }}}
     data class Outcome(val matches:List<SearchMatch>,val latencyMs:Double,val calls:Int=0)
     data class Strategy(val name:String,val run:(Truth)->Outcome)
     val tiny=initial.copy(records=initial.records.map{it.copy(visionUnderstanding=null,videoFrames=it.videoFrames.map{frame->frame.copy(visionUnderstanding=null)})})
@@ -285,12 +286,63 @@ private fun evaluateCommand() {
         Strategy("HYBRID + TOP-3 NEW VLM"){truth->val r=refineSearch(readIndex(),truth.query,3,0);Outcome(r.result.refined?:r.result.fast,r.latencyMs,r.result.vlmCalls)}
     )
     println("Total queries: ${truths.size}");if(truths.size<20)println("WARNING: Fewer than 20 queries; do not use these results to tune production ranking.")
-    var hybridRanked:List<List<Long>> = emptyList()
-    strategies.forEach{strategy->val cold=truths.map(strategy.run);val warm=truths.map(strategy.run);val ranked=cold.map{out->out.matches.map{it.media.id}};var metricCursor=0;val metrics=SearchEvaluationHarness.evaluate(evalCases){ranked[metricCursor++]};if(strategy.name=="HYBRID WITHOUT NEW VLM")hybridRanked=ranked
-        println("${strategy.name}: Recall@1=${f(metrics.recallAt1)} Recall@5=${f(metrics.recallAt5)} Recall@10=${f(metrics.recallAt10)} MRR=${f(metrics.mrr)} search=${f(cold.map{it.latencyMs}.average())}ms cold=${f(cold.map{it.latencyMs}.average())}ms warm=${f(warm.map{it.latencyMs}.average())}ms VLM calls/query=${f(cold.sumOf{it.calls}.toDouble()/truths.size)}")
+    var hybridOutcomes:List<Outcome> = emptyList()
+    fun summary(outcomes:List<Outcome>):Map<String,Double> {
+        val positives=truths.indices.filter{!truths[it].noMatch}
+        fun recall(k:Int)=positives.count { i -> outcomes[i].matches.take(k).any { it.media.id in expectedIds[i] } }.toDouble()/positives.size
+        val mrr=positives.sumOf { i ->
+            val rank=outcomes[i].matches.indexOfFirst { it.media.id in expectedIds[i] }
+            if(rank<0) 0.0 else 1.0/(rank+1)
+        }/positives.size
+        val negatives=truths.indices.filter{truths[it].noMatch}
+        val noMatch=if(negatives.isEmpty())Double.NaN else negatives.count { i -> !confidenceDecision(outcomes[i].matches).confident }.toDouble()/negatives.size
+        val rawCandidateRate=if(negatives.isEmpty())Double.NaN else negatives.count { i -> outcomes[i].matches.isNotEmpty() }.toDouble()/negatives.size
+        return mapOf("top1" to recall(1),"top3" to recall(3),"top5" to recall(5),"mrr" to mrr,"noMatchAccuracy" to noMatch,"falsePositiveRate" to if(noMatch.isNaN())Double.NaN else 1-noMatch,"rawNegativeCandidateRate" to rawCandidateRate,"latencyMs" to outcomes.map{it.latencyMs}.average(),"averageCandidateCount" to outcomes.map{it.matches.size}.average())
+    }
+    strategies.forEach{strategy->val cold=truths.map(strategy.run);val warm=truths.map(strategy.run);val metrics=summary(cold);if(strategy.name=="HYBRID WITHOUT NEW VLM")hybridOutcomes=cold
+        println("${strategy.name}: Top1=${f(metrics.getValue("top1"))} Top3=${f(metrics.getValue("top3"))} Top5=${f(metrics.getValue("top5"))} MRR=${f(metrics.getValue("mrr"))} no-match=${f(metrics.getValue("noMatchAccuracy"))} gated-false-positive=${f(metrics.getValue("falsePositiveRate"))} raw-negative-candidate=${f(metrics.getValue("rawNegativeCandidateRate"))} search=${f(metrics.getValue("latencyMs"))}ms candidates=${f(metrics.getValue("averageCandidateCount"))} warm=${f(warm.map{it.latencyMs}.average())}ms VLM calls/query=${f(cold.sumOf{it.calls}.toDouble()/truths.size)}")
         val timestampCases=truths.indices.filter{truths[it].startMs!=null&&truths[it].endMs!=null};if(timestampCases.isNotEmpty()){val correct=timestampCases.count{i->cold[i].matches.firstOrNull()?.bestTimestampMs?.let{it in truths[i].startMs!!..truths[i].endMs!!}==true};println("  Video timestamp accuracy: $correct/${timestampCases.size}")}
     }
-    truths.indices.groupBy{truths[it].category}.filterValues{it.size>=2}.forEach{(category,indices)->val subset=indices.map{evalCases[it]};val ranked=indices.map{hybridRanked[it]};var cursor=0;val m=SearchEvaluationHarness.evaluate(subset){ranked[cursor++]};println("CATEGORY $category (${indices.size}): Recall@1=${f(m.recallAt1)} Recall@5=${f(m.recallAt5)} Recall@10=${f(m.recallAt10)} MRR=${f(m.mrr)}")}
+    val hybridMetrics=summary(hybridOutcomes)
+    truths.indices.groupBy{truths[it].category}.filterValues{it.size>=2}.forEach { (category,indices) ->
+        val positives=indices.filter{!truths[it].noMatch}
+        if(positives.isNotEmpty()) {
+            val top1=positives.count { i -> hybridOutcomes[i].matches.take(1).any { it.media.id in expectedIds[i] } }
+            val top3=positives.count { i -> hybridOutcomes[i].matches.take(3).any { it.media.id in expectedIds[i] } }
+            val top5=positives.count { i -> hybridOutcomes[i].matches.take(5).any { it.media.id in expectedIds[i] } }
+            println("CATEGORY $category (${positives.size}): Top1=$top1/${positives.size} Top3=$top3/${positives.size} Top5=$top5/${positives.size}")
+        }
+    }
+    System.getenv("HONORABLE_EVAL_OUTPUT")?.takeIf{it.isNotBlank()}?.let{output->val perQuery=truths.indices.joinToString(",") { i->val outcome=hybridOutcomes[i];val decision=confidenceDecision(outcome.matches);val top=outcome.matches.firstOrNull();"{\"query\":${json(truths[i].query)},\"expected\":[${truths[i].expected.joinToString(","){json(it)}}],\"noMatch\":${truths[i].noMatch},\"top1\":${top?.media?.displayName?.let(::json)?:"null"},\"top3\":[${outcome.matches.take(3).joinToString(","){json(it.media.displayName)}}],\"tinyclip\":${top?.breakdown?.fullSemantic?:0.0},\"ocr\":${top?.breakdown?.ocr?:0.0},\"color\":${top?.breakdown?.colors?:0.0},\"vlm\":${top?.breakdown?.let{it.vlmCaption+it.vlmObjects+it.vlmActivities+it.vlmScenes}?:0.0},\"metadata\":${top?.breakdown?.metadata?:0.0},\"finalScore\":${top?.score?:0.0},\"confident\":${decision.confident},\"top1Margin\":${decision.margin},\"latencyMs\":${outcome.latencyMs}}"};val body="{\"schemaVersion\":1,\"mediaCount\":${initial.records.size},\"queryCount\":${truths.size},\"metrics\":{\"top1\":${hybridMetrics.getValue("top1")},\"top3\":${hybridMetrics.getValue("top3")},\"top5\":${hybridMetrics.getValue("top5")},\"mrr\":${hybridMetrics.getValue("mrr")},\"noMatchAccuracy\":${hybridMetrics.getValue("noMatchAccuracy")},\"falsePositiveRate\":${hybridMetrics.getValue("falsePositiveRate")},\"rawNegativeCandidateRate\":${hybridMetrics.getValue("rawNegativeCandidateRate")},\"averageLatencyMs\":${hybridMetrics.getValue("latencyMs")}},\"queries\":[$perQuery]}\n";Paths.get(output).toAbsolutePath().writeText(body);println("Saved evaluation: ${Paths.get(output).toAbsolutePath()}")}
+}
+
+private fun evaluateDegradedCommand() {
+    val derived=mediaRoot.resolve("eval-derived")
+    require(derived.isDirectory()){ "Generate evaluation-only variants first with generate_degraded_media.py" }
+    val helper=Paths.get("android-app/test-lab/evaluation_labels.py").toAbsolutePath()
+    val process=ProcessBuilder("python3",helper.toString(),"export").start()
+    val lines=process.inputStream.bufferedReader().readLines();require(process.waitFor()==0){process.errorStream.bufferedReader().readText()}
+    fun decode(value:String)=String(Base64.getDecoder().decode(value),UTF_8)
+    data class Truth(val query:String,val expected:String)
+    val truths=lines.mapNotNull { line->val p=line.split('\t');val expected=decode(p[1]).split('\u001f').filter(String::isNotBlank);if(p.size!=7||p[6].toBoolean()||expected.size!=1)null else Truth(decode(p[0]),expected.single()) }
+    val original=readIndex();val clip=TinyClipBridge();require(clip.active){"TinyCLIP bridge unavailable"}
+    data class Row(val variant:String,val query:String,val expected:String,val top1:Boolean,val top3:Boolean,val latencyMs:Double)
+    val rows=mutableListOf<Row>()
+    Files.list(derived).use { paths->paths.iterator().asSequence().filter{it.isRegularFile()&&it.extension.lowercase() in imageExt}.sorted().forEach { variantPath->
+        val parts=variantPath.nameWithoutExtension.split("__",limit=2);if(parts.size!=2)return@forEach
+        val source=original.records.singleOrNull{it.displayName.substringBeforeLast('.')==parts[0]}?:return@forEach
+        val embedding=clip.image(variantPath)?:return@forEach
+        val index=original.copy(records=original.records.map{if(it.id==source.id)it.copy(embedding=embedding) else it})
+        truths.filter{it.expected==source.displayName}.forEach { truth->val started=System.nanoTime();val matches=search(index,truth.query,10,clip=clip).matches;val elapsed=(System.nanoTime()-started)/1e6
+            rows+=Row(parts[1],truth.query,truth.expected,matches.firstOrNull()?.media?.id==source.id,matches.take(3).any{it.media.id==source.id},elapsed)
+        }
+    }};clip.close()
+    val variants=rows.groupBy{it.variant}.toSortedMap();variants.forEach{(variant,items)->println("DEGRADED $variant (${items.size}): Top1=${items.count{it.top1}}/${items.size} Top3=${items.count{it.top3}}/${items.size} latency=${f(items.map{it.latencyMs}.average())}ms")}
+    System.getenv("HONORABLE_DEGRADATION_OUTPUT")?.takeIf(String::isNotBlank)?.let { output->
+        val summaries=variants.entries.joinToString(","){(variant,items)->"{\"variant\":${json(variant)},\"cases\":${items.size},\"top1\":${items.count{it.top1}.toDouble()/items.size},\"top3\":${items.count{it.top3}.toDouble()/items.size},\"averageLatencyMs\":${items.map{it.latencyMs}.average()}}"}
+        val details=rows.joinToString(","){"{\"variant\":${json(it.variant)},\"query\":${json(it.query)},\"expected\":${json(it.expected)},\"top1\":${it.top1},\"top3\":${it.top3},\"latencyMs\":${it.latencyMs}}"}
+        Paths.get(output).toAbsolutePath().writeText("{\"schemaVersion\":1,\"sourceMediaCount\":${original.records.size},\"caseCount\":${rows.size},\"summaries\":[$summaries],\"cases\":[$details]}\n");println("Saved degradation evaluation: ${Paths.get(output).toAbsolutePath()}")
+    }
 }
 
 private fun serve(port:Int) {

@@ -31,6 +31,10 @@ case ${1:-} in
     shift
     exec "$script_dir/gradlew" evaluateSearch --console=plain "$@"
     ;;
+  evaluate-degraded)
+    shift
+    exec "$script_dir/gradlew" :test-lab:evaluateDegradedSearch --console=plain "$@"
+    ;;
   search)
     shift
     query=${1:?Usage: ./test-lab.sh search "description" [--debug]}
