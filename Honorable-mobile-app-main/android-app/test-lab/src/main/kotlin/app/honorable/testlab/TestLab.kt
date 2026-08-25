@@ -87,10 +87,11 @@ fun main(args: Array<String>) {
         "search" -> searchCommand(option(args, "--query") ?: error("Missing --query"), option(args, "--top")?.toIntOrNull() ?: 10,"--debug" in args,"--show-ranking" in args)
         "evaluate" -> evaluateCommand()
         "evaluate-degraded" -> evaluateDegradedCommand()
+        "video-report" -> videoReportCommand()
         "interactive" -> interactiveCommand()
         "list" -> listCommand()
         "serve" -> serve(option(args, "--port")?.toIntOrNull() ?: 4174)
-        else -> error("Use: index | enrich [--limit N] | search --query TEXT [--top N] | interactive | evaluate | evaluate-degraded | serve [--port N]")
+        else -> error("Use: index | enrich [--limit N] | search --query TEXT [--top N] | interactive | evaluate | evaluate-degraded | video-report | serve [--port N]")
     }
 }
 
@@ -258,11 +259,12 @@ private fun searchCommand(raw: String, top: Int,debug:Boolean=false,showRanking:
     val result=TimedSearch(QueryParser().parse(raw),(progressive.refined?:progressive.fast).take(top),0.0,0.0);println("SEMANTIC MODEL: ${if(result.matches.any{it.media.embedding!=null})"ACTIVE" else "UNAVAILABLE"}")
     val decision=confidenceDecision(result.query,result.matches);println("\nQUERY:\n$raw")
     if(!showRanking&&!debug){val best=result.matches.firstOrNull();if(decision.confident&&best!=null)println("\nBEST MATCH:\n${best.media.displayName}\n\nConfidence: HIGH\nWhy: ${best.explanations.firstOrNull()?:"strong visual semantic match"}")else println("\nNO CONFIDENT MATCH${best?.let{"\n\nBest candidate:\n${it.media.displayName}"}.orEmpty()}\n\nConfidence: LOW")}
-    else {println("\nRank\tFilename\tFinal\tTinyCLIP\tVLM caption\tVLM object\tVLM activity\tVLM scene/color\tOCR\tColor\tTop1 margin\tDecision");result.matches.forEachIndexed { i,m -> println("${i+1}\t${m.media.displayName}\t${f(m.score)}\t${f(m.breakdown.fullSemantic)}\t${f(m.breakdown.vlmCaption)}\t${f(m.breakdown.vlmObjects)}\t${f(m.breakdown.vlmActivities)}\t${f(m.breakdown.vlmScenes)}\t${f(m.breakdown.ocr)}\t${f(m.breakdown.colors)}\t${if(i==0)f(decision.margin) else "-"}\t${if(i==0)if(decision.confident)"CONFIDENT" else "NOT CONFIDENT: ${decision.reason}" else "candidate"}") }}
+    else {println("\nRank\tFilename\tFinal\tTinyCLIP\tVLM caption\tVLM object\tVLM activity\tVLM scene/color\tOCR\tColor\tTimestamp\tTop1 margin\tDecision");result.matches.forEachIndexed { i,m -> println("${i+1}\t${m.media.displayName}\t${f(m.score)}\t${f(m.breakdown.fullSemantic)}\t${f(m.breakdown.vlmCaption)}\t${f(m.breakdown.vlmObjects)}\t${f(m.breakdown.vlmActivities)}\t${f(m.breakdown.vlmScenes)}\t${f(m.breakdown.ocr)}\t${f(m.breakdown.colors)}\t${m.bestTimestampMs?:"-"}\t${if(i==0)f(decision.margin) else "-"}\t${if(i==0)if(decision.confident)"CONFIDENT" else "NOT CONFIDENT: ${decision.reason}" else "candidate"}") }}
     if(debug)println("Filename evidence: DISABLED\nQuery concepts: ${result.query.semanticConcepts}\nMIN_CONFIDENCE=${System.getenv("MEMORIES_MIN_CONFIDENCE")?:"0.30"}\nMIN_TOP1_MARGIN=${System.getenv("MEMORIES_MIN_TOP1_MARGIN")?:"0.03"}")
     println("VLM calls: ${progressive.vlmCalls}; top-N cap: $cap; budget exhausted: ${progressive.budgetExhausted}")
 }
 private fun listCommand(){val indexed=runCatching{readIndex().records.mapTo(mutableSetOf()){it.uri}}.getOrDefault(emptySet());println("Filename | Type | Format | Supported | Indexed | Reason");DirectoryMediaSource(mediaRoot).inspect().forEach{e->println("${e.relative} | ${e.kind?.name?:"-"} | ${e.format.uppercase()} | ${if(e.supported)"YES" else "NO"} | ${if(e.relative in indexed)"YES" else "NO"} | ${e.reason?:"-"}")}}
+private fun videoReportCommand(){readIndex().records.filter{it.kind==MediaKind.VIDEO}.forEach{record->println("VIDEO ${record.uri} durationMs=${record.durationMs} frames=${record.videoFrames.size} embedding=${record.embedding?.size?:0}");record.videoFrames.forEach{frame->println("  timestampMs=${frame.timestampMs} embedding=${frame.embedding?.size?:0} ocr=${json(frame.ocr.trim().replace(Regex("\\s+")," ").take(160))} colors=${frame.dominantColors} vlm=${frame.visionUnderstanding?.modelId?:"NONE"}")}}}
 private fun interactiveCommand(){val index=readIndex();val clip=if(TinyClipBridge.available())TinyClipBridge()else null;println("Honorable Memories AI Test\nSEMANTIC MODEL: ${if(clip?.active==true)"ACTIVE" else "UNAVAILABLE"}\nType a description, or 'quit'.");while(true){print("\nSearch description:\n> ");System.out.flush();val q=readlnOrNull()?.trim()?:break;if(q.equals("quit",true)||q.equals("exit",true))break;if(q.isNotEmpty()){val r=search(index,q,10,clip=clip);println("Rank\tFilename\tType\tFinal\tSemantic\tOCR\tColor\tLabel\tTimestamp\tMatch");r.matches.forEachIndexed{i,m->println("${i+1}\t${m.media.displayName}\t${m.media.kind}\t${f(m.score)}\t${f(m.breakdown.fullSemantic)}\t${f(m.breakdown.ocr)}\t${f(m.breakdown.colors)}\t${f(m.breakdown.labels)}\t${m.bestTimestampMs?.let(::timestamp)?:"-"}\t${m.explanations.joinToString("; ")}")}}};clip?.close()}
 private fun f(v:Double)="%.3f".format(v)
 private fun timestamp(ms:Long)="%02d:%02d".format(ms/60000,(ms/1000)%60)
@@ -302,7 +304,7 @@ private fun evaluateCommand() {
     }
     strategies.forEach{strategy->val cold=truths.map(strategy.run);val warm=truths.map(strategy.run);val metrics=summary(cold);if(strategy.name=="HYBRID WITHOUT NEW VLM")hybridOutcomes=cold
         println("${strategy.name}: Top1=${f(metrics.getValue("top1"))} confident-Top1=${f(metrics.getValue("confidentTop1"))} Top3=${f(metrics.getValue("top3"))} Top5=${f(metrics.getValue("top5"))} MRR=${f(metrics.getValue("mrr"))} no-match=${f(metrics.getValue("noMatchAccuracy"))} gated-false-positive=${f(metrics.getValue("falsePositiveRate"))} raw-negative-candidate=${f(metrics.getValue("rawNegativeCandidateRate"))} search=${f(metrics.getValue("latencyMs"))}ms candidates=${f(metrics.getValue("averageCandidateCount"))} warm=${f(warm.map{it.latencyMs}.average())}ms VLM calls/query=${f(cold.sumOf{it.calls}.toDouble()/truths.size)}")
-        val timestampCases=truths.indices.filter{truths[it].startMs!=null&&truths[it].endMs!=null};if(timestampCases.isNotEmpty()){val correct=timestampCases.count{i->cold[i].matches.firstOrNull()?.bestTimestampMs?.let{it in truths[i].startMs!!..truths[i].endMs!!}==true};println("  Video timestamp accuracy: $correct/${timestampCases.size}")}
+        val timestampCases=truths.indices.filter{truths[it].startMs!=null&&truths[it].endMs!=null};if(timestampCases.isNotEmpty()){val correct=timestampCases.count{i->cold[i].matches.firstOrNull()?.let{match->match.media.id in expectedIds[i]&&match.bestTimestampMs?.let{it in truths[i].startMs!!..truths[i].endMs!!}==true}==true};println("  Exact video+timestamp accuracy: $correct/${timestampCases.size}")}
     }
     val hybridMetrics=summary(hybridOutcomes)
     truths.indices.groupBy{truths[it].category}.filterValues{it.size>=2}.forEach { (category,indices) ->
