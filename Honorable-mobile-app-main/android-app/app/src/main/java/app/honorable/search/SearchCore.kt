@@ -104,6 +104,12 @@ fun confidenceDecision(matches:List<SearchMatch>,minConfidence:Double=.30,minMar
     return ConfidenceDecision(matches.isNotEmpty()&&best>=minConfidence&&margin>=minMargin,best,margin,reason)
 }
 
+/** Short visual phrases naturally have tighter CLIP margins; retain a hard floor for unrelated media. */
+fun confidenceDecision(query:SearchQuery,matches:List<SearchMatch>):ConfidenceDecision {
+    val conciseVisual=query.terms.size in 1..3&&query.mediaSubtype!=MediaSubtype.SCREENSHOT&&query.ocrTerms.isEmpty()&&query.afterEpochMs==null&&query.beforeEpochMs==null
+    return confidenceDecision(matches,if(conciseVisual).28 else .30,if(conciseVisual).005 else .03)
+}
+
 interface EmbeddingService { val modelId: String; val dimension: Int; fun image(bytes: ByteArray): FloatArray?; fun text(query: String): FloatArray? }
 interface OCRService { fun recognize(bytes: ByteArray): String }
 interface VideoAnalysisService { fun representativeFrames(uri: String, cancellation: () -> Boolean): Sequence<VideoFrame> }

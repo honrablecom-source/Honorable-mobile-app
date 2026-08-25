@@ -45,7 +45,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
         val records=database.records().filter{it.kind!=MediaKind.VIDEO||policy.allows(HonorableFeature.VIDEO_SEARCH)};val vectors=LocalVectorIndex().also { index -> records.forEach { record -> record.embedding?.let { index.upsert(record.id,it) } } }
         val encoded=SemanticQueryEncoder(embeddings).encode(query)
         val ordered=HybridSearchEngine(vectors).search(query,records.associateBy{it.id},encoded)
-        val decision=confidenceDecision(ordered);val visible=if(decision.confident&&!cancelled.get())ordered else emptyList()
+        val decision=confidenceDecision(query,ordered);val visible=if(decision.confident&&!cancelled.get())ordered else emptyList()
         Arguments.createMap().apply { putBoolean("confident",decision.confident);putString("decision",decision.reason);putDouble("semantic",decision.semantic);putDouble("margin",decision.margin);putArray("results",Arguments.createArray().apply { visible.forEachIndexed { rank,match -> pushMap(resultMap(rank,match,policy.allows(HonorableFeature.EXACT_VIDEO_MOMENT))) } }) }
     } }
 

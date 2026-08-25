@@ -52,6 +52,12 @@ class SearchCoreTest {
     @Test fun `weak result exposes weak confidence`() { val match=SearchRanker().rank(SearchQuery(listOf("car")),listOf(MediaRecord(1,MediaKind.IMAGE,0,labels=setOf("car")))).single();assertEquals(MatchConfidence.WEAK,match.confidence) }
     @Test fun `strong hybrid result exposes score breakdown`() { val q=parser.parse("Air Canada flight screenshot");val media=MediaRecord(1,MediaKind.IMAGE,0,ocr="Air Canada flight confirmation",labels=setOf("flight"),isScreenshot=true);val match=SearchRanker().rank(q,listOf(media)).single();assertEquals(MatchConfidence.STRONG,match.confidence);assertTrue(match.breakdown.ocr>0);assertTrue(SearchDebugTool.report(q,match).contains("final=")) }
     @Test fun `semantic query encoder caches full and concept text inference`() { val fake=CountingEmbeddings();val q=SearchQuery(listOf("car"),raw="red car snow",semanticConcepts=listOf("red car","snow"));val encoder=SemanticQueryEncoder(fake);encoder.encode(q);encoder.encode(q);assertEquals(3,fake.calls) }
+    @Test fun `short visual confidence accepts a tight relevant margin but rejects weak semantics`() {
+        val query=parser.parse("snowy forest")
+        val relevant=listOf(SearchMatch(MediaRecord(1,MediaKind.IMAGE,0),1.0,emptyList(),breakdown=ScoreBreakdown(fullSemantic=.292)),SearchMatch(MediaRecord(2,MediaKind.IMAGE,0),.9,emptyList(),breakdown=ScoreBreakdown(fullSemantic=.273)))
+        val unrelated=listOf(SearchMatch(MediaRecord(3,MediaKind.IMAGE,0),1.0,emptyList(),breakdown=ScoreBreakdown(fullSemantic=.223)))
+        assertTrue(confidenceDecision(query,relevant).confident);assertFalse(confidenceDecision(query,unrelated).confident)
+    }
     @Test fun `embedding failure preserves non-semantic fallback`() { val failed=SemanticQueryEncoder(FailingEmbeddings()).encode(parser.parse("red car"));assertNull(failed.fullQuery);val media=MediaRecord(1,MediaKind.IMAGE,0,labels=setOf("red car"));assertEquals(1L,SearchRanker().rank(parser.parse("red car"),listOf(media),failed.fullQuery,failed.concepts).single().media.id) }
     @Test fun `index compatibility detects preprocessing change`() { val current=IndexCompatibility();assertTrue(current.compatibleWith(current.copy()));assertFalse(current.compatibleWith(current.copy(preprocessingVersion="old")));assertEquals(5,current.schemaVersion) }
     @Test fun `vector index returns nearest normalized vector`() { val index=LocalVectorIndex();index.upsert(1,floatArrayOf(1f,0f));index.upsert(2,floatArrayOf(0f,1f));assertEquals(1L,index.nearest(floatArrayOf(.9f,.1f),1).single().first) }

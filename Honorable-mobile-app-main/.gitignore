@@ -35,5 +35,6 @@ local.properties
 !/test-media/README.md
 !/test-media/evaluation.example.json
 !/test-media/evaluation.json
+!/test-media/evaluation-short.json
 /android-app/.kotlin/
 /android-app/test-lab/models/

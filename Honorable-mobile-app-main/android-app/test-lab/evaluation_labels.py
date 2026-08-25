@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import json, sys
+import json, os, sys
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]/"test-media"
-DATA=ROOT/"evaluation.json"
+DATA=ROOT/os.environ.get("HONORABLE_EVAL_LABELS","evaluation.json")
 CATEGORIES={"object","scene","color","object+color","activity","person-attribute","sports","animals","food","vehicle","weather","indoor/outdoor","OCR","document","multi-concept","video","video+activity","person+color+scene","no-match"}
 DIFFICULTIES={"easy","medium","hard"}
 

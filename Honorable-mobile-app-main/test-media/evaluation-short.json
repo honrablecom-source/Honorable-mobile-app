@@ -1,0 +1,23 @@
+[
+  {"query":"steam train","expected":["jack-anstey-XVoyX7l9ocY-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"red train","expected":["jack-anstey-XVoyX7l9ocY-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"stone viaduct","expected":["jack-anstey-XVoyX7l9ocY-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"snowy night","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"icy canyon","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"lone person","expected":["jonatan-pie-3l3RwQdHRHg-unsplash.jpg"],"category":"short-query","difficulty":"hard"},
+  {"query":"mountain valley","expected":["kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"snowy forest","expected":["kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"distant glacier","expected":["kalen-emsley-Bkci_8qcdvQ-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"black beach","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"mountain reflection","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"purple dusk","expected":["luca-micheli-ruWkmt3nU58-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"red sunset","expected":["mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"speedboat wake","expected":["mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"forested shore","expected":["mado-el-khouly-MA8YoAoKpfY-unsplash.jpg"],"category":"short-query","difficulty":"hard"},
+  {"query":"white flowers","expected":["mink-mingle-96JD67agngE-unsplash.jpg"],"category":"short-query","difficulty":"easy"},
+  {"query":"blue sky blossoms","expected":["mink-mingle-96JD67agngE-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"flower stems","expected":["mink-mingle-96JD67agngE-unsplash.jpg"],"category":"short-query","difficulty":"medium"},
+  {"query":"birthday cake","expected":[],"category":"no-match","difficulty":"medium","no_match":true},
+  {"query":"tennis dog","expected":[],"category":"no-match","difficulty":"hard","no_match":true},
+  {"query":"flight screenshot","expected":[],"category":"no-match","difficulty":"hard","no_match":true}
+]
