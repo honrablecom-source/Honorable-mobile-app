@@ -1,0 +1,13 @@
+.novellens-character {
+  color: #3b82f6 !important;
+  border-bottom: 1px dotted currentColor !important;
+  cursor: pointer !important;
+  background: color-mix(in srgb, #3b82f6 8%, transparent) !important;
+  border-radius: 2px;
+}
+
+.novellens-character:hover,
+.novellens-character:focus {
+  color: #2563eb !important;
+  background: color-mix(in srgb, #3b82f6 18%, transparent) !important;
+}

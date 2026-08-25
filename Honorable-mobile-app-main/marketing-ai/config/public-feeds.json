@@ -1,0 +1,51 @@
+[
+  {
+    "name": "Ask Different — photos",
+    "platform": "FORUM",
+    "url": "https://apple.stackexchange.com/feeds/tag?tagnames=photos&sort=newest",
+    "topic": "photos",
+    "enabled": true
+  },
+  {
+    "name": "Android Enthusiasts — google-photos",
+    "platform": "FORUM",
+    "url": "https://android.stackexchange.com/feeds/tag?tagnames=google-photos&sort=newest",
+    "topic": "google-photos",
+    "enabled": true
+  },
+  {
+    "name": "Android Enthusiasts — photos",
+    "platform": "FORUM",
+    "url": "https://android.stackexchange.com/feeds/tag?tagnames=photos&sort=newest",
+    "topic": "photos",
+    "enabled": true
+  },
+  {
+    "name": "Super User — file-management",
+    "platform": "FORUM",
+    "url": "https://superuser.com/feeds/tag?tagnames=file-management&sort=newest",
+    "topic": "file-management",
+    "enabled": true
+  },
+  {
+    "name": "Photography Stack Exchange — photo-management",
+    "platform": "FORUM",
+    "url": "https://photo.stackexchange.com/feeds/tag?tagnames=photo-management&sort=newest",
+    "topic": "photo-management",
+    "enabled": true
+  },
+  {
+    "name": "Duplicati Support",
+    "platform": "FORUM",
+    "url": "https://forum.duplicati.com/c/support/5.rss",
+    "topic": "backup",
+    "enabled": true
+  },
+  {
+    "name": "rclone Help and Support",
+    "platform": "FORUM",
+    "url": "https://forum.rclone.org/c/help-and-support/6.rss",
+    "topic": "backup file-management",
+    "enabled": true
+  }
+]

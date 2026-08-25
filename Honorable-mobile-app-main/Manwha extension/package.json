@@ -1,0 +1,17 @@
+{
+  "name": "novellens-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dedupe:neon": "node scripts/dedupe-neon.js",
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check-extension.js",
+    "sync:neon": "node scripts/sync-neon.js",
+    "expand:characters": "node scripts/expand-neon-characters.js",
+    "sync:catalogs": "node scripts/sync-more-catalogs.js"
+  },
+  "devDependencies": {
+    "pg": "^8.16.3"
+  }
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "query": "red car in snow",
+    "expected": ["car_snow.jpg"],
+    "category": "color + object"
+  },
+  {
+    "query": "person dancing",
+    "expected": ["dance.mp4"],
+    "category": "video",
+    "expected_timestamp_ms": 42000,
+    "timestamp_tolerance_ms": 3000
+  }
+]

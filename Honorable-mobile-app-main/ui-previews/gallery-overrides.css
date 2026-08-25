@@ -1,0 +1,39 @@
+/* Small browser and input-mode refinements for the review shell. */
+dialog:not([open]) { display: none; }
+
+@supports not (backdrop-filter: blur(1px)) {
+  .review-state,
+  .hero-sculpture > span,
+  .viewer-shell { background: #191d36; }
+
+  dialog::backdrop { background: rgba(7, 8, 19, .94); }
+}
+
+@media (hover: none) {
+  .card:hover {
+    transform: none;
+    border-color: var(--stroke);
+    box-shadow: 0 17px 38px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255, 255, 255, .1);
+  }
+}
+
+@media (forced-colors: active) {
+  .card,
+  .preview-section,
+  .hero-layout { border: 2px solid CanvasText; }
+
+  .card:focus-visible { outline: 3px solid Highlight; }
+}
+
+/* Disciplined shared geometry keeps the review shell quieter than the expressive phone art. */
+.hero-layout { border-radius: 64px; }
+.preview-section,
+.preview-section:nth-child(even) { border-radius: 48px; }
+.card,
+.card:nth-child(even),
+.card:nth-child(3n) { border-radius: 36px; }
+.preview-frame { border-radius: 30px; }
+.preview-frame img { border-radius: 24px; }
+dialog { border-radius: 48px; }
+.viewer-canvas { border-radius: 36px; }
+.viewer-canvas img { border-radius: 30px; }

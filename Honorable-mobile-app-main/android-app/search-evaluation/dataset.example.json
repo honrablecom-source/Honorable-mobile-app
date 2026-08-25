@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "query": "video of tennis outside",
+      "expectedMediaIds": [1001],
+      "filters": { "mediaType": "VIDEO" },
+      "difficulty": "hard",
+      "category": "multi-concept"
+    },
+    {
+      "query": "screenshot showing Air Canada flight",
+      "expectedMediaIds": [1002],
+      "filters": { "mediaType": "IMAGE", "subtype": "SCREENSHOT" },
+      "difficulty": "medium",
+      "category": "OCR"
+    }
+  ]
+}

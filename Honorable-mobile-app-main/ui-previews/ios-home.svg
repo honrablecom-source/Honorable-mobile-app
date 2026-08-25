@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="936" viewBox="0 0 432 936" role="img" aria-labelledby="title desc">
+  <title id="title">Honorable iOS Home preview</title>
+  <desc id="desc">Source-derived preview of the current SwiftUI HomeView.</desc>
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f8f8fb"/><stop offset="1" stop-color="#eef0f7"/></linearGradient>
+    <linearGradient id="indigo" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7775f2"/><stop offset="1" stop-color="#4d38c7"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="13" flood-color="#30304b" flood-opacity=".12"/></filter>
+  </defs>
+  <rect width="432" height="936" rx="54" fill="url(#wall)"/>
+  <rect x="151" y="12" width="130" height="34" rx="18" fill="#050508"/>
+  <text x="30" y="34" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="15" font-weight="700" fill="#111118">9:41</text>
+  <g fill="#111118"><circle cx="354" cy="29" r="4"/><path d="M367 33v-8h3v8zm5 0V22h3v11zm5 0V19h3v14z"/><rect x="387" y="22" width="21" height="11" rx="3" fill="none" stroke="#111118" stroke-width="2"/><rect x="409" y="25" width="2" height="5" rx="1"/></g>
+  <text x="24" y="104" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="38" font-weight="750" letter-spacing="-.9" fill="#111118">Honorable</text>
+  <text x="24" y="154" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="17" fill="#6e6e78">Private intelligence, on your device</text>
+  <g filter="url(#shadow)">
+    <rect x="24" y="184" width="384" height="142" rx="28" fill="#ffffff" fill-opacity=".78" stroke="#ffffff"/>
+    <circle cx="78" cy="255" r="28" fill="url(#indigo)"/>
+    <g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="66" y="245" width="21" height="17" rx="3"/><path d="m68 258 6-6 5 5 3-3 4 4"/><path d="M72 241h19a3 3 0 0 1 3 3v15"/></g>
+    <text x="124" y="245" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="23" font-weight="700" fill="#17171d">Memories AI</text>
+    <text x="124" y="274" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16" fill="#70707a">Find a moment using</text><text x="124" y="296" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16" fill="#70707a">ordinary words.</text>
+    <path d="m382 250 7 7-7 7" fill="none" stroke="#aaaab2" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="24" y="346" width="384" height="142" rx="28" fill="#ffffff" fill-opacity=".78" stroke="#ffffff"/>
+    <circle cx="78" cy="417" r="28" fill="url(#indigo)"/>
+    <g fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"><path d="M67 402h17l5 5v22H67z"/><path d="M84 402v6h6M72 414h12M72 420h9"/><circle cx="88" cy="425" r="5"/><path d="m92 429 5 5"/></g>
+    <text x="124" y="407" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="23" font-weight="700" fill="#17171d">Terms AI</text>
+    <text x="124" y="436" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16" fill="#70707a">Understand the fine print</text><text x="124" y="458" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16" fill="#70707a">before you agree.</text>
+    <path d="m382 412 7 7-7 7" fill="none" stroke="#aaaab2" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(25 535)" fill="none" stroke="#565660" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 22 6v8c0 7-4 11-10 14C6 25 2 21 2 14V6z"/><rect x="8" y="12" width="8" height="7" rx="2"/><path d="M10 12V9a2 2 0 0 1 4 0v3"/></g>
+  <text x="59" y="557" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" fill="#5e5e68">Local processing • Nothing uploaded</text>
+  <rect x="153" y="914" width="126" height="5" rx="3" fill="#111118"/>
+</svg>

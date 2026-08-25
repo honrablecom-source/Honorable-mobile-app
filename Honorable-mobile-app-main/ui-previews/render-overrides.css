@@ -1,0 +1,70 @@
+/* The SwiftUI capture is a source preview, not part of the Android redesign. */
+#phone[data-screen="ios-01-home"] .screen {
+  padding: 0;
+  background: #f8f6f1;
+}
+
+#phone[data-screen="ios-01-home"] {
+  background: #f5fbff;
+  color: #082a43;
+}
+
+#phone[data-screen="ios-01-home"]::after {
+  inset: 0;
+  z-index: 20;
+  border: 0;
+  opacity: .12;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.17'/%3E%3C/svg%3E");
+}
+
+#phone[data-screen="ios-01-home"] .statusbar {
+  z-index: 30;
+  height: 38px;
+  padding: 13px 18px 0;
+  color: currentColor;
+  font: 600 11px/1 "DM Mono", monospace;
+  letter-spacing: .02em;
+}
+
+#phone[data-screen="ios-01-home"] .gesture {
+  z-index: 40;
+  bottom: 6px;
+  width: 108px;
+  height: 3px;
+  color: currentColor;
+  opacity: .48;
+}
+
+#phone[data-screen="ios-01-home"] .ios-source-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Shared Android geometry: strict where structure matters, expressive in the circular accents. */
+#phone:not([data-screen="ios-01-home"]) .home-hero { border-radius: 48px; }
+#phone:not([data-screen="ios-01-home"]) .feature-card,
+#phone:not([data-screen="ios-01-home"]) .feature-card.terms-card { border-radius: 32px; }
+#phone:not([data-screen="ios-01-home"]) .memory-card,
+#phone:not([data-screen="ios-01-home"]) .memory-card.lilac,
+#phone:not([data-screen="ios-01-home"]) .memory-card.blush { border-radius: 30px; }
+#phone:not([data-screen="ios-01-home"]) .hero-result { border-radius: 42px; }
+#phone:not([data-screen="ios-01-home"]) .viewer-sheet { border-radius: 48px 48px 0 0; }
+#phone:not([data-screen="ios-01-home"]) .terms-hero { border-radius: 48px; }
+#phone:not([data-screen="ios-01-home"]) .import-bubbles > div,
+#phone:not([data-screen="ios-01-home"]) .import-bubbles > div:nth-child(2),
+#phone:not([data-screen="ios-01-home"]) .import-bubbles > div:nth-child(3) { border-radius: 32px; }
+#phone:not([data-screen="ios-01-home"]) .risk-card { border-radius: 36px; }
+#phone:not([data-screen="ios-01-home"]) .summary-card,
+#phone:not([data-screen="ios-01-home"]) .activity-row,
+#phone:not([data-screen="ios-01-home"]) .activity-row:nth-child(even) { border-radius: 30px; }
+#phone:not([data-screen="ios-01-home"]) .plus-card { border-radius: 36px; }
+#phone:not([data-screen="ios-01-home"]) .setting-group { border-radius: 28px; }
+#phone:not([data-screen="ios-01-home"]) .promise-grid > div,
+#phone:not([data-screen="ios-01-home"]) .promise-grid > div:nth-child(even) { border-radius: 28px; }
+#phone:not([data-screen="ios-01-home"]) .plan-bubbles > div,
+#phone:not([data-screen="ios-01-home"]) .plan-bubbles > div.selected { border-radius: 32px; }
+#phone:not([data-screen="ios-01-home"]) .progress-card { border-radius: 30px; }
+#phone:not([data-screen="ios-01-home"]) .safe-note { border-radius: 26px; }

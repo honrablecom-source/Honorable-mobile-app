@@ -1,0 +1,19 @@
+name: iOS compile check
+on:
+  workflow_dispatch:
+  push:
+    paths: ["ios-app/**", ".github/workflows/ios-compile.yml"]
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: macos-15
+    defaults: {run: {working-directory: ios-app}}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Compile without signing
+        run: xcodebuild -project Honorable.xcodeproj -scheme Honorable -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO build

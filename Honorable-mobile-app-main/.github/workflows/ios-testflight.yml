@@ -1,0 +1,53 @@
+name: iOS TestFlight (credential-gated)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive:
+    if: ${{ vars.ENABLE_TESTFLIGHT == 'true' }}
+    runs-on: macos-15
+    defaults: {run: {working-directory: ios-app}}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Validate required secret names
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_B64: ${{ secrets.ASC_API_KEY_B64 }}
+          IOS_CERTIFICATE_P12_B64: ${{ secrets.IOS_CERTIFICATE_P12_B64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+        run: |
+          test -n "$ASC_KEY_ID" && test -n "$ASC_ISSUER_ID" && test -n "$ASC_API_KEY_B64"
+          test -n "$IOS_CERTIFICATE_P12_B64" && test -n "$IOS_CERTIFICATE_PASSWORD" && test -n "$IOS_PROVISIONING_PROFILE_B64"
+      - name: Import signing material
+        env:
+          P12: ${{ secrets.IOS_CERTIFICATE_P12_B64 }}
+          P12_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/honorable.keychain-db"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          echo "$PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          security create-keychain -p temporary "$KEYCHAIN"
+          security unlock-keychain -p temporary "$KEYCHAIN"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/"
+      - name: Archive and upload (requires repository-specific signing settings)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_B64: ${{ secrets.ASC_API_KEY_B64 }}
+        run: |
+          test -f ExportOptions.plist
+          echo "$ASC_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          xcodebuild -project Honorable.xcodeproj -scheme Honorable -configuration Release -archivePath "$RUNNER_TEMP/Honorable.xcarchive" archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Honorable.xcarchive" -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export"
+          xcrun altool --upload-app -f "$RUNNER_TEMP/export/Honorable.ipa" --type ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"

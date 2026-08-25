@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Honorable — UI Review</title>
+  <link rel="stylesheet" href="gallery.css">
+  <link rel="stylesheet" href="gallery-overrides.css">
+</head>
+<body>
+  <div class="ambient-bubbles" aria-hidden="true">
+    <i></i><i></i><i></i><i></i><i></i>
+  </div>
+
+  <header class="gallery-hero">
+    <div class="hero-bar">
+      <div class="brand-lockup">
+        <span class="brand-bubble">h</span>
+        <span><b>Honorable</b><small>Platform UI review</small></span>
+      </div>
+      <span class="review-state"><i></i> Review space is live</span>
+    </div>
+
+    <div class="hero-layout">
+      <div class="hero-copy">
+        <p class="kicker"><span></span> Native product previews</p>
+        <h1>Every screen.<br><em>One feeling.</em></h1>
+        <p class="hero-description">A focused view of the Honorable experience across Android and iOS. Open any screen to inspect the full phone canvas.</p>
+        <div class="legend" aria-label="Preview status and platforms">
+          <span class="implemented">✓ Implemented</span>
+          <span class="screen-count">19 Android screens</span>
+          <span class="android">Android · Compose</span>
+          <span class="ios">iOS · SwiftUI</span>
+        </div>
+      </div>
+
+      <div class="hero-sculpture" aria-hidden="true">
+        <i class="sculpture-main">h</i>
+        <i class="sculpture-cyan">◉</i>
+        <i class="sculpture-mint">✓</i>
+        <i class="sculpture-blush"></i>
+        <span>Private by design</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="gallery" aria-label="Honorable platform previews"></main>
+
+  <dialog id="viewer">
+    <div class="viewer-shell">
+      <div class="viewer-bar">
+        <div>
+          <p>Full-screen preview</p>
+          <h2></h2>
+          <small></small>
+        </div>
+        <button type="button" aria-label="Close preview">×</button>
+      </div>
+      <div class="viewer-canvas"><img alt="Expanded UI preview"></div>
+    </div>
+  </dialog>
+
+  <script src="preview-data.js"></script>
+  <script>
+    const order = ['iOS · SwiftUI', 'Core', 'Memories AI', 'Terms AI', 'Trust & plans', 'System states', 'Dark mode'];
+    const gallery = document.querySelector('#gallery');
+    const dialog = document.querySelector('#viewer');
+    const slug = value => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    for (const group of order) {
+      const items = PREVIEWS.filter(item => item.group === group);
+      if (!items.length) continue;
+
+      const isIOS = group === 'iOS · SwiftUI';
+      const section = document.createElement('section');
+      section.className = `preview-section ${isIOS ? 'ios-group' : 'android-group'} group-${slug(group)}`;
+      section.innerHTML = `
+        <div class="section-heading">
+          <div>
+            <p>${isIOS ? 'Apple platform' : 'Android experience'}</p>
+            <h2>${group}</h2>
+          </div>
+          <span>${items.length} ${items.length === 1 ? 'screen' : 'screens'}</span>
+        </div>
+        <div class="grid"></div>`;
+
+      const grid = section.querySelector('.grid');
+      for (const item of items) {
+        const source = isIOS ? 'SWIFTUI IS SOURCE OF TRUTH' : 'ANDROID COMPOSE IS SOURCE OF TRUTH';
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `card ${isIOS ? 'ios-card' : 'android-card'}`;
+        card.dataset.file = item.file;
+        card.dataset.name = item.name;
+        card.dataset.source = `DEVELOPMENT RECREATION · ${source}`;
+        card.setAttribute('aria-label', `Open ${item.name} preview`);
+        card.innerHTML = `
+          <span class="preview-frame"><img src="${item.file}" alt="${item.name} preview" loading="lazy"></span>
+          <span class="meta">
+            <span class="meta-title"><b>${item.name}</b><em class="${item.status.toLowerCase()}">${item.status}</em></span>
+            <small>${source}</small>
+          </span>`;
+        grid.append(card);
+      }
+
+      gallery.append(section);
+    }
+
+    gallery.addEventListener('click', event => {
+      const card = event.target.closest('.card');
+      if (!card) return;
+      dialog.querySelector('h2').textContent = card.dataset.name;
+      dialog.querySelector('small').textContent = card.dataset.source;
+      dialog.querySelector('img').src = card.dataset.file;
+      dialog.querySelector('img').alt = `${card.dataset.name} expanded preview`;
+      dialog.showModal();
+    });
+
+    dialog.querySelector('button').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close();
+    });
+  </script>
+</body>
+</html>

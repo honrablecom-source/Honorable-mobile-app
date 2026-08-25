@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "NovelLens",
+  "version": "1.0.0",
+  "description": "Recognizes web novels, highlights characters locally, and shows cached wiki details.",
+  "permissions": ["storage", "sidePanel"],
+  "host_permissions": ["<all_urls>", "https://*.fandom.com/*"],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Open NovelLens"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": [
+        "src/registry/novels.js",
+        "src/detection/novel-detector.js",
+        "src/sites/generic.js",
+        "src/matching/matcher.js",
+        "src/unadded/name-collector.js",
+        "src/content/content-script.js"
+      ],
+      "css": ["src/content/highlights.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src https: data:"
+  }
+}

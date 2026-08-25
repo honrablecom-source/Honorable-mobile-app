@@ -1,0 +1,7 @@
+.env
+data/*.json
+!data/.gitkeep
+coverage/
+node_modules/
+searxng/.env
+searxng/cache/

@@ -1,0 +1,3 @@
+const form=document.querySelector('#unsubscribe-form');
+const token=new URLSearchParams(location.search).get('token');if(token)form.elements.token.value=token;
+form.addEventListener('submit',async event=>{event.preventDefault();const message=form.querySelector('.form-message');try{const response=await fetch('/api/unsubscribe',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:form.elements.token.value})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Link not found');message.textContent=result.message;}catch(error){message.textContent=error.message;}});

@@ -1,0 +1,22 @@
+const PREVIEWS = [
+  ['ios-01-home','iOS Home','iOS · SwiftUI','IMPLEMENTED'],
+  ['01-home','Home','Core','IMPLEMENTED'],
+  ['02-memories','Memories','Memories AI','IMPLEMENTED'],
+  ['03-search-focus','Search focus','Memories AI','IMPLEMENTED'],
+  ['04-ai-searching','AI searching','Memories AI','IMPLEMENTED'],
+  ['05-search-results','Search results','Memories AI','IMPLEMENTED'],
+  ['06-video-results','Video results','Memories AI','IMPLEMENTED'],
+  ['07-media-viewer','Media viewer','Memories AI','IMPLEMENTED'],
+  ['08-terms-ai','Terms AI','Terms AI','IMPLEMENTED'],
+  ['09-terms-result','Terms result','Terms AI','IMPLEMENTED'],
+  ['10-activity','Activity','Core','IMPLEMENTED'],
+  ['11-settings','Settings','Core','IMPLEMENTED'],
+  ['12-privacy','Privacy','Trust & plans','IMPLEMENTED'],
+  ['13-honorable-plus','Honorable Plus','Trust & plans','IMPLEMENTED'],
+  ['14-indexing','Indexing','System states','IMPLEMENTED'],
+  ['15-empty-search','Empty search','System states','IMPLEMENTED'],
+  ['16-dark-home','Dark Home','Dark mode','IMPLEMENTED'],
+  ['17-dark-memories','Dark Memories','Dark mode','IMPLEMENTED'],
+  ['18-dark-terms-ai','Dark Terms AI','Dark mode','IMPLEMENTED'],
+  ['19-error-state','Safe error state','System states','IMPLEMENTED']
+].map(([id,name,group,status])=>({id,name,group,status,file:`${id}.png`,theme:id.startsWith('16-')||id.startsWith('17-')||id.startsWith('18-')?'dark':'light'}));

@@ -1,0 +1,21 @@
+HONORABLE BUILD STATUS
+
+Android (validated 2026-08-13): Gradle 8.9 wrapper works. `./gradlew test` and
+`./gradlew assembleDebug` completed successfully against Android SDK 35. The
+release bundle was last validated on 2026-08-12. Outputs:
+
+- android/honorable-debug.apk — debug-signed APK for development/testing
+  SHA-256: 83707863bb84cb107460c8e7ae9185523ae31d79aa59b5ff5291e320d41bfc93
+- android/honorable-release-unsigned.aab — unsigned release bundle
+  SHA-256: 5414a805ae84ada76499ec60e60dd838407eff2c2a79a119fc72df63e433cf7e
+
+The release AAB was verified as unsigned. It is not Play Store ready. Production
+signing is intentionally not configured; provide a real keystore securely in CI
+before distribution.
+
+iOS: SwiftUI sources and XcodeGen project specification are prepared. This Linux
+Codespace has no Xcode, so compile/archive was not run and no IPA was produced.
+The ios-compile workflow performs an unsigned simulator compile on macOS.
+
+Never place signing certificates, API keys, passwords, provisioning profiles,
+or keystores in this directory or Git history.
