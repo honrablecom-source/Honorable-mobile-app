@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "availableCases": [],
+  "blockedCases": [
+    {"query":"white sandy beach with tall grass","reason":"No matching fixture exists under test-media/"},
+    {"query":"blue shirt at tennis","reason":"No matching fixture exists under test-media/"},
+    {"query":"black shoes","reason":"No matching fixture exists under test-media/"},
+    {"query":"ocean","reason":"No matching fixture exists under test-media/"},
+    {"query":"screenshot with flight confirmation","reason":"No matching fixture exists under test-media/"},
+    {"query":"video moment query","reason":"No video fixture exists under test-media/"},
+    {"query":"no-match adversarial query","reason":"No sufficiently diverse indexed library exists to measure false positives"}
+  ],
+  "policy": "Move a case to availableCases only after a consented, non-personal fixture exists and a human records expected Top1/TopK. Filenames are scoring labels only."
+}

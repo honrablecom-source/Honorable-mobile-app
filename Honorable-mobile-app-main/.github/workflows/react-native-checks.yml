@@ -31,3 +31,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --runInBand
+      - name: Reject critical dependency advisories
+        run: npm audit --audit-level=critical
+      - name: Verify repository security invariants
+        working-directory: .
+        run: ./scripts/security-check.sh

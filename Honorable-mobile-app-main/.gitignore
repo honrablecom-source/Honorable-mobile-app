@@ -1,5 +1,7 @@
 .gradle/
 **/build/
+**/.venv/
+**/node_modules/
 *.iml
 .idea/
 .DS_Store
@@ -10,6 +12,7 @@ release-builds/android/*.apk
 release-builds/ios/*.ipa
 *.jks
 *.keystore
+!mobile-react-native/android/app/debug.keystore
 *.p12
 *.mobileprovision
 *.p8
@@ -22,7 +25,14 @@ mapping.txt
 .env
 .env.*
 !.env.example
+local.properties
+**/local.properties
+*.hprof
+*.prof
+*.profm
+*.trace
 /test-media/*
 !/test-media/README.md
 !/test-media/evaluation.example.json
+!/test-media/evaluation.json
 /android-app/test-lab/models/

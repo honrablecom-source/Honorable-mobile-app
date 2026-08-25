@@ -3,6 +3,7 @@
 From `android-app/`:
 
 ```bash
+./test-lab.sh setup-python
 ./test-lab.sh indexTestMedia
 ./test-lab.sh enrichTestMedia
 ./test-lab.sh searchTestMedia -Pquery="red car in snow" -PtopK=10
@@ -14,6 +15,10 @@ From `android-app/`:
 ./test-lab.sh evaluate
 ./test-lab.sh serveTestMedia -Pport=8080
 ```
+
+`setup-python` creates an ignored test-lab virtual environment from the pinned
+`requirements-dev.txt`. These dependencies are development-only and do not
+change the Android TinyCLIP model, tokenizer, preprocessing, or inference path.
 
 The browser UI is then available on the forwarded port. Put evaluation cases in
 `../test-media/evaluation.json`, following `evaluation.example.json`.

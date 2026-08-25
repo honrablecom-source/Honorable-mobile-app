@@ -57,7 +57,12 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
+def releaseStorePath = System.getenv("HONORABLE_RELEASE_STORE_FILE")
+def releaseStorePassword = System.getenv("HONORABLE_RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = System.getenv("HONORABLE_RELEASE_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("HONORABLE_RELEASE_KEY_PASSWORD")
+def hasReleaseSigning = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.trim().isEmpty() }
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -85,6 +90,11 @@ android {
         versionCode 1
         versionName "1.0"
     }
+    sourceSets {
+        main.java.srcDir("../../../android-app/app/src/main/java")
+        main.java.includes += ["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"]
+        main.assets.srcDir("../../../android-app/app/src/main/assets")
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -92,24 +102,48 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseStorePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Never sign a distributable release with React Native's public debug key.
+            if (hasReleaseSigning) signingConfig signingConfigs.release
+            debuggable false
+            jniDebuggable false
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def requestsSignedArtifact = graph.allTasks.any { task ->
+        task.project == project && task.name in ["bundleRelease", "publishReleaseBundle", "installRelease"]
+    }
+    if (requestsSignedArtifact && !hasReleaseSigning) {
+        throw new GradleException("Release signing is required. Supply the four HONORABLE_RELEASE_* environment variables outside source control.")
     }
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

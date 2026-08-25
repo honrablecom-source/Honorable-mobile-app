@@ -70,7 +70,7 @@ App Store privacy and Google Play Data Safety declarations cannot yet be finaliz
 
 - Phase 0 audit: complete, with baseline-versioning blocker documented.
 - Phase 1 shell: complete at source/check level; device boot remains to be exercised on configured Android/macOS environments.
-- Phase 2+: not started. SearchCore, TinyCLIP, OCR, MediaStore, index semantics, video ranking, auth, billing, and existing iOS sources remain unchanged.
+- The Android React Native native-module boundary now compiles the existing Kotlin search/index sources directly and exposes ordered search/status/refresh DTOs; JS performs no ranking. Android native compilation/device testing is still blocked by the absent SDK, so status is `NATIVE_CONNECTED` at source level, not `PARITY_VERIFIED`. TinyCLIP, OCR, MediaStore, index semantics, video ranking, auth, billing SDKs, and existing iOS sources remain behaviorally unchanged.
 
 Verification in this Codespace:
 
@@ -78,6 +78,6 @@ Verification in this Codespace:
 - Full Android `./gradlew test`: blocked before tests because no Android SDK path/install is available in this Codespace. The initial default JDK 25 was also incompatible; rerunning with installed JDK 21 reached the SDK check.
 - Linux/test-lab `:test-lab:test`: compiled and ran 19 tests; 18 passed and `FilenameIndependenceTest` failed because `tinyclip_bridge.py` could not import the pre-existing external Python dependency `numpy`, producing a null embedding. No test or engine source was changed to hide the environment failure.
 - iOS native build: intentionally not run on Linux; macOS/Xcode is required.
-- Dependency install reported nine high-severity npm audit findings. They require a deliberate dependency review; no unsafe forced audit rewrite was applied.
+- The deliberate npm review safely removed unused `@react-native/new-app-screen`, reducing the report from nine to eight high-severity entries. The remaining Metro/RN dependency chain and rejected breaking downgrade are documented in `mobile-react-native/NPM-SECURITY-AUDIT.md`; no unsafe forced audit rewrite was applied.
 
 Review this foundation before migrating Home/navigation presentation. Before any commit, first establish a trusted Git baseline for the extracted existing app. Every later phase must state rollback, tests, and one of `UI_ONLY`, `MOCKED`, `NATIVE_CONNECTED`, or `PARITY_VERIFIED`.

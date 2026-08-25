@@ -27,6 +27,9 @@ engineering impossible. Security reports should not include user media or secret
 
 ## Remaining requirements
 
+The concrete migration hardening and operational checklist are documented in
+`SECURITY-HARDENING.md`.
+
 Production distribution must use Google Play App Signing and Apple-managed signing.
 A local/CI Android release is unsigned unless all four `HONORABLE_RELEASE_*`
 signing environment variables are supplied; key material and passwords are never

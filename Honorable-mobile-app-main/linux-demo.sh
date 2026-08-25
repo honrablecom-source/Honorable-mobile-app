@@ -55,5 +55,9 @@ case "${1:-}" in
     parity=FAIL; [[ $tests == PASS && $shared == PASS ]] && parity=PASS
     printf 'ANDROID SOURCE OF TRUTH: %s\nSHARED SEARCH CORE: %s\nFRONTEND RANKING LOGIC: %s\nKOTLIN BACKEND: %s\nTINYCLIP MODEL MATCH: %s\nTINYCLIP SESSION REUSE: %s\nQUERY PARSER SHARED: %s\nHYBRID RANKER SHARED: %s\nCONFIDENCE SHARED: %s\nOCR SHARED NORMALIZATION: %s\nVIDEO SHARED AGGREGATION: %s\nINDEX PARITY: %s\nUI PARITY: %s\nSEARCH PARITY: %s\n' "$android" "$shared" "$frontend" "$kotlin" "$model" "$reuse" "$parser" "$ranker" "$confidence" "$ocr_shared" "$video" "$index_parity" "$ui" "$parity"
     ;;
-  *) echo 'Usage: ./linux-demo.sh verify|index|start|status' >&2; exit 2;;
+  evaluate)
+    cd android-app
+    exec ./test-lab.sh evaluate
+    ;;
+  *) echo 'Usage: ./linux-demo.sh verify|index|start|status|evaluate' >&2; exit 2;;
 esac

@@ -1,0 +1,5 @@
+# Development/test-lab only. These packages are never bundled in Android or iOS.
+numpy==2.3.2
+onnxruntime==1.22.1
+Pillow==11.3.0
+tokenizers==0.21.4
