@@ -24,7 +24,7 @@
     <rect x="24" y="346" width="384" height="142" rx="28" fill="#ffffff" fill-opacity=".78" stroke="#ffffff"/>
     <circle cx="78" cy="417" r="28" fill="url(#indigo)"/>
     <g fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"><path d="M67 402h17l5 5v22H67z"/><path d="M84 402v6h6M72 414h12M72 420h9"/><circle cx="88" cy="425" r="5"/><path d="m92 429 5 5"/></g>
-    <text x="124" y="407" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="23" font-weight="700" fill="#17171d">Terms AI</text>
+    <text x="124" y="407" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="23" font-weight="700" fill="#17171d">Storage</text>
     <text x="124" y="436" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16" fill="#70707a">Understand the fine print</text><text x="124" y="458" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16" fill="#70707a">before you agree.</text>
     <path d="m382 412 7 7-7 7" fill="none" stroke="#aaaab2" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
