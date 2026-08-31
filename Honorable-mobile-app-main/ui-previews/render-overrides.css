@@ -241,3 +241,40 @@
 .legal-note { display: flex; flex-direction: column; margin: 18px 16px; padding: 16px; border: 1px solid #ffffff17; border-radius: 18px; }
 .legal-note b { font-size: 13px; }
 .legal-note span { margin-top: 6px; color: #888; font-size: 11px; line-height: 16px; }
+
+/* Storage tab in the approved light Bubble OS visual language. */
+.legacy-storage { height: 936px; min-height: 936px; }
+.bubble-storage-intro { margin-top: 13px; }
+.bubble-storage-intro > small { color: #666; font-size: 8px; letter-spacing: 1px; }
+.bubble-storage-intro h1 { margin: 9px 0 7px; font-size: 42px; line-height: 38px; letter-spacing: -1.9px; }
+.bubble-storage-intro h1 em { color: #898989; font-style: normal; }
+.bubble-storage-intro p { margin: 0; color: #666; font-size: 10px; line-height: 14px; }
+.bubble-index { height: 135px; display: flex; align-items: center; margin-top: 15px; padding: 14px; border-radius: 38px; background: #111; color: #fff; }
+.bubble-ring { width: 92px; height: 92px; display: grid; place-items: center; border: 7px solid #bfc9d7; border-radius: 50%; box-shadow: inset 0 0 0 2px #fff2; }
+.bubble-ring b { font-size: 25px; letter-spacing: -1px; }
+.bubble-ring small { font-size: 10px; }
+.bubble-index > div:nth-child(2) { display: flex; flex: 1; flex-direction: column; padding-left: 15px; }
+.bubble-index > div:nth-child(2) small { color: #aeb7c2; font-size: 7px; letter-spacing: .9px; }
+.bubble-index > div:nth-child(2) b { margin-top: 7px; font-size: 20px; }
+.bubble-index > div:nth-child(2) span { margin-top: 5px; color: #aaa; font-size: 7px; }
+.bubble-index > i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #fff; color: #111; font-style: normal; }
+.bubble-storage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+.bubble-storage-grid > div { height: 91px; display: flex; flex-direction: column; justify-content: center; padding: 14px 16px; border: 1px solid #ccc; border-radius: 29px; background: #ddd; }
+.bubble-storage-grid > div:nth-child(2),.bubble-storage-grid > div:nth-child(3) { background: #c5c5c5; }
+.bubble-storage-grid small { color: #666; font-size: 7px; letter-spacing: .8px; }
+.bubble-storage-grid b { margin-top: 5px; font-size: 20px; }
+.bubble-storage-grid span { margin-top: 3px; color: #666; font-size: 7px; }
+.bubble-storage-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+.bubble-storage-actions button { height: 70px; display: flex; align-items: center; padding: 8px; border: 1px solid #d0d0d0; border-radius: 30px; background: #eee; color: #111; text-align: left; }
+.bubble-storage-actions i { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.bubble-storage-actions span { display: flex; flex: 1; flex-direction: column; padding-left: 8px; }
+.bubble-storage-actions b { font-size: 10px; }
+.bubble-storage-actions small { margin-top: 4px; color: #666; font-size: 6px; line-height: 8px; }
+.bubble-storage-actions em { color: #555; font-size: 17px; font-style: normal; }
+.bubble-storage-safe { height: 54px; display: flex; align-items: center; margin-top: 9px; padding: 7px 10px; border: 1px solid #d2d2d2; border-radius: 27px; background: #f7f7f7; }
+.bubble-storage-safe > i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.bubble-storage-safe span { display: flex; flex: 1; flex-direction: column; padding-left: 8px; }
+.bubble-storage-safe b { font-size: 9px; }
+.bubble-storage-safe small { margin-top: 3px; color: #666; font-size: 6px; }
+.bubble-storage-safe em { color: #555; font-size: 7px; font-style: normal; }
+.legacy-storage .legacy-dock { bottom: 9px; }
