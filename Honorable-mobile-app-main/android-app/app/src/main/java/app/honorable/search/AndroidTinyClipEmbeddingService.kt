@@ -15,22 +15,40 @@ import kotlin.math.sqrt
 
 /** Fully local TinyCLIP inference using the exact validated test-lab model and preprocessing. */
 class AndroidTinyClipEmbeddingService(context: Context) : TinyClipEmbeddingService(), AutoCloseable {
+    private val appContext=context.applicationContext
     private val environment=OrtEnvironment.getEnvironment()
-    private val modelBytes=context.assets.open("tinyclip/model_int8.onnx").use{it.readBytes()}.also{ModelAssetIntegrity.requireModel(it)}
-    private val tokenizerBytes=context.assets.open("tinyclip/tokenizer.json").use{it.readBytes()}.also{ModelAssetIntegrity.requireTokenizer(it)}
-    private val session=environment.createSession(modelBytes,OrtSession.SessionOptions())
-    private val tokenizer=ClipTokenizer(tokenizerBytes.toString(Charsets.UTF_8))
-    override fun image(bytes:ByteArray):FloatArray?=runCatching{infer(tokenizer.encode("a photo"),pixels(BitmapFactory.decodeByteArray(bytes,0,bytes.size)?:return null),3)}.getOrNull()
-    override fun text(query:String):FloatArray?=runCatching{infer(tokenizer.encode(query),FloatArray(3*224*224),2)}.getOrNull()
-    private fun infer(tokens:LongArray,pixels:FloatArray,output:Int):FloatArray {
+    private val lifecycleLock=Any()
+    @Volatile private var runtime:Runtime?=null
+    @Volatile private var closed=false
+
+    /** Model bytes and ONNX session are loaded on first inference, not when the screen is created. */
+    override fun image(bytes:ByteArray):FloatArray?=runCatching{val active=requireRuntime();val prepared=pixels(BitmapFactory.decodeByteArray(bytes,0,bytes.size)?:return null);synchronized(INFERENCE_LOCK){infer(active,active.tokenizer.encode("a photo"),prepared,3)}}.getOrNull()
+    override fun text(query:String):FloatArray?=runCatching{val active=requireRuntime();synchronized(INFERENCE_LOCK){infer(active,active.tokenizer.encode(query),FloatArray(3*224*224),2)}}.getOrNull()
+
+    private fun requireRuntime():Runtime {
+        runtime?.let{return it}
+        return synchronized(lifecycleLock) {
+            check(!closed){"TinyCLIP service is closed"}
+            runtime?:run {
+                val modelBytes=appContext.assets.open("tinyclip/model_int8.onnx").use{it.readBytes()}.also{ModelAssetIntegrity.requireModel(it)}
+                val tokenizerBytes=appContext.assets.open("tinyclip/tokenizer.json").use{it.readBytes()}.also{ModelAssetIntegrity.requireTokenizer(it)}
+                Runtime(environment.createSession(modelBytes,OrtSession.SessionOptions()),ClipTokenizer(tokenizerBytes.toString(Charsets.UTF_8))).also{runtime=it}
+            }
+        }
+    }
+
+    private fun infer(runtime:Runtime,tokens:LongArray,pixels:FloatArray,output:Int):FloatArray {
         val mask=LongArray(77){if(it<=tokens.indexOfLast{v->v!=49407L})1 else 0}
         val inputs=mapOf("input_ids" to OnnxTensor.createTensor(environment,LongBuffer.wrap(tokens),longArrayOf(1,77)),"attention_mask" to OnnxTensor.createTensor(environment,LongBuffer.wrap(mask),longArrayOf(1,77)),"pixel_values" to OnnxTensor.createTensor(environment,FloatBuffer.wrap(pixels),longArrayOf(1,3,224,224)))
-        return inputs.values.useAll { session.run(inputs).use { result -> normalize((result[output].value as Array<*>)[0] as FloatArray) } }
+        return inputs.values.useAll { runtime.session.run(inputs).use { result -> normalize((result[output].value as Array<*>)[0] as FloatArray) } }
     }
     private fun pixels(source:Bitmap):FloatArray { val scale=224f/minOf(source.width,source.height);val width=(source.width*scale).toInt();val height=(source.height*scale).toInt();val resized=Bitmap.createScaledBitmap(source,width,height,true);val data=IntArray(224*224);resized.getPixels(data,0,224,(width-224)/2,(height-224)/2,224,224);val result=FloatArray(3*224*224);val mean=floatArrayOf(.48145466f,.4578275f,.40821073f);val std=floatArrayOf(.26862954f,.26130258f,.27577711f);data.forEachIndexed{i,p->result[i]=((p shr 16 and 255)/255f-mean[0])/std[0];result[224*224+i]=((p shr 8 and 255)/255f-mean[1])/std[1];result[2*224*224+i]=((p and 255)/255f-mean[2])/std[2]};return result }
     private fun normalize(v:FloatArray):FloatArray { val n=sqrt(v.sumOf{it*it.toDouble()}).toFloat();return if(n==0f)v else FloatArray(v.size){v[it]/n} }
-    override fun close(){session.close()}
+    fun lifecycleState()=when { closed->LocalModelState.CLOSED;runtime!=null->LocalModelState.READY;else->LocalModelState.UNLOADED }
+    override fun close(){synchronized(lifecycleLock){if(closed)return;closed=true;runtime?.session?.close();runtime=null}}
     private inline fun <T:AutoCloseable,R> Collection<T>.useAll(block:()->R):R=try{block()}finally{forEach{it.close()}}
+    private data class Runtime(val session:OrtSession,val tokenizer:ClipTokenizer)
+    companion object { private val INFERENCE_LOCK=Any() }
 }
 
 /** Detects corrupt or replaced bundled inference assets; this is not DRM. */

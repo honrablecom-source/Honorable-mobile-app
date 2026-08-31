@@ -42,10 +42,54 @@ class ProductionIntegrationContractTest {
             source("app/honorable/search/ProductionMemorySearch.kt"),
             source("app/honorable/search/SearchCore.kt"),
             source("app/honorable/search/SearchPipeline.kt"),
-            source("app/honorable/search/LocalMediaDatabase.kt")
+            source("app/honorable/search/LocalMediaDatabase.kt"),
+            source("app/honorable/search/AndroidTinyClipEmbeddingService.kt"),
+            source("app/honorable/search/VisionEnrichment.kt"),
+            source("app/honorable/search/AndroidEngineRuntime.kt")
         ).joinToString("\n")
         listOf("OkHttpClient","HttpURLConnection","java.net.","retrofit2.","ktor.client","https://","http://").forEach {
             assertFalse("Network dependency found: $it",runtime.contains(it))
         }
+    }
+
+    @Test fun `application does not request internet permission`() {
+        val manifest=File("src/main/AndroidManifest.xml").readText()
+        assertFalse(manifest.contains("android.permission.INTERNET"))
+    }
+
+    @Test fun `media store IDs are namespaced by kind`() {
+        assertTrue(stableMediaId(MediaKind.IMAGE,42)!=stableMediaId(MediaKind.VIDEO,42))
+        assertTrue(stableMediaId(MediaKind.IMAGE,42)>=0)
+    }
+
+    @Test fun `partial library and resource budgets are centralized`() {
+        val runtime=source("app/honorable/search/AndroidEngineRuntime.kt")
+        assertTrue(runtime.contains("READ_MEDIA_VISUAL_USER_SELECTED"))
+        assertTrue(runtime.contains("MODEL_INFERENCE to 1"))
+        assertTrue(runtime.contains("VIDEO_DECODE to 1"))
+        assertTrue(runtime.contains("class EngineDoctor"))
+        assertFalse(runtime.contains("displayName"))
+    }
+
+    @Test fun `durable indexing is unique observable cancellable and not viewmodel owned`() {
+        val work=source("app/honorable/search/DurableIndexingWork.kt")
+        val production=source("app/honorable/search/ProductionMemorySearch.kt")
+        assertTrue(work.contains("enqueueUniqueWork"));assertTrue(work.contains("ExistingWorkPolicy.KEEP"))
+        assertTrue(work.contains("getWorkInfosForUniqueWorkFlow"));assertTrue(work.contains("cancelUniqueWork"))
+        assertTrue(work.contains("Result.retry()"));assertTrue(work.contains("MAX_ATTEMPTS=3"))
+        assertFalse(production.substringAfter("class MemoriesViewModel").contains("indexer.synchronize"))
+    }
+
+    @Test fun `evidence versions and generation invalidation are persisted independently`() {
+        val db=source("app/honorable/search/LocalMediaDatabase.kt");val runtime=source("app/honorable/search/IndexingRuntime.kt")
+        assertTrue(db.contains("CREATE TABLE IF NOT EXISTS evidence_version"));assertTrue(db.contains("index_generation"))
+        assertTrue(runtime.contains("enum class EvidenceProcessor"));assertTrue(runtime.contains("EvidenceInvalidationPlanner"))
+    }
+
+    @Test fun `diagnostics report excludes private media fields`() {
+        val runtime=source("app/honorable/search/AndroidEngineRuntime.kt")
+        val report=runtime.substringAfter("fun privacySafeReport")
+        listOf("displayName","vision_caption","ocr TEXT","media.uri","path=").forEach{assertFalse(report.contains(it))}
+        assertTrue(report.contains("schema="));assertTrue(report.contains("generation="));assertTrue(report.contains("limits="))
     }
 }

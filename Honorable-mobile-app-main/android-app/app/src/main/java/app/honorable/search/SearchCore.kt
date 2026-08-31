@@ -114,8 +114,20 @@ interface EmbeddingService { val modelId: String; val dimension: Int; fun image(
 interface OCRService { fun recognize(bytes: ByteArray): String }
 interface VideoAnalysisService { fun representativeFrames(uri: String, cancellation: () -> Boolean): Sequence<VideoFrame> }
 interface MediaIndexer { fun synchronize(cancellation: () -> Boolean, paused: () -> Boolean): IndexStats }
-interface VectorIndex { fun upsert(id: Long, vector: FloatArray); fun nearest(vector: FloatArray, limit: Int): List<Pair<Long, Double>> }
-data class IndexStats(val added: Int, val updated: Int, val deleted: Int)
+interface VectorIndex {
+    fun upsert(id: Long, vector: FloatArray)
+    /** Adds another visual view for the same media item (for example, a video frame). */
+    fun add(id: Long, vector: FloatArray) = upsert(id, vector)
+    fun nearest(vector: FloatArray, limit: Int): List<Pair<Long, Double>>
+}
+data class IndexStats(
+    val added: Int,
+    val updated: Int,
+    val deleted: Int,
+    val failed: Int = 0,
+    val skipped: Int = 0,
+    val durationMs: Long = 0
+)
 data class IndexCompatibility(val schemaVersion: Int = 5, val modelId: String = TinyClipEmbeddingService.MODEL_ID, val embeddingDimension: Int = 512, val preprocessingVersion: String = "tinyclip-clip-v1") {
     fun compatibleWith(other: IndexCompatibility?) = other != null && schemaVersion == other.schemaVersion && modelId == other.modelId && embeddingDimension == other.embeddingDimension && preprocessingVersion == other.preprocessingVersion
 }
@@ -354,14 +366,21 @@ open class TinyClipEmbeddingService : EmbeddingService {
 
 /** Multi-probe SimHash narrows candidates before exact cosine reranking. */
 class LocalVectorIndex(private val bits: Int = 12) : VectorIndex {
-    private val vectors = mutableMapOf<Long, FloatArray>()
+    private val vectors = mutableMapOf<Long, MutableList<FloatArray>>()
     private val buckets = mutableMapOf<Int, MutableSet<Long>>()
-    override fun upsert(id: Long, vector: FloatArray) { vectors[id]?.let { buckets[signature(it)]?.remove(id) }; val value=normalized(vector);vectors[id]=value;buckets.getOrPut(signature(value)){mutableSetOf()}+=id }
+    override fun upsert(id: Long, vector: FloatArray) {
+        vectors.remove(id)?.forEach { old -> buckets[signature(old)]?.remove(id) }
+        add(id, vector)
+    }
+    override fun add(id: Long, vector: FloatArray) {
+        val value=normalized(vector);vectors.getOrPut(id){mutableListOf()}+=value
+        buckets.getOrPut(signature(value)){mutableSetOf()}+=id
+    }
     override fun nearest(vector: FloatArray, limit: Int): List<Pair<Long, Double>> {
         if(limit<=0)return emptyList();val q=normalized(vector);val sig=signature(q);val ids=linkedSetOf<Long>();buckets[sig]?.let(ids::addAll)
         for(bit in 0 until bits){buckets[sig xor (1 shl bit)]?.let(ids::addAll);if(ids.size>=limit*4)break}
         if(ids.size<limit) ids.addAll(vectors.keys)
-        return ids.asSequence().mapNotNull{ id->vectors[id]?.let{id to cosine(q,it)} }.sortedByDescending{it.second}.take(limit).toList()
+        return ids.asSequence().mapNotNull{ id->vectors[id]?.maxOfOrNull{cosine(q,it)}?.let{id to it} }.sortedByDescending{it.second}.take(limit).toList()
     }
     private fun signature(v: FloatArray): Int { var result=0;for(bit in 0 until bits){var sum=0.0;for(i in v.indices){val mixed=((i+1L)*0x9E3779B97F4A7C15UL.toLong() xor (bit+17L)*0xBF58476D1CE4E5B9UL.toLong());sum+=v[i]*(if((mixed and 1L)==0L)1 else -1)};if(sum>=0)result=result or(1 shl bit)};return result }
     private fun normalized(value:FloatArray):FloatArray{val norm=sqrt(value.sumOf{(it*it).toDouble()}).toFloat();return if(norm==0f)value.copyOf()else FloatArray(value.size){value[it]/norm}}

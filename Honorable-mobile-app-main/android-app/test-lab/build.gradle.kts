@@ -14,6 +14,7 @@ sourceSets.main {
     kotlin.include("app/honorable/search/SearchPipeline.kt")
     kotlin.include("app/honorable/search/SearchEvaluation.kt")
     kotlin.include("app/honorable/search/VisionEnrichment.kt")
+    kotlin.include("app/honorable/search/IndexingRuntime.kt")
     kotlin.include("app/honorable/Entitlements.kt")
     kotlin.include("app/honorable/testlab/**")
 }

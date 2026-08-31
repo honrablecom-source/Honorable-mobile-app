@@ -25,3 +25,10 @@ iOS Home — IMPLEMENTED — Source-derived preview of the current native SwiftU
 19 Safe Error State — IMPLEMENTED — A distinct failure treatment that reassures users their library was not changed or uploaded.
 
 Legacy preview images and their unused stylesheet were removed; Git history remains the recovery path.
+CURRENT REACT NATIVE UI PREVIEW
+
+Concept exploration: concept-a, concept-b, concept-c
+Selected direction: Concept C — restrained monochrome with transparent-blue focus material
+Implemented preview states: Home/Search, Results, Viewer, Indexing, Empty, Onboarding, Settings
+Responsive reviews: Small Android, Large phone
+All current preview entries are connected through preview-data.js and capture.cjs.

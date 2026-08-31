@@ -68,3 +68,108 @@
 #phone:not([data-screen="ios-01-home"]) .plan-bubbles > div.selected { border-radius: 32px; }
 #phone:not([data-screen="ios-01-home"]) .progress-card { border-radius: 30px; }
 #phone:not([data-screen="ios-01-home"]) .safe-note { border-radius: 26px; }
+
+/* Image-backed search prompts: photography supplies the color, scrims protect copy. */
+.suggestions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: -8px 16px 10px; }
+.suggestion { position: relative; height: 76px; overflow: hidden; border-radius: 12px; background-image: url('assets/honorable-preview-contact-sheet.png'); background-size: 300% 300%; }
+.suggestion::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 8%, rgba(0, 0, 0, .84)); }
+.suggestion span { position: absolute; z-index: 1; left: 8px; right: 6px; bottom: 7px; color: #fff; font-size: 10px; line-height: 12px; font-weight: 750; text-shadow: 0 1px 8px #000; }
+.suggestion i { position: absolute; z-index: 2; top: 6px; right: 6px; display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid rgba(255, 255, 255, .34); border-radius: 50%; background: rgba(0, 0, 0, .58); color: #fff; font-size: 10px; font-style: normal; }
+.suggestions .m0 { background-image: url('assets/prompt-beach-grass.png'); background-size: cover; background-position: center; }
+.suggestions .m1 { background-position: 50% 0; }
+.suggestions .m2 { background-image: url('assets/prompt-red-car-snow.png'); background-size: cover; background-position: center; }
+
+/* Selected product direction is intentionally strict monochrome. */
+.phone.mono, .phone.blue, .phone.hybrid { background: #080808; }
+.phone.blue .search, .phone.hybrid .search, .phone.mono .search { background: #181818; border-color: rgba(255, 255, 255, .14); box-shadow: 0 12px 30px rgba(0, 0, 0, .34); }
+.phone.blue .filters > *, .phone.hybrid .filters > *, .phone.mono .filters > * { background: #171717; color: #aaa; }
+.phone.blue .filters b, .phone.hybrid .filters b, .phone.mono .filters b { background: #f5f5f2; color: #080808; }
+.phone .intro em, .phone .onboard-copy em { color: #aaa; }
+.phone .index-card u { background: #f5f5f2; }
+.device-note { background: #f5f5f2; color: #080808; }
+.phone header span,
+.phone .intro p,
+.phone .search b,
+.phone .search span,
+.phone .search i,
+.phone .result-head span,
+.phone .filters > *,
+.phone .nav span,
+.phone .settings span,
+.phone .empty p,
+.phone .onboard-copy p,
+.phone .viewer-bottom small { color: #999; }
+
+/* Original numbered UI composition, recolored without changing its hierarchy. */
+.legacy { padding: 32px 17px 0; background: #f5f5f5 !important; color: #080808; }
+.legacy-brand { height: 57px; display: flex; align-items: center; }
+.legacy-brand > b { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #111; color: #fff; font-size: 22px; }
+.legacy-brand > span { display: flex; flex-direction: column; margin-left: 10px; }
+.legacy-brand strong { font-size: 13px; }
+.legacy-brand small { color: #666; font-size: 7px; }
+.legacy-brand em { margin-left: auto; padding: 9px 12px; border: 1px solid #d2d2d2; border-radius: 18px; background: #fff; color: #555; font-size: 8px; font-style: normal; }
+.legacy-hero { position: relative; height: 444px; margin-top: 10px; overflow: hidden; padding: 26px 22px; border-radius: 48px; background: linear-gradient(145deg,#151515,#050505); color: #fff; }
+.legacy-hero > small { color: #c5c5c5; font-size: 8px; letter-spacing: .8px; }
+.legacy-hero h1 { margin: 42px 0 14px; font-size: 56px; line-height: 51px; letter-spacing: -2.5px; }
+.legacy-hero h1 em { color: #bdbdbd; font-style: normal; }
+.legacy-bubbles { position: absolute; right: -18px; top: 12px; width: 146px; height: 178px; }
+.legacy-bubbles i { position: absolute; display: block; border-radius: 50%; background: #fff; }
+.legacy-bubbles i:nth-child(1) { right: 13px; top: 22px; width: 106px; height: 106px; border-radius: 52px 52px 40px 52px; background: #bdbdbd; }
+.legacy-bubbles i:nth-child(2) { left: 0; top: 0; width: 73px; height: 73px; background: #f5f5f5; }
+.legacy-bubbles i:nth-child(3) { right: 43px; bottom: 0; width: 49px; height: 49px; background: #dedede; }
+.legacy-bubbles i:nth-child(4) { left: 8px; bottom: 39px; width: 22px; height: 22px; background: #8e8e8e; }
+.legacy-hero p { color: #c1c1c1; font-size: 12px; line-height: 17px; }
+.legacy-search { position: absolute; left: 20px; right: 20px; bottom: 20px; height: 68px; display: flex; align-items: center; padding: 8px; border: 1px solid #fff4; border-radius: 34px; background: #e5e5e5; color: #090909; }
+.legacy-search > i,.legacy-search > em { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%; background: #fff; font-style: normal; }
+.legacy-search > span { display: flex; flex: 1; flex-direction: column; padding: 0 10px; }
+.legacy-search small { color: #666; font-size: 7px; }
+.legacy-search b { margin-top: 4px; font-size: 11px; }
+.legacy-search > em { background: #111; color: #fff; font-size: 18px; }
+.legacy-bento { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.legacy-bento > div { height: 105px; display: flex; align-items: center; padding: 12px; border: 1px solid #c9c9c9; border-radius: 32px; background: #d9d9d9; }
+.legacy-bento > div:nth-child(2) { background: #bcbcbc; }
+.legacy-bento i,.legacy-private > i { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.legacy-bento span { display: flex; flex: 1; flex-direction: column; padding-left: 9px; }
+.legacy-bento small,.legacy-private small { margin-top: 5px; color: #666; font-size: 7px; }
+.legacy-bento em { align-self: flex-end; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.legacy-private { height: 59px; display: flex; align-items: center; margin-top: 9px; padding: 7px 10px; border: 1px solid #d2d2d2; border-radius: 28px; background: #e7e7e7; }
+.legacy-private > i { width: 36px; height: 36px; }
+.legacy-private span { display: flex; flex: 1; flex-direction: column; padding-left: 9px; }
+.legacy-private em { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.legacy-dock { position: absolute; z-index: 5; left: 17px; right: 17px; bottom: 12px; height: 76px; display: flex; align-items: center; justify-content: space-around; border-radius: 36px; background: #111; color: #888; }
+.legacy-dock span { display: flex; min-width: 52px; height: 58px; flex-direction: column; align-items: center; justify-content: center; border-radius: 25px; }
+.legacy-dock span.active { background: #fff; color: #080808; }
+.legacy-dock i { font-style: normal; }
+.legacy-dock small { margin-top: 5px; font-size: 6px; }
+.legacy-memory-intro { margin-top: 10px; }
+.legacy-memory-intro,.legacy-brand,.legacy-memory-search,.legacy-section-title,.legacy-prompt-row,.legacy-prompt,.legacy-local { position: relative; z-index: 1; }
+.legacy-memory-ambient i { position: absolute; display: block; border-radius: 50%; background: #dedede; opacity: .55; }
+.legacy-memory-ambient i:first-child { width: 170px; height: 170px; right: -70px; top: 92px; }
+.legacy-memory-ambient i:last-child { width: 120px; height: 120px; left: -72px; top: 385px; background: #c8c8c8; opacity: .32; }
+.legacy-memory-intro > small { color: #666; font-size: 8px; letter-spacing: 1px; }
+.legacy-memory-intro h1 { margin: 10px 0 6px; font-size: 41px; line-height: 37px; letter-spacing: -1.8px; }
+.legacy-memory-intro h1 em { color: #888; font-style: normal; }
+.legacy-memory-intro p { margin: 0; color: #666; font-size: 11px; }
+.legacy-memory-search { height: 54px; display: flex; align-items: center; gap: 10px; margin: 13px 0 11px; padding: 0 9px 0 16px; border-radius: 26px; background: #111; color: #fff; }
+.legacy-memory-search span { flex: 1; color: #bbb; font-size: 12px; }
+.legacy-memory-search b { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #080808; }
+.legacy-section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.legacy-section-title small { color: #666; font-size: 7px; }
+.legacy-prompt { position: relative; overflow: hidden; border-radius: 27px; background-position: center; background-size: cover; color: #fff; }
+.legacy-prompt::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg,#0001,#000d); }
+.legacy-prompt.feature { height: 170px; background-image: url('assets/prompt-beach-grass.png'); }
+.legacy-prompt.car { background-image: url('assets/prompt-red-car-snow.png'); }
+.legacy-prompt.cake { background-image: url('assets/honorable-preview-contact-sheet.png'); background-size: 300% 300%; background-position: 50% 0; }
+.legacy-prompt > i { position: absolute; z-index: 2; top: 12px; right: 12px; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #fff6; border-radius: 50%; background: #0009; color: #fff; font-style: normal; }
+.legacy-prompt > span { position: absolute; z-index: 2; left: 15px; right: 12px; bottom: 13px; display: flex; flex-direction: column; }
+.legacy-prompt small { color: #ddd; font-size: 7px; letter-spacing: .7px; }
+.legacy-prompt b { margin-top: 5px; font-size: 18px; line-height: 17px; }
+.legacy-prompt em { margin-top: 6px; color: #ddd; font-size: 7px; font-style: normal; }
+.legacy-prompt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.legacy-prompt-row .legacy-prompt { height: 126px; }
+.legacy-local { height: 54px; display: flex; align-items: center; margin-top: 9px; padding: 7px 11px; border-radius: 27px; background: #e5e5e5; }
+.legacy-local > i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.legacy-local span { display: flex; flex: 1; flex-direction: column; padding-left: 9px; }
+.legacy-local span small { margin-top: 3px; color: #666; font-size: 6px; }
+.legacy-local em { color: #555; font-size: 7px; font-style: normal; }
+.legacy-memories .legacy-dock { bottom: 8px; }

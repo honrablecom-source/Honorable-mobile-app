@@ -16,7 +16,7 @@
     <div class="hero-bar">
       <div class="brand-lockup">
         <span class="brand-bubble">h</span>
-        <span><b>Honorable</b><small>Platform UI review</small></span>
+        <span><b>Honorable</b><small>React Native UI review</small></span>
       </div>
       <span class="review-state"><i></i> Review space is live</span>
     </div>
@@ -25,12 +25,12 @@
       <div class="hero-copy">
         <p class="kicker"><span></span> Native product previews</p>
         <h1>Every screen.<br><em>One feeling.</em></h1>
-        <p class="hero-description">A focused view of the Honorable experience across Android and iOS. Open any screen to inspect the full phone canvas.</p>
+        <p class="hero-description">Three compared visual directions and the selected media-first React Native experience. Open any screen to inspect the full phone canvas.</p>
         <div class="legend" aria-label="Preview status and platforms">
           <span class="implemented">✓ Implemented</span>
-          <span class="screen-count">19 Android screens</span>
-          <span class="android">Android · Compose</span>
-          <span class="ios">iOS · SwiftUI</span>
+          <span class="screen-count">12 current previews</span>
+          <span class="android">React Native · Android</span>
+          <span class="ios">React Native · iOS</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@
 
   <script src="preview-data.js"></script>
   <script>
-    const order = ['iOS · SwiftUI', 'Core', 'Memories AI', 'Terms AI', 'Trust & plans', 'System states', 'Dark mode'];
+    const order = ['Concept exploration', 'Selected React Native UI', 'Responsive review'];
     const gallery = document.querySelector('#gallery');
     const dialog = document.querySelector('#viewer');
     const slug = value => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -71,7 +71,7 @@
       const items = PREVIEWS.filter(item => item.group === group);
       if (!items.length) continue;
 
-      const isIOS = group === 'iOS · SwiftUI';
+      const isIOS = false;
       const section = document.createElement('section');
       section.className = `preview-section ${isIOS ? 'ios-group' : 'android-group'} group-${slug(group)}`;
       section.innerHTML = `
@@ -86,7 +86,7 @@
 
       const grid = section.querySelector('.grid');
       for (const item of items) {
-        const source = isIOS ? 'SWIFTUI IS SOURCE OF TRUTH' : 'ANDROID COMPOSE IS SOURCE OF TRUTH';
+        const source = item.status === 'CONCEPT' ? 'VISUAL DIRECTION STUDY' : 'REACT NATIVE IMPLEMENTATION';
         const card = document.createElement('button');
         card.type = 'button';
         card.className = `card ${isIOS ? 'ios-card' : 'android-card'}`;

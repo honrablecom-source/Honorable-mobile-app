@@ -1,0 +1,14 @@
+RI_NATIVE_SAVE 1
+710 930 480 1
+I stones 123
+I vitality_leaf 0
+I moon_orchid 0
+R orchid1 0
+R orchid2 0
+R orchid3 0
+R leaf1 0
+R leaf2 0
+R stones 0
+E wolf1 0
+E wolf2 0
+E bear1 0

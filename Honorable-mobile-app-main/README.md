@@ -4,6 +4,11 @@ Privacy-first native Android and iOS assistant. Memories AI indexes and searches
 device media locally; Terms AI explains agreements on-device. Media, OCR,
 metadata, embeddings, and sampled video frames are never uploaded.
 
+Memories AI does not require a remote model or an API key. Android uses bundled
+TinyCLIP ONNX inference, bundled ML Kit OCR/labels, local SQLite storage, and a
+multi-vector index that retains representative video frames. Short visual
+queries are expanded into deterministic CLIP prompt variants entirely on-device.
+
 ## Projects
 
 - `android-app`: Kotlin, Jetpack Compose, Material 3

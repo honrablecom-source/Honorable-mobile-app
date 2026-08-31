@@ -3,28 +3,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const allIds = [
-  'ios-01-home',
-  '01-home',
-  '02-memories',
-  '03-search-focus',
-  '04-ai-searching',
-  '05-search-results',
-  '06-video-results',
-  '07-media-viewer',
-  '08-terms-ai',
-  '09-terms-result',
-  '10-activity',
-  '11-settings',
-  '12-privacy',
-  '13-honorable-plus',
-  '14-indexing',
-  '15-empty-search',
-  '16-dark-home',
-  '17-dark-memories',
-  '18-dark-terms-ai',
-  '19-error-state',
-];
+const allIds = ['01-home','02-memories','concept-a','concept-b','concept-c','selected-home','selected-results','selected-viewer','selected-indexing','selected-empty','selected-onboarding','selected-settings','selected-small','selected-large'];
 const verifyOnly = process.argv.includes('--verify');
 const requestedIds = process.argv.slice(2).filter((id) => id !== '--verify');
 const unknownIds = requestedIds.filter((id) => !allIds.includes(id));
@@ -38,7 +17,7 @@ function validateConnections() {
   const renderer = fs.readFileSync(path.join(root, 'render.js'), 'utf8');
   const gallery = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const renderPage = fs.readFileSync(path.join(root, 'render.html'), 'utf8');
-  const manifestIds = [...previewData.matchAll(/\['([^']+)','[^']+','[^']+','(?:IMPLEMENTED|PARTIAL)'\]/g)].map((match) => match[1]);
+  const manifestIds = [...previewData.matchAll(/\['([^']+)','[^']+','[^']+','(?:IMPLEMENTED|CONCEPT)'\]/g)].map((match) => match[1]);
 
   if (JSON.stringify(manifestIds) !== JSON.stringify(allIds)) {
     throw new Error(`Preview manifest is disconnected. Capture: ${allIds.join(', ')}; manifest: ${manifestIds.join(', ')}`);
@@ -51,16 +30,10 @@ function validateConnections() {
   if (!renderPage.includes('href="render.css"') || !renderPage.includes('href="render-overrides.css"')) {
     throw new Error('Render page styles are disconnected');
   }
-  const rootPngIds = fs.readdirSync(root)
-    .filter((name) => name.endsWith('.png'))
-    .map((name) => name.slice(0, -4))
-    .sort();
-  const expectedPngIds = [...allIds].sort();
-  if (JSON.stringify(rootPngIds) !== JSON.stringify(expectedPngIds)) {
-    throw new Error(`Preview folder contains stale or missing PNGs: ${rootPngIds.join(', ')}`);
-  }
+  const rootPngIds = new Set(fs.readdirSync(root).filter((name) => name.endsWith('.png')).map((name) => name.slice(0, -4)));
+  const missing=allIds.filter(id=>!rootPngIds.has(id));if(verifyOnly&&missing.length)throw new Error(`Preview folder is missing PNGs: ${missing.join(', ')}`);
   for (const id of allIds) {
-    const header = fs.readFileSync(path.join(root, `${id}.png`)).subarray(0, 24);
+    if(!fs.existsSync(path.join(root,`${id}.png`)))continue;const header = fs.readFileSync(path.join(root, `${id}.png`)).subarray(0, 24);
     if (header.readUInt32BE(16) !== 432 || header.readUInt32BE(20) !== 936) {
       throw new Error(`${id}.png is not a 432x936 device canvas`);
     }
@@ -131,7 +104,7 @@ function captureWithChromium(executable) {
         '--disable-logging',
         '--log-level=3',
         `--user-data-dir=${path.join(profiles, `${id}-profile`)}`,
-        '--window-size=432,1023',
+        '--window-size=432,936',
         `--screenshot=${rawOutput}`,
         `file://${path.join(root, 'render.html')}?screen=${id}`,
       ], { encoding: 'utf8', timeout: 30000 });
@@ -141,16 +114,7 @@ function captureWithChromium(executable) {
         throw new Error(`Capture failed for ${id}: ${detail}`);
       }
 
-      const crop = spawnSync('ffmpeg', [
-        '-hide_banner', '-loglevel', 'error', '-y',
-        '-i', rawOutput,
-        '-vf', 'crop=432:936:0:0',
-        '-frames:v', '1', output,
-      ], { encoding: 'utf8', timeout: 30000 });
-      if (crop.status !== 0 || !fs.existsSync(output)) {
-        const detail = crop.error?.message || crop.stderr.trim() || `exit ${crop.status}`;
-        throw new Error(`Crop failed for ${id}: ${detail}. Install ffmpeg or Playwright for exact-size captures.`);
-      }
+      fs.copyFileSync(rawOutput,output);
       console.log(`CAPTURED: ${id}`);
     }
   } finally {

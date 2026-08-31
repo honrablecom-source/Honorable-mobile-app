@@ -48,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
@@ -59,6 +60,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
 import app.honorable.search.*
 
@@ -72,20 +75,20 @@ private val BrandNavyScrim=Color(0xFF08080A)
 private val BrandGlass=Color(0xB31A1C22)
 private val BrandGlassStrong=Color(0xED111216)
 private val BrandIce=Color(0xFFFAFAFC)
-private val BrandGlassEdge=Color(0xFFE4E7EC)
-private val BubbleBlue=Color(0xFF5872F8)
-private val BubbleCyan=Color(0xFF78DFF0)
-private val BubbleLilac=Color(0xFFCB9FFF)
-private val BubbleMint=Color(0xFF9DE8BF)
-private val BubbleBlush=Color(0xFFFFABC7)
+private val BrandGlassEdge=Color(0xFFE4E4E4)
+private val BubbleBlue=Color(0xFFD6D6D6)
+private val BubbleCyan=Color(0xFFFFFFFF)
+private val BubbleLilac=Color(0xFFC8C8C8)
+private val BubbleMint=Color(0xFFE8E8E8)
+private val BubbleBlush=Color(0xFFB5B5B5)
 private val BubbleFont=FontFamily.SansSerif
 private val DarkColors = darkColorScheme(
-    primary=BubbleCyan,onPrimary=BrandNavyDeep,primaryContainer=Color(0xFF202742),onPrimaryContainer=BrandIce,
-    secondary=BubbleBlue,onSecondary=BrandNavyDeep,secondaryContainer=Color(0xFF22263A),onSecondaryContainer=BrandIce,
+    primary=BubbleCyan,onPrimary=BrandNavyDeep,primaryContainer=Color(0xFF242424),onPrimaryContainer=BrandIce,
+    secondary=BubbleBlue,onSecondary=BrandNavyDeep,secondaryContainer=Color(0xFF282828),onSecondaryContainer=BrandIce,
     tertiary=BubbleLilac,onTertiary=BrandNavyDeep,background=BrandNavyDeep,onBackground=BrandIce,surface=Color(0xFF15161B),onSurface=BrandIce,
     surfaceVariant=Color(0xFF22242B),onSurfaceVariant=Color(0xFFC7CAD2),outline=Color(0xFF7C818D),outlineVariant=Color(0xFF353841),
-    error=BubbleBlush,onError=BrandNavyDeep,errorContainer=Color(0xFF482431),onErrorContainer=BrandIce,
-    surfaceTint=BubbleBlue,inverseSurface=BrandIce,inverseOnSurface=BrandNavy,inversePrimary=Color(0xFF3B5DD8),scrim=BrandNavyScrim,
+    error=BubbleBlush,onError=BrandNavyDeep,errorContainer=Color(0xFF303030),onErrorContainer=BrandIce,
+    surfaceTint=BubbleBlue,inverseSurface=BrandIce,inverseOnSurface=BrandNavy,inversePrimary=Color(0xFF353535),scrim=BrandNavyScrim,
     surfaceBright=Color(0xFF30323A),surfaceDim=BrandNavyDeep,surfaceContainerLowest=BrandNavyDeep,surfaceContainerLow=Color(0xFF0F1014),
     surfaceContainer=Color(0xFF17181D),surfaceContainerHigh=Color(0xFF212329),surfaceContainerHighest=Color(0xFF2A2D35)
 )
@@ -118,7 +121,7 @@ private val AppShapes=Shapes(extraSmall=RoundedCornerShape(20.dp),small=RoundedC
 }
 
 private enum class MainTab(val label:String,val icon:ImageVector){HOME("Home",Icons.Rounded.Home),MEMORIES("Memories",Icons.Rounded.PhotoLibrary),TERMS("Terms",Icons.Rounded.Policy),ACTIVITY("Activity",Icons.Rounded.Timeline),SETTINGS("Settings",Icons.Rounded.Tune)}
-private enum class Overlay { NONE, VIEWER, PRIVACY, PLUS }
+private enum class Overlay { NONE, VIEWER, PRIVACY, PLUS, ENGINE_HEALTH }
 
 @Composable private fun HonorableShell(){
     var tab by rememberSaveable{mutableStateOf(MainTab.HOME)};var overlay by rememberSaveable{mutableStateOf(Overlay.NONE)};var selected by remember{mutableStateOf<SearchMatch?>(null)}
@@ -131,12 +134,12 @@ private enum class Overlay { NONE, VIEWER, PRIVACY, PLUS }
                 MainTab.MEMORIES->MemoriesScreen{selected=it;overlay=Overlay.VIEWER}
                 MainTab.TERMS->TermsScreen()
                 MainTab.ACTIVITY->ActivityScreen()
-                MainTab.SETTINGS->SettingsScreen({overlay=Overlay.PRIVACY},{overlay=Overlay.PLUS})
+                MainTab.SETTINGS->SettingsScreen({overlay=Overlay.PRIVACY},{overlay=Overlay.PLUS},{overlay=Overlay.ENGINE_HEALTH})
             }
         }
         FloatingGlassDock(tab,{tab=it},Modifier.align(Alignment.BottomCenter))
         AnimatedVisibility(overlay!=Overlay.NONE,enter=fadeIn()+scaleIn(initialScale=.97f),exit=fadeOut()+scaleOut(targetScale=.98f)){
-            when(overlay){Overlay.VIEWER->selected?.let{MediaViewer(it){overlay=Overlay.NONE}};Overlay.PRIVACY->PrivacyScreen{overlay=Overlay.NONE};Overlay.PLUS->PlusScreen{overlay=Overlay.NONE};else->Unit}
+            when(overlay){Overlay.VIEWER->selected?.let{MediaViewer(it){overlay=Overlay.NONE}};Overlay.PRIVACY->PrivacyScreen{overlay=Overlay.NONE};Overlay.PLUS->PlusScreen{overlay=Overlay.NONE};Overlay.ENGINE_HEALTH->EngineHealthScreen{overlay=Overlay.NONE};else->Unit}
         }
     }
 }
@@ -183,7 +186,7 @@ enum class OrbState { IDLE, THINKING, SEARCHING, LISTENING, RESULT, LOW_CONFIDEN
 
 @Composable private fun PremiumHero(openMemories:()->Unit){
     val heroShape=RoundedCornerShape(58.dp)
-    Box(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=16.dp).heightIn(min=510.dp).shadow(28.dp,heroShape,ambientColor=BubbleBlue.copy(.24f),spotColor=BubbleBlue.copy(.30f)).clip(heroShape).background(Brush.linearGradient(listOf(Color(0xFF242B65),Color(0xFF171D46),Color(0xFF111634)))).border(1.dp,Color.White.copy(.18f),heroShape)){
+    Box(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=16.dp).heightIn(min=510.dp).shadow(28.dp,heroShape,ambientColor=Color.Black.copy(.30f),spotColor=Color.Black.copy(.36f)).clip(heroShape).background(Brush.linearGradient(listOf(Color(0xFF252525),Color(0xFF171717),Color(0xFF0D0D0D)))).border(1.dp,Color.White.copy(.18f),heroShape)){
         Canvas(Modifier.matchParentSize()){
             drawCircle(BubbleLilac.copy(.45f),size.minDimension*.34f,Offset(size.width*.87f,size.height*.10f))
             drawCircle(BubbleCyan.copy(.22f),size.minDimension*.24f,Offset(size.width*.72f,size.height*.28f))
@@ -221,13 +224,13 @@ enum class OrbState { IDLE, THINKING, SEARCHING, LISTENING, RESULT, LOW_CONFIDEN
 
 private enum class SearchStage { LANDING, FOCUS, SEARCHING, RESULTS }
 @Composable private fun MemoriesScreen(openViewer:(SearchMatch)->Unit){
-    val vm:MemoriesViewModel=viewModel();val backend by vm.state.collectAsStateWithLifecycle();var stage by rememberSaveable{mutableStateOf(SearchStage.LANDING)};var query by rememberSaveable{mutableStateOf("")};var filter by rememberSaveable{mutableStateOf("All")}
+    val context=LocalContext.current;val vm:MemoriesViewModel=viewModel();val backend by vm.state.collectAsStateWithLifecycle();var stage by rememberSaveable{mutableStateOf(SearchStage.LANDING)};var query by rememberSaveable{mutableStateOf("")};var filter by rememberSaveable{mutableStateOf("All")}
     val permissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){vm.permissionResult()}
     LaunchedEffect(backend){if(backend is MemorySearchState.Results)stage=SearchStage.RESULTS}
     Column(Modifier.fillMaxSize().padding(top=42.dp)){
         AnimatedContent(stage,Modifier.weight(1f),label="memory-state",transitionSpec={fadeIn(tween(220))+slideInVertically{it/16} togetherWith fadeOut(tween(120))}){current->
             when(current){
-                SearchStage.LANDING->when(val state=backend){MemorySearchState.PermissionRequired->PermissionState{permissionLauncher.launch(MemoriesViewModel.permissions())};is MemorySearchState.Indexing->IndexingState(state.progress);is MemorySearchState.Failed->BackendFailure(state.message);is MemorySearchState.Ready->MemoryLanding(state.count,{stage=SearchStage.FOCUS},{query=it;stage=SearchStage.SEARCHING;vm.search(it)});else->MemoryLanding(null,{stage=SearchStage.FOCUS},{query=it;stage=SearchStage.SEARCHING;vm.search(it)})}
+                SearchStage.LANDING->when(val state=backend){MemorySearchState.PermissionRequired->PermissionState{permissionLauncher.launch(MediaCapabilityManager(context).requestedPermissions())};is MemorySearchState.Indexing->IndexingState(state.progress);is MemorySearchState.Failed->BackendFailure(state.message);is MemorySearchState.Ready->MemoryLanding(state.count,{stage=SearchStage.FOCUS},{query=it;stage=SearchStage.SEARCHING;vm.search(it)});else->MemoryLanding(null,{stage=SearchStage.FOCUS},{query=it;stage=SearchStage.SEARCHING;vm.search(it)})}
                 SearchStage.FOCUS->SearchFocus(query,{query=it},{if(query.isNotBlank()){stage=SearchStage.SEARCHING;vm.search(query)}},{stage=SearchStage.LANDING})
                 SearchStage.SEARCHING->SearchInMotion(query)
                 SearchStage.RESULTS->SearchResults(query,filter,{filter=it},{stage=SearchStage.FOCUS},(backend as? MemorySearchState.Results)?.matches.orEmpty(),openViewer)
@@ -243,28 +246,34 @@ private enum class SearchStage { LANDING, FOCUS, SEARCHING, RESULTS }
         item{Text("A color, a place, a tiny detail—start anywhere.",Modifier.padding(bottom=10.dp).widthIn(max=320.dp),color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodyLarge)}
         item{ArchiveSearchCommand("Start describing",focus)}
         item{Row(Modifier.padding(top=14.dp,bottom=1.dp),verticalAlignment=Alignment.CenterVertically){Text("Start anywhere",style=MaterialTheme.typography.titleLarge);Spacer(Modifier.weight(1f));Text("made for your library",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
-        item{FeaturedMemoryPrompt("white beach\nwith tall grass"){search("white beach with tall grass")}}
-        item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){MemoryPromptTile("COLOR + WEATHER","Red car\nin snow",Icons.Rounded.DirectionsCar,BubbleCyan,Modifier.weight(1f)){search("red car in snow")};MemoryPromptTile("OBJECT + LIGHT","Birthday cake\nby a window",Icons.Rounded.Cake,BubbleBlush,Modifier.weight(1f)){search("birthday cake by a window")}}}
+        item{FeaturedMemoryPrompt(R.drawable.prompt_beach,"white beach\nwith tall grass"){search("white beach with tall grass")}}
+        item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){MemoryPromptTile(R.drawable.prompt_red_car,"COLOR + WEATHER","Red car\nin snow",Icons.Rounded.DirectionsCar,BubbleCyan,Modifier.weight(1f)){search("red car in snow")};MemoryPromptTile(R.drawable.prompt_birthday,"OBJECT + LIGHT","Birthday cake\nby a window",Icons.Rounded.Cake,BubbleBlush,Modifier.weight(1f)){search("birthday cake by a window")}}}
         item{Row(Modifier.padding(top=1.dp).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(BubbleMint.copy(.09f)).padding(13.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(28.dp).clip(CircleShape).background(BubbleMint),contentAlignment=Alignment.Center){Icon(Icons.Rounded.Check,null,Modifier.size(16.dp),tint=BrandNavyDeep)};Column(Modifier.padding(start=10.dp).weight(1f)){Text("Private by default",style=MaterialTheme.typography.labelLarge,color=BubbleMint);Text("Photos and searches stay on this device.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)};Text(count?.let{"$it ready"}?:"local",style=MaterialTheme.typography.labelMedium,color=BubbleMint)}}
     }
 }
 
-@Composable private fun FeaturedMemoryPrompt(text:String,onClick:()->Unit){
+@Composable private fun FeaturedMemoryPrompt(imageRes:Int,text:String,onClick:()->Unit){
     val shape=RoundedCornerShape(42.dp,58.dp,46.dp,50.dp)
-    Box(Modifier.fillMaxWidth().height(205.dp).shadow(22.dp,shape,ambientColor=BubbleBlue.copy(.18f),spotColor=BubbleBlue.copy(.22f)).clip(shape).background(Brush.linearGradient(listOf(Color(0xFF20275B),Color(0xFF363F83),Color(0xFF566BC1)))).border(1.dp,Color.White.copy(.17f),shape).clickable(onClick=onClick)){
-        Canvas(Modifier.matchParentSize()){drawCircle(BubbleCyan,size.minDimension*.42f,Offset(size.width*.86f,size.height*.19f));drawCircle(BubbleLilac,size.minDimension*.31f,Offset(size.width*.67f,size.height*1.04f));drawCircle(BubbleMint,size.minDimension*.16f,Offset(size.width*.94f,size.height*.80f))}
+    Box(Modifier.fillMaxWidth().height(205.dp).shadow(22.dp,shape,ambientColor=Color.Black.copy(.28f),spotColor=Color.Black.copy(.32f)).clip(shape).border(1.dp,Color.White.copy(.17f),shape).clickable(onClick=onClick)){
+        Image(painterResource(imageRes),null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(.78f),Color.Black.copy(.34f),Color.Transparent))))
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(.42f)))))
         Column(Modifier.align(Alignment.CenterStart).padding(start=22.dp)){Text("TRY A SCENE",style=MaterialTheme.typography.labelMedium,color=BubbleCyan);Text(text,Modifier.padding(top=14.dp),style=MaterialTheme.typography.headlineMedium.copy(fontSize=27.sp,lineHeight=26.sp),color=BrandIce);Text("Place + texture + color",Modifier.padding(top=12.dp),style=MaterialTheme.typography.bodySmall,color=BrandIce.copy(.64f))}
         Box(Modifier.align(Alignment.BottomEnd).padding(14.dp).size(46.dp).clip(CircleShape).background(BrandIce),contentAlignment=Alignment.Center){Icon(Icons.Rounded.ArrowOutward,"Search $text",Modifier.size(20.dp),tint=BrandNavyDeep)}
     }
 }
 
-@Composable private fun MemoryPromptTile(label:String,text:String,icon:ImageVector,tint:Color,modifier:Modifier=Modifier,onClick:()->Unit){
+@Composable private fun MemoryPromptTile(imageRes:Int,label:String,text:String,icon:ImageVector,tint:Color,modifier:Modifier=Modifier,onClick:()->Unit){
     val shape=RoundedCornerShape(34.dp,42.dp,37.dp,31.dp)
-    Box(modifier.height(150.dp).clip(shape).background(BrandGlass.copy(.76f)).border(1.dp,Color.White.copy(.10f),shape).clickable(onClick=onClick).padding(15.dp)){
+    Box(modifier.height(150.dp).clip(shape).border(1.dp,Color.White.copy(.12f),shape).clickable(onClick=onClick)){
+        Image(painterResource(imageRes),null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.10f),Color.Black.copy(.82f)))))
+        Box(Modifier.matchParentSize().padding(15.dp)){
         Text(label,style=MaterialTheme.typography.labelMedium.copy(fontSize=9.sp),color=MaterialTheme.colorScheme.onSurfaceVariant)
         Box(Modifier.align(Alignment.TopEnd).size(40.dp).clip(CircleShape).background(tint.copy(.17f)),contentAlignment=Alignment.Center){Icon(icon,null,Modifier.size(20.dp),tint=tint)}
         Text(text,Modifier.align(Alignment.BottomStart),style=MaterialTheme.typography.titleMedium.copy(lineHeight=18.sp),fontWeight=FontWeight.ExtraBold)
         Icon(Icons.Rounded.ArrowOutward,"Search $text",Modifier.align(Alignment.BottomEnd).size(17.dp),tint=tint)
+        }
     }
 }
 
@@ -342,7 +351,15 @@ private fun confidenceLabel(match:SearchMatch)=when(match.confidence){MatchConfi
 @Composable private fun ArchiveActivityRow(index:Int,title:String,detail:String,icon:ImageVector){val tint=listOf(BubbleCyan,BubbleLilac,BubbleMint,BubbleBlush)[index%4];Row(Modifier.padding(horizontal=12.dp,vertical=7.dp).fillMaxWidth().heightIn(min=106.dp).shadow(12.dp,RoundedCornerShape(48.dp)).clip(RoundedCornerShape(48.dp)).background(BrandGlass.copy(.66f)).border(1.dp,Color.White.copy(.10f),RoundedCornerShape(48.dp)).padding(horizontal=13.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(72.dp).clip(CircleShape).background(tint.copy(.15f)),contentAlignment=Alignment.Center){Icon(icon,null,Modifier.size(27.dp),tint=tint)};Column(Modifier.padding(start=16.dp).weight(1f)){Text(title,fontWeight=FontWeight.Bold,fontSize=16.sp);Text(detail,Modifier.padding(top=6.dp),color=MaterialTheme.colorScheme.onSurfaceVariant);Text("today · ${(9+index).toString().padStart(2,'0')}:${(index*13).toString().padStart(2,'0')}",Modifier.padding(top=7.dp),style=MaterialTheme.typography.labelSmall,color=tint)};Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(.06f)),contentAlignment=Alignment.Center){Icon(Icons.Rounded.ChevronRight,null,tint=tint)}}
 
 }
-@Composable private fun SettingsScreen(openPrivacy:()->Unit,openPlus:()->Unit){LazyColumn(contentPadding=PaddingValues(20.dp,42.dp,20.dp,132.dp),verticalArrangement=Arrangement.spacedBy(22.dp)){item{PageHeader("Make it yours","Privacy, intelligence, and the way Honorable feels.",Icons.Rounded.Tune)};item{PremiumUpgradeCard(openPlus)};item{SettingCluster("privacy",listOf(SettingItem("Privacy promise","Everything stays right here",Icons.Rounded.Shield,openPrivacy),SettingItem("Permissions","Photos and videos",Icons.Rounded.Key,{})))};item{SettingCluster("intelligence",listOf(SettingItem("AI & search","Private, on-device understanding",Icons.Rounded.AutoAwesome,{}),SettingItem("Storage & index","Your local memory map",Icons.Rounded.Storage,{})))};item{SettingCluster("honorable",listOf(SettingItem("Appearance","Deep ink · bubble glow",Icons.Rounded.Palette,{}),SettingItem("About","Version 0.1.0",Icons.Rounded.Info,{})))}}}
+@Composable private fun SettingsScreen(openPrivacy:()->Unit,openPlus:()->Unit,openHealth:()->Unit){LazyColumn(contentPadding=PaddingValues(20.dp,42.dp,20.dp,132.dp),verticalArrangement=Arrangement.spacedBy(22.dp)){item{PageHeader("Make it yours","Privacy, intelligence, and the way Honorable feels.",Icons.Rounded.Tune)};item{PremiumUpgradeCard(openPlus)};item{SettingCluster("privacy",listOf(SettingItem("Privacy promise","Everything stays right here",Icons.Rounded.Shield,openPrivacy),SettingItem("Permissions","Photos and videos",Icons.Rounded.Key,{})))};item{SettingCluster("intelligence",listOf(SettingItem("AI & search","Private, on-device understanding",Icons.Rounded.AutoAwesome,{}),SettingItem("Storage & index","Your local memory map",Icons.Rounded.Storage,{}),SettingItem("Engine health","Private developer diagnostics",Icons.Rounded.MonitorHeart,openHealth)))};item{SettingCluster("honorable",listOf(SettingItem("Appearance","Deep ink · bubble glow",Icons.Rounded.Palette,{}),SettingItem("About","Version 0.1.0",Icons.Rounded.Info,{})))}}}
+
+@Composable private fun EngineHealthScreen(close:()->Unit){
+    val context=LocalContext.current;val database=remember{LocalMediaDatabase(context)};val model=remember{AndroidTinyClipEmbeddingService(context)};val doctor=remember{EngineDoctor(MediaCapabilityManager(context),database,model)}
+    var refresh by remember{mutableIntStateOf(0)};var report by remember{mutableStateOf("Running privacy-safe checks…")}
+    DisposableEffect(Unit){onDispose{model.close();database.close()}}
+    LaunchedEffect(refresh){report=withContext(Dispatchers.IO){doctor.privacySafeReport()}}
+    OverlayScaffold(close){LazyColumn(contentPadding=PaddingValues(20.dp,8.dp,20.dp,48.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){item{BubbleTag("developer diagnostics",BubbleMint);Text("Engine health",Modifier.padding(top=16.dp),style=MaterialTheme.typography.displaySmall);Text("Counts, versions, readiness and timings only. No filenames, paths, OCR, captions, or queries.",Modifier.padding(top=10.dp),color=MaterialTheme.colorScheme.onSurfaceVariant)};item{GlassCard{Text(report,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurface)}};item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Button(onClick={refresh++},modifier=Modifier.weight(1f)){Text("Run checks")};Button(onClick={context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,report),"Export private diagnostics"))},modifier=Modifier.weight(1f)){Text("Export")}}}}}
+}
 
 @Composable private fun PrivacyScreen(close:()->Unit){OverlayScaffold(close){LazyColumn(contentPadding=PaddingValues(0.dp,4.dp,0.dp,42.dp)){item{Column(Modifier.padding(horizontal=20.dp)){BubbleTag("the honorable promise",BubbleMint);Text("Your life.\nStill yours.",Modifier.padding(top=22.dp),style=MaterialTheme.typography.displaySmall.copy(fontSize=59.sp,lineHeight=55.sp));Text("Good intelligence does not need a cloud copy of your memories.",Modifier.padding(top=18.dp,bottom=30.dp).widthIn(max=320.dp),color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodyLarge)}};item{ArchiveTrustRow("01","Local AI",Icons.Rounded.AutoAwesome,BubbleCyan)};item{ArchiveTrustRow("02","Local text reading",Icons.Rounded.TextFields,BubbleLilac)};item{ArchiveTrustRow("03","Local memory map",Icons.Rounded.Storage,BubbleBlush)};item{ArchiveTrustRow("04","Nothing uploaded",Icons.Rounded.CloudOff,BubbleMint)};item{Row(Modifier.padding(22.dp,26.dp).clip(CircleShape).background(BubbleMint.copy(.09f)).padding(15.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Lock,null,Modifier.size(20.dp),tint=BubbleMint);Text("Photos, frames and searches stay on this device.",Modifier.padding(start=11.dp),color=BubbleMint)}}}}}
 
