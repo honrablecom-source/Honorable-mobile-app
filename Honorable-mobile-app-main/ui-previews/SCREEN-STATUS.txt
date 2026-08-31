@@ -1,34 +1,13 @@
-Honorable “Bubble OS” UI review — a complete soft-geometry Android direction with oversized rounded type, expressive color bubbles, and compact pill controls. Compose remains source of truth.
+HONORABLE CURRENT MOBILE UI PREVIEW
 
-Design foundation — Uber Base discipline for hierarchy and reusable controls; Copilot Money-style expressive, color-coded information surfaces; Simplenote-style content focus, whitespace, and low-friction navigation. Honorable retains its own privacy-first identity.
+Visual direction
+Light Bubble OS with soft geometry, local-first messaging, and four primary destinations:
+Home · Memories · Storage · Settings
 
-iOS Home — IMPLEMENTED — Source-derived preview of the current native SwiftUI HomeView. SwiftUI remains the iOS source of truth.
+Current previews
+01 Home — Current rounded hero and corrected four-item navigation.
+02 Memories — Current prompt-first media experience and corrected four-item navigation.
+03 Storage — Current local index status, safe library actions, and active Storage navigation.
 
-01 Home — IMPLEMENTED — Original rounded hero composition with a corrected four-item primary menu.
-02 Memories — IMPLEMENTED — Original prompt-first composition with a corrected four-item primary menu.
-03 Search Focus — IMPLEMENTED — Calm full-screen composition with one obvious local search action.
-04 AI Searching — IMPLEMENTED — Bubble-orbit scanning state with an explicit on-device privacy signal.
-05 Search Results — IMPLEMENTED — One dominant match, soft confidence tags, and compact supporting results.
-06 Video Results — IMPLEMENTED — The same result hierarchy with a visible representative moment timestamp.
-07 Media Viewer — IMPLEMENTED — Full-bleed media with a rounded bottom bubble sheet and local-match context.
-08 Legal — RELOCATED — Terms of Service and Privacy Policy now live under Settings → About & Legal.
-09 Terms Result — IMPLEMENTED — Friendly risk score, one-minute summary, and scan-friendly disclosure pills.
-10 Storage — IMPLEMENTED — Local index status, safe reindexing, and photo access controls.
-11 Settings — IMPLEMENTED — Rounded setting clusters and a prominent private-intelligence upgrade card.
-12 Privacy — IMPLEMENTED — A direct privacy promise supported by four local-processing proof bubbles.
-13 Honorable Plus — IMPLEMENTED — Premium visual treatment only; billing remains unconfigured.
-14 Indexing — IMPLEMENTED — Determinate local-index progress using the existing indexing backend.
-15 Empty Search — IMPLEMENTED — Warm low-confidence guidance and a clear refine-search action.
-16 Dark Home — IMPLEMENTED — Deep-ink home with the complete bubble hierarchy preserved.
-17 Dark Memories — IMPLEMENTED — Deep-ink version of the same fully connected prompt-first Memories landing.
-18 Dark Legal — RELOCATED — Legal documents remain under Settings rather than primary navigation.
-19 Safe Error State — IMPLEMENTED — A distinct failure treatment that reassures users their library was not changed or uploaded.
-
-Legacy preview images and their unused stylesheet were removed; Git history remains the recovery path.
-CURRENT REACT NATIVE UI PREVIEW
-
-Concept exploration: concept-a, concept-b, concept-c
-Selected direction: Concept C — restrained monochrome with transparent-blue focus material
-Implemented preview states: Home/Search, Memories Library, Search Modes, Results, Viewer, Indexing, Empty, Onboarding, Storage, Settings, About & Legal
-Responsive reviews: Small Android, Large phone
+Legacy concepts, stale Terms/Activity screens, dark variants, and superseded responsive captures were removed.
 All current preview entries are connected through preview-data.js and capture.cjs.
