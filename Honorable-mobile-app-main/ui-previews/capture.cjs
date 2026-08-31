@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const allIds = ['01-home','02-memories','concept-a','concept-b','concept-c','selected-home','selected-results','selected-viewer','selected-indexing','selected-empty','selected-onboarding','selected-settings','selected-small','selected-large'];
+const allIds = ['01-home','02-memories','concept-a','concept-b','concept-c','selected-home','selected-results','selected-viewer','selected-indexing','selected-empty','selected-onboarding','selected-settings','selected-storage','selected-small','selected-large'];
 const verifyOnly = process.argv.includes('--verify');
 const requestedIds = process.argv.slice(2).filter((id) => id !== '--verify');
 const unknownIds = requestedIds.filter((id) => !allIds.includes(id));

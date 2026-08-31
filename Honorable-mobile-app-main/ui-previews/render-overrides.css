@@ -173,3 +173,38 @@
 .legacy-local span small { margin-top: 3px; color: #666; font-size: 6px; }
 .legacy-local em { color: #555; font-size: 7px; font-style: normal; }
 .legacy-memories .legacy-dock { bottom: 8px; }
+
+/* Product-focused baseline: four destinations and photography-first home. */
+.phone .nav { left: 18px; right: 18px; height: 62px; border-radius: 31px; }
+.phone .nav > * { min-width: 66px; font-size: 18px; }
+.phone .nav > .active { color: #fff; font-weight: 700; }
+.phone .home-intro { padding-top: 14px; padding-bottom: 15px; }
+.phone .home-intro h1 { font-size: 34px; line-height: 38px; }
+.phone .mode { margin: -7px 16px 0; padding: 7px 11px; border: 0; border-radius: 16px; background: #15171a; color: #eee; font-size: 11px; font-weight: 700; }
+.phone .mode i { color: #888; font-style: normal; }
+.phone .home-recent { margin-top: 18px; }
+.phone .home-grid .media { aspect-ratio: .92; }
+.phone .storage-intro { padding-top: 15px; }
+.phone .storage-intro h1 { font-size: 35px; line-height: 37px; }
+.storage-card { margin: 0 16px; padding: 16px; border-radius: 22px; background: #181b20; }
+.storage-card > div { display: flex; align-items: center; }
+.storage-card i { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 15px; background: rgba(117,167,255,.2); color: #a8c8ff; font-style: normal; }
+.storage-card span { display: flex; flex: 1; flex-direction: column; margin-left: 11px; }
+.storage-card small { margin-top: 3px; color: #999; }
+.storage-card strong { font-size: 12px; }
+.storage-card > u { display: block; height: 4px; margin-top: 15px; border-radius: 2px; background: #2b2f34; text-decoration: none; }
+.storage-card em { display: block; width: 100%; height: 100%; border-radius: 2px; background: #75a7ff; }
+.storage-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 16px; }
+.storage-metrics > div { height: 78px; padding: 13px; border-radius: 18px; background: #131518; }
+.storage-metrics small { display: block; color: #888; font-size: 8px; letter-spacing: .7px; }
+.storage-metrics b { display: block; margin-top: 8px; font-size: 17px; }
+.safe-storage { display: flex; align-items: center; gap: 10px; margin: 11px 16px; padding: 13px; border: 1px solid #ffffff17; border-radius: 17px; color: #aaa; }
+.safe-storage span { display: flex; flex-direction: column; }
+.safe-storage b { color: #eee; font-size: 12px; }
+.safe-storage small { margin-top: 3px; font-size: 9px; }
+.storage-actions { margin: 18px 16px; }
+.storage-actions > small { color: #888; font-size: 9px; letter-spacing: 1px; }
+.storage-actions > div { height: 61px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: #131518; border-bottom: 1px solid #ffffff12; }
+.storage-actions > div:nth-child(2) { margin-top: 8px; border-radius: 18px 18px 0 0; }
+.storage-actions > div:last-child { border-radius: 0 0 18px 18px; }
+.storage-actions span { color: #888; font-size: 10px; }
