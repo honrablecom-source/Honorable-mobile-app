@@ -29,6 +29,6 @@ CURRENT REACT NATIVE UI PREVIEW
 
 Concept exploration: concept-a, concept-b, concept-c
 Selected direction: Concept C — restrained monochrome with transparent-blue focus material
-Implemented preview states: Home/Search, Results, Viewer, Indexing, Empty, Onboarding, Storage, Settings
+Implemented preview states: Home/Search, Memories Library, Search Modes, Results, Viewer, Indexing, Empty, Onboarding, Storage, Settings, About & Legal
 Responsive reviews: Small Android, Large phone
 All current preview entries are connected through preview-data.js and capture.cjs.
