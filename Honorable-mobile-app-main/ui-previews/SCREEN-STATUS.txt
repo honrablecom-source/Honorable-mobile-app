@@ -4,8 +4,8 @@ Design foundation — Uber Base discipline for hierarchy and reusable controls; 
 
 iOS Home — IMPLEMENTED — Source-derived preview of the current native SwiftUI HomeView. SwiftUI remains the iOS source of truth.
 
-01 Home — IMPLEMENTED — Current media-first baseline with search mode and four labeled tabs.
-02 Memories — IMPLEMENTED — Current photo/video library grid with lightweight filters and four labeled tabs.
+01 Home — IMPLEMENTED — Original rounded hero composition with a corrected four-item primary menu.
+02 Memories — IMPLEMENTED — Original prompt-first composition with a corrected four-item primary menu.
 03 Search Focus — IMPLEMENTED — Calm full-screen composition with one obvious local search action.
 04 AI Searching — IMPLEMENTED — Bubble-orbit scanning state with an explicit on-device privacy signal.
 05 Search Results — IMPLEMENTED — One dominant match, soft confidence tags, and compact supporting results.
