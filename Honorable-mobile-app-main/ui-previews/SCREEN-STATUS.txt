@@ -9,6 +9,9 @@ Current previews
 02 Memories — Current prompt-first media experience and corrected four-item navigation.
 03 Storage — Current local index status, safe library actions, and active Storage navigation.
 04 Settings — Current privacy, photo access, plan, and legal controls with active Settings navigation.
+05 Searching — Local photo/video search in progress with index progress and privacy reassurance.
+06 Photo Results — Image-first photo matches with editable query and lightweight filters.
+07 Video Moment — Video result with matched timestamp, jump-to-moment action, and local playback context.
 
 Legacy concepts, stale Terms/Activity screens, dark variants, and superseded responsive captures were removed.
 All current preview entries are connected through preview-data.js and capture.cjs.

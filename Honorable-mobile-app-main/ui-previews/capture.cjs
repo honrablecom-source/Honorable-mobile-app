@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const allIds = ['01-home','02-memories','03-storage','04-settings'];
+const allIds = ['01-home','02-memories','03-storage','04-settings','05-searching','06-photo-results','07-video-moment'];
 const verifyOnly = process.argv.includes('--verify');
 const requestedIds = process.argv.slice(2).filter((id) => id !== '--verify');
 const unknownIds = requestedIds.filter((id) => !allIds.includes(id));
@@ -47,6 +47,7 @@ async function captureWithPlaywright(chromium) {
     const page = await browser.newPage({ viewport: { width: 432, height: 936 }, deviceScaleFactor: 1 });
     for (const id of ids) {
       await page.goto(`file://${path.join(root, 'render.html')}?screen=${id}`);
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(root, `${id}.png`) });
       console.log(`CAPTURED: ${id}`);

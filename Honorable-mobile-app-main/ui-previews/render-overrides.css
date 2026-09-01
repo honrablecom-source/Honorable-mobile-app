@@ -311,3 +311,59 @@
 .bubble-settings-rows small { margin-top: 4px; color: #666; font-size: 6px; }
 .bubble-settings-rows em { color: #555; font-size: 17px; font-style: normal; }
 .legacy-settings .legacy-dock { bottom: 9px; }
+
+/* Bubble OS search lifecycle: searching, photo matches, and exact video moments. */
+.bubble-search-screen,.bubble-results-screen,.bubble-video-screen { height: 936px; min-height: 936px; }
+.bubble-query { height: 64px; display: flex; align-items: center; margin-top: 15px; padding: 8px; border: 1px solid #ccc; border-radius: 32px; background: #e5e5e5; }
+.bubble-query > i { width: 46px; height: 46px; display: grid; place-items: center; flex: 0 0 46px; border-radius: 50%; background: #111; color: #fff; font-size: 17px; font-style: normal; }
+.bubble-query > span { display: flex; flex: 1; flex-direction: column; padding-left: 10px; }
+.bubble-query small { color: #666; font-size: 6px; letter-spacing: .8px; }
+.bubble-query b { margin-top: 5px; font-size: 11px; }
+.bubble-query > em { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: #555; font-size: 15px; font-style: normal; }
+.bubble-query.compact { height: 58px; }
+.bubble-query.compact > i { width: 40px; height: 40px; flex-basis: 40px; }
+.bubble-searching { height: 488px; margin-top: 12px; padding: 25px 21px; border-radius: 46px; background: #111; color: #fff; }
+.search-orbit { position: relative; height: 190px; }
+.search-orbit i { position: absolute; display: block; border-radius: 50%; background: #ddd; }
+.search-orbit i:nth-child(1) { width: 132px; height: 132px; right: 14px; top: 15px; background: #bbb; animation: none; }
+.search-orbit i:nth-child(2) { width: 79px; height: 79px; right: 115px; top: 0; background: #fff; }
+.search-orbit i:nth-child(3) { width: 58px; height: 58px; right: 74px; top: 119px; background: #ddd; }
+.search-orbit i:nth-child(4) { width: 42px; height: 42px; left: 10px; top: 68px; display: grid; place-items: center; background: #fff; color: #111; font-style: normal; }
+.bubble-searching > small { color: #aaa; font-size: 7px; letter-spacing: 1px; }
+.bubble-searching h1 { margin: 9px 0 7px; font-size: 37px; line-height: 35px; letter-spacing: -1.6px; }
+.bubble-searching h1 em { color: #aaa; font-style: normal; }
+.bubble-searching p { color: #aaa; font-size: 9px; }
+.search-progress { height: 5px; margin-top: 22px; overflow: hidden; border-radius: 3px; background: #444; }
+.search-progress i { display: block; width: 67%; height: 100%; background: #fff; }
+.bubble-searching > span { display: block; margin-top: 10px; color: #aaa; font-size: 8px; }
+.bubble-searching > span b { color: #fff; }
+.cancel-search { width: 100%; height: 52px; margin-top: 10px; border: 1px solid #ccc; border-radius: 26px; background: #eee; color: #111; font-size: 10px; font-weight: 700; }
+.bubble-result-meta { display: flex; align-items: center; justify-content: space-between; margin: 14px 3px 8px; }
+.bubble-result-meta b { font-size: 14px; }
+.bubble-result-meta span { padding: 7px 10px; border-radius: 15px; background: #ddd; color: #555; font-size: 8px; }
+.photo-hero { position: relative; height: 284px; overflow: hidden; border-radius: 38px; background: linear-gradient(180deg,#0000,#000c),url('assets/prompt-beach-grass.png') center/cover; color: #fff; }
+.photo-hero > div { position: absolute; left: 18px; bottom: 18px; display: flex; flex-direction: column; }
+.photo-hero small { font-size: 7px; letter-spacing: .8px; }
+.photo-hero b { margin-top: 5px; font-size: 20px; }
+.photo-hero span { margin-top: 5px; color: #ddd; font-size: 8px; }
+.photo-hero > i { position: absolute; right: 15px; bottom: 15px; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: #111; font-style: normal; }
+.bubble-filter-row { display: flex; gap: 6px; margin: 10px 0; }
+.bubble-filter-row > * { padding: 7px 11px; border-radius: 15px; background: #ddd; color: #666; font-size: 8px; }
+.bubble-filter-row b { background: #111; color: #fff; }
+.bubble-photo-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 3px; }
+.bubble-photo-grid > i { position: relative; height: 119px; background-image: url('assets/honorable-preview-contact-sheet.png'); background-size: 300% 300%; font-style: normal; }
+.bubble-photo-grid > i:first-child { border-radius: 24px 0 0 0; }.bubble-photo-grid > i:nth-child(3) { border-radius: 0 24px 0 0; }
+.bubble-photo-grid i b { position: absolute; right: 5px; bottom: 5px; padding: 3px 5px; border-radius: 7px; background: #000b; color: #fff; font-size: 7px; }
+.video-hero { position: relative; height: 337px; margin-top: 2px; }
+.video-image { position: absolute; inset: 0; overflow: hidden; border-radius: 40px; background-image: linear-gradient(180deg,#0000,#0008),url('assets/honorable-preview-contact-sheet.png'); background-size: 300% 300%; }
+.video-image > i { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; display: grid; place-items: center; transform: translate(-50%,-50%); border-radius: 50%; background: #fff; color: #111; font-style: normal; }
+.video-image > em { position: absolute; right: 13px; top: 13px; padding: 6px 9px; border-radius: 13px; background: #000b; color: #fff; font-size: 8px; font-style: normal; }
+.moment-pill { position: absolute; left: 15px; bottom: 15px; width: 126px; padding: 11px 13px; border-radius: 25px; background: #fff; color: #111; display: flex; flex-direction: column; }
+.moment-pill small { font-size: 6px; letter-spacing: .7px; }.moment-pill b { margin-top: 4px; font-size: 21px; }.moment-pill span { color: #666; font-size: 7px; }
+.video-copy { display: flex; align-items: center; padding: 12px 3px 8px; }
+.video-copy span { display: flex; flex: 1; flex-direction: column; }.video-copy small { color: #666; font-size: 6px; letter-spacing: .7px; }.video-copy b { margin-top: 4px; font-size: 15px; }.video-copy em { margin-top: 4px; color: #666; font-size: 7px; font-style: normal; }
+.video-copy > i { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: #111; color: #fff; font-style: normal; }
+.video-timeline { position: relative; height: 27px; margin: 1px 3px; }
+.video-timeline span { position: absolute; left: 0; right: 0; top: 9px; height: 4px; border-radius: 2px; background: #ccc; }.video-timeline i { position: absolute; left: 72%; top: 3px; width: 16px; height: 16px; border: 4px solid #111; border-radius: 50%; background: #fff; }.video-timeline b { position: absolute; left: 68%; top: 20px; font-size: 7px; }
+.moment-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-top: 7px; }.moment-strip i { height: 70px; border-radius: 18px; background-image: url('assets/honorable-preview-contact-sheet.png'); background-size: 300% 300%; }.moment-strip i.active { outline: 3px solid #111; outline-offset: 1px; }
+.video-safe { margin-top: 9px; padding: 10px 12px; border-radius: 18px; background: #e5e5e5; color: #555; font-size: 7px; }
