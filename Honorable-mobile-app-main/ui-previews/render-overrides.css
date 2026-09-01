@@ -415,3 +415,9 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.28),0 8px 18px rgba(33,50,66,.3);
 }
 .bubble-ring { box-shadow: inset 0 0 0 2px rgba(255,255,255,.34),0 0 28px rgba(164,204,239,.22); }
+
+/* In-device screens do not repeat the product logo; the app icon already supplies identity. */
+.phone.legacy .legacy-brand { display: none; }
+.phone.legacy { padding-top: 24px; }
+.bubble-storage-intro,.bubble-settings-intro { margin-top: 5px; }
+.bubble-query { margin-top: 4px; }
