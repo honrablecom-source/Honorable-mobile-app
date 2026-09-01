@@ -8,6 +8,12 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.*
 import com.facebook.react.uimanager.ViewManager
 import kotlinx.coroutines.runBlocking
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.util.Size
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -18,7 +24,7 @@ class HonorableNativePackage : ReactPackage {
 
 /** Thin transport only. Parsing, retrieval, ordering, confidence and indexing stay in the shared Kotlin engine. */
 class HonorableSearchModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
-    private val work = Executors.newSingleThreadExecutor()
+    private val work = Executors.newFixedThreadPool(2)
     private val cancelled = AtomicBoolean(false)
     private val databaseDelegate=lazy { LocalMediaDatabase(context) }
     private val embeddingsDelegate=lazy { AndroidTinyClipEmbeddingService(context) }
@@ -29,8 +35,17 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     override fun getName() = "HonorableSearchModule"
 
     @ReactMethod fun getStatus(promise: Promise) = work.execute { guarded(promise) {
-        Arguments.createMap().apply { putString("engine", "REAL");putBoolean("permissionGranted",hasMediaPermission());putInt("indexedCount",database.records().size);putString("status",if(hasMediaPermission())"READY" else "PERMISSION_REQUIRED") }
+        val records=database.records();val job=database.latestJob()
+        val status=when{!hasMediaPermission()->"PERMISSION_REQUIRED";records.isEmpty()->"NOT_INDEXED";job?.state==IndexJobState.COMPLETED->"READY";else->job?.state?.name?:"READY"}
+        Arguments.createMap().apply { putString("engine", "REAL");putBoolean("permissionGranted",hasMediaPermission());putInt("indexedCount",records.size);putString("status",status);job?.let{putInt("processed",it.processed);putInt("total",it.total);putInt("failed",it.failedItems);it.finishedAtEpochMs?.let{at->putDouble("lastCompletedAt",at.toDouble())}} }
     } }
+
+    @ReactMethod fun getLibrary(limit:Int,offset:Int,kind:String?,promise:Promise)=work.execute{guarded(promise){
+        val requested=kind?.takeIf{it.isNotBlank()&&it!="ALL"}?.let{MediaKind.valueOf(it)}
+        val all=database.records().asSequence().filter{requested==null||it.kind==requested}.sortedByDescending{it.capturedAtEpochMs}.toList()
+        val page=all.drop(offset.coerceAtLeast(0)).take(limit.coerceIn(1,200))
+        Arguments.createMap().apply{putInt("total",all.size);putArray("items",Arguments.createArray().apply{page.forEach{pushMap(libraryMap(it))}})}
+    }}
 
     @ReactMethod fun refreshIndex(promise: Promise) = work.execute { guarded(promise) {
         if(!hasMediaPermission()) throw IllegalStateException("Media permission is required")
@@ -40,7 +55,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     } }
 
     @ReactMethod fun search(raw: String, promise: Promise) = work.execute { guarded(promise) {
-        require(raw.isNotBlank()) { "Query must not be blank" };cancelled.set(false)
+        require(raw.isNotBlank()) { "Query must not be blank" };rememberSearch(raw);cancelled.set(false)
         val policy=trustedEntitlement().effectivePolicy();val query=QueryParser().parse(raw)
         if(query.mediaKind==MediaKind.VIDEO&&!policy.allows(HonorableFeature.VIDEO_SEARCH)) return@guarded locked("VIDEO_SEARCH_REQUIRES_PLUS")
         if(!catalogLoaded)reloadCatalog()
@@ -50,6 +65,10 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     } }
 
     @ReactMethod fun cancelSearch() { cancelled.set(true) }
+
+    @ReactMethod fun getSearchHistory(promise:Promise)=work.execute{guarded(promise){Arguments.createMap().apply{putArray("queries",Arguments.fromList(searchHistory()))}}}
+    @ReactMethod fun clearSearchHistory(promise:Promise)=work.execute{guarded(promise){context.getSharedPreferences("honorable-ui",0).edit().remove("search-history").apply();Arguments.createMap().apply{putBoolean("cleared",true)}}}
+    @ReactMethod fun openMedia(uri:String,kind:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){context.startActivity(Intent(context,HonorableMediaViewerActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri);putExtra("kind",kind);timestampMs?.let{putExtra("timestampMs",it.toLong())}});Arguments.createMap().apply{putBoolean("opened",true)}}}
 
     @ReactMethod fun getEntitlementState(promise: Promise) = work.execute { guarded(promise) {
         // Until Play Billing/server verification is configured, native authority is deliberately unverified Free.
@@ -61,6 +80,10 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     private fun reloadCatalog():Int { val policy=trustedEntitlement().effectivePolicy();val records=database.records().filter{it.kind!=MediaKind.VIDEO||policy.allows(HonorableFeature.VIDEO_SEARCH)};coordinator.replaceRecords(records);catalogLoaded=true;return records.size }
     private fun locked(reason:String)=Arguments.createMap().apply{putBoolean("confident",false);putString("decision",reason);putDouble("semantic",0.0);putDouble("margin",0.0);putArray("results",Arguments.createArray())}
     private fun resultMap(rank:Int, match:SearchMatch, exactMoment:Boolean)=Arguments.createMap().apply { putInt("rank",rank+1);putDouble("mediaId",match.media.id.toDouble());putString("mediaUri",match.media.uri);putString("mediaType",match.media.kind.name);putString("displayName",match.media.displayName);putDouble("score",match.score);putDouble("semantic",match.breakdown.fullSemantic);if(exactMoment)match.bestTimestampMs?.let{putDouble("bestTimestampMs",it.toDouble())};putString("confidence",match.confidence.name);putArray("evidence",Arguments.fromList(match.explanations)) }
+    private fun libraryMap(media:MediaRecord)=Arguments.createMap().apply{putDouble("mediaId",media.id.toDouble());putString("mediaUri",media.uri);putString("mediaType",media.kind.name);putString("displayName",media.displayName);putDouble("capturedAt",media.capturedAtEpochMs.toDouble());media.durationMs?.let{putDouble("durationMs",it.toDouble())};videoThumbnail(media)?.let{putString("thumbnailUri",it)}}
+    private fun videoThumbnail(media:MediaRecord):String?{if(media.kind!=MediaKind.VIDEO||Build.VERSION.SDK_INT<29)return null;return runCatching{val dir=File(context.cacheDir,"media-thumbnails").apply{mkdirs()};val file=File(dir,"${media.id}.jpg");if(!file.exists()){val bitmap=context.contentResolver.loadThumbnail(Uri.parse(media.uri),Size(640,640),null);FileOutputStream(file).use{bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,it)};bitmap.recycle()};Uri.fromFile(file).toString()}.getOrNull()}
+    private fun searchHistory():List<String>=context.getSharedPreferences("honorable-ui",0).getString("search-history","").orEmpty().lineSequence().filter(String::isNotBlank).toList()
+    private fun rememberSearch(raw:String){val clean=raw.trim().replace('\n',' ');val history=(listOf(clean)+searchHistory().filterNot{it.equals(clean,true)}).take(12);context.getSharedPreferences("honorable-ui",0).edit().putString("search-history",history.joinToString("\n")).apply()}
     private fun hasMediaPermission()=MediaCapabilityManager(context).current().canReadAny
     private fun guarded(promise:Promise, block:()->WritableMap) { try { promise.resolve(block()) } catch(error:Throwable) { promise.reject("HONORABLE_NATIVE_ERROR",error.message,error) } }
     override fun invalidate() { work.shutdownNow();if(embeddingsDelegate.isInitialized())embeddings.close();if(databaseDelegate.isInitialized())database.close();super.invalidate() }

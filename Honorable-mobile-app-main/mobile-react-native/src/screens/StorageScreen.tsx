@@ -1,11 +1,9 @@
-import React,{useCallback,useEffect,useState}from'react';
+import React,{useState}from'react';
 import{ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,View}from'react-native';
 import{SafeAreaView}from'react-native-safe-area-context';
 import{Check,ChevronRight,Images,RefreshCw}from'lucide-react-native';
 import{Text}from'@/components/ui/text';
-import{honorableNative}from'../native/HonorableNative';
-
-type Status={engine:'REAL';permissionGranted:boolean;indexedCount:number;status:string};
+import{useLibrary}from'../library/LibraryContext';
 const p={bg:'#E9EEF4',ink:'#071018',muted:'#53606C',soft:'rgba(255,255,255,.52)',strong:'rgba(213,224,235,.62)',line:'rgba(255,255,255,.82)',white:'#FFFFFF',ring:'#C9D9E8'};
 const glassDepth={shadowColor:'#34495C',shadowOffset:{width:0,height:14},shadowOpacity:.18,shadowRadius:24,elevation:7};
 
@@ -17,16 +15,15 @@ function Action({icon,title,detail,onPress}:{icon:React.ReactNode;title:string;d
 }
 
 export function StorageScreen(){
-  const[status,setStatus]=useState<Status>();const[loading,setLoading]=useState(true);const[refreshing,setRefreshing]=useState(false);const[error,setError]=useState('');
-  const load=useCallback(async()=>{try{setError('');setStatus(await honorableNative.getStatus())}catch(value){setError(value instanceof Error?value.message:'Storage status unavailable')}finally{setLoading(false)}},[]);
-  useEffect(()=>{load()},[load]);
-  const reindex=()=>Alert.alert('Reindex library?','This rebuilds only Honorable’s private search index. Your original photos and videos will never be deleted.',[{text:'Cancel',style:'cancel'},{text:'Reindex',onPress:async()=>{setRefreshing(true);try{await honorableNative.refreshIndex();await load()}catch(value){setError(value instanceof Error?value.message:'Could not refresh index')}finally{setRefreshing(false)}}}]);
+  const{status,loading,indexing,error,reindex:reindexLibrary}=useLibrary();const[confirming,setConfirming]=useState(false);
+  const reindex=()=>Alert.alert('Reindex library?','This rebuilds only Honorable’s private search index. Your original photos and videos will never be deleted.',[{text:'Cancel',style:'cancel'},{text:'Reindex',onPress:async()=>{setConfirming(true);try{await reindexLibrary()}finally{setConfirming(false)}}}]);
+  const refreshing=indexing||confirming;
   const indexed=status?.indexedCount.toLocaleString()??'—';const ready=status?.status.toLowerCase().includes('ready');
   return <SafeAreaView edges={['top']} style={s.safe}><ScrollView contentContainerStyle={s.content}>
     <View style={s.utilityBar}><View style={s.localPill}><View style={s.localDot}/><Text style={s.localText}>On device</Text></View></View>
     <View style={s.intro}><Text style={s.eyebrow}>LOCAL LIBRARY</Text><Text accessibilityRole="header" style={s.title}>Your library</Text><Text style={[s.title,s.titleMuted]}>stays local.</Text><Text style={s.subtitle}>See what is ready to search and manage Honorable’s private index.</Text></View>
     {loading?<ActivityIndicator style={s.loading} color={p.ink}/>:<>
-      <View style={s.indexCard}><View style={s.progressRing}><Text style={s.progressValue}>{ready?'100':'••'}<Text style={s.progressUnit}>%</Text></Text></View><View style={s.indexCopy}><Text style={s.indexLabel}>SEARCH INDEX</Text><Text style={s.indexValue}>{indexed} ready</Text><Text style={s.indexDetail}>{status?.status??'Status unavailable'}</Text></View><View style={s.check}><Check color={p.ink} size={16}/></View></View>
+      <View style={s.indexCard}><View style={s.progressRing}><Text style={s.progressValue}>{status?.total?Math.round(((status.processed??0)/status.total)*100):ready?'100':'••'}<Text style={s.progressUnit}>%</Text></Text></View><View style={s.indexCopy}><Text style={s.indexLabel}>SEARCH INDEX</Text><Text style={s.indexValue}>{indexed} ready</Text><Text style={s.indexDetail}>{status?.status??'Status unavailable'}</Text></View><View style={s.check}><Check color={p.ink} size={16}/></View></View>
       <View style={s.metrics}><Metric label="INDEXED MEDIA" value={indexed} detail="Ready to search"/><Metric label="STATUS" value={ready?'Ready':'Working'} detail={status?.status??'Unavailable'} strong/><Metric label="INDEX STORAGE" value="On device" detail="Private database" strong/><Metric label="PHOTO ACCESS" value={status?.permissionGranted?'Granted':'Required'} detail="Managed by device"/></View>
       <View style={s.actions}><Action icon={<RefreshCw color={p.white} size={16}/>} title={refreshing?'Reindexing…':'Reindex library'} detail="Rebuild Honorable’s search index only" onPress={refreshing?undefined:reindex}/><Action icon={<Images color={p.white} size={16}/>} title="Manage photo access" detail="Choose photos and videos" onPress={()=>Linking.openSettings()}/></View>
       <View style={[s.safeNote,glassDepth]}><View style={s.safeIcon}><Check color={p.white} size={14}/></View><View style={s.safeCopy}><Text style={s.safeTitle}>Your originals stay safe</Text><Text style={s.safeDetail}>Honorable never deletes photos or videos.</Text></View><Text style={s.cache}>Cache not measured</Text></View>

@@ -5,6 +5,9 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {AppNavigator} from './src/navigation/AppNavigator';
 import {colors} from './src/design-system/tokens';
 import {PortalHost} from '@rn-primitives/portal';
+import {LibraryProvider} from './src/library/LibraryContext';
+import {LibraryGate} from './src/library/LibraryGate';
+import {SearchModeProvider} from './src/search/SearchModeContext';
 import './global.css';
 
 const navigationTheme = {...DarkTheme, colors: {...DarkTheme.colors, primary: colors.cyan, background: colors.navyDeep, card: colors.glassStrong, text: colors.ice, border: colors.border, notification: colors.lilac}};
@@ -13,7 +16,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" />
-      <NavigationContainer theme={navigationTheme}><AppNavigator /></NavigationContainer>
+      <LibraryProvider><SearchModeProvider><LibraryGate><NavigationContainer theme={navigationTheme}><AppNavigator /></NavigationContainer></LibraryGate></SearchModeProvider></LibraryProvider>
       <PortalHost />
     </SafeAreaProvider>
   );
