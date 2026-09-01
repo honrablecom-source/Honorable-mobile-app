@@ -278,3 +278,36 @@
 .bubble-storage-safe small { margin-top: 3px; color: #666; font-size: 6px; }
 .bubble-storage-safe em { color: #555; font-size: 7px; font-style: normal; }
 .legacy-storage .legacy-dock { bottom: 9px; }
+
+/* Settings tab in the approved light Bubble OS visual language. */
+.legacy-settings { height: 936px; min-height: 936px; }
+.legacy-settings .legacy-brand em { width: 38px; height: 38px; display: grid; place-items: center; padding: 0; border-radius: 50%; color: #111; font-size: 15px; }
+.bubble-settings-intro { margin-top: 13px; }
+.bubble-settings-intro > small { color: #666; font-size: 8px; letter-spacing: 1px; }
+.bubble-settings-intro h1 { margin: 9px 0 7px; font-size: 40px; line-height: 37px; letter-spacing: -1.8px; }
+.bubble-settings-intro h1 em { color: #898989; font-style: normal; }
+.bubble-settings-intro p { margin: 0; color: #666; font-size: 10px; line-height: 14px; }
+.bubble-privacy { height: 126px; display: flex; align-items: center; margin-top: 15px; padding: 14px; border-radius: 38px; background: #111; color: #fff; }
+.bubble-privacy > i { width: 62px; height: 62px; display: grid; place-items: center; flex: 0 0 62px; border-radius: 50%; background: #fff; color: #111; font-size: 23px; font-style: normal; }
+.bubble-privacy > span { display: flex; flex: 1; flex-direction: column; padding-left: 14px; }
+.bubble-privacy span small { color: #aeb7c2; font-size: 7px; letter-spacing: .9px; }
+.bubble-privacy span b { margin-top: 7px; font-size: 17px; }
+.bubble-privacy span em { max-width: 200px; margin-top: 6px; color: #aaa; font-size: 7px; line-height: 10px; font-style: normal; }
+.bubble-privacy > strong { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: #111; font-size: 11px; }
+.bubble-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+.bubble-settings-grid > div { height: 124px; display: flex; flex-direction: column; padding: 15px; border: 1px solid #ccc; border-radius: 31px; background: #ddd; }
+.bubble-settings-grid > div:nth-child(2) { background: #c5c5c5; }
+.bubble-settings-grid i { font-size: 18px; font-style: normal; }
+.bubble-settings-grid small { margin-top: 12px; color: #666; font-size: 7px; letter-spacing: .8px; }
+.bubble-settings-grid b { margin-top: 6px; font-size: 14px; }
+.bubble-settings-grid span { margin-top: 4px; color: #666; font-size: 7px; }
+.bubble-settings-label { display: block; margin: 17px 0 7px; color: #666; font-size: 7px; letter-spacing: 1px; }
+.bubble-settings-rows { overflow: hidden; border: 1px solid #ccc; border-radius: 28px; background: #eee; }
+.bubble-settings-rows > div { height: 61px; display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid #d0d0d0; }
+.bubble-settings-rows > div:last-child { border-bottom: 0; }
+.bubble-settings-rows i { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 38px; border-radius: 50%; background: #111; color: #fff; font-size: 12px; font-style: normal; }
+.bubble-settings-rows span { display: flex; flex: 1; flex-direction: column; padding-left: 9px; }
+.bubble-settings-rows b { font-size: 10px; }
+.bubble-settings-rows small { margin-top: 4px; color: #666; font-size: 6px; }
+.bubble-settings-rows em { color: #555; font-size: 17px; font-style: normal; }
+.legacy-settings .legacy-dock { bottom: 9px; }

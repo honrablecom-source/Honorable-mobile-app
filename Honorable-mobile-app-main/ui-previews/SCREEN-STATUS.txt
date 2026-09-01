@@ -8,6 +8,7 @@ Current previews
 01 Home — Current rounded hero and corrected four-item navigation.
 02 Memories — Current prompt-first media experience and corrected four-item navigation.
 03 Storage — Current local index status, safe library actions, and active Storage navigation.
+04 Settings — Current privacy, photo access, plan, and legal controls with active Settings navigation.
 
 Legacy concepts, stale Terms/Activity screens, dark variants, and superseded responsive captures were removed.
 All current preview entries are connected through preview-data.js and capture.cjs.

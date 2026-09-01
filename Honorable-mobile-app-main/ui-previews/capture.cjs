@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const allIds = ['01-home','02-memories','03-storage'];
+const allIds = ['01-home','02-memories','03-storage','04-settings'];
 const verifyOnly = process.argv.includes('--verify');
 const requestedIds = process.argv.slice(2).filter((id) => id !== '--verify');
 const unknownIds = requestedIds.filter((id) => !allIds.includes(id));
