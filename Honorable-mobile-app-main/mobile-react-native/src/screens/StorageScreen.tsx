@@ -6,13 +6,14 @@ import{Text}from'@/components/ui/text';
 import{honorableNative}from'../native/HonorableNative';
 
 type Status={engine:'REAL';permissionGranted:boolean;indexedCount:number;status:string};
-const p={bg:'#F5F5F5',ink:'#0B0B0C',muted:'#686868',soft:'#DEDEDE',strong:'#C8C8C8',line:'#CECECE',white:'#FFFFFF',ring:'#BEC9D7'};
+const p={bg:'#E9EEF4',ink:'#071018',muted:'#53606C',soft:'rgba(255,255,255,.52)',strong:'rgba(213,224,235,.62)',line:'rgba(255,255,255,.82)',white:'#FFFFFF',ring:'#C9D9E8'};
+const glassDepth={shadowColor:'#34495C',shadowOffset:{width:0,height:14},shadowOpacity:.18,shadowRadius:24,elevation:7};
 
 function Metric({label,value,detail,strong=false}:{label:string;value:string;detail:string;strong?:boolean}){
-  return <View style={[s.metric,strong&&s.metricStrong]}><Text style={s.metricLabel}>{label}</Text><Text style={s.metricValue}>{value}</Text><Text style={s.metricDetail}>{detail}</Text></View>;
+  return <View style={[s.metric,strong&&s.metricStrong,glassDepth]}><Text style={s.metricLabel}>{label}</Text><Text style={s.metricValue}>{value}</Text><Text style={s.metricDetail}>{detail}</Text></View>;
 }
 function Action({icon,title,detail,onPress}:{icon:React.ReactNode;title:string;detail:string;onPress?:()=>void}){
-  return <Pressable accessibilityRole="button" disabled={!onPress} onPress={onPress} style={[s.action,!onPress&&s.disabled]}><View style={s.actionIcon}>{icon}</View><View style={s.actionCopy}><Text style={s.actionTitle}>{title}</Text><Text style={s.actionDetail}>{detail}</Text></View><ChevronRight color={p.muted} size={17}/></Pressable>;
+  return <Pressable accessibilityRole="button" disabled={!onPress} onPress={onPress} style={[s.action,glassDepth,!onPress&&s.disabled]}><View style={s.actionIcon}>{icon}</View><View style={s.actionCopy}><Text style={s.actionTitle}>{title}</Text><Text style={s.actionDetail}>{detail}</Text></View><ChevronRight color={p.muted} size={17}/></Pressable>;
 }
 
 export function StorageScreen(){
@@ -28,7 +29,7 @@ export function StorageScreen(){
       <View style={s.indexCard}><View style={s.progressRing}><Text style={s.progressValue}>{ready?'100':'••'}<Text style={s.progressUnit}>%</Text></Text></View><View style={s.indexCopy}><Text style={s.indexLabel}>SEARCH INDEX</Text><Text style={s.indexValue}>{indexed} ready</Text><Text style={s.indexDetail}>{status?.status??'Status unavailable'}</Text></View><View style={s.check}><Check color={p.ink} size={16}/></View></View>
       <View style={s.metrics}><Metric label="INDEXED MEDIA" value={indexed} detail="Ready to search"/><Metric label="STATUS" value={ready?'Ready':'Working'} detail={status?.status??'Unavailable'} strong/><Metric label="INDEX STORAGE" value="On device" detail="Private database" strong/><Metric label="PHOTO ACCESS" value={status?.permissionGranted?'Granted':'Required'} detail="Managed by device"/></View>
       <View style={s.actions}><Action icon={<RefreshCw color={p.white} size={16}/>} title={refreshing?'Reindexing…':'Reindex library'} detail="Rebuild Honorable’s search index only" onPress={refreshing?undefined:reindex}/><Action icon={<Images color={p.white} size={16}/>} title="Manage photo access" detail="Choose photos and videos" onPress={()=>Linking.openSettings()}/></View>
-      <View style={s.safeNote}><View style={s.safeIcon}><Check color={p.white} size={14}/></View><View style={s.safeCopy}><Text style={s.safeTitle}>Your originals stay safe</Text><Text style={s.safeDetail}>Honorable never deletes photos or videos.</Text></View><Text style={s.cache}>Cache not measured</Text></View>
+      <View style={[s.safeNote,glassDepth]}><View style={s.safeIcon}><Check color={p.white} size={14}/></View><View style={s.safeCopy}><Text style={s.safeTitle}>Your originals stay safe</Text><Text style={s.safeDetail}>Honorable never deletes photos or videos.</Text></View><Text style={s.cache}>Cache not measured</Text></View>
     </>}{!!error&&<Text style={s.error}>{error}</Text>}
   </ScrollView></SafeAreaView>;
 }

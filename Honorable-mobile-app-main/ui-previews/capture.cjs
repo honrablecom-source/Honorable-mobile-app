@@ -49,6 +49,7 @@ async function captureWithPlaywright(chromium) {
       await page.goto(`file://${path.join(root, 'render.html')}?screen=${id}`);
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(250);
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: path.join(root, `${id}.png`) });
       console.log(`CAPTURED: ${id}`);
     }
