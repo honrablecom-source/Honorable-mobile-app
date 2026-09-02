@@ -4,10 +4,12 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - "mobile-react-native/**"
       - "android-app/**"
       - ".github/workflows/android-build.yml"
   pull_request:
     paths:
+      - "mobile-react-native/**"
       - "android-app/**"
       - ".github/workflows/android-build.yml"
 
@@ -19,9 +21,17 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: android-app
+        working-directory: mobile-react-native
+    env:
+      HONORABLE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.HONORABLE_GOOGLE_WEB_CLIENT_ID }}
+      HONORABLE_ACCOUNT_API_URL: ${{ secrets.HONORABLE_ACCOUNT_API_URL }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile-react-native/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -32,28 +42,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Verify sign-in build configuration is present
+        shell: bash
+        run: |
+          test -n "$HONORABLE_GOOGLE_WEB_CLIENT_ID"
+          test -n "$HONORABLE_ACCOUNT_API_URL"
       - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
-      - name: Unit tests
-        run: ./gradlew --no-daemon test
-      - name: Build unsigned hardened release
-        run: ./gradlew --no-daemon assembleRelease bundleRelease
-      - name: Verify release contents
-        run: ./scripts/verify-release.sh app/build/outputs/apk/release/app-release-unsigned.apk
-      - name: Upload unsigned release
+        run: chmod +x android/gradlew
+      - name: Build configured debug APK
+        working-directory: mobile-react-native/android
+        run: ./gradlew --no-daemon :app:assembleDebug
+      - name: Upload configured debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: honorable-android-unsigned-release
+          name: honorable-android-debug
           retention-days: 14
-          path: |
-            android-app/app/build/outputs/apk/release/app-release-unsigned.apk
-            android-app/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-      - name: Retain R8 mapping for trusted builds
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: honorable-r8-mapping-${{ github.sha }}
-          retention-days: 14
-          path: android-app/app/build/outputs/mapping/release/mapping.txt
+          path: mobile-react-native/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

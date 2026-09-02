@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -63,6 +65,8 @@ def releaseStorePassword = System.getenv("HONORABLE_RELEASE_STORE_PASSWORD")
 def releaseKeyAlias = System.getenv("HONORABLE_RELEASE_KEY_ALIAS")
 def releaseKeyPassword = System.getenv("HONORABLE_RELEASE_KEY_PASSWORD")
 def hasReleaseSigning = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.trim().isEmpty() }
+def googleWebClientId = System.getenv("HONORABLE_GOOGLE_WEB_CLIENT_ID") ?: ""
+def accountApiUrl = System.getenv("HONORABLE_ACCOUNT_API_URL") ?: ""
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -89,7 +93,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        buildConfigField "String", "HONORABLE_GOOGLE_WEB_CLIENT_ID", JsonOutput.toJson(googleWebClientId)
+        buildConfigField "String", "HONORABLE_ACCOUNT_API_URL", JsonOutput.toJson(accountApiUrl)
     }
+    buildFeatures { buildConfig true }
     sourceSets {
         main.java.srcDir("../../../android-app/app/src/main/java")
         main.java.includes += ["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"]
@@ -144,6 +151,9 @@ dependencies {
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
