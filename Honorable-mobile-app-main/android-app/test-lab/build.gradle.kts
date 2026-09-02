@@ -15,6 +15,7 @@ sourceSets.main {
     kotlin.include("app/honorable/search/SearchEvaluation.kt")
     kotlin.include("app/honorable/search/VisionEnrichment.kt")
     kotlin.include("app/honorable/search/IndexingRuntime.kt")
+    kotlin.include("app/honorable/search/TemporalSearch.kt")
     kotlin.include("app/honorable/Entitlements.kt")
     kotlin.include("app/honorable/testlab/**")
 }
@@ -47,3 +48,9 @@ cliTask("evaluateDegradedSearch", "evaluate-degraded")
 cliTask("videoReport", "video-report")
 cliTask("serveTestMedia", "serve", "--port", providers.gradleProperty("port").orNull ?: "4174")
 cliTask("listTestMedia", "list")
+cliTask("benchmarkSeran", "benchmark").configure {
+    doFirst {
+        val model = providers.gradleProperty("seranModel").orNull ?: error("Use -PseranModel=SERAN_V1|SERAN_V2|SERAN_V3")
+        setArgs(listOf("benchmark", "--model", model))
+    }
+}

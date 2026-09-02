@@ -90,7 +90,9 @@ data class SearchMatch(
     val breakdown: ScoreBreakdown = ScoreBreakdown()
 )
 
-data class ConfidenceDecision(val confident:Boolean,val semantic:Double,val margin:Double,val reason:String)
+enum class ConfidenceTier { HIGH, MEDIUM, LOW }
+enum class ConfidenceOutcome { ACCEPT, NO_MATCH }
+data class ConfidenceDecision(val confident:Boolean,val semantic:Double,val margin:Double,val reason:String,val score:Double=0.0,val tier:ConfidenceTier=ConfidenceTier.LOW,val decision:ConfidenceOutcome=if(confident)ConfidenceOutcome.ACCEPT else ConfidenceOutcome.NO_MATCH,val signalAgreement:Double=0.0)
 fun confidenceDecision(matches:List<SearchMatch>,minConfidence:Double=.30,minMargin:Double=.03):ConfidenceDecision {
     val best=matches.firstOrNull()?.breakdown?.fullSemantic?:0.0
     val second=matches.getOrNull(1)?.breakdown?.fullSemantic
@@ -106,8 +108,51 @@ fun confidenceDecision(matches:List<SearchMatch>,minConfidence:Double=.30,minMar
 
 /** Short visual phrases naturally have tighter CLIP margins; retain a hard floor for unrelated media. */
 fun confidenceDecision(query:SearchQuery,matches:List<SearchMatch>):ConfidenceDecision {
-    val conciseVisual=query.terms.size in 1..3&&query.mediaSubtype!=MediaSubtype.SCREENSHOT&&query.ocrTerms.isEmpty()&&query.afterEpochMs==null&&query.beforeEpochMs==null
-    return confidenceDecision(matches,if(conciseVisual).28 else .30,if(conciseVisual).005 else .03)
+    return ConfidencePolicy.evaluate(query,matches)
+}
+
+/** Post-ranking confidence calibration. It never changes candidate order or retrieval scores. */
+object ConfidencePolicy {
+    private const val IMAGE_SEMANTIC_FLOOR=.28
+    private const val VIDEO_SEMANTIC_FLOOR=.30
+    private const val CONCISE_MARGIN=.005
+    private const val DEFAULT_MARGIN=.03
+    private const val MULTI_SIGNAL_MARGIN=.05
+    private const val STRONG_OCR=8.0
+
+    fun evaluate(query:SearchQuery,matches:List<SearchMatch>):ConfidenceDecision {
+        val top=matches.firstOrNull()?:return result(false,0.0,0.0,"LOW_ABSOLUTE_EVIDENCE",0.0)
+        val b=top.breakdown;val semantic=b.fullSemantic
+        val second=matches.getOrNull(1)?.breakdown?.fullSemantic
+        val margin=if(second==null)1.0 else (semantic-second).coerceAtLeast(0.0)
+        val semanticFloor=if(top.media.kind==MediaKind.VIDEO)VIDEO_SEMANTIC_FLOOR else IMAGE_SEMANTIC_FLOOR
+        val requested=mutableListOf<Boolean>();requested+=semantic>=semanticFloor
+        if(query.semanticConcepts.isNotEmpty())requested+=b.conceptCoverage>0.0
+        if(query.ocrTerms.isNotEmpty()||query.raw.any(Char::isDigit))requested+=b.ocr>=STRONG_OCR
+        if(query.colors.isNotEmpty())requested+=b.colors>0.0
+        if(query.activities.isNotEmpty()||query.scenes.isNotEmpty()||query.objects.isNotEmpty())requested+=(b.labels>0.0||b.videoFrames>0.0||b.conceptCoverage>0.0)
+        if(query.negativeTerms.isNotEmpty())requested+=b.negativePenalty==0.0
+        if(query.mediaKind!=null)requested+=top.media.kind==query.mediaKind
+        val agreement=requested.count{it}.toDouble()/requested.size.coerceAtLeast(1)
+        val normalizedSemantic=(semantic/semanticFloor).coerceIn(0.0,1.0)
+        val normalizedMargin=(margin/MULTI_SIGNAL_MARGIN).coerceIn(0.0,1.0)
+        val score=normalizedSemantic*.5+agreement*.35+normalizedMargin*.15
+        if(query.mediaKind!=null&&top.media.kind!=query.mediaKind)return result(false,semantic,margin,"MEDIA_INTENT_CONFLICT",score,agreement)
+        if(b.negativePenalty>0.0)return result(false,semantic,margin,"NEGATIVE_CONDITION_CONFLICT",score,agreement)
+        // Identifier-like text needs strong OCR support; a few fuzzy token hits are insufficient.
+        if(query.raw.any(Char::isDigit)&&b.ocr in Double.MIN_VALUE..<STRONG_OCR)return result(false,semantic,margin,"INSUFFICIENT_SIGNAL_AGREEMENT",score,agreement)
+        // Independent color + scene conditions need separation from the runner-up, not proximity alone.
+        if(query.colors.isNotEmpty()&&query.scenes.isNotEmpty()&&margin<MULTI_SIGNAL_MARGIN)return result(false,semantic,margin,"INSUFFICIENT_SIGNAL_AGREEMENT",score,agreement)
+        val concise=query.terms.size in 1..3&&query.mediaSubtype!=MediaSubtype.SCREENSHOT&&query.ocrTerms.isEmpty()&&query.afterEpochMs==null&&query.beforeEpochMs==null
+        if(semantic<semanticFloor)return result(false,semantic,margin,"LOW_ABSOLUTE_EVIDENCE",score,agreement)
+        if(margin<(if(concise)CONCISE_MARGIN else DEFAULT_MARGIN))return result(false,semantic,margin,"LOW_MARGIN",score,agreement)
+        return result(true,semantic,margin,"CALIBRATED_EVIDENCE_ACCEPTED",score,agreement)
+    }
+
+    private fun result(accept:Boolean,semantic:Double,margin:Double,reason:String,score:Double,agreement:Double=0.0):ConfidenceDecision {
+        val tier=when {score>=.80->ConfidenceTier.HIGH;score>=.60->ConfidenceTier.MEDIUM;else->ConfidenceTier.LOW}
+        return ConfidenceDecision(accept,semantic,margin,reason,score,tier,if(accept)ConfidenceOutcome.ACCEPT else ConfidenceOutcome.NO_MATCH,agreement)
+    }
 }
 
 interface EmbeddingService { val modelId: String; val dimension: Int; fun image(bytes: ByteArray): FloatArray?; fun text(query: String): FloatArray? }
@@ -341,6 +386,8 @@ class SearchRanker(private val weights: RankingWeights = RankingWeights(), priva
             frame to (lexical + full + coverage)
         }.sortedByDescending { it.second }
         if (scores.isEmpty() || scores.first().second <= 0) return FrameEvidence()
+        // One video remains one global candidate. Evidence is bounded to its three strongest
+        // representative frames, so longer videos cannot increase score merely by adding samples.
         val aggregate = scores.take(3).mapIndexed { index, pair -> pair.second * when(index){0->1.0;1->.5;else->.25} }.sum() * weights.videoFrame
         return FrameEvidence(aggregate, scores.first().first.timestampMs)
     }

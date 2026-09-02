@@ -2,18 +2,37 @@ package app.honorable.search
 
 enum class IndexJobState { QUEUED, RUNNING, COMPLETED, PARTIAL_FAILURE, FAILED, CANCELLED }
 
-enum class EvidenceProcessor { METADATA, OCR, LABELS, COLORS, TINY_CLIP, CAPTION_VLM, VIDEO_SAMPLING, VIDEO_EMBEDDING }
+enum class EvidenceProcessor { METADATA, OCR, LABELS, COLORS, TINY_CLIP, CAPTION_VLM, VIDEO_SAMPLING, VIDEO_EMBEDDING, TEMPORAL_SAMPLING }
+
+enum class SeranModelProfile { SERAN_V1, SERAN_V2, SERAN_V3, SERAN_ULTRA }
+data class SeranExecutionProfile(val model:SeranModelProfile,val batchLimit:Int,val semanticVideo:Boolean,val selectable:Boolean,val photoProcessors:Set<EvidenceProcessor>,val videoProcessors:Set<EvidenceProcessor>) {
+    fun processorsFor(kind:MediaKind?)=if(kind==MediaKind.VIDEO)videoProcessors else photoProcessors
+    fun searchPlan(query:SearchQuery)=SeranSearchPlan(model,query.mediaKind,processorsFor(query.mediaKind),semanticVideo&&query.mediaKind==MediaKind.VIDEO)
+}
+data class SeranSearchPlan(val model:SeranModelProfile,val mediaKind:MediaKind?,val processors:Set<EvidenceProcessor>,val semanticVideo:Boolean)
+object SeranModelPolicy {
+    private val photo=setOf(EvidenceProcessor.METADATA,EvidenceProcessor.OCR,EvidenceProcessor.LABELS,EvidenceProcessor.COLORS,EvidenceProcessor.TINY_CLIP)
+    private val videoV2=photo+setOf(EvidenceProcessor.VIDEO_SAMPLING,EvidenceProcessor.VIDEO_EMBEDDING)
+    val v1=SeranExecutionProfile(SeranModelProfile.SERAN_V1,200,false,true,photo,setOf(EvidenceProcessor.METADATA))
+    val v2=SeranExecutionProfile(SeranModelProfile.SERAN_V2,300,true,true,photo,videoV2)
+    val v3=SeranExecutionProfile(SeranModelProfile.SERAN_V3,100,true,false,photo,videoV2+EvidenceProcessor.TEMPORAL_SAMPLING)
+    val ultra=SeranExecutionProfile(SeranModelProfile.SERAN_ULTRA,500,true,false,photo,videoV2)
+    fun profile(model:SeranModelProfile)=when(model){SeranModelProfile.SERAN_V1->v1;SeranModelProfile.SERAN_V2->v2;SeranModelProfile.SERAN_V3->v3;SeranModelProfile.SERAN_ULTRA->ultra}
+    fun selectableModels()=SeranModelProfile.entries.filter{profile(it).selectable}
+    fun resolvePersisted(raw:String?)=runCatching{SeranModelProfile.valueOf(raw.orEmpty())}.getOrNull()?.takeIf{profile(it).selectable}?:SeranModelProfile.SERAN_V1
+    fun authorize(requested:String)=runCatching{SeranModelProfile.valueOf(requested)}.getOrNull()?.takeIf{profile(it).selectable}?:throw IllegalArgumentException("Seran model is not native-authorized")
+}
 
 /** Every evidence family has its own compatibility key; changing one never invalidates another. */
 data class ProcessorVersions(
     val metadata:String="metadata-1", val ocr:String="mlkit-latin-1", val labels:String="mlkit-labels-1",
     val colors:String="rgb-prototypes-1", val tinyClipModel:String="tinyclip-1", val tinyClipPreprocessing:String="jpeg384-v1",
-    val captionVlm:String="disabled-1", val videoSampling:String="representative-frames-1", val videoEmbedding:String="tinyclip-video-1"
+    val captionVlm:String="disabled-1", val videoSampling:String="representative-frames-1", val videoEmbedding:String="tinyclip-video-1",val temporalSampling:String="adaptive-scenes-v1"
 ) {
     fun key(processor:EvidenceProcessor):String=when(processor) {
         EvidenceProcessor.METADATA->metadata;EvidenceProcessor.OCR->ocr;EvidenceProcessor.LABELS->labels;EvidenceProcessor.COLORS->colors
         EvidenceProcessor.TINY_CLIP->"$tinyClipModel@$tinyClipPreprocessing";EvidenceProcessor.CAPTION_VLM->captionVlm
-        EvidenceProcessor.VIDEO_SAMPLING->videoSampling;EvidenceProcessor.VIDEO_EMBEDDING->videoEmbedding
+        EvidenceProcessor.VIDEO_SAMPLING->videoSampling;EvidenceProcessor.VIDEO_EMBEDDING->videoEmbedding;EvidenceProcessor.TEMPORAL_SAMPLING->temporalSampling
     }
     init { EvidenceProcessor.entries.forEach { require(key(it).isNotBlank()){"Processor versions must not be blank"} } }
 }
@@ -21,7 +40,7 @@ data class ProcessorVersions(
 object EvidenceInvalidationPlanner {
     fun stale(stored:Map<EvidenceProcessor,String>, current:ProcessorVersions, isVideo:Boolean):Set<EvidenceProcessor> =
         EvidenceProcessor.entries.filterTo(linkedSetOf()) { processor ->
-            (isVideo || processor !in setOf(EvidenceProcessor.VIDEO_SAMPLING,EvidenceProcessor.VIDEO_EMBEDDING)) && stored[processor]!=current.key(processor)
+            (isVideo || processor !in setOf(EvidenceProcessor.VIDEO_SAMPLING,EvidenceProcessor.VIDEO_EMBEDDING,EvidenceProcessor.TEMPORAL_SAMPLING)) && stored[processor]!=current.key(processor)
         }
 }
 

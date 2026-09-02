@@ -1,0 +1,22 @@
+package app.honorable.testlab
+
+import app.honorable.search.*
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+
+class SeranV3TemporalTest {
+    @Test fun `sampling density scales with duration and stays bounded`() {
+        assertTrue(V3TemporalSamplingPolicy.targetFrameCount(20_000)<V3TemporalSamplingPolicy.targetFrameCount(300_000));assertTrue(V3TemporalSamplingPolicy.targetFrameCount(300_000)<V3TemporalSamplingPolicy.targetFrameCount(900_000));assertEquals(36,V3TemporalSamplingPolicy.targetFrameCount(3_600_000));assertEquals(100,SeranModelPolicy.v3.batchLimit)
+    }
+    @Test fun `temporal windows aggregate nearby evidence and preserve bounds`() {
+        val frames=listOf(VideoFrame(10_000,"candles",setOf("birthday"),floatArrayOf(1f,0f)),VideoFrame(13_000,"",setOf("blowing candles"),floatArrayOf(.9f,.1f)),VideoFrame(50_000,"",setOf("beach"),floatArrayOf(0f,1f)));val windows=TemporalWindowBuilder.build(frames,60_000);val birthday=windows.first();assertEquals(2,birthday.supportingFrames.size);assertTrue("candles" in birthday.ocr);assertTrue(birthday.startMs>=0&&birthday.endMs<=60_000)
+    }
+    @Test fun `moment query returns evidence-derived timestamp and temporal window`() {
+        val query=QueryParser().parse("the moment when the candles were blown out");val frames=listOf(VideoFrame(10_000,"",setOf("cake"),floatArrayOf(0f,1f)),VideoFrame(42_000,"candles blown",setOf("birthday","candles"),floatArrayOf(1f,0f)),VideoFrame(45_000,"",setOf("candles"),floatArrayOf(.95f,.05f)));val result=V3MomentRanker.rank(query,TemporalWindowBuilder.build(frames,60_000),floatArrayOf(1f,0f),mapOf("candles blown" to floatArrayOf(1f,0f)));assertEquals(MomentResultState.EXACT_MOMENT,result.state);assertTrue(result.bestTimestampMs in 42_000L..45_000L);assertNotNull(result.windowStartMs);assertTrue(result.supportingFrames.size>=2)
+    }
+    @Test fun `weak moment evidence refuses to invent an exact timestamp`() { val result=V3MomentRanker.rank(QueryParser().parse("when she jumped"),TemporalWindowBuilder.build(listOf(VideoFrame(8_000,"",emptySet(),null)),10_000),null,emptyMap());assertEquals(MomentResultState.TIMESTAMP_LOW_CONFIDENCE,result.state);assertNull(result.bestTimestampMs) }
+    @Test fun `negative concepts reduce a conflicting temporal window`() { val query=QueryParser().parse("dog outside but not snow");val clean=TemporalWindow(0,4_000,2_000,listOf(VideoFrame(2_000,"",setOf("dog","outside"),null)),null,"",setOf("dog","outside"),emptySet());val snow=clean.copy(centerMs=8_000,labels=setOf("dog","outside","snow"));val result=V3MomentRanker.rank(query,listOf(snow,clean),null,emptyMap());assertEquals(2_000,result.windowStartMs?.plus(2_000));assertTrue(result.negativePenalty==0.0) }
+    @Test fun `complex query decomposition is deterministic and bounded`() { val interpreted=V3QueryPlanner.interpret(QueryParser().parse("the part where a person served tennis outside wearing white without a hat"));assertTrue(interpreted.momentIntent);assertTrue(interpreted.boundedSemanticQueries.size<=3);assertTrue("hat" in interpreted.negativeConcepts) }
+    @Test fun `V3 versions temporal evidence independently and remains locked`() { val versions=TemporalIndexVersions();assertTrue(versions.temporalSamplingVersion.isNotBlank());assertTrue(versions.momentRankingVersion.isNotBlank());assertFalse(SeranModelPolicy.v3.selectable);assertTrue(SeranModelPolicy.v3.videoProcessors.containsAll(SeranModelPolicy.v2.videoProcessors)) }
+    @Test fun `deep mode reranks only bounded video candidates with temporal evidence`() { val query=QueryParser().parse("the moment when tennis was served");val strong=MediaRecord(1,MediaKind.VIDEO,0,videoFrames=listOf(VideoFrame(20_000,"tennis served",setOf("tennis"),floatArrayOf(1f,0f))),durationMs=30_000);val weak=MediaRecord(2,MediaKind.VIDEO,0,videoFrames=listOf(VideoFrame(5_000,"",setOf("indoors"),floatArrayOf(0f,1f))),durationMs=30_000);val candidates=listOf(SearchMatch(weak,2.0,emptyList()),SearchMatch(strong,1.8,emptyList()));val reranked=V3DeepReranker.rerank(query,candidates,floatArrayOf(1f,0f),mapOf("tennis served" to floatArrayOf(1f,0f)),limit=2);assertEquals(1L,reranked.first().base.media.id);assertEquals(MomentResultState.EXACT_MOMENT,reranked.first().moment.state);assertTrue(V3DepthPolicy.plan(V3SearchDepth.DEEP).deepRerank);assertFalse(V3DepthPolicy.plan(V3SearchDepth.QUICK).temporalWindows) }
+}

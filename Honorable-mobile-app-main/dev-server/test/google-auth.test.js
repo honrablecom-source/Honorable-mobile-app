@@ -1,0 +1,7 @@
+const test=require('node:test');const assert=require('node:assert/strict');const crypto=require('node:crypto');const{GoogleIdTokenVerifier}=require('../src/auth');
+const{publicKey,privateKey}=crypto.generateKeyPairSync('rsa',{modulusLength:2048});const jwk=publicKey.export({format:'jwk'});jwk.kid='test-key';jwk.alg='RS256';
+function token(claims,header={alg:'RS256',kid:'test-key'}){const enc=x=>Buffer.from(JSON.stringify(x)).toString('base64url');const body=`${enc(header)}.${enc(claims)}`;return `${body}.${crypto.sign('RSA-SHA256',Buffer.from(body),privateKey).toString('base64url')}`}
+const verifier=()=>new GoogleIdTokenVerifier({audience:'web-client.apps.googleusercontent.com',clock:()=>1_800_000_000_000,fetchImpl:async()=>({ok:true,json:async()=>({keys:[jwk]})})});
+const valid={iss:'https://accounts.google.com',aud:'web-client.apps.googleusercontent.com',sub:'stable-google-subject',exp:1_800_000_100};
+test('verifies signature issuer audience expiry and stable subject',async()=>assert.equal((await verifier().verify(token(valid))).sub,'stable-google-subject'));
+test('rejects invalid signature wrong audience and expiry',async()=>{await assert.rejects(()=>verifier().verify(token(valid)+"x"),/INVALID_GOOGLE_CREDENTIAL/);await assert.rejects(()=>verifier().verify(token({...valid,aud:'wrong'})),/WRONG_GOOGLE_AUDIENCE/);await assert.rejects(()=>verifier().verify(token({...valid,exp:1_799_999_999})),/EXPIRED_GOOGLE_CREDENTIAL/)})

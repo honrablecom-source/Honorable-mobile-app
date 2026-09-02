@@ -44,6 +44,26 @@ class HybridSearchEngine(private val vectorIndex: VectorIndex, private val ranke
     }
 }
 
+/** Bounded cross-media fusion. Lane order is preserved; raw image/video scales never compete. */
+object MediaAwareCandidateUnion {
+    fun enabledFor(model:SeranModelProfile)=model==SeranModelProfile.SERAN_V2||model==SeranModelProfile.SERAN_V3
+    fun hasImplicitVideoIntent(query:SearchQuery)=V3QueryPlanner.interpret(query).momentIntent||Regex("(?i)\\b(the moment|animated film|film clip)\\b").containsMatchIn(query.raw)
+    fun merge(query:SearchQuery, images:List<SearchMatch>, videos:List<SearchMatch>):List<SearchMatch> = when(query.mediaKind) {
+        MediaKind.IMAGE -> images
+        MediaKind.VIDEO -> videos
+        null -> normalized(images, MediaKind.IMAGE) + normalized(videos, MediaKind.VIDEO)
+    }.sortedWith(compareByDescending<SearchMatch>{it.score}.thenBy{if(it.media.kind==MediaKind.IMAGE)0 else 1}.thenBy{it.media.id})
+
+    private fun normalized(matches:List<SearchMatch>, kind:MediaKind):List<SearchMatch> {
+        val ceiling=matches.firstOrNull()?.score?.takeIf{it>0.0}?:return emptyList()
+        return matches.distinctBy{it.media.id}.mapIndexed { rank, match ->
+            require(match.media.kind==kind)
+            // The tiny rank epsilon preserves deterministic within-lane ordering when scores tie.
+            match.copy(score=(match.score/ceiling).coerceIn(0.0,1.0)-rank*1e-12)
+        }
+    }
+}
+
 data class SearchDiagnostics(
     val catalogSize: Int,
     val resultCount: Int,

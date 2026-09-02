@@ -1,0 +1,303 @@
+{
+  "scope": {
+    "developmentCases": 105,
+    "holdoutTouched": false
+  },
+  "models": {
+    "V2": {
+      "metricsBefore": {
+        "overallTop1": 0.34375,
+        "overallTop3": 0.5104166666666666,
+        "overallTop5": 0.5625,
+        "photoTop1": 0.49122807017543857,
+        "photoTop3": 0.543859649122807,
+        "ocrTop1": 0.7142857142857143,
+        "videoTop1": 0.17391304347826086,
+        "videoTop3": 0.4782608695652174,
+        "momentHitRate": 0.0625,
+        "momentCorrectVideoRate": 0.0625,
+        "medianTimestampErrorMs": 0.0,
+        "noMatchAccuracy": 0.7777777777777778,
+        "falsePositiveRate": 0.2222222222222222,
+        "medianQueryLatencyMs": 120.649418,
+        "p95QueryLatencyMs": 363.497926
+      },
+      "metricsAfter": {
+        "overallTop1": 0.34375,
+        "overallTop3": 0.5104166666666666,
+        "overallTop5": 0.5625,
+        "photoTop1": 0.49122807017543857,
+        "photoTop3": 0.543859649122807,
+        "ocrTop1": 0.7142857142857143,
+        "videoTop1": 0.17391304347826086,
+        "videoTop3": 0.4782608695652174,
+        "momentHitRate": 0.0625,
+        "momentCorrectVideoRate": 0.0625,
+        "medianTimestampErrorMs": 0.0,
+        "noMatchAccuracy": 1.0,
+        "falsePositiveRate": 0.0,
+        "medianQueryLatencyMs": 130.028504,
+        "p95QueryLatencyMs": 341.418926
+      },
+      "noMatchCases": [
+        {
+          "query": "the photo of a birthday cake with candles",
+          "top1Candidate": "photos/photo-019.jpg",
+          "top1Score": 4.644409183853821,
+          "margin": 0.010339051998932397,
+          "signalAgreement": 0.75,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the screenshot saying package delivered",
+          "top1Candidate": null,
+          "top1Score": null,
+          "margin": 0.0,
+          "signalAgreement": 0.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "LOW",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the picture of a cat sleeping on a sofa",
+          "top1Candidate": null,
+          "top1Score": null,
+          "margin": 0.0,
+          "signalAgreement": 0.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "LOW",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the video of people swimming in a pool",
+          "top1Candidate": null,
+          "top1Score": null,
+          "margin": 0.0,
+          "signalAgreement": 0.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "LOW",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the photo of a blue motorcycle in snow",
+          "top1Candidate": "photos/photo-036.jpg",
+          "top1Score": 4.895923507081559,
+          "margin": 0.0,
+          "signalAgreement": 0.8,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "INSUFFICIENT_SIGNAL_AGREEMENT"
+        },
+        {
+          "query": "the receipt with a total of 99.99",
+          "top1Candidate": "controls/ocr-payment.png",
+          "top1Score": 1.0,
+          "margin": 0.008000720254129401,
+          "signalAgreement": 0.5,
+          "confidenceBefore": true,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "INSUFFICIENT_SIGNAL_AGREEMENT"
+        },
+        {
+          "query": "the beach photo with a red umbrella",
+          "top1Candidate": "controls/color-black-white.png",
+          "top1Score": 4.986096582925932,
+          "margin": 0.03593394811944456,
+          "signalAgreement": 1.0,
+          "confidenceBefore": true,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "HIGH",
+          "reason": "INSUFFICIENT_SIGNAL_AGREEMENT"
+        },
+        {
+          "query": "the video where a dog catches a frisbee",
+          "top1Candidate": "videos/video-001.mp4",
+          "top1Score": 8.930279425724795,
+          "margin": 0.001465292974396959,
+          "signalAgreement": 1.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "HIGH",
+          "reason": "LOW_MARGIN"
+        },
+        {
+          "query": "the document mentioning passport number ZX 999",
+          "top1Candidate": "photos/photo-007.jpg",
+          "top1Score": 1.0,
+          "margin": 0.0,
+          "signalAgreement": 0.75,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "LOW_MARGIN"
+        }
+      ],
+      "newlyRejectedCorrectTop1": []
+    },
+    "V3": {
+      "metricsBefore": {
+        "overallTop1": 0.3541666666666667,
+        "overallTop3": 0.5104166666666666,
+        "overallTop5": 0.59375,
+        "photoTop1": 0.49122807017543857,
+        "photoTop3": 0.543859649122807,
+        "ocrTop1": 0.7142857142857143,
+        "videoTop1": 0.17391304347826086,
+        "videoTop3": 0.43478260869565216,
+        "momentHitRate": 0.0,
+        "momentCorrectVideoRate": 0.125,
+        "medianTimestampErrorMs": 321897.0,
+        "noMatchAccuracy": 0.6666666666666666,
+        "falsePositiveRate": 0.33333333333333337,
+        "medianQueryLatencyMs": 133.880604,
+        "p95QueryLatencyMs": 428.308379
+      },
+      "metricsAfter": {
+        "overallTop1": 0.3541666666666667,
+        "overallTop3": 0.5104166666666666,
+        "overallTop5": 0.59375,
+        "photoTop1": 0.49122807017543857,
+        "photoTop3": 0.543859649122807,
+        "ocrTop1": 0.7142857142857143,
+        "videoTop1": 0.17391304347826086,
+        "videoTop3": 0.43478260869565216,
+        "momentHitRate": 0.0,
+        "momentCorrectVideoRate": 0.125,
+        "medianTimestampErrorMs": 321897.0,
+        "noMatchAccuracy": 0.8888888888888888,
+        "falsePositiveRate": 0.11111111111111116,
+        "medianQueryLatencyMs": 128.363937,
+        "p95QueryLatencyMs": 344.688005
+      },
+      "noMatchCases": [
+        {
+          "query": "the photo of a birthday cake with candles",
+          "top1Candidate": "photos/photo-019.jpg",
+          "top1Score": 4.644409183853821,
+          "margin": 0.010339051998932397,
+          "signalAgreement": 0.75,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the screenshot saying package delivered",
+          "top1Candidate": null,
+          "top1Score": null,
+          "margin": 0.0,
+          "signalAgreement": 0.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "LOW",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the picture of a cat sleeping on a sofa",
+          "top1Candidate": null,
+          "top1Score": null,
+          "margin": 0.0,
+          "signalAgreement": 0.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "LOW",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the video of people swimming in a pool",
+          "top1Candidate": null,
+          "top1Score": null,
+          "margin": 0.0,
+          "signalAgreement": 0.0,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "LOW",
+          "reason": "LOW_ABSOLUTE_EVIDENCE"
+        },
+        {
+          "query": "the photo of a blue motorcycle in snow",
+          "top1Candidate": "photos/photo-036.jpg",
+          "top1Score": 4.895923507081559,
+          "margin": 0.0,
+          "signalAgreement": 0.8,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "INSUFFICIENT_SIGNAL_AGREEMENT"
+        },
+        {
+          "query": "the receipt with a total of 99.99",
+          "top1Candidate": "controls/ocr-payment.png",
+          "top1Score": 1.0,
+          "margin": 0.02791117830488904,
+          "signalAgreement": 0.5,
+          "confidenceBefore": true,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "INSUFFICIENT_SIGNAL_AGREEMENT"
+        },
+        {
+          "query": "the beach photo with a red umbrella",
+          "top1Candidate": "controls/color-black-white.png",
+          "top1Score": 4.986096582925932,
+          "margin": 0.03593394811944456,
+          "signalAgreement": 1.0,
+          "confidenceBefore": true,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "HIGH",
+          "reason": "INSUFFICIENT_SIGNAL_AGREEMENT"
+        },
+        {
+          "query": "the video where a dog catches a frisbee",
+          "top1Candidate": "videos/video-001.mp4",
+          "top1Score": 10.495668863197517,
+          "margin": 0.026823064323336476,
+          "signalAgreement": 1.0,
+          "confidenceBefore": true,
+          "confidenceAfter": true,
+          "decision": "ACCEPT",
+          "tier": "HIGH",
+          "reason": "CALIBRATED_EVIDENCE_ACCEPTED"
+        },
+        {
+          "query": "the document mentioning passport number ZX 999",
+          "top1Candidate": "photos/photo-007.jpg",
+          "top1Score": 1.0,
+          "margin": 0.0,
+          "signalAgreement": 0.75,
+          "confidenceBefore": false,
+          "confidenceAfter": false,
+          "decision": "NO_MATCH",
+          "tier": "MEDIUM",
+          "reason": "LOW_MARGIN"
+        }
+      ],
+      "newlyRejectedCorrectTop1": []
+    }
+  },
+  "rankingChanged": false
+}

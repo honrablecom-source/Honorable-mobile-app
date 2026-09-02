@@ -3,7 +3,8 @@ import {planPresentation} from '../src/subscriptions/planPresentation';
 
 test('presents canonical tiers without invented pricing',()=>{
   expect(planPresentation.map(plan=>plan.tier)).toEqual(['FREE','PLUS','PRO','SUPER','ULTIMATE']);
-  expect(planPresentation.map(plan=>plan.storage)).toEqual(['15 GB','100 GB','350 GB','700 GB','1 TB']);
+  expect(planPresentation.every(plan=>/Index|Indexed/.test(plan.storage))).toBe(true);
+  expect(JSON.stringify(planPresentation)).not.toMatch(/\b(?:GB|TB)\b/);
   expect(JSON.stringify(planPresentation)).not.toMatch(/\$|per month|per year/i);
 });
 

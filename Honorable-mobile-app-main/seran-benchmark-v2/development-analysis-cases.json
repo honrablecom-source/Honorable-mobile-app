@@ -1,0 +1,1107 @@
+[
+  {
+    "id": "case-001",
+    "query": "the aerial photo of an orange tennis court",
+    "expected": [
+      "photos/photo-001.jpg"
+    ],
+    "category": "SPORTS",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-002",
+    "query": "the tennis player casting a long shadow outside",
+    "expected": [
+      "photos/photo-001.jpg"
+    ],
+    "category": "SPORTS",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-004",
+    "query": "the tennis photo where she had a yellow visor",
+    "expected": [
+      "photos/photo-002.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-005",
+    "query": "the tennis racket and ball on a green court",
+    "expected": [
+      "photos/photo-003.jpg"
+    ],
+    "category": "OBJECT",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-006",
+    "query": "the picture of a yellow ball beside a dark racket",
+    "expected": [
+      "photos/photo-003.jpg"
+    ],
+    "category": "OBJECT",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-007",
+    "query": "the sunrise over a tropical beach",
+    "expected": [
+      "photos/photo-004.jpg"
+    ],
+    "category": "SCENE",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-008",
+    "query": "the beach photo with sunlight across the ocean",
+    "expected": [
+      "photos/photo-004.jpg"
+    ],
+    "category": "SCENE",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-011",
+    "query": "the man wearing a plain white shirt",
+    "expected": [
+      "photos/photo-006.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-014",
+    "query": "the denim pants on a dark background",
+    "expected": [
+      "photos/photo-007.jpg"
+    ],
+    "category": "OBJECT",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-015",
+    "query": "the red running shoe on a red background",
+    "expected": [
+      "photos/photo-008.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-016",
+    "query": "the red sneaker with a white sole",
+    "expected": [
+      "photos/photo-008.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-019",
+    "query": "the bright office with white chairs",
+    "expected": [
+      "photos/photo-010.jpg"
+    ],
+    "category": "INDOOR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-020",
+    "query": "the modern lounge with chairs and hanging lights",
+    "expected": [
+      "photos/photo-010.jpg"
+    ],
+    "category": "INDOOR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-021",
+    "query": "the empty office hallway",
+    "expected": [
+      "photos/photo-011.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-022",
+    "query": "the office corridor with glass walls and no people",
+    "expected": [
+      "photos/photo-011.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-024",
+    "query": "the dining room with hanging lights but no customers",
+    "expected": [
+      "photos/photo-012.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-025",
+    "query": "the snowy mountains under a purple night sky",
+    "expected": [
+      "photos/photo-013.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-026",
+    "query": "the mountain picture with stars and no people",
+    "expected": [
+      "photos/photo-013.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-027",
+    "query": "the woman wearing a blue denim jacket",
+    "expected": [
+      "photos/photo-014.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-028",
+    "query": "the portrait where her dark hair was tied up",
+    "expected": [
+      "photos/photo-014.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-029",
+    "query": "the man standing outside in a black jacket",
+    "expected": [
+      "photos/photo-015.jpg"
+    ],
+    "category": "PEOPLE",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-030",
+    "query": "the full body picture of a man outdoors",
+    "expected": [
+      "photos/photo-015.jpg"
+    ],
+    "category": "PEOPLE",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-032",
+    "query": "the smiling woman against a plain background",
+    "expected": [
+      "photos/photo-016.jpg"
+    ],
+    "category": "PEOPLE",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-033",
+    "query": "the man with dark hair wearing a black shirt",
+    "expected": [
+      "photos/photo-017.jpg"
+    ],
+    "category": "PEOPLE",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-034",
+    "query": "the close portrait of a serious man",
+    "expected": [
+      "photos/photo-017.jpg"
+    ],
+    "category": "PEOPLE",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-035",
+    "query": "the woman wearing a white top",
+    "expected": [
+      "photos/photo-018.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-036",
+    "query": "the portrait with the pale background and white clothing",
+    "expected": [
+      "photos/photo-018.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-038",
+    "query": "the portrait of a woman with dark clothing",
+    "expected": [
+      "photos/photo-019.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-040",
+    "query": "the close portrait outside in daylight",
+    "expected": [
+      "photos/photo-020.jpg"
+    ],
+    "category": "PEOPLE",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-044",
+    "query": "the formal portrait with a jacket and tie",
+    "expected": [
+      "photos/photo-022.jpg"
+    ],
+    "category": "CLOTHING",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-045",
+    "query": "the man in a plain gray shirt",
+    "expected": [
+      "photos/photo-023.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-047",
+    "query": "the colorful healthy salad bowl",
+    "expected": [
+      "photos/photo-024.jpg"
+    ],
+    "category": "FOOD",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-048",
+    "query": "the food photo with greens tomatoes and vegetables",
+    "expected": [
+      "photos/photo-024.jpg"
+    ],
+    "category": "FOOD",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-049",
+    "query": "the pizza topped with vegetables",
+    "expected": [
+      "photos/photo-025.jpg"
+    ],
+    "category": "FOOD",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-050",
+    "query": "the round pizza sitting on a table",
+    "expected": [
+      "photos/photo-025.jpg"
+    ],
+    "category": "FOOD",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-051",
+    "query": "the golden retriever outside",
+    "expected": [
+      "photos/photo-026.jpg"
+    ],
+    "category": "ANIMAL",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-052",
+    "query": "the large light colored dog in the grass",
+    "expected": [
+      "photos/photo-026.jpg"
+    ],
+    "category": "ANIMAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-053",
+    "query": "the small black pug",
+    "expected": [
+      "photos/photo-027.jpg"
+    ],
+    "category": "ANIMAL",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-055",
+    "query": "the dense city skyline during the day",
+    "expected": [
+      "photos/photo-028.jpg"
+    ],
+    "category": "CITY",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-059",
+    "query": "the red sports car on the road",
+    "expected": [
+      "photos/photo-030.jpg"
+    ],
+    "category": "COLOR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-061",
+    "query": "the yellow taxis on a city street",
+    "expected": [
+      "photos/photo-031.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-062",
+    "query": "the traffic scene with several yellow cars",
+    "expected": [
+      "photos/photo-031.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-063",
+    "query": "the green field beneath dramatic clouds",
+    "expected": [
+      "photos/photo-032.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-064",
+    "query": "the grassy landscape with no buildings",
+    "expected": [
+      "photos/photo-032.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-065",
+    "query": "the person standing in a wide mountain landscape",
+    "expected": [
+      "photos/photo-033.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-066",
+    "query": "the outdoor picture with one tiny person",
+    "expected": [
+      "photos/photo-033.jpg"
+    ],
+    "category": "MULTI-CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-068",
+    "query": "the hiker overlooking the lake and mountains",
+    "expected": [
+      "photos/photo-035.jpg"
+    ],
+    "category": "ACTIVITY",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-069",
+    "query": "the dark city beneath the stars",
+    "expected": [
+      "photos/photo-036.jpg"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-072",
+    "query": "the receipt with ID HN 4821",
+    "expected": [
+      "controls/ocr-payment.png"
+    ],
+    "category": "OCR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-073",
+    "query": "the flight confirmation for AC 182",
+    "expected": [
+      "controls/ocr-flight.png"
+    ],
+    "category": "OCR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-074",
+    "query": "the screenshot mentioning Gate B14",
+    "expected": [
+      "controls/ocr-flight.png"
+    ],
+    "category": "OCR",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-075",
+    "query": "the market receipt with a total of 42.80",
+    "expected": [
+      "controls/ocr-receipt.png"
+    ],
+    "category": "OCR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-076",
+    "query": "the reminder to meet at 7:30 PM",
+    "expected": [
+      "controls/ocr-meeting.png"
+    ],
+    "category": "OCR",
+    "difficulty": "easy",
+    "split": "development"
+  },
+  {
+    "id": "case-078",
+    "query": "the payment screen showing a total paid of 86.40",
+    "expected": [
+      "controls/ocr-payment.png"
+    ],
+    "category": "OCR",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-079",
+    "query": "the boarding information that says 6:45 PM",
+    "expected": [
+      "controls/ocr-flight.png"
+    ],
+    "category": "OCR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-084",
+    "query": "the purple and orange picture with a green circle",
+    "expected": [
+      "controls/color-purple-orange.png"
+    ],
+    "category": "COLOR",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-085",
+    "query": "the color test that has orange but not blue",
+    "expected": [
+      "controls/color-purple-orange.png"
+    ],
+    "category": "NEGATIVE CONDITION",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-088",
+    "query": "the park video where a white van is visible",
+    "expected": [
+      "videos/video-001.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-089",
+    "query": "the park video passing a large dark tree trunk",
+    "expected": [
+      "videos/video-002.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-090",
+    "query": "the clip with a green fence beyond the trees",
+    "expected": [
+      "videos/video-002.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-091",
+    "query": "the park video with the biggest tree in the foreground",
+    "expected": [
+      "videos/video-002.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-093",
+    "query": "the clip moving straight down a path through trees",
+    "expected": [
+      "videos/video-003.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-094",
+    "query": "the green park video with a walkway in the middle",
+    "expected": [
+      "videos/video-003.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-095",
+    "query": "the park video with traffic moving beyond the trees",
+    "expected": [
+      "videos/video-004.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-097",
+    "query": "the park scene looking across at a white building",
+    "expected": [
+      "videos/video-004.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-098",
+    "query": "the park video with a winding paved path",
+    "expected": [
+      "videos/video-005.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-099",
+    "query": "the green park clip without traffic in the center",
+    "expected": [
+      "videos/video-005.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-100",
+    "query": "the thirty second walk through a leafy park",
+    "expected": [
+      "videos/video-005.mp4"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-101",
+    "query": "the animated film with two men in a dark mechanical world",
+    "expected": [
+      "videos/video-006.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-102",
+    "query": "the video with strange machinery and an elevator",
+    "expected": [
+      "videos/video-006.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-103",
+    "query": "the dark animated movie with an older thin man",
+    "expected": [
+      "videos/video-006.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-104",
+    "query": "the live action science fiction film with robots",
+    "expected": [
+      "videos/video-007.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-105",
+    "query": "the video with a man and woman near a canal",
+    "expected": [
+      "videos/video-007.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-106",
+    "query": "the movie where a large robot appears in a workshop",
+    "expected": [
+      "videos/video-007.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-107",
+    "query": "the animated film about a red haired woman and a dragon",
+    "expected": [
+      "videos/video-008.mkv"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-110",
+    "query": "the animation reel with many unrelated scenes",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-111",
+    "query": "the video montage containing a car and animated characters",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-112",
+    "query": "the reel that shows an orange fruit exploding",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-113",
+    "query": "the rendering reel with a train and a coffee cup",
+    "expected": [
+      "videos/video-010.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "medium",
+    "split": "development"
+  },
+  {
+    "id": "case-114",
+    "query": "the video montage showing a white miniature city",
+    "expected": [
+      "videos/video-010.mov"
+    ],
+    "category": "VIDEO RETRIEVAL",
+    "difficulty": "hard",
+    "split": "development"
+  },
+  {
+    "id": "case-117",
+    "query": "the part where the camera is beside the huge tree trunk",
+    "expected": [
+      "videos/video-002.mp4"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 0.0,
+      "end": 10.216
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-118",
+    "query": "the moment the paved path is centered",
+    "expected": [
+      "videos/video-003.mp4"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 0.0,
+      "end": 15.627
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-120",
+    "query": "the part where the winding path fills the foreground",
+    "expected": [
+      "videos/video-005.mp4"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 0.0,
+      "end": 30.441
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-121",
+    "query": "the moment when two animated men stand on a narrow bridge",
+    "expected": [
+      "videos/video-006.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 52.666,
+      "end": 157.997
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-122",
+    "query": "the part where the thin older animated man is close to the camera",
+    "expected": [
+      "videos/video-006.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 315.994,
+      "end": 421.325
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-125",
+    "query": "the moment when the large robot is inside the workshop",
+    "expected": [
+      "videos/video-007.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 411.134,
+      "end": 528.6
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-126",
+    "query": "the part where the older man is shown outside",
+    "expected": [
+      "videos/video-007.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 543.284,
+      "end": 631.384
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-127",
+    "query": "the ending where blue robot graphics appear",
+    "expected": [
+      "videos/video-007.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 616.7,
+      "end": 704.8
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-130",
+    "query": "the dark cave scene with the creature",
+    "expected": [
+      "videos/video-008.mkv"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 515.059,
+      "end": 674.904
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-132",
+    "query": "the part where an orange fruit explodes on a blue background",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 12.002,
+      "end": 36.006
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-133",
+    "query": "the moment showing the laboratory full of glass bottles",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 32.005,
+      "end": 62.01
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-134",
+    "query": "the part with the white car driving between buildings",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 86.014,
+      "end": 116.019
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-135",
+    "query": "the colorful cartoon creature inside a cave",
+    "expected": [
+      "videos/video-009.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 124.02,
+      "end": 156.026
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-136",
+    "query": "the part showing a close up of a computer keyboard",
+    "expected": [
+      "videos/video-010.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 5.112,
+      "end": 17.04
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-137",
+    "query": "the moment with the coffee cup on a wooden table",
+    "expected": [
+      "videos/video-010.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 39.192,
+      "end": 54.528
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-138",
+    "query": "the ending with balloons floating over a city",
+    "expected": [
+      "videos/video-010.mov"
+    ],
+    "category": "EXACT VIDEO MOMENT",
+    "difficulty": "hard",
+    "expected_timestamp": {
+      "start": 66.456,
+      "end": 81.792
+    },
+    "split": "development"
+  },
+  {
+    "id": "case-139",
+    "query": "the photo of a birthday cake with candles",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-141",
+    "query": "the screenshot saying package delivered",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-142",
+    "query": "the picture of a cat sleeping on a sofa",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-143",
+    "query": "the video of people swimming in a pool",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-144",
+    "query": "the photo of a blue motorcycle in snow",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-145",
+    "query": "the receipt with a total of 99.99",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-146",
+    "query": "the beach photo with a red umbrella",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-147",
+    "query": "the video where a dog catches a frisbee",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  },
+  {
+    "id": "case-149",
+    "query": "the document mentioning passport number ZX 999",
+    "expected": [],
+    "category": "NO-MATCH",
+    "difficulty": "hard",
+    "no_match": true,
+    "split": "development"
+  }
+]

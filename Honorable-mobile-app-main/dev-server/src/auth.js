@@ -1,0 +1,15 @@
+const crypto=require('node:crypto');
+const encode=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
+const fail=(message,status=401)=>Object.assign(new Error(message),{status});
+class SessionAuth{
+  constructor(secret,clock=()=>Date.now()){if(!secret||secret.length<32)throw new Error('SESSION_SECRET_TOO_SHORT');this.secret=secret;this.clock=clock}
+  issue(accountId,ttlSeconds=3600){const payload=encode({sub:accountId,iat:Math.floor(this.clock()/1000),exp:Math.floor(this.clock()/1000)+ttlSeconds,iss:'honorable'});return `${payload}.${this.sign(payload)}`}
+  verify(header){if(typeof header!=='string'||!header.startsWith('Bearer '))throw fail('AUTH_REQUIRED');const token=header.slice(7),[payload,signature,...extra]=token.split('.');if(!payload||!signature||extra.length)throw fail('MALFORMED_AUTH');const expected=this.sign(payload),left=Buffer.from(signature),right=Buffer.from(expected);if(left.length!==right.length||!crypto.timingSafeEqual(left,right))throw fail('INVALID_AUTH');let claims;try{claims=JSON.parse(Buffer.from(payload,'base64url').toString())}catch{throw fail('MALFORMED_AUTH')}if(claims.iss!=='honorable'||!claims.sub)throw fail('INVALID_AUTH');if(claims.exp<=Math.floor(this.clock()/1000))throw fail('EXPIRED_AUTH');return claims.sub}
+  sign(payload){return crypto.createHmac('sha256',this.secret).update(payload).digest('base64url')}
+}
+class GoogleIdTokenVerifier{
+  constructor({audience,fetchImpl=global.fetch,clock=()=>Date.now(),jwksUri='https://www.googleapis.com/oauth2/v3/certs'}){if(!audience)throw new Error('GOOGLE_CLIENT_ID_REQUIRED');this.audience=audience;this.fetch=fetchImpl;this.clock=clock;this.jwksUri=jwksUri;this.keys=new Map()}
+  async verify(token){const parts=String(token||'').split('.');if(parts.length!==3)throw fail('INVALID_GOOGLE_CREDENTIAL');let header,claims;try{header=JSON.parse(Buffer.from(parts[0],'base64url'));claims=JSON.parse(Buffer.from(parts[1],'base64url'))}catch{throw fail('INVALID_GOOGLE_CREDENTIAL')}if(header.alg!=='RS256'||!header.kid)throw fail('INVALID_GOOGLE_CREDENTIAL');const key=await this.key(header.kid);const valid=crypto.verify('RSA-SHA256',Buffer.from(`${parts[0]}.${parts[1]}`),crypto.createPublicKey({key,format:'jwk'}),Buffer.from(parts[2],'base64url'));if(!valid)throw fail('INVALID_GOOGLE_CREDENTIAL');if(!['https://accounts.google.com','accounts.google.com'].includes(claims.iss))throw fail('INVALID_GOOGLE_ISSUER');if(claims.aud!==this.audience)throw fail('WRONG_GOOGLE_AUDIENCE');if(!claims.sub)throw fail('MISSING_GOOGLE_SUBJECT');if(Number(claims.exp)<=Math.floor(this.clock()/1000))throw fail('EXPIRED_GOOGLE_CREDENTIAL');return{sub:String(claims.sub),email:claims.email,emailVerified:claims.email_verified===true,name:claims.name}}
+  async key(kid){if(this.keys.has(kid))return this.keys.get(kid);const response=await this.fetch(this.jwksUri);if(!response.ok)throw fail('GOOGLE_KEYS_UNAVAILABLE',503);const body=await response.json();for(const key of body.keys||[])this.keys.set(key.kid,key);const found=this.keys.get(kid);if(!found)throw fail('UNKNOWN_GOOGLE_SIGNING_KEY');return found}
+}
+module.exports={SessionAuth,GoogleIdTokenVerifier,fail};

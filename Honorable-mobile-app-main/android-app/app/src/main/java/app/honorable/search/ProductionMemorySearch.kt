@@ -60,21 +60,22 @@ internal fun stableMediaId(kind:MediaKind,sourceId:Long):Long {
     return sourceId*2 + if(kind==MediaKind.VIDEO) 1 else 0
 }
 
-class AndroidMediaIndexer(private val context:Context,private val database:LocalMediaDatabase,private val embeddings:EmbeddingService,private val scheduler:IndexResourceScheduler=AndroidResourceGovernor(context).scheduler,private val versions:ProcessorVersions=ProcessorVersions(tinyClipModel=embeddings.modelId),private val circuits:ProcessorCircuitBreaker=ProcessorCircuitBreaker()) {
+class AndroidMediaIndexer(private val context:Context,private val database:LocalMediaDatabase,private val embeddings:EmbeddingService,private val scheduler:IndexResourceScheduler=AndroidResourceGovernor(context).scheduler,private val versions:ProcessorVersions=ProcessorVersions(tinyClipModel=embeddings.modelId),private val circuits:ProcessorCircuitBreaker=ProcessorCircuitBreaker(),private val profile:SeranExecutionProfile=SeranModelPolicy.v2) {
     private val resolver=context.contentResolver
     suspend fun synchronize(progress:(IndexProgress)->Unit,job:IndexJobController=IndexJobController()):IndexStats {
       job.start();return try { withContext(Dispatchers.IO) {
         val started=System.nanoTime();progress(IndexProgress(stage=IndexingStage.DISCOVERING))
         val discovered=discover();val known=database.modifiedTimes();val cached=database.records().associateBy{it.uri};var added=0;var updated=0;var processed=0;var failed=0;var skipped=0
-        discovered.forEach { item ->
+        val pending=discovered.filter { item->val previous=cached[item.uri];val changed=known[item.uri]!=item.modifiedAt||previous?.id!=item.id;changed||EvidenceInvalidationPlanner.stale(database.evidenceVersions(item.id),versions,item.kind==MediaKind.VIDEO).any{it in profile.processorsFor(item.kind)} }.sortedBy{if(profile.model==SeranModelProfile.SERAN_V1&&it.kind==MediaKind.VIDEO)1 else 0}.take(profile.batchLimit)
+        pending.forEach { item ->
             currentCoroutineContext().ensureActive()
             val previous=cached[item.uri];val mediaChanged=known[item.uri]!=item.modifiedAt||previous?.id!=item.id
-            val stale=if(mediaChanged)EvidenceInvalidationPlanner.stale(emptyMap(),versions,item.kind==MediaKind.VIDEO) else EvidenceInvalidationPlanner.stale(database.evidenceVersions(item.id),versions,item.kind==MediaKind.VIDEO)
+            val stale=(if(mediaChanged)EvidenceInvalidationPlanner.stale(emptyMap(),versions,item.kind==MediaKind.VIDEO) else EvidenceInvalidationPlanner.stale(database.evidenceVersions(item.id),versions,item.kind==MediaKind.VIDEO)).filterTo(linkedSetOf()){it in profile.processorsFor(item.kind)}
             val needsUpdate=mediaChanged||stale.isNotEmpty()
             var issue:IndexIssue?=null
             if(needsUpdate) {
                 try {
-                    fun report(stage:IndexingStage)=progress(IndexProgress(processed,discovered.size,failed,skipped,stage))
+                    fun report(stage:IndexingStage)=progress(IndexProgress(processed,pending.size,failed,skipped,stage))
                     val bitmapNeeded=stale.any{it in setOf(EvidenceProcessor.OCR,EvidenceProcessor.LABELS,EvidenceProcessor.COLORS,EvidenceProcessor.TINY_CLIP)}
                     val bitmap=if(bitmapNeeded){report(IndexingStage.READING_MEDIA);scheduler.withResource(IndexResource.MEDIA_DECODE){thumbnail(item)}?:throw ItemIndexException(IndexingStage.READING_MEDIA,IndexFailureKind.MEDIA_READ)}else null
                     val record=try {
@@ -82,7 +83,7 @@ class AndroidMediaIndexer(private val context:Context,private val database:Local
                         val colors=if(EvidenceProcessor.COLORS in stale)sampleColors(requireNotNull(bitmap))else previous?.dominantColors.orEmpty()
                         val ocr=if(EvidenceProcessor.OCR in stale){report(IndexingStage.OCR);evidence(EvidenceProcessor.OCR,previous?.ocr.orEmpty()){scheduler.withResource(IndexResource.OCR){recognize(requireNotNull(bitmap))}}}else previous?.ocr.orEmpty()
                         val vector=if(EvidenceProcessor.TINY_CLIP in stale){report(IndexingStage.EMBEDDING);evidence(EvidenceProcessor.TINY_CLIP,previous?.embedding){scheduler.withResource(IndexResource.MODEL_INFERENCE){embeddings.image(requireNotNull(bitmap).jpeg())}}}else previous?.embedding
-                        val frames=if(item.kind==MediaKind.VIDEO&&stale.any{it==EvidenceProcessor.VIDEO_SAMPLING||it==EvidenceProcessor.VIDEO_EMBEDDING}){report(IndexingStage.VIDEO_FRAMES);scheduler.withResource(IndexResource.VIDEO_DECODE){analyzeVideo(item)}}else previous?.videoFrames.orEmpty()
+                        val frames=if(item.kind==MediaKind.VIDEO&&stale.any{it==EvidenceProcessor.VIDEO_SAMPLING||it==EvidenceProcessor.VIDEO_EMBEDDING||it==EvidenceProcessor.TEMPORAL_SAMPLING}){report(IndexingStage.VIDEO_FRAMES);scheduler.withResource(IndexResource.VIDEO_DECODE){analyzeVideo(item)}}else previous?.videoFrames.orEmpty()
                         MediaRecord(item.id,item.kind,item.capturedAt,ocr=ocr,labels=labels,embedding=vector,videoFrames=frames,metadataTerms=setOf(if(item.kind==MediaKind.VIDEO)"video" else "photo"),dominantColors=colors,isScreenshot=item.name.contains("screenshot",true),uri=item.uri,displayName=item.name,durationMs=item.durationMs,visionUnderstanding=previous?.visionUnderstanding)
                     } finally { bitmap?.takeIf{!it.isRecycled}?.recycle() }
                     report(IndexingStage.PERSISTING);scheduler.withResource(IndexResource.DATABASE_WRITE){database.upsert(record,item.modifiedAt)}
@@ -95,9 +96,9 @@ class AndroidMediaIndexer(private val context:Context,private val database:Local
             } else {
                 skipped++
             }
-            progress(IndexProgress(++processed,discovered.size,failed,skipped,IndexingStage.READING_MEDIA,issue));job.progress(processed,discovered.size,failed)
+            progress(IndexProgress(++processed,pending.size,failed,skipped,IndexingStage.READING_MEDIA,issue));job.progress(processed,pending.size,failed)
         }
-        progress(IndexProgress(processed,discovered.size,failed,skipped,IndexingStage.CLEANUP));val uris=discovered.mapTo(mutableSetOf()){it.uri};val deleted=known.keys.count{it !in uris};scheduler.withResource(IndexResource.DATABASE_WRITE){database.removeDeleted(uris)}
+        skipped=discovered.size-pending.size;progress(IndexProgress(processed,pending.size,failed,skipped,IndexingStage.CLEANUP));val uris=discovered.mapTo(mutableSetOf()){it.uri};val deleted=known.keys.count{it !in uris};scheduler.withResource(IndexResource.DATABASE_WRITE){database.removeDeleted(uris)}
         IndexStats(added,updated,deleted,failed,skipped,(System.nanoTime()-started)/1_000_000).also(job::complete)
       } } catch(cancelled:CancellationException){job.cancel();throw cancelled}catch(error:Exception){job.fail();throw error}
     }
@@ -114,7 +115,7 @@ class AndroidMediaIndexer(private val context:Context,private val database:Local
         return result
     }
     private fun thumbnail(item:DiscoveredMedia):Bitmap?=runCatching { resolver.loadThumbnail(Uri.parse(item.uri),Size(384,384),null) }.getOrNull()
-    private suspend fun analyzeVideo(item:DiscoveredMedia):List<VideoFrame> { val duration=item.durationMs?:return emptyList();val candidates=listOf(0L,duration/4,duration/2,duration/4*3,(duration-1).coerceAtLeast(0)).distinct().mapNotNull { at->videoBitmap(item.uri,at)?.let{bitmap->try{FrameCandidate(at,fingerprint(bitmap))}finally{if(!bitmap.isRecycled)bitmap.recycle()}} };return RepresentativeFrameSelector.select(candidates).mapNotNull { selected->videoBitmap(item.uri,selected.timestampMs)?.let{bitmap->try{VideoFrame(selected.timestampMs,scheduler.withResource(IndexResource.OCR){recognize(bitmap)},scheduler.withResource(IndexResource.LOCAL_VISION){label(bitmap)},scheduler.withResource(IndexResource.MODEL_INFERENCE){embeddings.image(bitmap.jpeg())},sampleColors(bitmap),selected.sceneFingerprint)}finally{if(!bitmap.isRecycled)bitmap.recycle()}} } }
+    private suspend fun analyzeVideo(item:DiscoveredMedia):List<VideoFrame> { val duration=item.durationMs?:return emptyList();val timestamps=if(profile.model==SeranModelProfile.SERAN_V3)V3TemporalSamplingPolicy.sampleTimestamps(duration)else listOf(0L,duration/4,duration/2,duration/4*3,(duration-1).coerceAtLeast(0)).distinct();val candidates=timestamps.mapNotNull { at->videoBitmap(item.uri,at)?.let{bitmap->try{FrameCandidate(at,fingerprint(bitmap))}finally{if(!bitmap.isRecycled)bitmap.recycle()}} };val maxFrames=if(profile.model==SeranModelProfile.SERAN_V3)V3TemporalSamplingPolicy.targetFrameCount(duration)else 12;return RepresentativeFrameSelector.select(candidates,maxFrames=maxFrames).mapNotNull { selected->videoBitmap(item.uri,selected.timestampMs)?.let{bitmap->try{VideoFrame(selected.timestampMs,scheduler.withResource(IndexResource.OCR){recognize(bitmap)},scheduler.withResource(IndexResource.LOCAL_VISION){label(bitmap)},scheduler.withResource(IndexResource.MODEL_INFERENCE){embeddings.image(bitmap.jpeg())},sampleColors(bitmap),selected.sceneFingerprint)}finally{if(!bitmap.isRecycled)bitmap.recycle()}} } }
     private fun videoBitmap(uri:String,atMs:Long):Bitmap?=runCatching { MediaMetadataRetriever().let { retriever->try{retriever.setDataSource(context,Uri.parse(uri));retriever.getFrameAtTime(atMs*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC)}finally{retriever.release()} } }.getOrNull()
     private fun fingerprint(bitmap:Bitmap):Long { var bits=0L;var sum=0L;val values=IntArray(64){i->bitmap.getPixel(i%8*bitmap.width/8,i/8*bitmap.height/8).let{p->((p shr 16 and 255)+(p shr 8 and 255)+(p and 255))/3}.also{sum+=it}};values.forEachIndexed{i,v->if(v>=sum/64)bits=bits or(1L shl i)};return bits }
     private fun Bitmap.jpeg():ByteArray=ByteArrayOutputStream().use{out->compress(Bitmap.CompressFormat.JPEG,92,out);out.toByteArray()}

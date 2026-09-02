@@ -2,8 +2,9 @@
 import json, os, sys
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parents[2]/"test-media"
-DATA=ROOT/os.environ.get("HONORABLE_EVAL_LABELS","evaluation.json")
+ROOT=Path(os.environ.get("HONORABLE_TEST_MEDIA_ROOT",Path(__file__).resolve().parents[2]/"test-media")).resolve()
+configured=Path(os.environ.get("HONORABLE_EVAL_LABELS","evaluation.json"))
+DATA=configured if configured.is_absolute() else ROOT/configured
 CATEGORIES={"object","scene","color","object+color","activity","person-attribute","clothing","sports","animals","food","vehicle","weather","indoor/outdoor","OCR","document","multi-concept","video","video+activity","person+color+scene","no-match"}
 DIFFICULTIES={"easy","medium","hard"}
 

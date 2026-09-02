@@ -18,7 +18,7 @@ import javax.imageio.ImageIO
 import kotlin.io.path.*
 import kotlin.math.absoluteValue
 
-private val mediaRoot: Path = Paths.get("test-media").toAbsolutePath().normalize()
+private val mediaRoot: Path = Paths.get(System.getenv("HONORABLE_TEST_MEDIA_ROOT") ?: "test-media").toAbsolutePath().normalize()
 private val indexFile: Path = mediaRoot.resolve(".memories-test-index")
 private val imageExt = setOf("jpg", "jpeg", "png", "webp")
 private val heifExt = setOf("heic", "heif")
@@ -86,6 +86,7 @@ fun main(args: Array<String>) {
         "enrich" -> enrichCommand(option(args,"--limit")?.toIntOrNull() ?: 10)
         "search" -> searchCommand(option(args, "--query") ?: error("Missing --query"), option(args, "--top")?.toIntOrNull() ?: 10,"--debug" in args,"--show-ranking" in args)
         "evaluate" -> evaluateCommand()
+        "benchmark" -> benchmarkCommand(option(args,"--model") ?: error("Missing --model SERAN_V1|SERAN_V2|SERAN_V3"))
         "evaluate-degraded" -> evaluateDegradedCommand()
         "video-report" -> videoReportCommand()
         "interactive" -> interactiveCommand()
@@ -186,10 +187,10 @@ private fun analyzeVideo(path: Path, durationMs: Long, hasTesseract: Boolean, wa
     if (durationMs <= 0) return emptyList()
     val temp = Files.createTempDirectory("memories-frames-")
     return try {
-        listOf(0.0, .25, .5, .75).mapNotNull { fraction ->
-            val at = (durationMs * fraction).toLong(); val output = temp.resolve("$at.jpg")
+        V3TemporalSamplingPolicy.sampleTimestamps(durationMs).mapNotNull { at ->
+            val output = temp.resolve("$at.jpg")
             val process = ProcessBuilder("ffmpeg", "-loglevel", "error", "-ss", "${at / 1000.0}", "-i", path.toString(), "-frames:v", "1", "-vf", "scale=384:-1", output.toString()).start()
-            if (process.waitFor() != 0) null else ImageIO.read(output.toFile())?.let { image ->
+            if (process.waitFor() != 0 || !output.isRegularFile()) null else ImageIO.read(output.toFile())?.let { image ->
                 VideoFrame(at, if (hasTesseract) ocr(output) else "", emptySet(), clip?.image(output), colors(image), imageFingerprint(image))
             }
         }
@@ -228,14 +229,50 @@ private fun readIndex(): LabIndex {
     }
 }
 
-private data class TimedSearch(val query: SearchQuery, val matches: List<SearchMatch>, val latencyMs: Double, val vectorMs: Double)
-private fun search(index: LabIndex, raw: String, top: Int = 10, kind: MediaKind? = null, clip:TinyClipBridge?=null): TimedSearch {
+private data class TimedSearch(val query: SearchQuery, val matches: List<SearchMatch>, val latencyMs: Double, val vectorMs: Double, val moments:Map<Long,MomentResult> = emptyMap())
+private fun search(index: LabIndex, raw: String, top: Int = 10, kind: MediaKind? = null, clip:TinyClipBridge?=null,model:SeranModelProfile=SeranModelProfile.SERAN_V2): TimedSearch {
     val start=System.nanoTime();var query=QueryParser().parse(raw);if(kind!=null)query=query.copy(mediaKind=kind)
     val owned=clip?:if(TinyClipBridge.available())TinyClipBridge()else null;val vectorStart=System.nanoTime();val full=owned?.text(raw);val concepts=query.semanticConcepts.associateWith{owned?.text(it)}.filterValues{it!=null}.mapValues{it.value!!};val vectorMs=(System.nanoTime()-vectorStart)/1e6
-    val vectors=LocalVectorIndex();index.records.forEach{r->r.embedding?.let{vectors.upsert(r.id,it)}}
-    val matches=HybridSearchEngine(vectors).search(query,index.records.associateBy{it.id},QueryEmbeddings(full,concepts)).take(top)
+    fun v2Frames(record:MediaRecord):List<VideoFrame>{val duration=record.durationMs?:return record.videoFrames.take(4);val targets=listOf(0L,duration/4,duration/2,duration*3/4);return targets.mapNotNull{target->record.videoFrames.minByOrNull{(it.timestampMs-target).absoluteValue}}.distinctBy{it.timestampMs}}
+    val records=index.records.map{record->when{record.kind!=MediaKind.VIDEO->record;model==SeranModelProfile.SERAN_V1->record.copy(embedding=null,ocr="",labels=emptySet(),dominantColors=emptySet(),videoFrames=emptyList());model==SeranModelProfile.SERAN_V2->record.copy(videoFrames=v2Frames(record));else->record}}
+    val vectors=LocalVectorIndex();records.forEach{r->r.embedding?.let{vectors.upsert(r.id,it)}}
+    val engine=HybridSearchEngine(vectors);val recordsById=records.associateBy{it.id};val embeddings=QueryEmbeddings(full,concepts)
+    val momentIntent=V3QueryPlanner.interpret(query).momentIntent
+    val implicitVideoIntent=MediaAwareCandidateUnion.hasImplicitVideoIntent(query)
+    val base=if(!MediaAwareCandidateUnion.enabledFor(model)||query.mediaKind!=null)engine.search(query,recordsById,embeddings) else if(implicitVideoIntent) {
+        engine.search(query.copy(mediaKind=MediaKind.VIDEO),recordsById,embeddings)
+    } else {
+        val images=engine.search(query.copy(mediaKind=MediaKind.IMAGE),recordsById,embeddings)
+        val videos=engine.search(query.copy(mediaKind=MediaKind.VIDEO),recordsById,embeddings)
+        MediaAwareCandidateUnion.merge(query,images,videos)
+    }
+    val deepEnabled=model==SeranModelProfile.SERAN_V3&&(query.mediaKind==MediaKind.VIDEO||momentIntent)
+    val deep=if(deepEnabled)V3DeepReranker.rerank(query,base,full,concepts) else emptyList()
+    val matches=if(deepEnabled)deep.map{it.base.copy(score=it.deepScore,bestTimestampMs=it.moment.bestTimestampMs?:it.base.bestTimestampMs)} else base
     if(clip==null)owned?.close()
-    return TimedSearch(query,matches,(System.nanoTime()-start)/1e6,vectorMs)
+    return TimedSearch(query,matches,(System.nanoTime()-start)/1e6,vectorMs,deep.associate{it.base.media.id to it.moment})
+}
+
+private fun benchmarkCommand(rawModel:String) {
+    val model=SeranModelProfile.valueOf(rawModel);require(model!=SeranModelProfile.SERAN_ULTRA){"Ultra is outside this benchmark"}
+    val helper=Paths.get("android-app/test-lab/evaluation_labels.py").toAbsolutePath();val process=ProcessBuilder("python3",helper.toString(),"export").inheritIO().redirectOutput(ProcessBuilder.Redirect.PIPE).start();val lines=process.inputStream.bufferedReader().readLines();require(process.waitFor()==0){"evaluation export failed"}
+    fun decode(value:String)=String(Base64.getDecoder().decode(value),UTF_8)
+    data class Truth(val query:String,val expected:Set<String>,val category:String,val startMs:Long?,val endMs:Long?,val noMatch:Boolean)
+    val truths=lines.map{line->val p=line.split('\t');require(p.size==7);Truth(decode(p[0]),decode(p[1]).split('\u001f').filter(String::isNotBlank).toSet(),decode(p[2]),p[4].toDoubleOrNull()?.times(1000)?.toLong(),p[5].toDoubleOrNull()?.times(1000)?.toLong(),p[6].toBoolean())}
+    val index=readIndex();val expectedIds=truths.map{truth->index.records.filter{it.uri in truth.expected||it.displayName in truth.expected}.map{it.id}.toSet().also{require(truth.noMatch||it.isNotEmpty()){ "Expected media is not indexed: ${truth.expected}" }}}
+    val clip=TinyClipBridge();require(clip.active){"TinyCLIP bridge unavailable"}
+    val outcomes=truths.map{truth->search(index,truth.query,10,clip=clip,model=model)};clip.close()
+    val positives=truths.indices.filter{!truths[it].noMatch};fun recall(k:Int,subset:List<Int> = positives)=if(subset.isEmpty())Double.NaN else subset.count{i->outcomes[i].matches.take(k).any{it.media.id in expectedIds[i]}}.toDouble()/subset.size
+    val photo=positives.filter{i->truths[i].category !in setOf("VIDEO RETRIEVAL","EXACT VIDEO MOMENT")};val video=positives.filter{i->truths[i].category=="VIDEO RETRIEVAL"};val ocr=positives.filter{i->truths[i].category=="OCR"};val moments=positives.filter{i->truths[i].category=="EXACT VIDEO MOMENT"};val negatives=truths.indices.filter{truths[it].noMatch}
+    val correctVideo=moments.filter{i->outcomes[i].matches.firstOrNull()?.media?.id in expectedIds[i]};val momentHits=correctVideo.filter{i->outcomes[i].matches.first().bestTimestampMs?.let{it in truths[i].startMs!!..truths[i].endMs!!}==true};val errors=correctVideo.mapNotNull{i->outcomes[i].matches.first().bestTimestampMs?.let{at->when{at<truths[i].startMs!!->truths[i].startMs!!-at;at>truths[i].endMs!!->at-truths[i].endMs!!;else->0L}}}.sorted()
+    fun median(values:List<Double>)=if(values.isEmpty())Double.NaN else if(values.size%2==1)values[values.size/2] else (values[values.size/2-1]+values[values.size/2])/2
+    val latencies=outcomes.map{it.latencyMs}.sorted();val noMatch=negatives.count{i->!confidenceDecision(QueryParser().parse(truths[i].query),outcomes[i].matches).confident}.toDouble()/negatives.size
+    val metrics=linkedMapOf("overallTop1" to recall(1),"overallTop3" to recall(3),"overallTop5" to recall(5),"photoTop1" to recall(1,photo),"photoTop3" to recall(3,photo),"ocrTop1" to recall(1,ocr),"videoTop1" to recall(1,video),"videoTop3" to recall(3,video),"momentHitRate" to momentHits.size.toDouble()/moments.size,"momentCorrectVideoRate" to correctVideo.size.toDouble()/moments.size,"medianTimestampErrorMs" to median(errors.map(Long::toDouble)),"noMatchAccuracy" to noMatch,"falsePositiveRate" to 1-noMatch,"medianQueryLatencyMs" to median(latencies),"p95QueryLatencyMs" to latencies[((latencies.size-1)*.95).toInt()])
+    fun momentJson(moment:MomentResult?)=if(moment==null)"null" else "{\"state\":${json(moment.state.name)},\"bestTimestampMs\":${moment.bestTimestampMs?:"null"},\"windowStartMs\":${moment.windowStartMs?:"null"},\"windowEndMs\":${moment.windowEndMs?:"null"},\"supportingFrames\":[${moment.supportingFrames.joinToString(",")}],\"secondBestTimestampMs\":${moment.secondBestTimestampMs?:"null"},\"negativePenalty\":${moment.negativePenalty},\"confidence\":${moment.confidence?.let{c->"{\"score\":${c.score},\"margin\":${c.margin},\"semanticAgreement\":${c.semanticAgreement},\"activityAgreement\":${c.activityAgreement},\"neighboringConsistency\":${c.neighboringConsistency},\"querySpecificity\":${c.querySpecificity},\"confident\":${c.confident}}"}?:"null"}}"
+    fun matchJson(match:SearchMatch,moment:MomentResult?)="{\"uri\":${json(match.media.uri)},\"kind\":${json(match.media.kind.name)},\"score\":${match.score},\"timestampMs\":${match.bestTimestampMs?:"null"},\"confidence\":${json(match.confidence.name)},\"breakdown\":{\"semantic\":${match.breakdown.fullSemantic},\"conceptCoverage\":${match.breakdown.conceptCoverage},\"ocr\":${match.breakdown.ocr},\"metadata\":${match.breakdown.metadata},\"labels\":${match.breakdown.labels},\"colors\":${match.breakdown.colors},\"videoFrames\":${match.breakdown.videoFrames},\"negativePenalty\":${match.breakdown.negativePenalty}},\"temporal\":${momentJson(moment)}}"
+    val perQuery=truths.indices.joinToString(","){i->val parsed=QueryParser().parse(truths[i].query);val matches=outcomes[i].matches;val decision=confidenceDecision(parsed,matches);val expectedRank=matches.indexOfFirst{it.media.id in expectedIds[i]}.takeIf{it>=0}?.plus(1);"{\"query\":${json(truths[i].query)},\"category\":${json(truths[i].category)},\"expected\":[${truths[i].expected.joinToString(",",transform=::json)}],\"expectedStartMs\":${truths[i].startMs?:"null"},\"expectedEndMs\":${truths[i].endMs?:"null"},\"interpretation\":{\"mediaKind\":${parsed.mediaKind?.name?.let(::json)?:"null"},\"terms\":[${parsed.terms.joinToString(",",transform=::json)}],\"semanticConcepts\":[${parsed.semanticConcepts.joinToString(",",transform=::json)}],\"ocrTerms\":[${parsed.ocrTerms.joinToString(",",transform=::json)}],\"colors\":[${parsed.colors.joinToString(",",transform=::json)}],\"activities\":[${parsed.activities.joinToString(",",transform=::json)}],\"scenes\":[${parsed.scenes.joinToString(",",transform=::json)}],\"negativeTerms\":[${parsed.negativeTerms.joinToString(",",transform=::json)}]},\"top5\":[${matches.take(5).joinToString(","){matchJson(it,outcomes[i].moments[it.media.id])}}],\"top10\":[${matches.take(10).joinToString(","){json(it.media.uri)}}],\"expectedRank\":${expectedRank?:"null"},\"confident\":${decision.confident},\"semanticConfidence\":${decision.semantic},\"top1Top2Margin\":${decision.margin},\"confidenceScore\":${decision.score},\"confidenceTier\":${json(decision.tier.name)},\"confidenceDecision\":${json(decision.decision.name)},\"signalAgreement\":${decision.signalAgreement},\"confidenceReason\":${json(decision.reason)},\"latencyMs\":${outcomes[i].latencyMs}}"}
+    val output=System.getenv("HONORABLE_EVAL_OUTPUT")?.let(Paths::get)?:error("HONORABLE_EVAL_OUTPUT is required");output.toAbsolutePath().writeText("{\"schemaVersion\":2,\"model\":${json(model.name)},\"mediaCount\":${index.records.size},\"queryCount\":${truths.size},\"metrics\":{${metrics.entries.joinToString(","){json(it.key)+":"+it.value}}},\"moment\":{\"cases\":${moments.size},\"correctVideo\":${correctVideo.size},\"hits\":${momentHits.size},\"retrievalMisses\":${moments.size-correctVideo.size},\"comparableTimestampErrorsMs\":[${errors.joinToString(",")}]},\"queries\":[$perQuery]}\n")
+    println("BENCHMARK ${model.name}: "+metrics.entries.joinToString(" "){"${it.key}=${f(it.value)}"});println("Saved: ${output.toAbsolutePath()}")
 }
 
 private data class TimedRefinement(val result:ProgressiveSearchResult,val latencyMs:Double)

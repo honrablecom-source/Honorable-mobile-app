@@ -1,0 +1,1508 @@
+{
+  "schemaVersion": 2,
+  "model": "SERAN_V1",
+  "mediaCount": 60,
+  "queryCount": 150,
+  "metrics": {
+    "overallTop1": 0.2898550724637681,
+    "overallTop3": 0.3695652173913043,
+    "overallTop5": 0.4492753623188406,
+    "photoTop1": 0.47058823529411764,
+    "photoTop3": 0.6,
+    "ocrTop1": 0.7,
+    "videoTop1": 0.0,
+    "videoTop3": 0.0,
+    "momentHitRate": 0.0,
+    "momentCorrectVideoRate": 0.0,
+    "medianTimestampErrorMs": null,
+    "noMatchAccuracy": 0.8333333333333334,
+    "falsePositiveRate": 0.16666666666666663,
+    "medianQueryLatencyMs": 130.2097695,
+    "p95QueryLatencyMs": 387.198595
+  },
+  "moment": {
+    "cases": 23,
+    "correctVideo": 0,
+    "hits": 0,
+    "retrievalMisses": 23,
+    "comparableTimestampErrorsMs": []
+  },
+  "queries": [
+    {
+      "query": "the aerial photo of an orange tennis court",
+      "category": "SPORTS",
+      "expected": [
+        "photos/photo-001.jpg"
+      ],
+      "top1": "photos/photo-001.jpg",
+      "timestampMs": null,
+      "latencyMs": 660.675268
+    },
+    {
+      "query": "the tennis player casting a long shadow outside",
+      "category": "SPORTS",
+      "expected": [
+        "photos/photo-001.jpg"
+      ],
+      "top1": "photos/photo-001.jpg",
+      "timestampMs": null,
+      "latencyMs": 341.952791
+    },
+    {
+      "query": "the woman sitting on the blue tennis court",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-002.jpg"
+      ],
+      "top1": "photos/photo-002.jpg",
+      "timestampMs": null,
+      "latencyMs": 490.868695
+    },
+    {
+      "query": "the tennis photo where she had a yellow visor",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-002.jpg"
+      ],
+      "top1": "controls/color-green-yellow.png",
+      "timestampMs": null,
+      "latencyMs": 249.318067
+    },
+    {
+      "query": "the tennis racket and ball on a green court",
+      "category": "OBJECT",
+      "expected": [
+        "photos/photo-003.jpg"
+      ],
+      "top1": "photos/photo-003.jpg",
+      "timestampMs": null,
+      "latencyMs": 445.978035
+    },
+    {
+      "query": "the picture of a yellow ball beside a dark racket",
+      "category": "OBJECT",
+      "expected": [
+        "photos/photo-003.jpg"
+      ],
+      "top1": "controls/color-green-yellow.png",
+      "timestampMs": null,
+      "latencyMs": 268.572645
+    },
+    {
+      "query": "the sunrise over a tropical beach",
+      "category": "SCENE",
+      "expected": [
+        "photos/photo-004.jpg"
+      ],
+      "top1": "photos/photo-004.jpg",
+      "timestampMs": null,
+      "latencyMs": 158.132329
+    },
+    {
+      "query": "the beach photo with sunlight across the ocean",
+      "category": "SCENE",
+      "expected": [
+        "photos/photo-004.jpg"
+      ],
+      "top1": "photos/photo-005.jpg",
+      "timestampMs": null,
+      "latencyMs": 208.390177
+    },
+    {
+      "query": "the white sand beach with a palm tree",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-005.jpg"
+      ],
+      "top1": "photos/photo-042.jpg",
+      "timestampMs": null,
+      "latencyMs": 387.198595
+    },
+    {
+      "query": "the beach picture with a sailboat and no people",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-005.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 164.136235
+    },
+    {
+      "query": "the man wearing a plain white shirt",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-006.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 223.082788
+    },
+    {
+      "query": "the picture where his shirt was white and his pants were dark",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-006.jpg"
+      ],
+      "top1": "photos/photo-009.jpg",
+      "timestampMs": null,
+      "latencyMs": 334.183214
+    },
+    {
+      "query": "the folded blue jeans",
+      "category": "OBJECT",
+      "expected": [
+        "photos/photo-007.jpg"
+      ],
+      "top1": "photos/photo-019.jpg",
+      "timestampMs": null,
+      "latencyMs": 282.680262
+    },
+    {
+      "query": "the denim pants on a dark background",
+      "category": "OBJECT",
+      "expected": [
+        "photos/photo-007.jpg"
+      ],
+      "top1": "photos/photo-007.jpg",
+      "timestampMs": null,
+      "latencyMs": 99.576105
+    },
+    {
+      "query": "the red running shoe on a red background",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-008.jpg"
+      ],
+      "top1": "photos/photo-008.jpg",
+      "timestampMs": null,
+      "latencyMs": 407.121163
+    },
+    {
+      "query": "the red sneaker with a white sole",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-008.jpg"
+      ],
+      "top1": "photos/photo-014.jpg",
+      "timestampMs": null,
+      "latencyMs": 310.594523
+    },
+    {
+      "query": "the gray running shoes outside",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-009.jpg"
+      ],
+      "top1": "photos/photo-009.jpg",
+      "timestampMs": null,
+      "latencyMs": 386.040936
+    },
+    {
+      "query": "the close up of gray sneakers being worn",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-009.jpg"
+      ],
+      "top1": "photos/photo-022.jpg",
+      "timestampMs": null,
+      "latencyMs": 180.357588
+    },
+    {
+      "query": "the bright office with white chairs",
+      "category": "INDOOR",
+      "expected": [
+        "photos/photo-010.jpg"
+      ],
+      "top1": "photos/photo-010.jpg",
+      "timestampMs": null,
+      "latencyMs": 196.306962
+    },
+    {
+      "query": "the modern lounge with chairs and hanging lights",
+      "category": "INDOOR",
+      "expected": [
+        "photos/photo-010.jpg"
+      ],
+      "top1": "photos/photo-041.jpg",
+      "timestampMs": null,
+      "latencyMs": 61.582989
+    },
+    {
+      "query": "the empty office hallway",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-011.jpg"
+      ],
+      "top1": "photos/photo-011.jpg",
+      "timestampMs": null,
+      "latencyMs": 99.322682
+    },
+    {
+      "query": "the office corridor with glass walls and no people",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-011.jpg"
+      ],
+      "top1": "photos/photo-011.jpg",
+      "timestampMs": null,
+      "latencyMs": 187.627085
+    },
+    {
+      "query": "the dark restaurant with empty tables",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-012.jpg"
+      ],
+      "top1": "photos/photo-012.jpg",
+      "timestampMs": null,
+      "latencyMs": 181.967307
+    },
+    {
+      "query": "the dining room with hanging lights but no customers",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-012.jpg"
+      ],
+      "top1": "photos/photo-012.jpg",
+      "timestampMs": null,
+      "latencyMs": 95.285753
+    },
+    {
+      "query": "the snowy mountains under a purple night sky",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-013.jpg"
+      ],
+      "top1": "photos/photo-036.jpg",
+      "timestampMs": null,
+      "latencyMs": 384.068831
+    },
+    {
+      "query": "the mountain picture with stars and no people",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-013.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 214.490453
+    },
+    {
+      "query": "the woman wearing a blue denim jacket",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-014.jpg"
+      ],
+      "top1": "photos/photo-019.jpg",
+      "timestampMs": null,
+      "latencyMs": 525.235427
+    },
+    {
+      "query": "the portrait where her dark hair was tied up",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-014.jpg"
+      ],
+      "top1": "controls/ocr-flight.png",
+      "timestampMs": null,
+      "latencyMs": 94.343044
+    },
+    {
+      "query": "the man standing outside in a black jacket",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-015.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 284.26011
+    },
+    {
+      "query": "the full body picture of a man outdoors",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-015.jpg"
+      ],
+      "top1": "photos/photo-006.jpg",
+      "timestampMs": null,
+      "latencyMs": 131.840766
+    },
+    {
+      "query": "the close portrait of a woman with brown hair",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-016.jpg"
+      ],
+      "top1": "controls/ocr-flight.png",
+      "timestampMs": null,
+      "latencyMs": 220.193299
+    },
+    {
+      "query": "the smiling woman against a plain background",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-016.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 85.75555
+    },
+    {
+      "query": "the man with dark hair wearing a black shirt",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-017.jpg"
+      ],
+      "top1": "photos/photo-021.jpg",
+      "timestampMs": null,
+      "latencyMs": 217.806067
+    },
+    {
+      "query": "the close portrait of a serious man",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-017.jpg"
+      ],
+      "top1": "photos/photo-021.jpg",
+      "timestampMs": null,
+      "latencyMs": 88.72654
+    },
+    {
+      "query": "the woman wearing a white top",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-018.jpg"
+      ],
+      "top1": "photos/photo-018.jpg",
+      "timestampMs": null,
+      "latencyMs": 273.96994
+    },
+    {
+      "query": "the portrait with the pale background and white clothing",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-018.jpg"
+      ],
+      "top1": "photos/photo-006.jpg",
+      "timestampMs": null,
+      "latencyMs": 185.034891
+    },
+    {
+      "query": "the woman in a black top",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-019.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 232.236218
+    },
+    {
+      "query": "the portrait of a woman with dark clothing",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-019.jpg"
+      ],
+      "top1": "photos/photo-020.jpg",
+      "timestampMs": null,
+      "latencyMs": 112.155354
+    },
+    {
+      "query": "the woman outdoors with a blurry background",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-020.jpg"
+      ],
+      "top1": "photos/photo-020.jpg",
+      "timestampMs": null,
+      "latencyMs": 159.203867
+    },
+    {
+      "query": "the close portrait outside in daylight",
+      "category": "PEOPLE",
+      "expected": [
+        "photos/photo-020.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 89.48769
+    },
+    {
+      "query": "the smiling man in a blue shirt",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-021.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 306.66297
+    },
+    {
+      "query": "the portrait with glasses and a blue top",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-021.jpg"
+      ],
+      "top1": "photos/photo-019.jpg",
+      "timestampMs": null,
+      "latencyMs": 230.621577
+    },
+    {
+      "query": "the man wearing a suit outside",
+      "category": "CLOTHING",
+      "expected": [
+        "photos/photo-022.jpg"
+      ],
+      "top1": "photos/photo-006.jpg",
+      "timestampMs": null,
+      "latencyMs": 138.531094
+    },
+    {
+      "query": "the formal portrait with a jacket and tie",
+      "category": "CLOTHING",
+      "expected": [
+        "photos/photo-022.jpg"
+      ],
+      "top1": "photos/photo-022.jpg",
+      "timestampMs": null,
+      "latencyMs": 71.853924
+    },
+    {
+      "query": "the man in a plain gray shirt",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-023.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 255.121709
+    },
+    {
+      "query": "the portrait with gray clothing and a neutral background",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-023.jpg"
+      ],
+      "top1": "photos/photo-006.jpg",
+      "timestampMs": null,
+      "latencyMs": 192.069791
+    },
+    {
+      "query": "the colorful healthy salad bowl",
+      "category": "FOOD",
+      "expected": [
+        "photos/photo-024.jpg"
+      ],
+      "top1": "photos/photo-024.jpg",
+      "timestampMs": null,
+      "latencyMs": 45.447848
+    },
+    {
+      "query": "the food photo with greens tomatoes and vegetables",
+      "category": "FOOD",
+      "expected": [
+        "photos/photo-024.jpg"
+      ],
+      "top1": "photos/photo-024.jpg",
+      "timestampMs": null,
+      "latencyMs": 255.252333
+    },
+    {
+      "query": "the pizza topped with vegetables",
+      "category": "FOOD",
+      "expected": [
+        "photos/photo-025.jpg"
+      ],
+      "top1": "photos/photo-025.jpg",
+      "timestampMs": null,
+      "latencyMs": 84.954365
+    },
+    {
+      "query": "the round pizza sitting on a table",
+      "category": "FOOD",
+      "expected": [
+        "photos/photo-025.jpg"
+      ],
+      "top1": "photos/photo-025.jpg",
+      "timestampMs": null,
+      "latencyMs": 67.178084
+    },
+    {
+      "query": "the golden retriever outside",
+      "category": "ANIMAL",
+      "expected": [
+        "photos/photo-026.jpg"
+      ],
+      "top1": "photos/photo-026.jpg",
+      "timestampMs": null,
+      "latencyMs": 89.488602
+    },
+    {
+      "query": "the large light colored dog in the grass",
+      "category": "ANIMAL",
+      "expected": [
+        "photos/photo-026.jpg"
+      ],
+      "top1": "controls/ocr-flight.png",
+      "timestampMs": null,
+      "latencyMs": 219.316434
+    },
+    {
+      "query": "the small black pug",
+      "category": "ANIMAL",
+      "expected": [
+        "photos/photo-027.jpg"
+      ],
+      "top1": "photos/photo-027.jpg",
+      "timestampMs": null,
+      "latencyMs": 231.249699
+    },
+    {
+      "query": "the dark dog looking toward the camera",
+      "category": "ANIMAL",
+      "expected": [
+        "photos/photo-027.jpg"
+      ],
+      "top1": "photos/photo-027.jpg",
+      "timestampMs": null,
+      "latencyMs": 173.628638
+    },
+    {
+      "query": "the dense city skyline during the day",
+      "category": "CITY",
+      "expected": [
+        "photos/photo-028.jpg"
+      ],
+      "top1": "photos/photo-028.jpg",
+      "timestampMs": null,
+      "latencyMs": 46.732023
+    },
+    {
+      "query": "the city picture with many tall buildings",
+      "category": "CITY",
+      "expected": [
+        "photos/photo-028.jpg"
+      ],
+      "top1": "controls/ocr-meeting.png",
+      "timestampMs": null,
+      "latencyMs": 48.631936
+    },
+    {
+      "query": "the silver sports car outside",
+      "category": "CAR",
+      "expected": [
+        "photos/photo-029.jpg"
+      ],
+      "top1": "photos/photo-029.jpg",
+      "timestampMs": null,
+      "latencyMs": 393.621103
+    },
+    {
+      "query": "the modern gray car viewed from the front",
+      "category": "CAR",
+      "expected": [
+        "photos/photo-029.jpg"
+      ],
+      "top1": "photos/photo-029.jpg",
+      "timestampMs": null,
+      "latencyMs": 322.200608
+    },
+    {
+      "query": "the red sports car on the road",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-030.jpg"
+      ],
+      "top1": "controls/color-black-white.png",
+      "timestampMs": null,
+      "latencyMs": 262.724838
+    },
+    {
+      "query": "the bright red car photographed outdoors",
+      "category": "COLOR",
+      "expected": [
+        "photos/photo-030.jpg"
+      ],
+      "top1": "photos/photo-008.jpg",
+      "timestampMs": null,
+      "latencyMs": 268.168971
+    },
+    {
+      "query": "the yellow taxis on a city street",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-031.jpg"
+      ],
+      "top1": "controls/color-green-yellow.png",
+      "timestampMs": null,
+      "latencyMs": 130.500397
+    },
+    {
+      "query": "the traffic scene with several yellow cars",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-031.jpg"
+      ],
+      "top1": "controls/color-green-yellow.png",
+      "timestampMs": null,
+      "latencyMs": 171.337826
+    },
+    {
+      "query": "the green field beneath dramatic clouds",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-032.jpg"
+      ],
+      "top1": "photos/photo-003.jpg",
+      "timestampMs": null,
+      "latencyMs": 143.638208
+    },
+    {
+      "query": "the grassy landscape with no buildings",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-032.jpg"
+      ],
+      "top1": "photos/photo-032.jpg",
+      "timestampMs": null,
+      "latencyMs": 51.807208
+    },
+    {
+      "query": "the person standing in a wide mountain landscape",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-033.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 84.714187
+    },
+    {
+      "query": "the outdoor picture with one tiny person",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-033.jpg"
+      ],
+      "top1": "photos/photo-020.jpg",
+      "timestampMs": null,
+      "latencyMs": 86.599474
+    },
+    {
+      "query": "the sunlit mountain valley",
+      "category": "MULTI-CONDITION",
+      "expected": [
+        "photos/photo-034.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.941233
+    },
+    {
+      "query": "the hiker overlooking the lake and mountains",
+      "category": "ACTIVITY",
+      "expected": [
+        "photos/photo-035.jpg"
+      ],
+      "top1": "photos/photo-035.jpg",
+      "timestampMs": null,
+      "latencyMs": 46.374967
+    },
+    {
+      "query": "the dark city beneath the stars",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "photos/photo-036.jpg"
+      ],
+      "top1": "photos/photo-036.jpg",
+      "timestampMs": null,
+      "latencyMs": 48.85916
+    },
+    {
+      "query": "the foggy lake surrounded by mountains and trees",
+      "category": "SCENE",
+      "expected": [
+        "photos/photo-037.jpg"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 58.19976
+    },
+    {
+      "query": "the screenshot that says payment successful",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-payment.png"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 43.155062
+    },
+    {
+      "query": "the receipt with ID HN 4821",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-payment.png"
+      ],
+      "top1": "controls/ocr-payment.png",
+      "timestampMs": null,
+      "latencyMs": 47.741275
+    },
+    {
+      "query": "the flight confirmation for AC 182",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-flight.png"
+      ],
+      "top1": "controls/ocr-flight.png",
+      "timestampMs": null,
+      "latencyMs": 51.007516
+    },
+    {
+      "query": "the screenshot mentioning Gate B14",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-flight.png"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 44.437894
+    },
+    {
+      "query": "the market receipt with a total of 42.80",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-receipt.png"
+      ],
+      "top1": "controls/ocr-receipt.png",
+      "timestampMs": null,
+      "latencyMs": 48.89653
+    },
+    {
+      "query": "the reminder to meet at 7:30 PM",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-meeting.png"
+      ],
+      "top1": "controls/ocr-meeting.png",
+      "timestampMs": null,
+      "latencyMs": 63.69608
+    },
+    {
+      "query": "the reminder for Community Hall",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-meeting.png"
+      ],
+      "top1": "controls/ocr-meeting.png",
+      "timestampMs": null,
+      "latencyMs": 58.164403
+    },
+    {
+      "query": "the payment screen showing a total paid of 86.40",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-payment.png"
+      ],
+      "top1": "controls/ocr-payment.png",
+      "timestampMs": null,
+      "latencyMs": 62.712396
+    },
+    {
+      "query": "the boarding information that says 6:45 PM",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-flight.png"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 55.674039
+    },
+    {
+      "query": "the receipt showing a subtotal of 38.50",
+      "category": "OCR",
+      "expected": [
+        "controls/ocr-receipt.png"
+      ],
+      "top1": "controls/ocr-receipt.png",
+      "timestampMs": null,
+      "latencyMs": 51.039055
+    },
+    {
+      "query": "the red and blue image with a white circle",
+      "category": "COLOR",
+      "expected": [
+        "controls/color-red-blue.png"
+      ],
+      "top1": "controls/color-red-blue.png",
+      "timestampMs": null,
+      "latencyMs": 348.643262
+    },
+    {
+      "query": "the green and yellow picture with a black circle",
+      "category": "COLOR",
+      "expected": [
+        "controls/color-green-yellow.png"
+      ],
+      "top1": "controls/color-green-yellow.png",
+      "timestampMs": null,
+      "latencyMs": 378.790695
+    },
+    {
+      "query": "the black and white image with a red circle",
+      "category": "COLOR",
+      "expected": [
+        "controls/color-black-white.png"
+      ],
+      "top1": "controls/color-black-white.png",
+      "timestampMs": null,
+      "latencyMs": 436.204258
+    },
+    {
+      "query": "the purple and orange picture with a green circle",
+      "category": "COLOR",
+      "expected": [
+        "controls/color-purple-orange.png"
+      ],
+      "top1": "controls/color-purple-orange.png",
+      "timestampMs": null,
+      "latencyMs": 371.62448
+    },
+    {
+      "query": "the color test that has orange but not blue",
+      "category": "NEGATIVE CONDITION",
+      "expected": [
+        "controls/color-purple-orange.png"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 212.994293
+    },
+    {
+      "query": "the short park video with cars visible behind the trees",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-001.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 43.103306
+    },
+    {
+      "query": "the five second clip moving through a green park",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-001.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 169.072261
+    },
+    {
+      "query": "the park video where a white van is visible",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-001.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 187.972079
+    },
+    {
+      "query": "the park video passing a large dark tree trunk",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-002.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 44.797245
+    },
+    {
+      "query": "the clip with a green fence beyond the trees",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-002.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 127.294248
+    },
+    {
+      "query": "the park video with the biggest tree in the foreground",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-002.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 43.307756
+    },
+    {
+      "query": "the park video centered on a paved footpath",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-003.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.982681
+    },
+    {
+      "query": "the clip moving straight down a path through trees",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-003.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.470395
+    },
+    {
+      "query": "the green park video with a walkway in the middle",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-003.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 126.241493
+    },
+    {
+      "query": "the park video with traffic moving beyond the trees",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-004.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.912019
+    },
+    {
+      "query": "the clip where trucks and cars pass on the road",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-004.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 63.683997
+    },
+    {
+      "query": "the park scene looking across at a white building",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-004.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 261.31561
+    },
+    {
+      "query": "the park video with a winding paved path",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-005.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.890258
+    },
+    {
+      "query": "the green park clip without traffic in the center",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-005.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 159.035332
+    },
+    {
+      "query": "the thirty second walk through a leafy park",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-005.mp4"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 55.107332
+    },
+    {
+      "query": "the animated film with two men in a dark mechanical world",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-006.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 45.267051
+    },
+    {
+      "query": "the video with strange machinery and an elevator",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-006.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.496203
+    },
+    {
+      "query": "the dark animated movie with an older thin man",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-006.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 83.968747
+    },
+    {
+      "query": "the live action science fiction film with robots",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": "photos/photo-036.jpg",
+      "timestampMs": null,
+      "latencyMs": 46.207104
+    },
+    {
+      "query": "the video with a man and woman near a canal",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 148.688336
+    },
+    {
+      "query": "the movie where a large robot appears in a workshop",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 59.224992
+    },
+    {
+      "query": "the animated film about a red haired woman and a dragon",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": "controls/color-black-white.png",
+      "timestampMs": null,
+      "latencyMs": 290.441609
+    },
+    {
+      "query": "the fantasy video with snowy mountains and a cave",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 43.630619
+    },
+    {
+      "query": "the movie where a woman fights a creature",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 86.811469
+    },
+    {
+      "query": "the animation reel with many unrelated scenes",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": "photos/photo-035.jpg",
+      "timestampMs": null,
+      "latencyMs": 77.268832
+    },
+    {
+      "query": "the video montage containing a car and animated characters",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 195.115571
+    },
+    {
+      "query": "the reel that shows an orange fruit exploding",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 181.92988
+    },
+    {
+      "query": "the rendering reel with a train and a coffee cup",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-010.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 42.882754
+    },
+    {
+      "query": "the video montage showing a white miniature city",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-010.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 168.593068
+    },
+    {
+      "query": "the reel with balloons rising over a city",
+      "category": "VIDEO RETRIEVAL",
+      "expected": [
+        "videos/video-010.mov"
+      ],
+      "top1": "photos/photo-028.jpg",
+      "timestampMs": null,
+      "latencyMs": 52.989994
+    },
+    {
+      "query": "the part of the short park clip where the white van passes",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-001.mp4"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 173.316156
+    },
+    {
+      "query": "the part where the camera is beside the huge tree trunk",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-002.mp4"
+      ],
+      "top1": "photos/photo-042.jpg",
+      "timestampMs": null,
+      "latencyMs": 48.370408
+    },
+    {
+      "query": "the moment the paved path is centered",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-003.mp4"
+      ],
+      "top1": "photos/photo-031.jpg",
+      "timestampMs": null,
+      "latencyMs": 44.951042
+    },
+    {
+      "query": "the part where traffic passes behind the park trees",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-004.mp4"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 49.902997
+    },
+    {
+      "query": "the part where the winding path fills the foreground",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-005.mp4"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 51.496658
+    },
+    {
+      "query": "the moment when two animated men stand on a narrow bridge",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-006.mov"
+      ],
+      "top1": "controls/ocr-payment.png",
+      "timestampMs": null,
+      "latencyMs": 100.611725
+    },
+    {
+      "query": "the part where the thin older animated man is close to the camera",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-006.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 181.009022
+    },
+    {
+      "query": "the part near the end with orange light behind the characters",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-006.mov"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 375.657342
+    },
+    {
+      "query": "the part where a man walks beside the Amsterdam canal",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 102.510487
+    },
+    {
+      "query": "the moment when the large robot is inside the workshop",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": "photos/photo-011.jpg",
+      "timestampMs": null,
+      "latencyMs": 89.87923
+    },
+    {
+      "query": "the part where the older man is shown outside",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 132.941449
+    },
+    {
+      "query": "the ending where blue robot graphics appear",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-007.mov"
+      ],
+      "top1": "controls/color-red-blue.png",
+      "timestampMs": null,
+      "latencyMs": 188.235008
+    },
+    {
+      "query": "the moment when the dragon flies over the town",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": "photos/photo-034.jpg",
+      "timestampMs": null,
+      "latencyMs": 51.314639
+    },
+    {
+      "query": "the part where the woman crosses snowy mountains",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 87.771899
+    },
+    {
+      "query": "the dark cave scene with the creature",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": "photos/photo-019.jpg",
+      "timestampMs": null,
+      "latencyMs": 92.388156
+    },
+    {
+      "query": "the ending where the woman stands near white flowers",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-008.mkv"
+      ],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 465.30317
+    },
+    {
+      "query": "the part where an orange fruit explodes on a blue background",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": "controls/color-purple-orange.png",
+      "timestampMs": null,
+      "latencyMs": 355.367522
+    },
+    {
+      "query": "the moment showing the laboratory full of glass bottles",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": "photos/photo-011.jpg",
+      "timestampMs": null,
+      "latencyMs": 51.401721
+    },
+    {
+      "query": "the part with the white car driving between buildings",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": "photos/photo-029.jpg",
+      "timestampMs": null,
+      "latencyMs": 220.854582
+    },
+    {
+      "query": "the colorful cartoon creature inside a cave",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-009.mov"
+      ],
+      "top1": "photos/photo-019.jpg",
+      "timestampMs": null,
+      "latencyMs": 91.499733
+    },
+    {
+      "query": "the part showing a close up of a computer keyboard",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-010.mov"
+      ],
+      "top1": "photos/photo-037.jpg",
+      "timestampMs": null,
+      "latencyMs": 45.002808
+    },
+    {
+      "query": "the moment with the coffee cup on a wooden table",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-010.mov"
+      ],
+      "top1": "photos/photo-039.jpg",
+      "timestampMs": null,
+      "latencyMs": 103.220741
+    },
+    {
+      "query": "the ending with balloons floating over a city",
+      "category": "EXACT VIDEO MOMENT",
+      "expected": [
+        "videos/video-010.mov"
+      ],
+      "top1": "photos/photo-036.jpg",
+      "timestampMs": null,
+      "latencyMs": 106.199226
+    },
+    {
+      "query": "the photo of a birthday cake with candles",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": "photos/photo-019.jpg",
+      "timestampMs": null,
+      "latencyMs": 176.431716
+    },
+    {
+      "query": "the video where someone plays tennis",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 90.46919
+    },
+    {
+      "query": "the screenshot saying package delivered",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 51.251732
+    },
+    {
+      "query": "the picture of a cat sleeping on a sofa",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 155.85972
+    },
+    {
+      "query": "the video of people swimming in a pool",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 84.572443
+    },
+    {
+      "query": "the photo of a blue motorcycle in snow",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": "photos/photo-036.jpg",
+      "timestampMs": null,
+      "latencyMs": 170.748187
+    },
+    {
+      "query": "the receipt with a total of 99.99",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": "controls/ocr-payment.png",
+      "timestampMs": null,
+      "latencyMs": 44.647575
+    },
+    {
+      "query": "the beach photo with a red umbrella",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": "controls/color-black-white.png",
+      "timestampMs": null,
+      "latencyMs": 231.9958
+    },
+    {
+      "query": "the video where a dog catches a frisbee",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 129.919142
+    },
+    {
+      "query": "the picture of sushi on a black plate",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": "photos/photo-029.jpg",
+      "timestampMs": null,
+      "latencyMs": 238.093723
+    },
+    {
+      "query": "the document mentioning passport number ZX 999",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": "photos/photo-007.jpg",
+      "timestampMs": null,
+      "latencyMs": 278.453842
+    },
+    {
+      "query": "the nighttime video of fireworks",
+      "category": "NO-MATCH",
+      "expected": [],
+      "top1": null,
+      "timestampMs": null,
+      "latencyMs": 77.000131
+    }
+  ]
+}

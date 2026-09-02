@@ -1,0 +1,1 @@
+{"name":"honorable-dev-server","private":true,"version":"0.2.0","scripts":{"start":"HONORABLE_SERVER_MODE=development node src/server.js","test":"node --test"},"engines":{"node":">=22"}}
