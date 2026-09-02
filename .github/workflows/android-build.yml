@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "mobile-react-native/**"
-      - "android-app/**"
+      - "Honorable-mobile-app-main/mobile-react-native/**"
+      - "Honorable-mobile-app-main/android-app/**"
       - ".github/workflows/android-build.yml"
   pull_request:
     paths:
-      - "mobile-react-native/**"
-      - "android-app/**"
+      - "Honorable-mobile-app-main/mobile-react-native/**"
+      - "Honorable-mobile-app-main/android-app/**"
       - ".github/workflows/android-build.yml"
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: mobile-react-native
+        working-directory: Honorable-mobile-app-main/mobile-react-native
     env:
       HONORABLE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.HONORABLE_GOOGLE_WEB_CLIENT_ID }}
       HONORABLE_ACCOUNT_API_URL: ${{ secrets.HONORABLE_ACCOUNT_API_URL }}
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: mobile-react-native/package-lock.json
+          cache-dependency-path: Honorable-mobile-app-main/mobile-react-native/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -52,10 +52,10 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
       - name: Build configured debug APK
-        working-directory: mobile-react-native/android
+        working-directory: Honorable-mobile-app-main/mobile-react-native/android
         run: ./gradlew --no-daemon :app:assembleDebug
       - name: Verify APK package and report signing SHA-1
-        working-directory: mobile-react-native/android
+        working-directory: Honorable-mobile-app-main/mobile-react-native/android
         shell: bash
         run: |
           apk="app/build/outputs/apk/debug/app-debug.apk"
@@ -67,5 +67,5 @@ jobs:
         with:
           name: honorable-android-debug
           retention-days: 14
-          path: mobile-react-native/android/app/build/outputs/apk/debug/app-debug.apk
+          path: Honorable-mobile-app-main/mobile-react-native/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
