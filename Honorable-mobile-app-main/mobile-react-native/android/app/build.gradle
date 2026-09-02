@@ -99,8 +99,7 @@ android {
     buildFeatures { buildConfig true }
     sourceSets {
         main.java.srcDir("../../../android-app/app/src/main/java")
-        main.java.includes += ["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"]
-        main.java.excludes += ["app/honorable/MainActivity.kt", "app/honorable/ProductArchitecture.kt", "app/honorable/terms/**"]
+        main.java.setIncludes(["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"])
         main.assets.srcDir("../../../android-app/app/src/main/assets")
     }
     signingConfigs {

@@ -37,7 +37,7 @@ class MediaIndexWorker(context:Context,parameters:WorkerParameters):CoroutineWor
             var priorStage:IndexingStage?=null;var stageStarted=System.nanoTime()
             val stats=AndroidMediaIndexer(applicationContext,database,requireNotNull(model)).synchronize(progress={ progress ->
                 if(priorStage!=progress.stage){priorStage?.let{database.recordMetric("indexing",it.name,(System.nanoTime()-stageStarted)/1_000_000)};priorStage=progress.stage;stageStarted=System.nanoTime()}
-                setProgress(workDataOf(KEY_STAGE to progress.stage.name,KEY_PROCESSED to progress.processed,KEY_TOTAL to progress.total,KEY_FAILED to progress.failed))
+                setProgressAsync(workDataOf(KEY_STAGE to progress.stage.name,KEY_PROCESSED to progress.processed,KEY_TOTAL to progress.total,KEY_FAILED to progress.failed))
                 database.updateJob(jobId,IndexJobState.RUNNING,progress.stage.name,progress.processed,progress.total,progress.failed,runAttemptCount+1)
             })
             val terminal=if(stats.failed>0)IndexJobState.PARTIAL_FAILURE else IndexJobState.COMPLETED
@@ -59,7 +59,7 @@ class MediaIndexWorker(context:Context,parameters:WorkerParameters):CoroutineWor
 
     private fun classify(error:Throwable)=when(error) {
         is SecurityException->EngineFailure(EngineFailureKind.PERMISSION)
-        is android.database.sqlite.SQLiteDatabaseLockedException,is android.database.sqlite.SQLiteBusyException->EngineFailure(EngineFailureKind.DATABASE_CONTENTION)
+        is android.database.sqlite.SQLiteDatabaseLockedException->EngineFailure(EngineFailureKind.DATABASE_CONTENTION)
         is IOException->EngineFailure(EngineFailureKind.TRANSIENT_IO)
         is OutOfMemoryError->EngineFailure(EngineFailureKind.TEMPORARY_RESOURCE)
         else->EngineFailure(EngineFailureKind.UNKNOWN)
