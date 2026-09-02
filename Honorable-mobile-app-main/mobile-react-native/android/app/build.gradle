@@ -100,6 +100,7 @@ android {
     sourceSets {
         main.java.srcDir("../../../android-app/app/src/main/java")
         main.java.setIncludes(["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"])
+        main.kotlin.setIncludes(["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"])
         main.assets.srcDir("../../../android-app/app/src/main/assets")
     }
     signingConfigs {
