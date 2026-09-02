@@ -59,7 +59,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
 
     @ReactMethod fun refreshIndex(promise: Promise) = work.execute { guarded(promise) {
         if(!hasMediaPermission()) throw IllegalStateException("Media permission is required")
-        val stats=runBlocking { AndroidMediaIndexer(context,database,embeddings,profile=activeSeranProfile()).synchronize{} }
+        val stats=runBlocking { AndroidMediaIndexer(context,database,embeddings,profile=activeSeranProfile()).synchronize(progress = {}) }
         val count=reloadCatalog()
         Arguments.createMap().apply { putInt("added",stats.added);putInt("updated",stats.updated);putInt("deleted",stats.deleted);putInt("failed",stats.failed);putInt("skipped",stats.skipped);putInt("indexedCount",count) }
     } }
@@ -79,7 +79,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
 
     @ReactMethod fun signInWithGoogle(promise:Promise)=work.execute{guarded(promise){
         require(BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID.isNotBlank()){"HONORABLE_GOOGLE_WEB_CLIENT_ID is required"}
-        val activity=currentActivity?:error("Google Sign-In requires an active Android screen")
+        val activity=context.currentActivity?:error("Google Sign-In requires an active Android screen")
         val option=GetGoogleIdOption.Builder().setServerClientId(BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID).setFilterByAuthorizedAccounts(false).setAutoSelectEnabled(false).build()
         val result=runBlocking{CredentialManager.create(context).getCredential(activity,GetCredentialRequest.Builder().addCredentialOption(option).build())}
         val credential=result.credential
@@ -123,7 +123,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     private fun resultMap(rank:Int, match:SearchMatch, exactMoment:Boolean)=Arguments.createMap().apply { putInt("rank",rank+1);putDouble("mediaId",match.media.id.toDouble());putString("mediaUri",match.media.uri);putString("mediaType",match.media.kind.name);putString("displayName",match.media.displayName);putDouble("score",match.score);putDouble("semantic",match.breakdown.fullSemantic);if(exactMoment)match.bestTimestampMs?.let{putDouble("bestTimestampMs",it.toDouble())};putString("confidence",match.confidence.name);putArray("evidence",Arguments.fromList(match.explanations)) }
     private fun libraryMap(media:MediaRecord)=Arguments.createMap().apply{putDouble("mediaId",media.id.toDouble());putString("mediaUri",media.uri);putString("mediaType",media.kind.name);putString("displayName",media.displayName);putDouble("capturedAt",media.capturedAtEpochMs.toDouble());media.durationMs?.let{putDouble("durationMs",it.toDouble())};videoThumbnail(media)?.let{putString("thumbnailUri",it)}}
     private fun videoThumbnail(media:MediaRecord):String?{if(media.kind!=MediaKind.VIDEO||Build.VERSION.SDK_INT<29)return null;return runCatching{val dir=File(context.cacheDir,"media-thumbnails").apply{mkdirs()};val file=File(dir,"${media.id}.jpg");if(!file.exists()){val bitmap=context.contentResolver.loadThumbnail(Uri.parse(media.uri),Size(640,640),null);FileOutputStream(file).use{bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,it)};bitmap.recycle()};Uri.fromFile(file).toString()}.getOrNull()}
-    private fun searchHistory():List<String>=context.getSharedPreferences("honorable-ui",0).getString("search-history","").orEmpty().lineSequence().filter(String::isNotBlank).toList()
+    private fun searchHistory(): List<String> = context.getSharedPreferences("honorable-ui",0).getString("search-history","").orEmpty().lineSequence().filter(String::isNotBlank).toList()
     private fun rememberSearch(raw:String){val clean=raw.trim().replace('\n',' ');val history=(listOf(clean)+searchHistory().filterNot{it.equals(clean,true)}).take(12);context.getSharedPreferences("honorable-ui",0).edit().putString("search-history",history.joinToString("\n")).apply()}
     private fun hasMediaPermission()=MediaCapabilityManager(context).current().canReadAny
     private fun guarded(promise:Promise, block:()->WritableMap) { try { promise.resolve(block()) } catch(error:Throwable) { promise.reject("HONORABLE_NATIVE_ERROR",error.message,error) } }
