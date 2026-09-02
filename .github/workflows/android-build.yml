@@ -44,14 +44,17 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Install JavaScript dependencies
         run: npm ci
-      - name: Verify sign-in build configuration is present
+      - name: Report optional sign-in configuration
         shell: bash
         run: |
-          test -n "$HONORABLE_GOOGLE_WEB_CLIENT_ID"
-          test -n "$HONORABLE_ACCOUNT_API_URL"
+          if [[ -n "$HONORABLE_GOOGLE_WEB_CLIENT_ID" && -n "$HONORABLE_ACCOUNT_API_URL" ]]; then
+            echo "Building with Google sign-in and account API configuration."
+          else
+            echo "::notice::Sign-in secrets are not configured; building the debug APK without sign-in configuration."
+          fi
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
-      - name: Build configured debug APK
+      - name: Build debug APK
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         run: ./gradlew --no-daemon :app:assembleDebug
       - name: Verify APK package and report signing SHA-1
@@ -62,7 +65,7 @@ jobs:
           apksigner verify --print-certs "$apk" \
             | sed -n 's/^Signer #1 certificate SHA-1 digest: /GitHub Actions APK signing SHA-1: /p'
           aapt dump badging "$apk" | grep -q "package: name='com.honorablemobile'"
-      - name: Upload configured debug APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: honorable-android-debug
