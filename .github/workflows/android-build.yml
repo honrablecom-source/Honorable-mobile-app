@@ -62,9 +62,10 @@ jobs:
         shell: bash
         run: |
           apk="app/build/outputs/apk/debug/app-debug.apk"
-          apksigner verify --print-certs "$apk" \
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" \
             | sed -n 's/^Signer #1 certificate SHA-1 digest: /GitHub Actions APK signing SHA-1: /p'
-          aapt dump badging "$apk" | grep -q "package: name='com.honorablemobile'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" \
+            | grep -q "package: name='com.honorablemobile'"
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
