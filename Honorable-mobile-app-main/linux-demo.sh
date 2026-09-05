@@ -3,7 +3,9 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 port="${HONORABLE_DEMO_PORT:-4174}"
 cd "$repo_dir"
-media_count() { find test-media -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.mp4' -o -iname '*.mov' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.mkv' \) | wc -l; }
+storage_dir="android-app/test-lab/web-test-shell/storage"
+index_file="$storage_dir/.memories-test-index"
+media_count() { find "$storage_dir" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.mp4' -o -iname '*.mov' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.mkv' \) | wc -l; }
 check_port() {
   [[ "$port" =~ ^[0-9]+$ ]] && ((port >= 1 && port <= 65535)) || { echo "ERROR: Invalid Honorable demo port: $port" >&2; exit 2; }
   ((port != 8080)) || { echo "ERROR: Port 8080 is reserved; Honorable will not use it." >&2; exit 2; }
@@ -25,18 +27,18 @@ case "${1:-}" in
     exec ./test-lab.sh indexTestMedia --console=plain
     ;;
   start)
-    [[ -f test-media/.memories-test-index ]] || "$0" index
+    [[ -f "$index_file" ]] || "$0" index
     check_port
     cd android-app
     exec ./test-lab.sh serveTestMedia -Pport="$port" --console=plain
     ;;
   status)
     echo "MEDIA: $(media_count)"
-    echo "INDEX: $([[ -f test-media/.memories-test-index ]] && echo READY || echo MISSING)"
+    echo "INDEX: $([[ -f "$index_file" ]] && echo READY || echo MISSING)"
     echo "PORT: $port"
     ;;
   verify)
-    index=FAIL; [[ -s test-media/.memories-test-index ]] && index=PASS
+    index=FAIL; [[ -s "$index_file" ]] && index=PASS
     shared=FAIL; grep -q 'kotlin.include("app/honorable/search/SearchCore.kt")' android-app/test-lab/build.gradle.kts && grep -q 'HybridSearchEngine' android-app/test-lab/src/main/kotlin/app/honorable/testlab/TestLab.kt && shared=PASS
     frontend=FOUND; grep -q "fetch('/api/search" android-app/test-lab/web-test-shell/phone.js && ! grep -Eq 'cosine|HybridSearchEngine|SearchRanker|sortedByDescending|\.sort\(' android-app/test-lab/web-test-shell/phone.js && frontend=NONE
     kotlin=FAIL; grep -q 'server.createContext("/api/search")' android-app/test-lab/src/main/kotlin/app/honorable/testlab/TestLab.kt && grep -q 'HybridSearchEngine' android-app/test-lab/src/main/kotlin/app/honorable/testlab/TestLab.kt && kotlin=PASS

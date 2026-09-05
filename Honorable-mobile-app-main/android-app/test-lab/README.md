@@ -43,7 +43,9 @@ an atomic replacement. Expected filenames are used only after ranking to score
 results. Optional `difficulty` and `expected_timestamp` fields can be edited in
 the JSON as shown in the example.
 
-The index is stored in `test-media/.memories-test-index` and is wholly separate
+The browser shell treats `web-test-shell/storage/` as simulated Android media
+storage. Every supported photo or video placed there is recursively discovered
+and written to `web-test-shell/storage/.memories-test-index`. This is wholly separate
 from Android/Room production data. On first indexing, the launcher downloads the
 pinned, SHA-256-validated TinyCLIP 8-bit ONNX assets. Image pixels and query text
 produce shared 512-dimensional embeddings locally. Filenames are display-only.

@@ -18,7 +18,7 @@ import javax.imageio.ImageIO
 import kotlin.io.path.*
 import kotlin.math.absoluteValue
 
-private val mediaRoot: Path = Paths.get(System.getenv("HONORABLE_TEST_MEDIA_ROOT") ?: "test-media").toAbsolutePath().normalize()
+private val mediaRoot: Path = Paths.get(System.getenv("HONORABLE_TEST_MEDIA_ROOT") ?: "android-app/test-lab/web-test-shell/storage").toAbsolutePath().normalize()
 private val indexFile: Path = mediaRoot.resolve(".memories-test-index")
 private val imageExt = setOf("jpg", "jpeg", "png", "webp")
 private val heifExt = setOf("heic", "heif")
@@ -31,7 +31,7 @@ data class DiscoveryEntry(val path:Path,val relative:String,val format:String,va
 interface FileMediaSource { fun inspect():List<DiscoveryEntry>;fun discover(): List<Path> = inspect().filter{it.supported}.map{it.path} }
 class DirectoryMediaSource(private val root: Path) : FileMediaSource {
     override fun inspect():List<DiscoveryEntry> {
-        require(root.exists()) { "Missing test-media directory: $root" }
+        require(root.exists()) { "Missing web test storage directory: $root" }
         return Files.walk(root).use { paths -> paths.iterator().asSequence().filter { path->!Files.isSymbolicLink(path)&&path.isRegularFile()&&root.relativize(path).none{it.toString().startsWith(".")||it.toString()=="eval-derived"}&&path.extension.isNotBlank()&&path.extension.lowercase() !in setOf("md","json") }.sorted().map{path->
             val ext=path.extension.lowercase();val relative=root.relativize(path).toString().replace(File.separatorChar,'/')
             when { ext in imageExt->DiscoveryEntry(path,relative,ext,MediaKind.IMAGE,true);ext in videoExt->DiscoveryEntry(path,relative,ext,MediaKind.VIDEO,commandExists("ffmpeg")&&videoDuration(path)!=null,if(commandExists("ffmpeg")&&videoDuration(path)!=null)null else "FFmpeg cannot decode/probe this file");ext in heifExt->DiscoveryEntry(path,relative,ext,MediaKind.IMAGE,false,"HEIC/HEIF decoder unavailable in this Codespace; convert to JPG/PNG for testing");else->DiscoveryEntry(path,relative,ext,null,false,"unsupported media format")

@@ -1,4 +1,6 @@
 {
-  "adapter": "web-test-storage-index",
-  "items": []
+  "adapter": "web-test-storage-directory",
+  "path": "storage",
+  "index": "storage/.memories-test-index",
+  "ranking": "shared-kotlin-android-search-core"
 }

@@ -1,27 +1,14 @@
 # Web test storage index
 
-This manifest is used only by the browser test shell. It does not alter the
-Android MediaStore, Room database, or production index.
+`storage/` is the development browser shell's simulated Android media storage.
+It does not alter Android MediaStore, Room, authentication, or production code.
 
-1. Put a photo or video somewhere under `test-media/`, for example
-   `test-media/web-storage/beach.jpg`.
-2. Add an item to `storage-index.json` using its path relative to `test-media`:
+1. Put JPG, JPEG, PNG, WebP, MP4, MOV, M4V, WebM, or MKV files anywhere under
+   `web-test-shell/storage/`.
+2. From `Honorable-mobile-app-main`, run `./linux-demo.sh index`.
+3. Start or restart the shell with `./linux-demo.sh start`.
 
-```json
-{
-  "adapter": "web-test-storage-index",
-  "items": [
-    {
-      "name": "Beach afternoon",
-      "uri": "web-storage/beach.jpg",
-      "type": "IMAGE",
-      "capturedAt": 1788566400000
-    }
-  ]
-}
-```
-
-Allowed `type` values are `IMAGE` and `VIDEO`. Reload the browser to display
-manifest entries. Use the existing **Refresh media** adapter or restart with
-`./linux-demo.sh index` when the file must also be searchable through the shared
-Kotlin engine.
+The shared Kotlin test adapter recursively discovers the files, writes
+`storage/.memories-test-index`, and serves the same indexed records to Gallery,
+Files, and Honorable search. Search ranking remains in the shared Android search
+core; the browser does not contain a separate JavaScript ranking engine.
