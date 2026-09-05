@@ -22,6 +22,22 @@ change the Android TinyCLIP model, tokenizer, preprocessing, or inference path.
 
 The browser UI is then available on the forwarded port. Put evaluation cases in
 `../test-media/evaluation.json`, following `evaluation.example.json`.
+
+## Web test shell
+
+From the repository directory, launch the development-only Android-style shell
+with one command:
+
+```bash
+./linux-demo.sh start
+```
+
+It listens on `http://localhost:4174` by default. Override the port with
+`HONORABLE_DEMO_PORT`. The UI opens directly into Honorable inside a responsive
+Android-style device frame. Browser search calls the existing Kotlin test-lab
+adapter, which uses the shared Android parser, hybrid ranker, confidence logic,
+and local index. The Memory Pass sign-in control uses an isolated in-memory web
+test adapter; it does not invoke or modify Android Credential Manager.
 The labeling helper validates that expected media exists and writes JSON through
 an atomic replacement. Expected filenames are used only after ranking to score
 results. Optional `difficulty` and `expected_timestamp` fields can be edited in
