@@ -98,9 +98,8 @@ android {
     }
     buildFeatures { buildConfig true }
     sourceSets {
-        main.java.srcDir("../../../android-app/app/src/main/java")
-        main.java.setIncludes(["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"])
-        main.kotlin.setIncludes(["com/honorablemobile/**", "app/honorable/search/**", "app/honorable/Entitlements.kt"])
+        // Keep the standalone Compose UI out of the React Native Kotlin compile.
+        main.java.srcDir("../../../android-app/app/src/main/java/app/honorable/search")
         main.assets.srcDir("../../../android-app/app/src/main/assets")
     }
     signingConfigs {
