@@ -1,5 +1,3 @@
-# UI preview gallery
+# UI layout test gallery
 
-Open `index.html` in a browser. It works locally without a server. The gallery includes 20 current product screenshots and links to earlier previews.
-
-Regenerate screenshots from the app root with `node scripts/capture-product-previews.cjs`. Capture uses an isolated temporary account ledger and a deterministic search fixture, never live account data.
+These 22 captures use an isolated development ledger and an explicitly labelled search fixture. They validate layout only and are **not verified search demos or advertising evidence**. Regenerate with `node scripts/capture-product-previews.cjs`. Real product evidence belongs in `product-validation/`.

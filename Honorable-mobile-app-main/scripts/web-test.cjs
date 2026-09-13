@@ -16,9 +16,12 @@ const bundledAccount = !externalAccount || ['localhost','127.0.0.1'].includes(co
 const account = bundledAccount ? new URL('http://127.0.0.1:8787') : configuredAccount;
 if(account.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(account.hostname))throw Error('Account API must use HTTPS');
 const children = [];
+const {LocalSearchCompletions}=require('../dev-server/src/search-completion');
+const completions=new LocalSearchCompletions();
+const searchJobs=new Map();
 let accountServer;
 if (bundledAccount) {
-  accountServer = require('../dev-server/src/server').createServer({mode:'development',webOrigins:[`http://localhost:${port}`,`http://127.0.0.1:${port}`,...(process.env.CODESPACE_NAME?[`https://${process.env.CODESPACE_NAME}-${port}.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`]:[])]});
+  accountServer = require('../dev-server/src/server').createServer({mode:'development',searchCompletionVerifier:completions.verify,webOrigins:[`http://localhost:${port}`,`http://127.0.0.1:${port}`,...(process.env.CODESPACE_NAME?[`https://${process.env.CODESPACE_NAME}-${port}.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`]:[])]});
   accountServer.listen(8787, '127.0.0.1');
 }
 const child = spawn('bash', ['./linux-demo.sh', 'start'], {cwd:root, env:{...process.env,HONORABLE_DEMO_PORT:String(searchPort)},stdio:'inherit',detached:true});
@@ -34,7 +37,40 @@ const server = http.createServer(async(req,res)=>{
     res.setHeader('Referrer-Policy','no-referrer-when-downgrade');
     const url = new URL(req.url,'http://localhost');
     if (req.method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return json(res,403,{error:'Cross-origin writes refused'});
-    if(url.pathname==='/web/config') return json(res,200,{developmentPurchases:!!bundledAccount,googleClientId:process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID||''});
+    if(url.pathname==='/web/config') return json(res,200,{developmentPurchases:!!bundledAccount,searchTransport:'VERIFIED_LOCAL_ENGINE',googleClientId:process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID||''});
+    if(url.pathname==='/web/search'&&req.method==='POST') {
+      if(!bundledAccount)return json(res,503,{error:'Trusted completion provider is not configured for this account server.'});
+      if(req.headers['x-honorable-web']!=='1'||!req.headers.origin||new URL(req.headers.origin).host!==req.headers.host)return json(res,403,{error:'INVALID_WEB_ORIGIN'});
+      let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>8192)return json(res,413,{error:'REQUEST_TOO_LARGE'})}
+      const {query,model,requestId}=JSON.parse(raw);
+      if(typeof query!=='string'||!query.trim()||query.length>2000||typeof requestId!=='string'||!requestId||requestId.length>200)return json(res,400,{error:'INVALID_SEARCH_REQUEST'});
+      if(!['SERAN_V1','SERAN_V2'].includes(model))return json(res,409,{error:'MODEL_UNAVAILABLE'});
+      const headers={'content-type':'application/json','x-honorable-web':'1',origin:req.headers.origin,cookie:req.headers.cookie||'','x-honorable-installation':req.headers['x-honorable-installation']||''};
+      const accountCall=async(route,body)=>{const response=await fetch(new URL(route,account),{method:body?'POST':'GET',headers,...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(18000)});const value=await response.json();if(!response.ok)throw Object.assign(Error(value.error||'ACCOUNT_UNAVAILABLE'),{status:response.status});return value};
+      const session=await accountCall('/v1/auth/session');const accountId=session.account.accountId,key=accountId+':'+requestId;
+      const fingerprint=crypto.createHash('sha256').update(JSON.stringify({query,model})).digest('hex');
+      for(const[k,j]of searchJobs)if(j.done&&Date.now()-j.created>300000)searchJobs.delete(k);
+      const prior=searchJobs.get(key);if(prior){if(prior.fingerprint!==fingerprint)return json(res,409,{error:'SEARCH_ID_CONFLICT'});const value=await prior.promise;return json(res,200,value)}
+      const controller=new AbortController();let released=false;
+      res.on('close',()=>{if(!released)controller.abort()});
+      const job={fingerprint,created:Date.now(),done:false};
+      job.promise=(async()=>{try {
+        const started=await accountCall('/v1/search/start',{model,requestId});
+        if(started.state!=='PENDING')throw Object.assign(Error('SEARCH_ALREADY_FINISHED_REOPEN_SAVED_RESULT'),{status:409});
+        const engineUrl=new URL('/api/search',`http://127.0.0.1:${searchPort}`);engineUrl.searchParams.set('q',query);engineUrl.searchParams.set('model',model);engineUrl.searchParams.set('top','12');
+        const response=await fetch(engineUrl,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)])});
+        if(!response.ok)throw Error('SHARED_SEARCH_FAILED');const result=await response.json();
+        if(!Array.isArray(result.results))throw Error('INVALID_ENGINE_RESPONSE');
+        if(controller.signal.aborted)throw Error('SEARCH_INTERRUPTED');
+        const outcome=result.results.length?'SUCCESS':'FAILED';
+        const proof=outcome==='SUCCESS'?completions.issue({accountId,requestId,model,result}):undefined;
+        await accountCall('/v1/search/complete',{requestId,outcome,proof});
+        const completion=await accountCall('/v1/search/start',{model,requestId});
+        if(completion.state!==outcome)throw Error('SEARCH_CANCELLED');
+        return {...result,requestId,execution:'REAL_SHARED_ENGINE'};
+      }catch(error){await accountCall('/v1/search/complete',{requestId,outcome:controller.signal.aborted?'CANCELLED':'FAILED'}).catch(()=>{});throw error}finally{job.done=true}})();
+      searchJobs.set(key,job);try{const result=await job.promise;released=true;return json(res,200,result)}catch(error){searchJobs.delete(key);throw error}
+    }
     if(url.pathname.startsWith('/account/')) {
       const route=url.pathname.slice('/account'.length);
       if(!['/v1/search/start','/v1/search/complete','/dev/studio','/v1/catalog','/v1/auth/session','/v1/auth/logout','/v1/auth/google','/v1/account','/v1/entitlements','/v1/transactions','/v1/purchases/restore','/dev/auth/token','/dev/purchases'].includes(route))return json(res,404,{error:'Not found'});
@@ -53,12 +89,13 @@ const server = http.createServer(async(req,res)=>{
       return json(res,201,{name});
     }
     const name=url.pathname==='/'?'index.html':url.pathname.slice(1);
-    if(['studio.js','studio.css','project.js','index.html','auth-ui.js','auth-ui.css','android-icons.js','android-ui.js','android-ui.css','Roboto.ttf','Roboto-400.ttf','Roboto-500.ttf','Roboto-600.ttf','Roboto-700.ttf','Roboto-800.ttf','Roboto-900.ttf','phone.js','phone.css','honorable-parity.css','monochrome.css','web-shell.css','web-test.js','prompt_beach.png','prompt_birthday.png','prompt_red_car.png'].includes(name)) {
+    if(['design-tokens.css','honorable.css','studio.js','studio.css','project.js','index.html','auth-ui.js','auth-ui.css','android-icons.js','android-ui.js','android-ui.css','Roboto.ttf','Roboto-400.ttf','Roboto-500.ttf','Roboto-600.ttf','Roboto-700.ttf','Roboto-800.ttf','Roboto-900.ttf','phone.js','phone.css','honorable-parity.css','monochrome.css','web-shell.css','web-test.js','prompt_beach.png','prompt_birthday.png','prompt_red_car.png'].includes(name)) {
       res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.png')?'image/png':name.endsWith('.ttf')?'font/ttf':'text/html');return fs.createReadStream(path.join(shell,name)).pipe(res);
     }
+    if(url.pathname==='/api/search')return json(res,403,{error:'Use authenticated /web/search for product searches'});
     if(url.pathname.startsWith('/api/')||url.pathname.startsWith('/media/')||url.pathname==='/health')return proxy(req,res,new URL(`http://127.0.0.1:${searchPort}`),req.url);
     json(res,404,{error:'Not found'});
-  }catch(error){json(res,400,{error:error.message})}
+  }catch(error){json(res,error.status||400,{error:error.message})}
 });
 server.listen(port,'127.0.0.1',()=>console.log(`Web test shell: http://localhost:${port}`));
 function stop(){server.close();accountServer?.close();for(const child of children)try{process.kill(-child.pid,'SIGTERM')}catch{}setTimeout(()=>process.exit(),100).unref()}

@@ -28,8 +28,8 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
   if(req.method==='POST'&&req.url==='/dev/purchases')return send(res,200,ledger.purchase(id,body.passId,body.storeTransactionId||`dev-${crypto.randomUUID()}`));
   if(req.method==='POST'&&req.url==='/dev/studio')return send(res,200,ledger.studio(id,body.active));
   if(req.method==='POST'&&req.url==='/v1/search/start')return send(res,200,ledger.startSearch(id,body.model,body.requestId));
-  if(req.method==='POST'&&req.url==='/v1/search/complete'){if(body.outcome==='SUCCESS'&&!dev&&!(searchCompletionVerifier&&await searchCompletionVerifier({accountId:id,requestId:body.requestId,proof:body.proof})))throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome))}
-  if(req.method==='POST'&&req.url==='/v1/credits/deduct'){if(!dev)throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);return send(res,200,ledger.deduct(id,body.model,body.requestId))}
+  if(req.method==='POST'&&req.url==='/v1/search/complete'){if(body.outcome==='SUCCESS'&&(!dev||searchCompletionVerifier)&&!(searchCompletionVerifier&&await searchCompletionVerifier({accountId:id,requestId:body.requestId,model:ledger.data.searches[body.requestId]?.model,proof:body.proof})))throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome))}
+  if(req.method==='POST'&&req.url==='/v1/credits/deduct'){if(!dev||searchCompletionVerifier)throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);return send(res,200,ledger.deduct(id,body.model,body.requestId))}
   if(req.method==='POST'&&req.url==='/v1/purchases/restore')return send(res,200,ledger.restore(id));return send(res,404,{error:'NOT_FOUND'});
  }catch(error){send(res,error.status||400,{error:error.message})}})
 }

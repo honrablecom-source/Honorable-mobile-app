@@ -1,0 +1,104 @@
+{
+  "purpose": "Product integration only. No ranking tuning. Not a benchmark.",
+  "sources": [
+    "../test-media/real-expanded/sources.json",
+    "../test-media/video-expanded/sources.json"
+  ],
+  "assets": [
+    {
+      "asset": "photo-01.jpg",
+      "type": "IMAGE",
+      "query": "person playing tennis on an orange clay court",
+      "expectedResult": "photo-01.jpg",
+      "sha256": "be19b8a6115ad3e88f899a83b766c4dad107f539f7bd181493589e1ecefe5f34"
+    },
+    {
+      "asset": "photo-02.jpg",
+      "type": "IMAGE",
+      "query": "woman sitting on a blue tennis court",
+      "expectedResult": "photo-02.jpg",
+      "sha256": "c74d0e7bb6f970dca07f13613145e2faf00501b979c624027ce348829f2eced2"
+    },
+    {
+      "asset": "photo-03.jpg",
+      "type": "IMAGE",
+      "query": "tennis racket and ball on green court",
+      "expectedResult": "photo-03.jpg",
+      "sha256": "d17fc84cdf9404da29b87d77db4bb61c81aae24b1aea616d4ab51f9233d1cea2"
+    },
+    {
+      "asset": "photo-04.jpg",
+      "type": "IMAGE",
+      "query": "sunset over a sandy beach",
+      "expectedResult": "photo-04.jpg",
+      "sha256": "159f21c153561f5d042e2ba45a817460d425c9d48d8c041d9775b9a816db49a1"
+    },
+    {
+      "asset": "photo-05.jpg",
+      "type": "IMAGE",
+      "query": "palm trees and a swing on a beach",
+      "expectedResult": "photo-05.jpg",
+      "sha256": "e26739bf73ed9a4a81b0b76978b9d145c1775b256ead824a9f3b20b298cf1aa5"
+    },
+    {
+      "asset": "photo-06.jpg",
+      "type": "IMAGE",
+      "query": "person wearing a white shirt",
+      "expectedResult": "photo-06.jpg",
+      "sha256": "ff0659d5407fe3ab1f732b9387040b1a530bb9513456cc5bbabfa77c3fd645c3"
+    },
+    {
+      "asset": "photo-07.jpg",
+      "type": "IMAGE",
+      "query": "folded blue jeans",
+      "expectedResult": "photo-07.jpg",
+      "sha256": "6c227e5ca1ea4618b61939de6056599681d8b7cd7a01d6cde174d59521124ee7"
+    },
+    {
+      "asset": "photo-08.jpg",
+      "type": "IMAGE",
+      "query": "red shoe on a red background",
+      "expectedResult": "photo-08.jpg",
+      "sha256": "c7df6dd98e506ac51ce462ee4be087b0ee75adda5671994458cf703aa099f075"
+    },
+    {
+      "asset": "photo-09.jpg",
+      "type": "IMAGE",
+      "query": "white shoes on a street",
+      "expectedResult": "photo-09.jpg",
+      "sha256": "9ae33a4453d06b7d12803f87b9a63ce2ae841decaa2d4d7f8abf07452619972c"
+    },
+    {
+      "asset": "photo-10.jpg",
+      "type": "IMAGE",
+      "query": "chairs and lamps in a bright room",
+      "expectedResult": "photo-10.jpg",
+      "sha256": "f7078bc6e468ff9d3f93e0d2c0bd8ce74d5f3a7df24ac2ae886552869f527059"
+    },
+    {
+      "asset": "photo-11.png",
+      "type": "IMAGE",
+      "query": "gate",
+      "expectedResult": "photo-11.png",
+      "sha256": "60f71a03267ac4b5dfa39ab4f3ed4a5d869ee3134f013b14e69d595a57d609c8"
+    },
+    {
+      "asset": "video-01.mp4",
+      "type": "VIDEO",
+      "query": "video of sunlight through trees in a park",
+      "expectedResult": "video-01.mp4",
+      "expectedTimestampMs": null,
+      "momentStatus": "No independently distinguishable action annotated; moment demo NOT READY",
+      "sha256": "05bd857af7f70bf51b6aac1144046973bf3325c9101a554bc27dc9607dbbd8f5"
+    },
+    {
+      "asset": "video-02.mp4",
+      "type": "VIDEO",
+      "query": "video of sunlight through trees in a park",
+      "expectedResult": "video-02.mp4",
+      "expectedTimestampMs": null,
+      "momentStatus": "No independently distinguishable action annotated; moment demo NOT READY",
+      "sha256": "be998e5fed5a9065bbccdb097884794ebd2492cb261ec40948e7a846af5724b8"
+    }
+  ]
+}

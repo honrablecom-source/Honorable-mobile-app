@@ -3,7 +3,7 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 port="${HONORABLE_DEMO_PORT:-4174}"
 cd "$repo_dir"
-storage_dir="android-app/test-lab/web-test-shell/storage"
+storage_dir="${HONORABLE_TEST_MEDIA_ROOT:-$repo_dir/android-app/test-lab/web-test-shell/storage}"
 index_file="$storage_dir/.memories-test-index"
 media_count() { find "$storage_dir" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.mp4' -o -iname '*.mov' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.mkv' \) | wc -l; }
 check_port() {

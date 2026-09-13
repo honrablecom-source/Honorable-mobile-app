@@ -78,5 +78,13 @@
   {
     "id": "20-desktop-editor",
     "label": "Adaptive desktop editor"
+  },
+  {
+    "id": "21-video-editor",
+    "label": "Video editor · sequence foundation"
+  },
+  {
+    "id": "22-nodes-workspace",
+    "label": "Nodes · foundation"
   }
 ]

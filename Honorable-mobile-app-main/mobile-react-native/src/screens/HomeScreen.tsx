@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -132,20 +133,19 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        <View style={styles.utility}><Pressable accessibilityLabel="Account" onPress={()=>navigation.getParent()?.navigate("Settings")}><Text>◉ Account</Text></Pressable>
+        <View style={styles.utility}><Pressable accessibilityLabel="Account" onPress={()=>navigation.getParent()?.navigate("Settings")}><Text>honorable · Account</Text></Pressable>
           <Text variant="muted" className="text-[12px]">
             On-device
           </Text>
         </View>
-        <View style={{flexDirection:'row',gap:8,padding:12}}>{seranCreditCosts.map(m=><Pressable key={m.model} disabled={!m.available||loading} onPress={()=>{if(m.model!=='SERAN_V3')setProductModel(m.model)}} style={{padding:10,borderRadius:16,backgroundColor:productModel===m.model?'#444':'#181818'}}><Text>{m.name} · {m.credits}</Text>{!m.available&&<Text>Coming Soon</Text>}</Pressable>)}</View>
         <Text
           accessibilityRole="header"
-          className="mx-4 mt-2 text-[30px] font-semibold"
+          className="mx-4 mt-2 text-[44px] font-semibold"
         >
-          Find a moment.
+          Find the moment you remember.
         </Text>
         <Text variant="muted" className="mx-4 mb-4 mt-1">
-          Describe anything you remember.
+          Describe what you remember — a person, place, action, color, text or moment.
         </Text>
         <HonorableSearchBar
           value={query}
@@ -153,6 +153,8 @@ export function HomeScreen() {
           onSubmit={() => search()}
         />
 
+        <Pressable accessibilityLabel="Select search model" onPress={()=>setModeOpen(true)} style={{padding:16}}><Text>{productModel==='SERAN_V1'?'FAST':'VIDEO'} ▾ · {productModel==='SERAN_V1'?1:3} credit{productModel==='SERAN_V1'?'':'s'}</Text></Pressable>
+        <Modal visible={modeOpen} transparent animationType="slide" onRequestClose={()=>setModeOpen(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:colors.scrim}}><View style={{padding:24,gap:12,backgroundColor:colors.surfaceRaised,borderTopLeftRadius:20,borderTopRightRadius:20}}><Text>Select a model</Text>{seranCreditCosts.map(m=><Pressable key={m.model} disabled={!m.available||loading} onPress={()=>{if(m.model!=='SERAN_V3')setProductModel(m.model);setModeOpen(false)}} style={{padding:16,backgroundColor:colors.surfaceSelected,borderRadius:12}}><Text>{m.name} · {m.credits} credits{!m.available?' · Coming Soon':''}</Text></Pressable>)}<Pressable onPress={()=>setModeOpen(false)}><Text>Close</Text></Pressable></View></View></Modal>
         {history.length > 0 && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>
@@ -222,7 +224,7 @@ export function HomeScreen() {
           <>
             <View style={styles.resultsHeader}>
               <Text className="text-[17px] font-semibold">
-                {response ? `${nativeItems.length} matches` : 'Recent'}
+                {response ? `${nativeItems.length} matches` : 'Recently remembered'}
               </Text>
               <Text variant="muted" className="text-[11px]">
                 {response ? 'Best first' : 'Your library'}
