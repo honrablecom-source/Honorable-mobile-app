@@ -1,0 +1,377 @@
+{
+  "timestamp": "2026-09-13T22:18:19.279Z",
+  "transport": "REAL_SHARED_ENGINE",
+  "account": "Isolated development identity; Google device sign-in not tested",
+  "photoCases": [
+    {
+      "query": "person playing tennis on an orange clay court",
+      "expected": "photo-01.jpg",
+      "topResult": "photo-01.jpg",
+      "top3": [
+        {
+          "uri": "photo-01.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-03.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-02.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 911.442,
+      "wallMs": 1186,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "woman sitting on a blue tennis court",
+      "expected": "photo-02.jpg",
+      "topResult": "photo-02.jpg",
+      "top3": [
+        {
+          "uri": "photo-02.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-05.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-03.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 332.444,
+      "wallMs": 427,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "tennis racket and ball on green court",
+      "expected": "photo-03.jpg",
+      "topResult": "photo-03.jpg",
+      "top3": [
+        {
+          "uri": "photo-03.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-01.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-02.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 377.878,
+      "wallMs": 449,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "sunset over a sandy beach",
+      "expected": "photo-04.jpg",
+      "topResult": "photo-04.jpg",
+      "top3": [
+        {
+          "uri": "photo-04.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-05.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-01.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 237.46,
+      "wallMs": 305,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "palm trees and a swing on a beach",
+      "expected": "photo-05.jpg",
+      "topResult": "photo-05.jpg",
+      "top3": [
+        {
+          "uri": "photo-05.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-04.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-06.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 107.893,
+      "wallMs": 165,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "person wearing a white shirt",
+      "expected": "photo-06.jpg",
+      "topResult": "photo-06.jpg",
+      "top3": [
+        {
+          "uri": "photo-06.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-09.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-11.png",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 341.105,
+      "wallMs": 379,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "folded blue jeans",
+      "expected": "photo-07.jpg",
+      "topResult": "photo-02.jpg",
+      "top3": [
+        {
+          "uri": "photo-02.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-05.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-07.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 198.887,
+      "wallMs": 242,
+      "pass": false,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "semantic confidence below 0.300"
+    },
+    {
+      "query": "red shoe on a red background",
+      "expected": "photo-08.jpg",
+      "topResult": "photo-08.jpg",
+      "top3": [
+        {
+          "uri": "photo-08.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-01.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-07.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 233.264,
+      "wallMs": 277,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "white shoes on a street",
+      "expected": "photo-09.jpg",
+      "topResult": "photo-09.jpg",
+      "top3": [
+        {
+          "uri": "photo-09.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-06.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-10.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 323.817,
+      "wallMs": 401,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "absolute confidence and top-1 margin passed"
+    },
+    {
+      "query": "chairs and lamps in a bright room",
+      "expected": "photo-10.jpg",
+      "topResult": null,
+      "top3": [],
+      "engineLatencyMs": 82.56,
+      "wallMs": 112,
+      "pass": false,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "no candidates"
+    },
+    {
+      "query": "gate",
+      "expected": "photo-11.png",
+      "topResult": "photo-11.png",
+      "top3": [
+        {
+          "uri": "photo-11.png",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-10.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        },
+        {
+          "uri": "photo-03.jpg",
+          "type": "IMAGE",
+          "timestamp": null
+        }
+      ],
+      "engineLatencyMs": 51.756,
+      "wallMs": 134,
+      "pass": true,
+      "execution": "REAL_SHARED_ENGINE",
+      "error": "top candidates are too close"
+    }
+  ],
+  "videoCases": [
+    {
+      "query": "video of sunlight through trees in a park",
+      "expected": "video-01.mp4",
+      "expectedTimestamp": null,
+      "actualVideo": null,
+      "actualTimestamp": null,
+      "resultsCount": 0,
+      "wallMs": 77,
+      "engineLatencyMs": 48.062,
+      "momentReady": false,
+      "reason": "No independently distinguishable action annotated; moment demo NOT READY"
+    },
+    {
+      "query": "video of sunlight through trees in a park",
+      "expected": "video-02.mp4",
+      "expectedTimestamp": null,
+      "actualVideo": null,
+      "actualTimestamp": null,
+      "resultsCount": 0,
+      "wallMs": 115,
+      "engineLatencyMs": 50.324,
+      "momentReady": false,
+      "reason": "No independently distinguishable action annotated; moment demo NOT READY"
+    }
+  ],
+  "timings": {
+    "webStartupMs": 630,
+    "editorOpenMs": 75,
+    "editPreviewMs": 50,
+    "saveCopyMs": 99
+  },
+  "checks": {
+    "returningWebSession": true,
+    "failedSearchNoCharge": true,
+    "replayNoDoubleCharge": true,
+    "forgedRejected": true,
+    "cancelledNoCharge": true,
+    "v3Rejected": true,
+    "pass31Default20AndTestPurchase": true,
+    "realLedgerUsage": {
+      "freeRemaining": 4,
+      "purchased": 40,
+      "usage": {
+        "month": {
+          "freeCreditsUsed": 11,
+          "purchasedCreditsUsed": 0,
+          "searchCount": 11
+        },
+        "byModel": {
+          "SERAN_V1": 11,
+          "SERAN_V2": 0,
+          "SERAN_V3": 0
+        },
+        "allTime": {
+          "searchesCompleted": 11,
+          "purchasedCreditsUsed": 0,
+          "passesPurchased": 1
+        }
+      }
+    },
+    "browserErrors": []
+  },
+  "demoA": {
+    "query": "sunset over a sandy beach",
+    "expected": "photo-04.jpg",
+    "topResult": "photo-04.jpg",
+    "top3": [
+      "photo-04.jpg",
+      "photo-05.jpg",
+      "photo-01.jpg"
+    ],
+    "latencyMs": 140.425,
+    "wallMs": 209,
+    "ready": true
+  },
+  "demoC": {
+    "ready": true,
+    "source": "photo-04.jpg",
+    "originalSha256": "159f21c153561f5d042e2ba45a817460d425c9d48d8c041d9775b9a816db49a1",
+    "copySha256": "bb39c93794c780c9f86c862b99f4d08348824f1d8ad1bdd6cfc7a45c92b17807",
+    "copy": "edited-copy.png",
+    "undoRedo": true,
+    "beforeAfter": true
+  },
+  "demoB": {
+    "ready": false,
+    "reason": "Similar sample park videos do not establish an independently verified action/timestamp."
+  }
+}

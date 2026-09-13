@@ -1,0 +1,33 @@
+{
+  "platform": "WEB IMPLEMENTATION",
+  "operations": {
+    "brightness": true,
+    "contrast": true,
+    "saturation": true,
+    "exposure": true,
+    "rotate": true,
+    "reset": true,
+    "crop": true,
+    "layerVisibilityOpacityLock": true
+  },
+  "desktop": {
+    ".studio-project": {
+      "x": 0,
+      "right": 220,
+      "width": 220,
+      "height": 834
+    },
+    ".studio-canvas": {
+      "x": 220,
+      "right": 1155,
+      "width": 935,
+      "height": 834
+    },
+    ".studio-inspector": {
+      "x": 1155,
+      "right": 1440,
+      "width": 285,
+      "height": 834
+    }
+  }
+}

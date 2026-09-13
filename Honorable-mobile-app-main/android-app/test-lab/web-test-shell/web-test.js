@@ -5,8 +5,8 @@ let authState='restoring';
 const testInstallation=localStorage.getItem('honorable-test-installation')||crypto.randomUUID();localStorage.setItem('honorable-test-installation',testInstallation);
 // Remove credentials from the previous browser adapter. Persistent credentials are HttpOnly cookies.
 sessionStorage.removeItem('honorable-session');
-async function webRequest(route, body) {
- const response=await fetch(route,{...(route.startsWith('/account/')?{signal:AbortSignal.timeout(20000)}:{}),credentials:'same-origin',method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Honorable-Web':'1','X-Honorable-Installation':testInstallation},...(body===undefined?{}:{body:JSON.stringify(body)})});
+async function webRequest(route, body, signal) {
+ const response=await fetch(route,{...(signal?{signal}:route.startsWith('/account/')?{signal:AbortSignal.timeout(20000)}:{}),credentials:'same-origin',method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Honorable-Web':'1','X-Honorable-Installation':testInstallation},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const data=await response.json();
  if(!response.ok){if(response.status===401){accountState=null;entitlements=null;authState='welcome';localStorage.removeItem('honorable-account-cache')}throw Object.assign(Error(data.error||'Request failed'),{status:response.status})}
  return data;

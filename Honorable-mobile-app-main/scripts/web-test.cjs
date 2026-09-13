@@ -47,15 +47,16 @@ const server = http.createServer(async(req,res)=>{
       if(!['SERAN_V1','SERAN_V2'].includes(model))return json(res,409,{error:'MODEL_UNAVAILABLE'});
       const headers={'content-type':'application/json','x-honorable-web':'1',origin:req.headers.origin,cookie:req.headers.cookie||'','x-honorable-installation':req.headers['x-honorable-installation']||''};
       const accountCall=async(route,body)=>{const response=await fetch(new URL(route,account),{method:body?'POST':'GET',headers,...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(18000)});const value=await response.json();if(!response.ok)throw Object.assign(Error(value.error||'ACCOUNT_UNAVAILABLE'),{status:response.status});return value};
+      const controller=new AbortController();let released=false;
+      res.on('close',()=>{if(!released)controller.abort()});
       const session=await accountCall('/v1/auth/session');const accountId=session.account.accountId,key=accountId+':'+requestId;
       const fingerprint=crypto.createHash('sha256').update(JSON.stringify({query,model})).digest('hex');
       for(const[k,j]of searchJobs)if(j.done&&Date.now()-j.created>300000)searchJobs.delete(k);
       const prior=searchJobs.get(key);if(prior){if(prior.fingerprint!==fingerprint)return json(res,409,{error:'SEARCH_ID_CONFLICT'});const value=await prior.promise;return json(res,200,value)}
-      const controller=new AbortController();let released=false;
-      res.on('close',()=>{if(!released)controller.abort()});
       const job={fingerprint,created:Date.now(),done:false};
       job.promise=(async()=>{try {
         const started=await accountCall('/v1/search/start',{model,requestId});
+        if(controller.signal.aborted)throw Error('SEARCH_INTERRUPTED');
         if(started.state!=='PENDING')throw Object.assign(Error('SEARCH_ALREADY_FINISHED_REOPEN_SAVED_RESULT'),{status:409});
         const engineUrl=new URL('/api/search',`http://127.0.0.1:${searchPort}`);engineUrl.searchParams.set('q',query);engineUrl.searchParams.set('model',model);engineUrl.searchParams.set('top','12');
         const response=await fetch(engineUrl,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)])});
