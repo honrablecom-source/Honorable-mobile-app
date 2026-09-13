@@ -1,0 +1,10 @@
+{
+  "runId": 34786070365,
+  "commit": "d2df2d346f2da1aef05384c28b1f4681e5a47925",
+  "status": "PASS",
+  "artifact": "honorable-android-debug",
+  "package": "com.honorablemobile",
+  "signInConfiguration": "MISSING",
+  "certificateComparison": "SAME AS PREVIOUS SUCCESSFUL ACTIONS BUILD",
+  "physicalDeviceTest": "REQUIRED"
+}

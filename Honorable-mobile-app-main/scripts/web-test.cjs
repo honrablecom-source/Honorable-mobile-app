@@ -21,14 +21,14 @@ const completions=new LocalSearchCompletions();
 const searchJobs=new Map();
 let accountServer;
 if (bundledAccount) {
-  accountServer = require('../dev-server/src/server').createServer({mode:'development',searchCompletionVerifier:completions.verify,webOrigins:[`http://localhost:${port}`,`http://127.0.0.1:${port}`,...(process.env.CODESPACE_NAME?[`https://${process.env.CODESPACE_NAME}-${port}.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`]:[])]});
+  accountServer = require('../dev-server/src/server').createServer({mode:'development',searchCompletionVerifier:completions.verify,healthProbe:async()=>{let up=false;try{up=(await fetch(`http://127.0.0.1:${searchPort}/health`,{signal:AbortSignal.timeout(1000)})).ok}catch{}return{searchService:up?'UP':'UNAVAILABLE',webAdapter:'UP'}},webOrigins:[`http://localhost:${port}`,`http://127.0.0.1:${port}`,...(process.env.CODESPACE_NAME?[`https://${process.env.CODESPACE_NAME}-${port}.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`]:[])]});
   accountServer.listen(8787, '127.0.0.1');
 }
 const child = spawn('bash', ['./linux-demo.sh', 'start'], {cwd:root, env:{...process.env,HONORABLE_DEMO_PORT:String(searchPort)},stdio:'inherit',detached:true});
 children.push(child);
 function json(res, code, data) { res.writeHead(code, {'Content-Type':'application/json'}); res.end(JSON.stringify(data)); }
 function proxy(req,res,target,route) {
-  const upstream = (target.protocol==='https:'?https:http).request(new URL(route,target), {method:req.method,headers:{...(route.startsWith('/v1/')||route.startsWith('/dev/')?{cookie:(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(x=>x.startsWith('__Host-honorable=')).join('; '),origin:req.headers.origin||'','x-honorable-web':req.headers['x-honorable-web']||'','x-honorable-installation':req.headers['x-honorable-installation']||''}:{}),...(req.headers.authorization?{authorization:req.headers.authorization}:{}),...(req.headers['content-type']?{'content-type':req.headers['content-type']}:{}),...(req.headers.range?{range:req.headers.range}:{})}}, r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res)});
+  const upstream = (target.protocol==='https:'?https:http).request(new URL(route,target), {method:req.method,headers:{...(route.startsWith('/admin')?{cookie:(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(x=>x.startsWith('__Host-honorable-admin=')).join('; '),origin:req.headers.origin||'',host:req.headers.host,'x-honorable-admin':req.headers['x-honorable-admin']||''}:{}),...(route.startsWith('/v1/')||route.startsWith('/dev/')?{cookie:(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(x=>x.startsWith('__Host-honorable=')).join('; '),origin:req.headers.origin||'','x-honorable-web':req.headers['x-honorable-web']||'','x-honorable-installation':req.headers['x-honorable-installation']||'','x-honorable-platform':req.headers['x-honorable-platform']||'WEB_TEST','x-honorable-app-version':req.headers['x-honorable-app-version']||'0.2.0'}:{}),...(req.headers.authorization?{authorization:req.headers.authorization}:{}),...(req.headers['content-type']?{'content-type':req.headers['content-type']}:{}),...(req.headers.range?{range:req.headers.range}:{})}}, r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res)});
   if(route.startsWith('/v1/')||route.startsWith('/dev/'))upstream.setTimeout(18000,()=>upstream.destroy());
   upstream.on('error',()=>json(res,503,{error:'Service starting or unavailable. Retry shortly.'}));req.pipe(upstream);
 }
@@ -37,6 +37,7 @@ const server = http.createServer(async(req,res)=>{
     res.setHeader('Referrer-Policy','no-referrer-when-downgrade');
     const url = new URL(req.url,'http://localhost');
     if (req.method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return json(res,403,{error:'Cross-origin writes refused'});
+    if(url.pathname.startsWith('/admin'))return proxy(req,res,account,req.url);
     if(url.pathname==='/web/config') return json(res,200,{developmentPurchases:!!bundledAccount,searchTransport:'VERIFIED_LOCAL_ENGINE',googleClientId:process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID||''});
     if(url.pathname==='/web/search'&&req.method==='POST') {
       if(!bundledAccount)return json(res,503,{error:'Trusted completion provider is not configured for this account server.'});
@@ -45,7 +46,7 @@ const server = http.createServer(async(req,res)=>{
       const {query,model,requestId}=JSON.parse(raw);
       if(typeof query!=='string'||!query.trim()||query.length>2000||typeof requestId!=='string'||!requestId||requestId.length>200)return json(res,400,{error:'INVALID_SEARCH_REQUEST'});
       if(!['SERAN_V1','SERAN_V2'].includes(model))return json(res,409,{error:'MODEL_UNAVAILABLE'});
-      const headers={'content-type':'application/json','x-honorable-web':'1',origin:req.headers.origin,cookie:req.headers.cookie||'','x-honorable-installation':req.headers['x-honorable-installation']||''};
+      const headers={'content-type':'application/json','x-honorable-web':'1',origin:req.headers.origin,cookie:req.headers.cookie||'','x-honorable-installation':req.headers['x-honorable-installation']||'','x-honorable-platform':req.headers['x-honorable-platform']||'WEB_TEST','x-honorable-app-version':req.headers['x-honorable-app-version']||'0.2.0'};
       const accountCall=async(route,body)=>{const response=await fetch(new URL(route,account),{method:body?'POST':'GET',headers,...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(18000)});const value=await response.json();if(!response.ok)throw Object.assign(Error(value.error||'ACCOUNT_UNAVAILABLE'),{status:response.status});return value};
       const controller=new AbortController();let released=false;
       res.on('close',()=>{if(!released)controller.abort()});
@@ -74,7 +75,7 @@ const server = http.createServer(async(req,res)=>{
     }
     if(url.pathname.startsWith('/account/')) {
       const route=url.pathname.slice('/account'.length);
-      if(!['/v1/search/start','/v1/search/complete','/dev/studio','/v1/catalog','/v1/auth/session','/v1/auth/logout','/v1/auth/google','/v1/account','/v1/entitlements','/v1/transactions','/v1/purchases/restore','/dev/auth/token','/dev/purchases'].includes(route))return json(res,404,{error:'Not found'});
+      if(!['/v1/analytics','/v1/search/start','/v1/search/complete','/dev/studio','/v1/catalog','/v1/auth/session','/v1/auth/logout','/v1/auth/google','/v1/account','/v1/entitlements','/v1/transactions','/v1/purchases/restore','/dev/auth/token','/dev/purchases'].includes(route))return json(res,404,{error:'Not found'});
       if(route.startsWith('/dev/')&&!bundledAccount)return json(res,403,{error:'Simulation is only enabled for the bundled development ledger'});
       return proxy(req,res,account,route);
     }
@@ -90,7 +91,7 @@ const server = http.createServer(async(req,res)=>{
       return json(res,201,{name});
     }
     const name=url.pathname==='/'?'index.html':url.pathname.slice(1);
-    if(['design-tokens.css','honorable.css','studio.js','studio.css','project.js','index.html','auth-ui.js','auth-ui.css','android-icons.js','android-ui.js','android-ui.css','Roboto.ttf','Roboto-400.ttf','Roboto-500.ttf','Roboto-600.ttf','Roboto-700.ttf','Roboto-800.ttf','Roboto-900.ttf','phone.js','phone.css','honorable-parity.css','monochrome.css','web-shell.css','web-test.js','prompt_beach.png','prompt_birthday.png','prompt_red_car.png'].includes(name)) {
+    if(['telemetry.js','design-tokens.css','honorable.css','studio.js','studio.css','project.js','index.html','auth-ui.js','auth-ui.css','android-icons.js','android-ui.js','android-ui.css','Roboto.ttf','Roboto-400.ttf','Roboto-500.ttf','Roboto-600.ttf','Roboto-700.ttf','Roboto-800.ttf','Roboto-900.ttf','phone.js','phone.css','honorable-parity.css','monochrome.css','web-shell.css','web-test.js','prompt_beach.png','prompt_birthday.png','prompt_red_car.png'].includes(name)) {
       res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.png')?'image/png':name.endsWith('.ttf')?'font/ttf':'text/html');return fs.createReadStream(path.join(shell,name)).pipe(res);
     }
     if(url.pathname==='/api/search')return json(res,403,{error:'Use authenticated /web/search for product searches'});

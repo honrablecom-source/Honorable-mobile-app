@@ -10,6 +10,7 @@ class PersistentSessions{
  web(token){const [,row]=this.lookup(token,'refresh');if(row.kind!=='web')throw invalid();return row.accountId}
  expiry(token){return this.lookup(token,'refresh')[1].expiresAt}
  refresh(token){const digest=hash(token||'');const reused=Object.values(this.rows).find(r=>r.used.includes(digest));if(reused){reused.revoked=true;this.save();throw invalid()}const [,row]=this.lookup(token,'refresh');if(row.kind!=='native')throw invalid();const accessToken=crypto.randomBytes(32).toString('base64url'),refreshToken=crypto.randomBytes(48).toString('base64url');row.used.push(row.refreshHash);row.refreshHash=hash(refreshToken);row.accessHash=hash(accessToken);row.accessUntil=this.clock()+900000;this.save();return{accessToken,refreshToken,expiresIn:900,expiresAt:row.expiresAt,tokenType:'Bearer'}}
+ revokeAccount(accountId){for(const row of Object.values(this.rows))if(row.accountId===accountId)row.revoked=true;this.save()}
  revoke(token){const digest=hash(token||'');for(const row of Object.values(this.rows))if(row.refreshHash===digest||row.accessHash===digest||row.used.includes(digest))row.revoked=true;this.save()}
 }
 module.exports={PersistentSessions};

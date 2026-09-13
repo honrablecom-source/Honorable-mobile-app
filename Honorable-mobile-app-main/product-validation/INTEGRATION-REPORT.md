@@ -58,4 +58,4 @@ The main web demo requires `VERIFIED_LOCAL_ENGINE`. `TEST_FIXTURE` is only confi
 
 Native build source: `d2df2d346f2da1aef05384c28b1f4681e5a47925`.
 Actions run: https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/34786070365
-Status at report creation: APK assembly running; auth compilation and TypeScript passed. Final build/configuration/signing evidence is in `android-build.json` once available. Later validation-only changes do not alter native compiled inputs.
+Status: PASS. Artifact: `honorable-android-debug`; package: `com.honorablemobile`. Signing certificate matches the previous successful Actions build. Google/account sign-in configuration is MISSING and physical-device testing remains required. Evidence: `android-build.json`. Later validation and console changes do not alter native compiled inputs.

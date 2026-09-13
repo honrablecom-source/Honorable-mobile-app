@@ -9,6 +9,10 @@
     "test:auth:account": "node --test Honorable-mobile-app-main/dev-server/test/*.test.js",
     "test:product": "node --test Honorable-mobile-app-main/dev-server/test/*.test.js Honorable-mobile-app-main/product/studio/project.test.js",
     "test:product:web": "node Honorable-mobile-app-main/scripts/test-product-web.cjs",
-    "generate:product": "node Honorable-mobile-app-main/scripts/generate-product.cjs"
+    "generate:product": "node Honorable-mobile-app-main/scripts/generate-product.cjs",
+    "admin:setup": "node Honorable-mobile-app-main/scripts/admin-setup.cjs",
+    "admin:dev": "node Honorable-mobile-app-main/scripts/admin-dev.cjs",
+    "test:admin": "node --test Honorable-mobile-app-main/dev-server/test/admin*.test.js",
+    "test:admin:web": "node Honorable-mobile-app-main/scripts/test-admin-web.cjs"
   }
 }
