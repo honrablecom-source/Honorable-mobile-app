@@ -9,6 +9,7 @@ import {LibraryProvider} from './src/library/LibraryContext';
 import {LibraryGate} from './src/library/LibraryGate';
 import {SearchModeProvider} from './src/search/SearchModeContext';
 import {MemoryPassProvider} from './src/passes/MemoryPassContext';
+import {AccountGate} from './src/auth/AccountGate';
 import './global.css';
 
 const navigationTheme = {...DarkTheme, colors: {...DarkTheme.colors, primary: colors.cyan, background: colors.navyDeep, card: colors.glassStrong, text: colors.ice, border: colors.border, notification: colors.lilac}};
@@ -17,7 +18,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" />
-      <MemoryPassProvider><LibraryProvider><SearchModeProvider><LibraryGate><NavigationContainer theme={navigationTheme}><AppNavigator /></NavigationContainer></LibraryGate></SearchModeProvider></LibraryProvider></MemoryPassProvider>
+      <MemoryPassProvider><AccountGate><LibraryProvider><SearchModeProvider><LibraryGate><NavigationContainer theme={navigationTheme}><AppNavigator /></NavigationContainer></LibraryGate></SearchModeProvider></LibraryProvider></AccountGate></MemoryPassProvider>
       <PortalHost />
     </SafeAreaProvider>
   );

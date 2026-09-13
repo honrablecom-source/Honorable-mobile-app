@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import app.honorable.auth.AccountSession
+import app.honorable.auth.GoogleAccountSignIn
+import org.json.JSONObject
+import org.json.JSONArray
 import app.honorable.HonorableFeature
 import app.honorable.Plan
 import app.honorable.TrustedEntitlementState
@@ -77,20 +81,20 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @ReactMethod fun cancelSearch() { cancelled.set(true) }
     @ReactMethod fun getAccountConfiguration(promise:Promise)=promise.resolve(Arguments.createMap().apply{putBoolean("googleConfigured",BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID.isNotBlank());putString("apiUrl",BuildConfig.HONORABLE_ACCOUNT_API_URL)})
 
-    @ReactMethod fun signInWithGoogle(promise:Promise)=work.execute{guarded(promise){
-        require(BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID.isNotBlank()){"HONORABLE_GOOGLE_WEB_CLIENT_ID is required"}
-        val activity=context.currentActivity?:error("Google Sign-In requires an active Android screen")
-        val option=GetGoogleIdOption.Builder().setServerClientId(BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID).setFilterByAuthorizedAccounts(false).setAutoSelectEnabled(false).build()
-        val result=runBlocking{CredentialManager.create(context).getCredential(activity,GetCredentialRequest.Builder().addCredentialOption(option).build())}
-        val credential=result.credential
-        require(credential is CustomCredential&&credential.type==GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL){"Google did not return an ID token"}
-        val google=GoogleIdTokenCredential.createFrom(credential.data)
-        Arguments.createMap().apply{putString("idToken",google.idToken)}
-    }}
-    @ReactMethod fun signOutGoogle(promise:Promise)=work.execute{guarded(promise){runBlocking{CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())};Arguments.createMap().apply{putBoolean("signedOut",true)}}}
+    private val accountSession by lazy { AccountSession(context,BuildConfig.HONORABLE_ACCOUNT_API_URL) }
+    private fun accountMap(value:JSONObject):WritableMap {val map=Arguments.createMap();value.keys().forEach{key->when(val item=value.get(key)){JSONObject.NULL->map.putNull(key);is JSONObject->map.putMap(key,accountMap(item));is JSONArray->map.putArray(key,accountArray(item));is Boolean->map.putBoolean(key,item);is Number->map.putDouble(key,item.toDouble());else->map.putString(key,item.toString())}};return map}
+    private fun accountArray(value:JSONArray):WritableArray {val array=Arguments.createArray();for(i in 0 until value.length()){when(val item=value.get(i)){JSONObject.NULL->array.pushNull();is JSONObject->array.pushMap(accountMap(item));is Boolean->array.pushBoolean(item);is Number->array.pushDouble(item.toDouble());else->array.pushString(item.toString())}};return array}
+    @ReactMethod fun restoreAccountSession(promise:Promise)=work.execute{guarded(promise){accountMap(accountSession.restore())}}
+    @ReactMethod fun signInAccountWithGoogle(promise:Promise)=work.execute{guarded(promise){val activity=context.currentActivity?:error("An active screen is required");val token=runBlocking{GoogleAccountSignIn.token(activity,BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID)};accountMap(accountSession.signIn(token))}}
+    @ReactMethod fun accountSessionAction(route:String,body:String?,promise:Promise)=work.execute{guarded(promise){accountMap(accountSession.action(route,body?.let{JSONObject(it)}))}}
+    @ReactMethod fun signOutAccountSession(promise:Promise)=work.execute{guarded(promise){accountSession.signOut();context.currentActivity?.let{activity->runCatching{runBlocking{GoogleAccountSignIn.clear(activity)}}};Arguments.createMap().apply{putBoolean("signedOut",true)}}}
+    // Compatibility methods retain Credential Manager, but persistent account flows use the methods above.
+    @ReactMethod fun signInWithGoogle(promise:Promise)=work.execute{guarded(promise){val activity=context.currentActivity?:error("An active screen is required");val token=runBlocking{GoogleAccountSignIn.token(activity,BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID)};Arguments.createMap().apply{putString("idToken",token)}}}
+    @ReactMethod fun signOutGoogle(promise:Promise)=signOutAccountSession(promise)
 
     @ReactMethod fun getSearchHistory(promise:Promise)=work.execute{guarded(promise){Arguments.createMap().apply{putArray("queries",Arguments.fromList(searchHistory()))}}}
     @ReactMethod fun clearSearchHistory(promise:Promise)=work.execute{guarded(promise){context.getSharedPreferences("honorable-ui",0).edit().remove("search-history").apply();Arguments.createMap().apply{putBoolean("cleared",true)}}}
+    @ReactMethod fun editPhoto(uri:String,promise:Promise)=work.execute{guarded(promise){context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri)});Arguments.createMap().apply{putBoolean("opened",true)}}}
     @ReactMethod fun openMedia(uri:String,kind:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){context.startActivity(Intent(context,HonorableMediaViewerActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri);putExtra("kind",kind);timestampMs?.let{putExtra("timestampMs",it.toLong())}});Arguments.createMap().apply{putBoolean("opened",true)}}}
 
     @ReactMethod fun getEntitlementState(promise: Promise) = work.execute { guarded(promise) {

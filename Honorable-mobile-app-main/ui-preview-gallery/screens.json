@@ -1,0 +1,82 @@
+[
+  {
+    "id": "01-welcome",
+    "label": "Welcome"
+  },
+  {
+    "id": "02-home",
+    "label": "Home"
+  },
+  {
+    "id": "03-memories",
+    "label": "Memories"
+  },
+  {
+    "id": "04-passes",
+    "label": "Memory Passes · 20 recommended"
+  },
+  {
+    "id": "05-all-passes",
+    "label": "Memory Passes · all 31"
+  },
+  {
+    "id": "06-usage",
+    "label": "Usage"
+  },
+  {
+    "id": "07-studio-free",
+    "label": "Studio · free account"
+  },
+  {
+    "id": "08-studio-member",
+    "label": "Studio · test membership"
+  },
+  {
+    "id": "09-account",
+    "label": "Account"
+  },
+  {
+    "id": "10-models",
+    "label": "Seran models"
+  },
+  {
+    "id": "11-results",
+    "label": "Photo results · fixture"
+  },
+  {
+    "id": "12-viewer",
+    "label": "Photo viewer"
+  },
+  {
+    "id": "13-editor",
+    "label": "Photo editor"
+  },
+  {
+    "id": "14-edited-photo",
+    "label": "Real monochrome edit"
+  },
+  {
+    "id": "15-layers",
+    "label": "Layers"
+  },
+  {
+    "id": "16-project",
+    "label": "Virtual project explorer"
+  },
+  {
+    "id": "17-python",
+    "label": "Python editor · execution unavailable"
+  },
+  {
+    "id": "18-java",
+    "label": "Java editor · execution unavailable"
+  },
+  {
+    "id": "19-project-code",
+    "label": "Project representation"
+  },
+  {
+    "id": "20-desktop-editor",
+    "label": "Adaptive desktop editor"
+  }
+]

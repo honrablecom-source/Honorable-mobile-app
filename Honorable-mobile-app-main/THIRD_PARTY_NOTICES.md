@@ -16,3 +16,8 @@ change those terms.
 
 Release engineering must generate a complete dependency-license report and review
 the upstream TinyCLIP model card before public distribution.
+
+## Browser Android UI assets
+
+- Roboto variable font: Google Fonts / Roboto authors, SIL Open Font License 1.1. Source: https://github.com/google/fonts/tree/main/ofl/roboto . Bundled license: `android-app/test-lab/web-test-shell/Roboto-LICENSE.txt`.
+- Material Design Icons (Rounded): Google, Apache License 2.0. Source: https://github.com/google/material-design-icons . Bundled license: `android-app/test-lab/web-test-shell/Material-Icons-LICENSE.txt`. SVG paths are packaged in `android-icons.js` for local use.

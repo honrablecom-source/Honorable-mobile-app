@@ -44,6 +44,13 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Install JavaScript dependencies
         run: npm ci
+      - name: Check account startup state
+        run: npm test -- --runInBand AccountStartup.test.tsx
+      - name: Typecheck account presentation
+        run: npm run typecheck
+      - name: Compile Compose production authentication
+        working-directory: Honorable-mobile-app-main/android-app
+        run: bash gradlew --no-daemon :app:compileDebugKotlin
       - name: Report optional sign-in configuration
         shell: bash
         run: |

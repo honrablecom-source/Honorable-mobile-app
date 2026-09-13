@@ -1,15 +1,7 @@
-export type PassId='normal'|'medium'|'plus'|'pro'|'superior';
-export type SeranCreditModel='SERAN_V1'|'SERAN_V2'|'SERAN_V3'|'SERAN_ULTRA';
-export const memoryPasses=[
-  {id:'normal',name:'Normal',credits:50},{id:'medium',name:'Medium',credits:150},
-  {id:'plus',name:'Plus',credits:400},{id:'pro',name:'Pro',credits:1000},
-  {id:'superior',name:'Superior',credits:2500},
-] as const;
-export const seranCreditCosts=[
-  {model:'SERAN_V1',name:'Seran V1',credits:1,available:true},
-  {model:'SERAN_V2',name:'Seran V2',credits:2,available:true},
-  {model:'SERAN_V3',name:'Seran V3',credits:4,available:false},
-  {model:'SERAN_ULTRA',name:'Seran Ultra',credits:8,available:false},
-] as const;
-export const passById=(id:string)=>memoryPasses.find(pass=>pass.id===id);
-export const modelCost=(model:string)=>seranCreditCosts.find(item=>item.model===model);
+// Generated from product/catalog.json by scripts/generate-product.cjs.
+export type PassId=`memory_pass_${number}`;
+export type SeranCreditModel='SERAN_V1'|'SERAN_V2'|'SERAN_V3';
+export const memoryPasses=[{"id":"memory_pass_040","credits":40,"referenceUsd":5},{"id":"memory_pass_064","credits":64,"referenceUsd":8},{"id":"memory_pass_080","credits":80,"referenceUsd":10},{"id":"memory_pass_096","credits":96,"referenceUsd":12},{"id":"memory_pass_120","credits":120,"referenceUsd":15},{"id":"memory_pass_145","credits":145,"referenceUsd":18},{"id":"memory_pass_160","credits":160,"referenceUsd":20},{"id":"memory_pass_205","credits":205,"referenceUsd":25},{"id":"memory_pass_250","credits":250,"referenceUsd":30},{"id":"memory_pass_295","credits":295,"referenceUsd":35},{"id":"memory_pass_340","credits":340,"referenceUsd":40},{"id":"memory_pass_385","credits":385,"referenceUsd":45},{"id":"memory_pass_435","credits":435,"referenceUsd":50},{"id":"memory_pass_530","credits":530,"referenceUsd":60},{"id":"memory_pass_625","credits":625,"referenceUsd":70},{"id":"memory_pass_720","credits":720,"referenceUsd":80},{"id":"memory_pass_820","credits":820,"referenceUsd":90},{"id":"memory_pass_920","credits":920,"referenceUsd":100},{"id":"memory_pass_1120","credits":1120,"referenceUsd":120},{"id":"memory_pass_1330","credits":1330,"referenceUsd":140},{"id":"memory_pass_1540","credits":1540,"referenceUsd":160},{"id":"memory_pass_1760","credits":1760,"referenceUsd":180},{"id":"memory_pass_1980","credits":1980,"referenceUsd":200},{"id":"memory_pass_2260","credits":2260,"referenceUsd":225},{"id":"memory_pass_2550","credits":2550,"referenceUsd":250},{"id":"memory_pass_2840","credits":2840,"referenceUsd":275},{"id":"memory_pass_3150","credits":3150,"referenceUsd":300},{"id":"memory_pass_3710","credits":3710,"referenceUsd":350},{"id":"memory_pass_4300","credits":4300,"referenceUsd":400},{"id":"memory_pass_5500","credits":5500,"referenceUsd":500},{"id":"memory_pass_6700","credits":6700,"referenceUsd":600}] as const;
+export const seranCreditCosts=[{"model":"SERAN_V1","name":"FAST","credits":1,"available":true,"description":"Best for photos. Fastest and lowest-cost search."},{"model":"SERAN_V2","name":"VIDEO","credits":3,"available":true,"description":"Search photos and find moments inside videos."},{"model":"SERAN_V3","name":"TURBO","credits":8,"available":false,"description":"Maximum-depth premium search. Coming Soon."}] as const;
+export const passById=(id:string)=>memoryPasses.find(p=>p.id===id);
+export const modelCost=(id:string)=>seranCreditCosts.find(m=>m.model===id);

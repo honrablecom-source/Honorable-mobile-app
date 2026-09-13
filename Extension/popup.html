@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Novel Companion</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+<header><span class="eyebrow">YOUR READING SIDEKICK</span><h1>Novel Companion<span>✦</span></h1><p>A little context. Back to the story.</p></header>
+<main>
+<form id="search"><label for="title">What are you reading?</label><div class="search"><input id="title" maxlength="160" placeholder="e.g. Pride and Prejudice" required><button id="find" type="submit">Find book</button></div></form>
+<p class="hint">Check the suggested title, then choose the right work below.</p>
+<div id="status" role="status" aria-live="polite">Reading this page’s title…</div>
+<div id="results" aria-label="Matching works"></div>
+<section id="index" hidden><div class="section-title"><h2 id="book"></h2><span id="count"></span></div><div class="legend"><span>● Characters</span><span>● Places</span></div><p id="coverage"></p><button id="highlight">Highlight this page</button><div id="entries"></div></section>
+<button id="remove" class="secondary">Remove page highlights</button>
+<details><summary>Privacy & reading notes</summary><p>Search titles and selected IDs are sent to Wikidata. Opening a sidebar requests the linked Wikipedia article and, if available, a Wikimedia portrait. Page text and the page URL stay in your browser. No account or AI key is needed.</p><p>Descriptions can contain spoilers. English coverage varies; some books have no linked characters or settings. Public APIs can be temporarily unavailable.</p><p>Up to 20 book indexes and 40 detailed profiles are cached locally for 7 days.</p><button id="clear" class="secondary">Clear cached indexes</button></details>
+</main><footer>Information from <a href="https://www.wikidata.org" target="_blank" rel="noreferrer">Wikidata</a> · CC0</footer><script type="module" src="popup.js"></script>
+</body></html>

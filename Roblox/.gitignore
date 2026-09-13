@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.cache/
+*.tsbuildinfo
+*.log
+.env
+data/
+apps/dashboard/.vite/
+apps/dashboard/dist/
+
+# Downloaded experimental runtimes and machine diagnostics
+.experiment/

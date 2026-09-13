@@ -73,6 +73,10 @@ export type ImprovementProgramState = {
   revokedAt?: number;
 };
 type NativeBoundary = {
+  restoreAccountSession():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
+  signInAccountWithGoogle():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
+  signOutAccountSession():Promise<{signedOut:boolean}>;
+  accountSessionAction(route:string,body:string|null):Promise<import('../passes/MemoryPassClient').MemoryAccount>;
   getAccountConfiguration():Promise<{googleConfigured:boolean;apiUrl:string}>;
   signInWithGoogle(): Promise<{idToken:string}>;
   signOutGoogle(): Promise<{signedOut:boolean}>;
@@ -103,6 +107,7 @@ type NativeBoundary = {
   ): Promise<ImprovementProgramState>;
   getSearchHistory(): Promise<{ queries: string[] }>;
   clearSearchHistory(): Promise<{ cleared: boolean }>;
+  editPhoto(uri:string):Promise<{opened:boolean}>;
   openMedia(
     uri: string,
     kind: string,
@@ -119,6 +124,10 @@ function boundary(): NativeBoundary {
   return native;
 }
 export const honorableNative = {
+  restoreAccountSession:()=>boundary().restoreAccountSession(),
+  signInAccountWithGoogle:()=>boundary().signInAccountWithGoogle(),
+  signOutAccountSession:()=>boundary().signOutAccountSession(),
+  accountSessionAction:(route:string,body:string|null)=>boundary().accountSessionAction(route,body),
   getAccountConfiguration:()=>boundary().getAccountConfiguration(),
   signInWithGoogle: () => boundary().signInWithGoogle(),
   signOutGoogle: () => boundary().signOutGoogle(),
@@ -143,6 +152,7 @@ export const honorableNative = {
     ),
   getSearchHistory: () => boundary().getSearchHistory(),
   clearSearchHistory: () => boundary().clearSearchHistory(),
+  editPhoto:(uri:string)=>boundary().editPhoto(uri),
   openMedia: (item: {
     mediaUri: string;
     mediaType: 'IMAGE' | 'VIDEO';

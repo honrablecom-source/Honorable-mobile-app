@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Novel Companion",
+  "version": "0.5.0",
+  "description": "Highlight known characters and places in online novels, with information from Wikidata.",
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "declarativeNetRequest",
+    "webNavigation",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.wikidata.org/*",
+    "https://en.wikipedia.org/*"
+  ],
+  "action": {
+    "default_title": "Novel Companion \u2014 pause / resume highlights on this page"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

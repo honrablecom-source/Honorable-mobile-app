@@ -148,7 +148,16 @@ class MemoriesViewModel(application:Application):AndroidViewModel(application) {
     fun refresh(){durableIndexing.enqueue()}
     fun cancelIndexing(){durableIndexing.cancel()}
     private fun reloadCatalog(){val records=db.records();coordinator.replaceRecords(records,db.indexGeneration());mutableState.value=MemorySearchState.Ready(records.size)}
-    fun search(raw:String){viewModelScope.launch(Dispatchers.Default){val run=coordinator.search(raw);mutableState.value=MemorySearchState.Results(raw,if(run.confidence.confident)run.matches else emptyList())}}
+    fun search(raw:String,model:String="SERAN_V1"){viewModelScope.launch(Dispatchers.IO){
+        val account=app.honorable.auth.AccountSession(getApplication(),getApplication<Application>().getSharedPreferences("honorable-product",0).getString("account-api","").orEmpty())
+        val requestId=java.util.UUID.randomUUID().toString()
+        try{require(model in setOf("SERAN_V1","SERAN_V2")){"Model unavailable"};account.action("/v1/search/start",org.json.JSONObject().put("model",model).put("requestId",requestId))
+            val records=db.records().filter{model!="SERAN_V1"||it.kind!=MediaKind.VIDEO};coordinator.replaceRecords(records)
+            val run=coordinator.search(raw);val matches=if(run.confidence.confident)run.matches else emptyList()
+            account.action("/v1/search/complete",org.json.JSONObject().put("requestId",requestId).put("outcome",if(matches.isEmpty())"FAILED" else "SUCCESS"))
+            mutableState.value=MemorySearchState.Results(raw,matches)
+        }catch(error:Exception){runCatching{account.action("/v1/search/complete",org.json.JSONObject().put("requestId",requestId).put("outcome","FAILED"))};mutableState.value=MemorySearchState.Failed(error.message?:"Search unavailable")}
+    }}
     override fun onCleared(){embeddings.close();super.onCleared()}
     companion object { fun hasPermission(context:Context)=MediaCapabilityManager(context).current().canReadAny }
 }

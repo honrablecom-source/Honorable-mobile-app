@@ -1,0 +1,12 @@
+{$DASHBOARD_DOMAIN} {
+  encode zstd gzip
+  handle /api/* { reverse_proxy api:4000 }
+  handle /health { reverse_proxy api:4000 }
+  handle { reverse_proxy dashboard:80 }
+  header { Strict-Transport-Security "max-age=31536000; includeSubDomains" -Server }
+}
+{$DESKTOP_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy guacamole:8080
+  header { Strict-Transport-Security "max-age=31536000; includeSubDomains" -Server }
+}

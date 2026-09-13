@@ -1,0 +1,15 @@
+{
+  "name": "Roblox Cloud Manager",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "hostRequirements": { "cpus": 2, "memory": "4gb", "storage": "16gb" },
+  "postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
+  "forwardPorts": [4000, 5173],
+  "portsAttributes": {
+    "4000": { "label": "API", "onAutoForward": "silent" },
+    "5173": { "label": "Dashboard", "onAutoForward": "openPreview" }
+  },
+  "customizations": {
+    "vscode": { "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"] }
+  },
+  "remoteEnv": { "PNPM_HOME": "/home/node/.local/share/pnpm" }
+}

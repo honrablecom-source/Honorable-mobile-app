@@ -1,0 +1,67 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    env_file: ../.env
+    restart: unless-stopped
+    volumes: [manager-data:/app/data]
+    networks: [edge, internal]
+  dashboard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.dashboard
+    restart: unless-stopped
+    networks: [edge]
+  guacd:
+    image: guacamole/guacd:1.5.5
+    restart: unless-stopped
+    networks: [internal]
+  guacamole:
+    image: guacamole/guacamole:1.5.5
+    restart: unless-stopped
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRESQL_HOSTNAME: postgres
+      POSTGRESQL_DATABASE: guacamole
+      POSTGRESQL_USER: guacamole
+      POSTGRESQL_PASSWORD: ${GUAC_DB_PASSWORD:?required}
+    depends_on: [guacd, postgres]
+    networks: [edge, internal]
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: guacamole
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD: ${GUAC_DB_PASSWORD:?required}
+    depends_on:
+      guacamole-init:
+        condition: service_completed_successfully
+    volumes: [guac-db:/var/lib/postgresql/data, guac-init:/docker-entrypoint-initdb.d:ro]
+    networks: [internal]
+  guacamole-init:
+    image: guacamole/guacamole:1.5.5
+    command: ['/bin/sh', '-c', '/opt/guacamole/bin/initdb.sh --postgresql > /init/001-init.sql']
+    volumes: [guac-init:/init]
+    restart: 'no'
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:?required}
+      DESKTOP_DOMAIN: ${DESKTOP_DOMAIN:?required}
+    ports: ['80:80', '443:443']
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, caddy-data:/data, caddy-config:/config]
+    depends_on: [api, dashboard, guacamole]
+    networks: [edge]
+networks:
+  edge: {}
+  internal:
+    internal: true
+volumes:
+  manager-data: {}
+  guac-db: {}
+  guac-init: {}
+  caddy-data: {}
+  caddy-config: {}

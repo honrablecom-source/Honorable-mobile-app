@@ -10,6 +10,7 @@ kotlin {
 
 sourceSets.main {
     kotlin.srcDir("../app/src/main/java")
+    kotlin.include("app/honorable/auth/SessionPolicy.kt")
     kotlin.include("app/honorable/search/SearchCore.kt")
     kotlin.include("app/honorable/search/SearchPipeline.kt")
     kotlin.include("app/honorable/search/SearchEvaluation.kt")

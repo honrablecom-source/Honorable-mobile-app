@@ -100,6 +100,8 @@ android {
     sourceSets {
         // Keep the standalone Compose UI out of the React Native Kotlin compile.
         main.java.srcDir("../../../android-app/app/src/main/java/app/honorable/search")
+        main.java.srcDir("../../../android-app/app/src/main/java/app/honorable/auth")
+        main.java.srcDir("../../../android-app/app/src/main/java/app/honorable/editor")
         main.assets.srcDir("../../../android-app/app/src/main/assets")
     }
     signingConfigs {

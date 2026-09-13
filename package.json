@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "dev:test": "node Honorable-mobile-app-main/scripts/web-test.cjs",
+    "build:web": "node Honorable-mobile-app-main/scripts/build-web.cjs",
+    "test:web": "node Honorable-mobile-app-main/scripts/test-web.cjs",
+    "typecheck": "npm --prefix Honorable-mobile-app-main/mobile-react-native run typecheck",
+    "test:auth:web": "node Honorable-mobile-app-main/scripts/test-auth-web.cjs",
+    "test:auth:account": "node --test Honorable-mobile-app-main/dev-server/test/*.test.js",
+    "test:product": "node --test Honorable-mobile-app-main/dev-server/test/*.test.js Honorable-mobile-app-main/product/studio/project.test.js",
+    "test:product:web": "node Honorable-mobile-app-main/scripts/test-product-web.cjs",
+    "generate:product": "node Honorable-mobile-app-main/scripts/generate-product.cjs"
+  }
+}

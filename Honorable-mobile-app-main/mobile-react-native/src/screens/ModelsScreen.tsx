@@ -15,47 +15,8 @@ import {
   SeranModelState,
 } from '../native/HonorableNative';
 
-const models: Array<{
-  id: SeranModelId;
-  level: string;
-  name: string;
-  description: string;
-  batch: number;
-  status: 'AVAILABLE' | 'EXPERIMENTAL' | 'COMING SOON';
-}> = [
-  {
-    id: 'SERAN_V1',
-    level: 'FAST',
-    name: 'Seran V1',
-    description: 'Fast photo intelligence',
-    batch: 200,
-    status: 'AVAILABLE',
-  },
-  {
-    id: 'SERAN_V2',
-    level: 'SMART',
-    name: 'Seran V2',
-    description: 'Photo + video intelligence',
-    batch: 300,
-    status: 'AVAILABLE',
-  },
-  {
-    id: 'SERAN_V3',
-    level: 'DEEP',
-    name: 'Seran V3',
-    description: 'Deep memory understanding',
-    batch: 100,
-    status: 'EXPERIMENTAL',
-  },
-  {
-    id: 'SERAN_ULTRA',
-    level: 'ULTRA',
-    name: 'Seran Ultra',
-    description: 'Maximum adaptive memory intelligence',
-    batch: 500,
-    status: 'COMING SOON',
-  },
-];
+import {seranCreditCosts} from '../passes/catalog';
+const models=seranCreditCosts.map(m=>({id:m.model,level:m.name,name:m.name,description:m.description,batch:0,status:m.available?'AVAILABLE':'COMING SOON'}));
 
 export function ModelsScreen() {
   const [state, setState] = useState<SeranModelState>();
@@ -93,7 +54,7 @@ export function ModelsScreen() {
       models[0],
     [preview, state],
   );
-  const available = state?.available.includes(model.id) ?? false;
+  const available = model.status==='AVAILABLE' && (state?.available.includes(model.id) ?? false);
   const select = async () => {
     if (!available || model.id === state?.selected) return;
     setSaving(true);

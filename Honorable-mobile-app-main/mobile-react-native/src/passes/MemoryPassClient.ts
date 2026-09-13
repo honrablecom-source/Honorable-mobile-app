@@ -1,6 +1,6 @@
 import type{PassId,SeranCreditModel}from'./catalog';
-export type MemoryTransaction={id:string;type:'PURCHASE'|'DEBIT'|'RESTORE';credits:number;balanceAfter:number;createdAt:string;description:string};
-export type MemoryAccount={accountId:string;balance:number;creditsExpire:false;subscription:{status:'NONE'|'ACTIVE'|'EXPIRED';tier?:string};transactions:MemoryTransaction[]};
+export type MemoryTransaction={id:string;type:string;freeSpent?:number;purchasedSpent?:number;credits:number;balanceAfter:number;createdAt:string;description:string};
+export type MemoryAccount={freeMonthlyRemaining?:number;freeMonthlyTotal?:number;nextResetAt?:string;totalAvailable?:number;usage?:{month:{freeCreditsUsed:number;purchasedCreditsUsed:number;searchCount:number};byModel:Record<string,number>;allTime:{searchesCompleted:number;purchasedCreditsUsed:number;passesPurchased:number}};profile?:{name?:string;email?:string};accountId:string;balance:number;creditsExpire:false;subscription:{status:'NONE'|'ACTIVE'|'EXPIRED';tier?:string};transactions:MemoryTransaction[]};
 export class MemoryPassClient{
   private token?:string;
   constructor(private baseUrl=''){}

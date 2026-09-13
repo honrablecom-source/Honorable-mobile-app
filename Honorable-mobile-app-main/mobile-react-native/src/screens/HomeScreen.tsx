@@ -25,6 +25,7 @@ import { honorableNative, SearchResponse } from '../native/HonorableNative';
 import { useLibrary } from '../library/LibraryContext';
 import { useSearchMode } from '../search/SearchModeContext';
 import type { MainTabParamList } from '../navigation/types';
+import {seranCreditCosts} from '../passes/catalog';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
 type Filter = (typeof filters)[number];
@@ -37,7 +38,8 @@ export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const { items: library } = useLibrary();
   const { mode, setMode, entitlement } = useSearchMode();
-  const {connected:passConnected,charge}=useMemoryPass();
+  const {connected:passConnected,startSearch,finishSearch}=useMemoryPass();
+  const [productModel,setProductModel]=useState<'SERAN_V1'|'SERAN_V2'>('SERAN_V1');
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState<SearchResponse>();
   const [loading, setLoading] = useState(false);
@@ -98,18 +100,22 @@ export function HomeScreen() {
   );
   const search = async (value = query) => {
     const clean = value.trim();
-    if (!clean) return;
+    if (!clean || loading) return;
     setQuery(clean);
     Keyboard.dismiss();
     setLoading(true);
     setError('');
     const chargeRequestId=`search-${Date.now()}-${Math.random()}`;
     try {
+      if(!passConnected)throw Error('Reconnect to verify your Memory Credits.');
+      await honorableNative.selectSeranModel(productModel);
+      await startSearch(productModel,chargeRequestId);
       const result=await honorableNative.search(clean);
-      if(passConnected){const model=await honorableNative.getSeranModelState();await charge(model.selected,chargeRequestId)}
+      await finishSearch(chargeRequestId,result.results.length?'SUCCESS':'FAILED');
       setResponse(result);
       await refreshHistory();
     } catch (reason) {
+      try{await finishSearch(chargeRequestId,'FAILED')}catch{}
       setError(reason instanceof Error ? reason.message : 'Search unavailable');
       setResponse(undefined);
     } finally {
@@ -126,11 +132,12 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        <View style={styles.utility}>
+        <View style={styles.utility}><Pressable accessibilityLabel="Account" onPress={()=>navigation.getParent()?.navigate("Settings")}><Text>◉ Account</Text></Pressable>
           <Text variant="muted" className="text-[12px]">
             On-device
           </Text>
         </View>
+        <View style={{flexDirection:'row',gap:8,padding:12}}>{seranCreditCosts.map(m=><Pressable key={m.model} disabled={!m.available||loading} onPress={()=>{if(m.model!=='SERAN_V3')setProductModel(m.model)}} style={{padding:10,borderRadius:16,backgroundColor:productModel===m.model?'#444':'#181818'}}><Text>{m.name} · {m.credits}</Text>{!m.available&&<Text>Coming Soon</Text>}</Pressable>)}</View>
         <Text
           accessibilityRole="header"
           className="mx-4 mt-2 text-[30px] font-semibold"
@@ -145,7 +152,7 @@ export function HomeScreen() {
           onChangeText={setQuery}
           onSubmit={() => search()}
         />
-        <SearchModeControl value={mode} onPress={() => setModeOpen(true)} />
+
         {history.length > 0 && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>
@@ -205,7 +212,7 @@ export function HomeScreen() {
                 : 'Try a color, place, date, object, or visible text.'}
             </Text>
             {response.decision === 'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2' && (
-              <Button className="mt-4" onPress={() => navigation.navigate('Models')}>
+              <Button className="mt-4" onPress={() => navigation.getParent()?.navigate('Models')}>
                 <Text>View Models</Text>
               </Button>
             )}
@@ -243,13 +250,6 @@ export function HomeScreen() {
         )}
       </ScrollView>
       <MediaViewer item={selected} onClose={() => setSelected(undefined)} />
-      <SearchModeSheet
-        visible={modeOpen}
-        value={mode}
-        entitlement={entitlement}
-        onClose={() => setModeOpen(false)}
-        onSelect={setMode}
-      />
     </SafeAreaView>
   );
 }

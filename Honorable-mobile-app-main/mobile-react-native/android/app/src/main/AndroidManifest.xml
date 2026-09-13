@@ -31,5 +31,6 @@
         </intent-filter>
       </activity>
       <activity android:name=".HonorableMediaViewerActivity" android:exported="false" android:theme="@style/AppTheme" />
+    <activity android:name="app.honorable.editor.PhotoEditorActivity" android:exported="false" />
     </application>
 </manifest>

@@ -5,3 +5,5 @@ const verifier=()=>new GoogleIdTokenVerifier({audience:'web-client.apps.googleus
 const valid={iss:'https://accounts.google.com',aud:'web-client.apps.googleusercontent.com',sub:'stable-google-subject',exp:1_800_000_100};
 test('verifies signature issuer audience expiry and stable subject',async()=>assert.equal((await verifier().verify(token(valid))).sub,'stable-google-subject'));
 test('rejects invalid signature wrong audience and expiry',async()=>{await assert.rejects(()=>verifier().verify(token(valid)+"x"),/INVALID_GOOGLE_CREDENTIAL/);await assert.rejects(()=>verifier().verify(token({...valid,aud:'wrong'})),/WRONG_GOOGLE_AUDIENCE/);await assert.rejects(()=>verifier().verify(token({...valid,exp:1_799_999_999})),/EXPIRED_GOOGLE_CREDENTIAL/)})
+
+test('rejects missing expiry and non-string Google subjects',async()=>{await assert.rejects(()=>verifier().verify(token({...valid,exp:undefined})),/EXPIRED_GOOGLE_CREDENTIAL/);await assert.rejects(()=>verifier().verify(token({...valid,sub:42})),/MISSING_GOOGLE_SUBJECT/)})

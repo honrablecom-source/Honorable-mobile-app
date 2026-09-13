@@ -1,0 +1,15 @@
+const {chromium}=require('../ui-previews/node_modules/playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const path=require('node:path');
+(async()=>{const browser=await chromium.launch({args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1366,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://localhost:4174');await require('./test-browser-login.cjs')(page);await page.evaluate(()=>document.fonts.ready);
+const source=fs.readFileSync(path.resolve(__dirname,'../android-app/app/src/main/java/app/honorable/MainActivity.kt'),'utf8');
+assert(source.includes('heightIn(min=510.dp)'));assert(source.includes('height(190.dp)'));assert(source.includes('height(80.dp)'));
+assert.equal(await page.locator('.a-hero').evaluate(e=>getComputedStyle(e).minHeight),'510px');assert(Math.abs(await page.locator('.a-route').first().evaluate(e=>parseFloat(getComputedStyle(e).height))-190)<.1);assert(Math.abs(await page.locator('.a-dock').evaluate(e=>parseFloat(getComputedStyle(e).height))-80)<.1);
+assert.equal(await page.locator('.a-hero h1').innerText(),'Find the\nmoment\nyou meant.');assert.deepEqual(await page.locator('.a-dock small').allTextContents(),['Home','Memories','Terms','Activity','Settings']);
+await page.screenshot({path:'/tmp/android-web-home.png'});
+await page.locator('.a-dock [data-htab=memories]').click();await page.screenshot({path:'/tmp/android-web-memories.png'});await page.locator('#a-focus').click();await page.waitForSelector('#q');assert.equal(await page.locator('.a-focus h1').innerText(),'Paint it\nwith words.');await page.locator('#a-close-search').click();
+await page.locator('.a-dock [data-htab=settings]').click();assert.equal(await page.locator('.a-page-header h1').innerText(),'Make it yours');await page.screenshot({path:'/tmp/android-web-settings.png'});
+await page.locator('[data-test-screen=pass]').click();await page.waitForSelector('#sign-out');
+await page.locator('[data-test-screen=usage]').click();await page.waitForSelector('#media-input');
+await page.waitForFunction(async()=>{try{return (await fetch('/api/status')).ok}catch{return false}},{},{timeout:120000});await page.locator('.a-dock [data-htab=memories]').click();await page.locator('#a-focus').click();await page.locator('#q').fill('beach');await page.locator('#a-find').click();await page.waitForSelector('.a-best',{timeout:120000});await page.locator('[data-filter=Videos]').click();const expected=await page.evaluate(()=>filteredNativeResults()[0]);await page.locator('.a-best').click();await page.waitForSelector('.a-viewer');assert.equal(await page.evaluate(()=>state.preview.uri),expected.uri);if(expected.timestamp!=null)assert((await page.locator('.viewer-media').getAttribute('src')).includes('#t='+expected.timestamp/1000));
+assert.deepEqual(errors,[]);await browser.close();console.log('PASS: Android source dimensions, headings, navigation, focus flow; account and import screens still accessible');})().catch(e=>{console.error(e);process.exit(1)});

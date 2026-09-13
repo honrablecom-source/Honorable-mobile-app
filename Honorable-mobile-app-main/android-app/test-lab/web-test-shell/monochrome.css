@@ -2,7 +2,7 @@
   --ink: #080808;
   --soft: #8f8f8f;
   --line: #d6d6d6;
-  --cyan: #fff;
+  --cyan: #ffffff;
   --peri: #dedede;
   --lilac: #c8c8c8;
   --mint: #e7e7e7;
@@ -14,8 +14,8 @@
 .archive-prompt,
 .archive-prompt.featured {
   isolation: isolate;
-  background: #111;
-  color: #fff;
+  background: #111111;
+  color: #ffffff;
   border-color: #ffffff2b;
 }
 
@@ -42,7 +42,7 @@
 .archive-prompt.featured small,
 .archive-prompt em { color: #e2e2e2; }
 .archive-prompt > b,
-.archive-prompt i { background: #111c; color: #fff; border: 1px solid #ffffff38; }
+.archive-prompt i { background: #111111cc; color: #ffffff; border: 1px solid #ffffff38; }
 .honorable .search button,
 .result-filters button.active,
-.analyze-button { background: #111; color: #fff; }
+.analyze-button { background: #111111; color: #ffffff; }

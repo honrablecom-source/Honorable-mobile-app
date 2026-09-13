@@ -19,6 +19,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "HONORABLE_ACCOUNT_API_URL", "\"${providers.environmentVariable("HONORABLE_ACCOUNT_API_URL").orNull.orEmpty().replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+        buildConfigField("String", "HONORABLE_GOOGLE_WEB_CLIENT_ID", "\"${providers.environmentVariable("HONORABLE_GOOGLE_WEB_CLIENT_ID").orNull.orEmpty().replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -45,6 +47,10 @@ android {
 }
 
 dependencies {
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.compose.material3:material3")
