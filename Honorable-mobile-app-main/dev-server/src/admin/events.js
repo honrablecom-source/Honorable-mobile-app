@@ -2,7 +2,7 @@
 // The only ingestion schema. Arbitrary metadata, queries, media paths and code are rejected.
 const CLIENT_EVENTS = new Set(['result_opened','editor_opened','edit_tool_used','edit_saved','workspace_opened','feature_interest','client_error']);
 const SERVER_EVENTS = new Set(['account_registered','session_started','session_active','search_started','search_completed','search_failed','search_cancelled','pass_purchased','free_credit_granted','free_credit_reset','studio_started','studio_cancelled','error_occurred','api_request']);
-const enums = {
+const enums = {channel:['DEV','INTERNAL','BETA','PRODUCTION'],
   platform: ['ANDROID','WEB_TEST','IOS','UNKNOWN'], capabilityClass:['LOW','MID','HIGH','UNKNOWN'],
   model:['SERAN_V1','SERAN_V2','SERAN_V3'], mediaType:['IMAGE','VIDEO','UNKNOWN'],
   tool:['crop','rotate','brightness','contrast','saturation','exposure','monochrome','undo','redo','reset'],
@@ -19,7 +19,7 @@ const fields = {
 };
 function safeMetadata(type, metadata={}) {
  if (!metadata || typeof metadata!=='object' || Array.isArray(metadata)) throw Error('INVALID_METADATA');
- const allowed=new Set([...(fields[type]||[]),'platform','appVersion','buildNumber','osVersion','capabilityClass']);
+ const allowed=new Set([...(fields[type]||[]),'platform','appVersion','buildNumber','osVersion','capabilityClass','channel']);
  const output={};
  for(const [key,value] of Object.entries(metadata)) {
   if(!allowed.has(key)) throw Error('FORBIDDEN_ANALYTICS_FIELD');

@@ -44,8 +44,10 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Install JavaScript dependencies
         run: npm ci
-      - name: Check account startup state
-        run: npm test -- --runInBand AccountStartup.test.tsx
+      - name: Test React Native behavior
+        run: npm test -- --runInBand
+      - name: Test account and beta release operations
+        run: node --test ../dev-server/test/*.test.js ../product/studio/project.test.js
       - name: Typecheck account presentation
         run: npm run typecheck
       - name: Compile Compose production authentication
@@ -73,6 +75,14 @@ jobs:
             | sed -n 's/^Signer #1 certificate SHA-1 digest: /GitHub Actions APK signing SHA-1: /p'
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" \
             | grep -q "package: name='com.honorablemobile'"
+      - name: Record build identity
+        run: node ../scripts/release-manifest.cjs
+      - name: Upload release identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: honorable-release-identity
+          path: Honorable-mobile-app-main/mobile-react-native/release-manifest.json
+          if-no-files-found: error
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

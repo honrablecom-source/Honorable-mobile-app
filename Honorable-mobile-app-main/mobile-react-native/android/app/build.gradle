@@ -91,8 +91,8 @@ android {
         applicationId "com.honorablemobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.0.1"
         buildConfigField "String", "HONORABLE_GOOGLE_WEB_CLIENT_ID", JsonOutput.toJson(googleWebClientId)
         buildConfigField "String", "HONORABLE_ACCOUNT_API_URL", JsonOutput.toJson(accountApiUrl)
     }

@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path');
 const{AdminAuth}=require('./auth'),{AuditLog}=require('./audit'),{buildMetrics,accountRows,safeUser}=require('./metrics');
 const bad=(message,status=400)=>Object.assign(Error(message),{status});
 const publicDir=path.resolve(__dirname,'../../admin-public');
-function createAdminRouter({ledger,analytics,sessions,environment,configFile,users,clock=Date.now,healthProbe}){
+function createAdminRouter({ledger,analytics,sessions,environment,configFile,users,clock=Date.now,healthProbe,beta}){
  const auth=new AdminAuth({file:configFile,users,clock,environment}),audit=new AuditLog(ledger.file+'.admin-audit.jsonl',{clock});
  function writeOrigin(req){if(req.headers['x-honorable-admin']!=='1')throw bad('ADMIN_CSRF_REJECTED',403);let origin;try{origin=new URL(req.headers.origin)}catch{throw bad('ADMIN_CSRF_REJECTED',403)}if(origin.host!==req.headers.host||(environment==='production'&&origin.protocol!=='https:'))throw bad('ADMIN_CSRF_REJECTED',403);}
  function allowed(actor,roles){if(!roles.includes(actor.role))throw bad('ADMIN_ROLE_REQUIRED',403)}
@@ -17,8 +17,8 @@ function createAdminRouter({ledger,analytics,sessions,environment,configFile,use
   try{
    const url=new URL(req.url,'http://localhost');
    if(url.pathname==='/admin/tokens.css'&&req.method==='GET'){const tokens=require('../../../product/design-tokens.json').colors;res.setHeader('Content-Type','text/css');res.end(':root{'+Object.entries(tokens).map(([k,v])=>'--'+k+':'+v+';').join('')+'}');return true;}
-   if(['/admin','/admin/','/admin/admin.js','/admin/admin.css'].includes(url.pathname)&&req.method==='GET'){
-    const name=url.pathname.endsWith('.js')?'admin.js':url.pathname.endsWith('.css')?'admin.css':'index.html';res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(path.join(publicDir,name)));return true;
+   if(['/admin','/admin/','/admin/admin.js','/admin/admin.css','/admin/beta.js'].includes(url.pathname)&&req.method==='GET'){
+    const name=url.pathname.endsWith('beta.js')?'beta.js':url.pathname.endsWith('.js')?'admin.js':url.pathname.endsWith('.css')?'admin.css':'index.html';res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(path.join(publicDir,name)));return true;
    }
    if(req.method==='POST')writeOrigin(req);
    if(url.pathname==='/admin/api/login'&&req.method==='POST'){
@@ -27,6 +27,29 @@ function createAdminRouter({ledger,analytics,sessions,environment,configFile,use
    const actor=auth.session(req);
    const requested=url.searchParams.get('environment')||environment;
    if(requested!==environment||!actor.environments.includes(requested))throw bad('ENVIRONMENT_NOT_AUTHORIZED',403);
+   if(url.pathname.startsWith('/admin/api/beta')){
+    if(!beta)throw bad('BETA_NOT_CONFIGURED',503);
+    const {betaReport,aggregateReport}=require('../beta/report');
+    const action=url.pathname.slice('/admin/api/beta'.length);
+    if(req.method==='GET'&&action===''){
+     const report=betaReport(beta,ledger,analytics);
+     if(actor.role==='VIEWER'){report.directory=report.directory.map(({email,...t})=>t);report.feedback=[];report.requests=[];report.releases=report.releases.map(({internalNotes,checks,assets,...r})=>r);report.gate.assets=[];}
+     else await audit.append(actor.username,'BETA_SUPPORT_READ',null,'SUPPORT_REVIEW');
+     json(res,200,report);return true;
+    }
+    allowed(actor,['OWNER','ADMIN']);
+    if(req.method!=='POST')throw bad('NOT_FOUND',404);
+    const data=await body(req);
+    const actions={'/invite':()=>beta.invite(data),'/tester':()=>{const t=beta.updateTester(data);if(t.accountId&&t.status!=='ACTIVE')sessions.revokeAccount(t.accountId);return t},'/flag':()=>beta.setFlag(data),'/triage':()=>beta.triage(data),'/release-status':()=>beta.releaseStatus(data),'/asset':()=>beta.asset(data,actor.username),'/release':()=>beta.release(data),'/check':()=>beta.check(data,actor.username),'/issue':()=>beta.knownIssue(data),'/request':()=>beta.resolveRequest(data)};
+    if(action==='/export'){
+     await audit.append(actor.username,'BETA_EXPORT',null,'SUPPORT_REVIEW');const report=aggregateReport(betaReport(beta,ledger,analytics));
+     if(data.format==='csv'){res.writeHead(200,{'Content-Type':'text/csv','Content-Disposition':'attachment; filename="honorable-beta.csv"'});res.end('metric,value\r\n'+Object.entries(report.summary).map(([k,v])=>k+','+(v??'')).join('\r\n'));return true}
+     json(res,200,report);return true;
+    }
+    if(!actions[action])throw bad('NOT_FOUND',404);
+    await audit.append(actor.username,'BETA_'+action.slice(1).toUpperCase()+'_REQUESTED',typeof data.id==='string'?data.id.slice(0,100):null,'OPERATOR_ACTION');
+    const value=actions[action]();await audit.append(actor.username,'BETA_'+action.slice(1).toUpperCase()+'_COMPLETED',value?.id||null,'OPERATOR_ACTION');json(res,200,value);return true;
+   }
    if(url.pathname==='/admin/api/session'&&req.method==='GET'){json(res,200,{username:actor.username,role:actor.role,environment,environments:[environment]});return true}
    if(url.pathname==='/admin/api/logout'&&req.method==='POST'){await audit.append(actor.username,'ADMIN_LOGOUT');auth.logout(req);cookie(res,'');json(res,200,{ok:true});return true}
    if(url.pathname==='/admin/api/metrics'&&req.method==='GET'){

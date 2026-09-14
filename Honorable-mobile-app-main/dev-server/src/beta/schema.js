@@ -1,0 +1,13 @@
+'use strict';
+const COHORTS=['FOUNDERS','FRIENDS_FAMILY','EARLY_TESTERS','CREATORS','HEAVY_MEDIA','LOW_END_DEVICE','VIDEO_TESTERS'];
+const FLAGS=['studio_enabled','video_search_enabled','v3_visible','rig_preview_enabled','nodes_visible','code_workspace_visible'];
+const CATEGORIES=['BUG','SEARCH RESULT','VIDEO SEARCH','EDITOR','PASS/USAGE','STUDIO','PERFORMANCE','UI','OTHER'];
+const OUTCOMES=['CORRECT','WRONG','NOT_FOUND','TIMESTAMP_WRONG','TOO_SLOW'];
+const CHECKS=['code_committed','tests_pass','android_actions_pass','artifact_exists','version_bumped','release_notes','flags_correct','secrets_configured','no_dev_purchases','v3_locked','auth_verified','pass_verified','usage_verified','real_photo_demo','search_ledger','editor_save','privacy_check','admin_healthy'];
+const BLOCKERS=['tests_pass','android_actions_pass','artifact_exists','secrets_configured','no_dev_purchases','v3_locked','auth_verified','pass_verified','search_ledger','real_photo_demo','editor_save','privacy_check'];
+const fail=(message,status=400)=>Object.assign(Error(message),{status});
+function choice(value,values){if(!values.includes(value))throw fail('INVALID_CHOICE');return value}
+function text(value,max=2000,required=false){if(typeof value!=='string'||value.length>max||(required&&!value.trim()))throw fail('INVALID_TEXT');return value.trim()}
+function keys(body,allowed){if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!allowed.includes(k)))throw fail('UNSUPPORTED_FIELD')}
+function context(input={}){keys(input,['platform','appVersion','buildNumber','osVersion','capabilityClass','screen','feature','errorCode','manufacturer','modelFamily','ramClass','vulkan']);const result={};for(const [k,v]of Object.entries(input)){if(['appVersion','buildNumber','osVersion'].includes(k)){if(typeof v!=='string'||!/^\d[\d.a-zA-Z_-]{0,23}$/.test(v))throw fail('INVALID_VERSION');result[k]=v}else if(['manufacturer','modelFamily'].includes(k)){if(typeof v!=='string'||! /^[a-zA-Z0-9 ._-]{1,40}$/.test(v))throw fail('INVALID_DEVICE_FAMILY');result[k]=v}else result[k]=choice(v,({platform:['ANDROID','WEB_TEST','IOS','UNKNOWN'],capabilityClass:['LOW','MID','HIGH','UNKNOWN'],screen:['Settings','Home','Search','Viewer','Editor','Studio','Pass','Usage','BetaFeedback'],feature:['search','video','editor','save','studio','pass','usage','other'],errorCode:['AUTH_FAILED','API_FAILED','SEARCH_FAILED','SAVE_FAILED','CLIENT_ERROR','SERVER_ERROR'],ramClass:['LOW','MID','HIGH','UNKNOWN'],vulkan:['SUPPORTED','UNSUPPORTED','UNKNOWN']})[k]||[])}return result}
+module.exports={COHORTS,FLAGS,CATEGORIES,OUTCOMES,CHECKS,BLOCKERS,fail,choice,text,keys,context};

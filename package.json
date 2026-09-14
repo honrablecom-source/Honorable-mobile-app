@@ -13,6 +13,8 @@
     "admin:setup": "node Honorable-mobile-app-main/scripts/admin-setup.cjs",
     "admin:dev": "node Honorable-mobile-app-main/scripts/admin-dev.cjs",
     "test:admin": "node --test Honorable-mobile-app-main/dev-server/test/admin*.test.js",
-    "test:admin:web": "node Honorable-mobile-app-main/scripts/test-admin-web.cjs"
+    "test:admin:web": "node Honorable-mobile-app-main/scripts/test-admin-web.cjs",
+    "test:beta": "node --test Honorable-mobile-app-main/dev-server/test/beta.test.js",
+    "test:beta:web": "node Honorable-mobile-app-main/scripts/test-beta-web.cjs"
   }
 }

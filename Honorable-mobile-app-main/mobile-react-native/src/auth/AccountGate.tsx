@@ -1,10 +1,11 @@
 import React from 'react';
+import {BetaUpdateNotice} from '../screens/BetaUpdateNotice';
 import {ActivityIndicator,Image,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useMemoryPass} from '../passes/MemoryPassContext';
 export function AccountGate({children}:{children:React.ReactNode}){
  const auth=useMemoryPass();
- if(auth.signedIn)return <>{children}</>;
+ if(auth.signedIn)return <><BetaUpdateNotice/>{children}</>;
  if(auth.status==='restoring'||auth.status==='signing-in')return <View style={styles.launch}><Text style={styles.wordmark}>honorable</Text><ActivityIndicator color="#aaa"/><Text style={styles.small}>Opening your memories…</Text></View>;
  return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.content}><Text style={styles.wordmark}>honorable</Text><Image source={require('./welcome.png')} style={styles.photo} accessibilityLabel="A quiet beach memory"/><Text style={styles.title}>Find any{'\n'}memory.</Text><Text style={styles.copy}>You remember the moment.{'\n'}Honorable finds it.</Text><Pressable accessibilityRole="button" disabled={!auth.googleConfigured} style={styles.button} onPress={auth.signInGoogle}><Text style={styles.buttonText}>Continue with Google</Text></Pressable>{!!auth.error&&<Text accessibilityRole="alert" style={styles.small}>{auth.error}</Text>}<Text style={styles.privacy}>Your memories stay yours.</Text><Text style={styles.small}>Signing in keeps your Memory Passes, credits and account access connected across sessions and devices.</Text>{auth.status==='unavailable'&&<Pressable onPress={auth.refresh}><Text style={styles.privacy}>Try restoring again</Text></Pressable>}</ScrollView></SafeAreaView>
 }
