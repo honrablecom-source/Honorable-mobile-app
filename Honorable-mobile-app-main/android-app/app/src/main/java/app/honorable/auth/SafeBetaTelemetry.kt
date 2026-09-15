@@ -31,10 +31,10 @@ object SafeBetaTelemetry {
    val events=JSONArray().put(event(context,"app_session",JSONObject().put("sessionId",processId).put("crashMonitoring",Build.VERSION.SDK_INT>=30))).put(event(context,"performance_sample",JSONObject().put("metric","STARTUP").put("durationMs",(System.currentTimeMillis()-processStarted).coerceIn(0,3600000))))
    if(Build.VERSION.SDK_INT>=30&&previous?.optString("owner")==owner){
     val exits=(context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getHistoricalProcessExitReasons(context.packageName,0,5)
-    val exit=exits.firstOrNull{it.timestamp>previous.optLong("startedAt")&&it.timestamp<processStarted&&it.reason in setOf(ApplicationExitInfo.REASON_CRASH,ApplicationExitInfo.REASON_CRASH_NATIVE,ApplicationExitInfo.REASON_ANR)}
+    val exit=exits.firstOrNull{it.pid==previous.optInt("pid",-1)&&it.timestamp>previous.optLong("startedAt")&&it.timestamp<processStarted&&it.reason in setOf(ApplicationExitInfo.REASON_CRASH,ApplicationExitInfo.REASON_CRASH_NATIVE,ApplicationExitInfo.REASON_ANR)}
     if(exit!=null){val kind=when(exit.reason){ApplicationExitInfo.REASON_ANR->"ANR";ApplicationExitInfo.REASON_CRASH_NATIVE->"NATIVE";else->"JVM"};val metadata=JSONObject().put("sessionId",previous.optString("sessionId")).put("crashKind",kind).put("appVersion",previous.optString("version","0")).put("occurredAtMs",exit.timestamp);events.put(event(context,"app_crash",metadata,UUID.nameUUIDFromBytes("${exit.timestamp}:${exit.reason}".toByteArray()).toString()))}
    }
-   storage.write(JSONObject().put("owner",owner).put("sessionId",processId).put("startedAt",processStarted).put("version",context.packageManager.getPackageInfo(context.packageName,0).versionName?:"0"))
+   storage.write(JSONObject().put("owner",owner).put("sessionId",processId).put("startedAt",processStarted).put("pid",android.os.Process.myPid()).put("version",context.packageManager.getPackageInfo(context.packageName,0).versionName?:"0"))
    send(context,events,owner)
   }}
  }
