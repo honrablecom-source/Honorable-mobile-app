@@ -38,7 +38,7 @@ const server = http.createServer(async(req,res)=>{
     const url = new URL(req.url,'http://localhost');
     if (req.method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return json(res,403,{error:'Cross-origin writes refused'});
     if(url.pathname.startsWith('/admin'))return proxy(req,res,account,req.url);
-    if(url.pathname==='/web/config') return json(res,200,{developmentPurchases:!!bundledAccount,searchTransport:'VERIFIED_LOCAL_ENGINE',googleClientId:process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID||''});
+    if(url.pathname==='/web/config') return json(res,200,{developmentPurchases:!!bundledAccount,betaRequired:!!accountServer?.beta.required,searchTransport:'VERIFIED_LOCAL_ENGINE',googleClientId:process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID||''});
     if(url.pathname==='/web/search'&&req.method==='POST') {
       if(!bundledAccount)return json(res,503,{error:'Trusted completion provider is not configured for this account server.'});
       if(req.headers['x-honorable-web']!=='1'||!req.headers.origin||new URL(req.headers.origin).host!==req.headers.host)return json(res,403,{error:'INVALID_WEB_ORIGIN'});

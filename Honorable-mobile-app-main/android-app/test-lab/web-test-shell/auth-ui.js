@@ -16,7 +16,7 @@ const priorBind=window.bindWebTest;window.bindWebTest=()=>{priorBind();screen.qu
 addEventListener('offline',()=>{if(authState==='online'){authState='offline';entitlements=null;webNotice='Offline · using previously verified account. Reconnect for credits and purchases.';render()}});
 addEventListener('online',()=>{if(authState==='offline'||localStorage.getItem('honorable-pending-signout'))restoreStartup()});
 // Development sign-in remains outside the phone and is never enabled by a production account server.
-const testLogin=document.createElement('button');testLogin.id='test-account-login';testLogin.textContent='Use test account';testLogin.className='test-auth-tool';document.body.append(testLogin);testLogin.onclick=async()=>{if(!webConfig.developmentPurchases)return;await webAction(async()=>{await webRequest('/account/dev/auth/token',{email:'browser-tester'});await acceptSession()})};
+const testLogin=document.createElement('button');testLogin.id='test-account-login';testLogin.textContent='Use test account';testLogin.className='test-auth-tool';document.body.append(testLogin);testLogin.onclick=async()=>{if(!webConfig.developmentPurchases)return;const email=webConfig.betaRequired?prompt('Invited development tester email'):'browser-tester';if(!email)return;await webAction(async()=>{await webRequest('/account/dev/auth/token',{email});await acceptSession()})};
 const gate=window.renderAuthGate;window.renderAuthGate=()=>{testLogin.hidden=!webConfig.developmentPurchases||authState!=='welcome';return gate()};
 restoreStartup();
 

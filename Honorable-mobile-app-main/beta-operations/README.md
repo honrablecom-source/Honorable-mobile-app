@@ -11,14 +11,14 @@ npm run admin:setup  # only if no OWNER config exists
 npm run admin:dev
 ```
 
-Open **http://localhost:4174/admin**, sign in and select **Beta**. This default is DEVELOPMENT / DEV, with optional enrollment. Invite a test email before submitting feedback. The generic “Use test account” button is not an invited email identity; use the isolated browser integration test to exercise invited development sign-in:
+Open **http://localhost:4174/admin**, sign in and select **Beta**. This default is DEVELOPMENT / DEV, with optional enrollment. Invite a test email before submitting feedback. In the invite-only local BETA launcher, “Use test account” asks for the email already invited by the operator. This test identity flow exists only in development. The isolated browser integration test also exercises invited development sign-in:
 
 ```sh
 npm run test:beta
 npm run test:beta:web
 ```
 
-To run a separate invite-only BETA development sandbox, stop the existing gateway and use a fresh ledger file:
+To run a separate invite-only BETA development sandbox, stop the existing gateway and run `npm run beta:dev`. It selects the dedicated `dev-server/data/beta-ledger.json` store automatically. The equivalent explicit command is:
 
 ```sh
 HONORABLE_RELEASE_CHANNEL=BETA \
