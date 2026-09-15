@@ -75,7 +75,7 @@ const server = http.createServer(async(req,res)=>{
     }
     if(url.pathname.startsWith('/account/')) {
       const route=url.pathname.slice('/account'.length);
-      if(!['/v1/beta/config','/v1/beta/feedback','/v1/beta/request','/v1/beta/authorize','/v1/analytics','/v1/search/start','/v1/search/complete','/dev/studio','/v1/catalog','/v1/auth/session','/v1/auth/logout','/v1/auth/google','/v1/account','/v1/entitlements','/v1/transactions','/v1/purchases/restore','/dev/auth/token','/dev/purchases'].includes(route))return json(res,404,{error:'Not found'});
+      if(!['/v1/beta/attachment','/v1/beta/config','/v1/beta/feedback','/v1/beta/request','/v1/beta/authorize','/v1/analytics','/v1/search/start','/v1/search/complete','/dev/studio','/v1/catalog','/v1/auth/session','/v1/auth/logout','/v1/auth/google','/v1/account','/v1/entitlements','/v1/transactions','/v1/purchases/restore','/dev/auth/token','/dev/purchases'].includes(route))return json(res,404,{error:'Not found'});
       if(route.startsWith('/dev/')&&!bundledAccount)return json(res,403,{error:'Simulation is only enabled for the bundled development ledger'});
       return proxy(req,res,account,route);
     }

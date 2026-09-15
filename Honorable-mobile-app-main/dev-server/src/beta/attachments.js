@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const {keys,context,fail}=require('./schema');
+class Attachments {
+ constructor(file,clock=Date.now){this.dir=file+'.attachments';this.clock=clock;}
+ prune(){if(!fs.existsSync(this.dir))return;for(const name of fs.readdirSync(this.dir)){if(!/^[a-f0-9-]{36}\.json$/.test(name))continue;const file=path.join(this.dir,name);if(fs.statSync(file).mtimeMs<this.clock()-30*86400000)fs.unlinkSync(file)}}
+ add(ops,accountId,input){keys(input,['reportId','consent','kind','base64','diagnostic']);if(input.consent!==true)throw fail('ATTACHMENT_CONSENT_REQUIRED');const report=ops.data.feedback.find(f=>f.id===input.reportId&&f.reporter===accountId);if(!report)throw fail('REPORT_NOT_FOUND',404);let content,mime;
+ if(input.kind==='SCREENSHOT'){if(typeof input.base64!=='string'||input.base64.length>720000||!/^[A-Za-z0-9+/]*={0,2}$/.test(input.base64))throw fail('INVALID_ATTACHMENT');const bytes=Buffer.from(input.base64,'base64');if(bytes.length>524288||bytes.length<33||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a'||bytes.toString('ascii',12,16)!=='IHDR'||bytes.readUInt32BE(16)>2048||bytes.readUInt32BE(20)>2048)throw fail('PNG_SCREENSHOT_REQUIRED');content=input.base64;mime='image/png'}else if(input.kind==='DIAGNOSTIC'){content=Buffer.from(JSON.stringify(context(input.diagnostic))).toString('base64');mime='application/json'}else throw fail('INVALID_ATTACHMENT_KIND');
+ for(const existing of report.attachments||[]){try{const stored=this.read(existing.id);if(stored.content===content&&stored.kind===input.kind)return existing}catch{}}if((report.attachments||[]).length>=3)throw fail('ATTACHMENT_LIMIT',409);
+ this.prune();fs.mkdirSync(this.dir,{recursive:true,mode:0o700});const id=crypto.randomUUID(),file=path.join(this.dir,id+'.json'),value={id,reportId:report.id,kind:input.kind,mime,content,createdAt:ops.now(),expiresAt:new Date(this.clock()+30*86400000).toISOString()};fs.writeFileSync(file,JSON.stringify(value),{mode:0o600,flag:'wx'});try{return ops.mutate(()=>{report.attachments??=[];const descriptor={id,kind:input.kind,createdAt:value.createdAt,expiresAt:value.expiresAt};report.attachments.push(descriptor);return descriptor})}catch(e){fs.unlinkSync(file);throw e}}
+ read(id){if(!/^[a-f0-9-]{36}$/.test(id))throw fail('ATTACHMENT_NOT_FOUND',404);this.prune();try{const value=JSON.parse(fs.readFileSync(path.join(this.dir,id+'.json'),'utf8'));if(Date.parse(value.expiresAt)<=this.clock())throw fail('ATTACHMENT_EXPIRED',404);return value}catch{throw fail('ATTACHMENT_NOT_FOUND',404)}}
+}
+module.exports={Attachments};

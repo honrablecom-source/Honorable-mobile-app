@@ -38,6 +38,7 @@ function createAdminRouter({ledger,analytics,sessions,environment,configFile,use
      json(res,200,report);return true;
     }
     allowed(actor,['OWNER','ADMIN']);
+    if(req.method==='GET'&&action.startsWith('/attachment/')){const attachment=beta.attachments.read(action.slice('/attachment/'.length));await audit.append(actor.username,'BETA_ATTACHMENT_READ',attachment.reportId,'CONSENTED_SUPPORT_ATTACHMENT');res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="${attachment.id}.${attachment.kind==='SCREENSHOT'?'png':'json'}"`,'Cache-Control':'no-store'});res.end(Buffer.from(attachment.content,'base64'));return true;}
     if(req.method!=='POST')throw bad('NOT_FOUND',404);
     const data=await body(req);
     const actions={'/invite':()=>beta.invite(data),'/tester':()=>{const t=beta.updateTester(data);if(t.accountId&&t.status!=='ACTIVE')sessions.revokeAccount(t.accountId);return t},'/flag':()=>beta.setFlag(data),'/triage':()=>beta.triage(data),'/release-status':()=>beta.releaseStatus(data),'/asset':()=>beta.asset(data,actor.username),'/release':()=>beta.release(data),'/check':()=>beta.check(data,actor.username),'/issue':()=>beta.knownIssue(data),'/request':()=>beta.resolveRequest(data)};
@@ -47,8 +48,9 @@ function createAdminRouter({ledger,analytics,sessions,environment,configFile,use
      json(res,200,report);return true;
     }
     if(!actions[action])throw bad('NOT_FOUND',404);
-    await audit.append(actor.username,'BETA_'+action.slice(1).toUpperCase()+'_REQUESTED',typeof data.id==='string'?data.id.slice(0,100):null,'OPERATOR_ACTION');
-    const value=actions[action]();await audit.append(actor.username,'BETA_'+action.slice(1).toUpperCase()+'_COMPLETED',value?.id||null,'OPERATOR_ACTION');json(res,200,value);return true;
+    const target=data.id||data.releaseId||data.flag;const auditTarget=typeof target==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(target)?target:null;const auditReason=typeof data.reason==='string'?data.reason.trim().slice(0,300):'OPERATOR_ACTION';
+    await audit.append(actor.username,'BETA_'+action.slice(1).toUpperCase()+'_REQUESTED',auditTarget,auditReason);
+    const value=actions[action]();await audit.append(actor.username,'BETA_'+action.slice(1).toUpperCase()+'_COMPLETED',value?.id||auditTarget,auditReason);json(res,200,value);return true;
    }
    if(url.pathname==='/admin/api/session'&&req.method==='GET'){json(res,200,{username:actor.username,role:actor.role,environment,environments:[environment]});return true}
    if(url.pathname==='/admin/api/logout'&&req.method==='POST'){await audit.append(actor.username,'ADMIN_LOGOUT');auth.logout(req);cookie(res,'');json(res,200,{ok:true});return true}

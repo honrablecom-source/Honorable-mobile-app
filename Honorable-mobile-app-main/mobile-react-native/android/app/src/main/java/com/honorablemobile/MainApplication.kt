@@ -22,6 +22,7 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    app.honorable.auth.SafeBetaTelemetry.markProcessStart()
     loadReactNative(this)
   }
 }

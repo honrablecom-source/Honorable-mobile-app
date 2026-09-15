@@ -73,6 +73,7 @@ export type ImprovementProgramState = {
   revokedAt?: number;
 };
 type NativeBoundary = {
+  pickBetaScreenshot():Promise<{base64:string}|null>;
   restoreAccountSession():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
   signInAccountWithGoogle():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
   signOutAccountSession():Promise<{signedOut:boolean}>;
@@ -127,6 +128,7 @@ export const honorableNative = {
   restoreAccountSession:()=>boundary().restoreAccountSession(),
   signInAccountWithGoogle:()=>boundary().signInAccountWithGoogle(),
   signOutAccountSession:()=>boundary().signOutAccountSession(),
+  pickBetaScreenshot:()=>boundary().pickBetaScreenshot(),
   accountSessionAction:(route:string,body:string|null)=>boundary().accountSessionAction(route,body),
   getAccountConfiguration:()=>boundary().getAccountConfiguration(),
   signInWithGoogle: () => boundary().signInWithGoogle(),

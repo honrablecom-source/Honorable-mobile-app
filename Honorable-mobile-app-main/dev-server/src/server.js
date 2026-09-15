@@ -1,5 +1,6 @@
 const http=require('node:http'),path=require('node:path'),crypto=require('node:crypto');
 const {BetaStore}=require('./beta/store');
+const {Attachments}=require('./beta/attachments');
 const {Ledger,passes,costs,available,catalog}=require('./ledger');
 const {GoogleIdTokenVerifier}=require('./auth'),{PersistentSessions}=require('./sessions');
 const {AnalyticsStore}=require('./admin/analytics-store'),{CLIENT_EVENTS,safeMetadata}=require('./admin/events'),{createAdminRouter}=require('./admin/router');
@@ -9,6 +10,7 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
  if(ledger.data.releaseChannel&&ledger.data.releaseChannel!==releaseChannel)throw Error('LEDGER_RELEASE_CHANNEL_MISMATCH');
  ledger.data.releaseChannel=releaseChannel;ledger.save();
  const beta=new BetaStore(file+'.beta.json',{clock,environment:mode,channel:releaseChannel,required:betaRequired});
+ beta.attachments=new Attachments(file,clock);
  const google=googleVerifier||(googleClientId?new GoogleIdTokenVerifier({audience:googleClientId}):null);
  const origins=new Set(webOrigins);if(dev){origins.add('http://localhost:4174');origins.add('http://127.0.0.1:4174')}
  const cookieName='__Host-honorable',ingestionLimits=new Map();
@@ -26,7 +28,7 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
    const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName+'='))?.slice(cookieName.length+1);
    const web=req.headers['x-honorable-web']==='1';
    if((web||cookie)&&req.method!=='GET'&&(!web||!origins.has(req.headers.origin)))throw status('INVALID_WEB_ORIGIN',403);
-   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>65536)throw status('REQUEST_TOO_LARGE',413)}const body=raw?JSON.parse(raw):{};
+   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>(req.url==='/v1/beta/attachment'?750000:65536))throw status('REQUEST_TOO_LARGE',413)}const body=raw?JSON.parse(raw):{};
    if(req.method==='GET'&&req.url==='/v1/catalog')return send(res,200,{...catalog,passDetails:catalog.passes,passes,costs,available:[...available],freeMonthlyCredits:ledger.freeMonthly,creditsExpire:false});
    const establish=(id,ttl)=>{beta.assertAccess(id);accountId=id;if(body.installationId)registerInstallation(id,body.installationId,metadata);const value=sessions.issue(id,web?'web':'native',ttl);record('session_started',id,metadata);if(web){if(cookie)sessions.revoke(cookie);setCookie(res,value.refreshToken);return send(res,200,{account:view(id),expiresAt:value.expiresAt})}return send(res,200,{...value,account:view(id)})};
    if(req.method==='POST'&&req.url==='/v1/auth/google'){
@@ -42,6 +44,7 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
    const safeContext=betaRequestContext(req);try{beta.observe(id,safeContext)}catch{/* Operational observation must not break product. */}
    if(req.url==='/v1/beta/config'&&req.method==='GET')return send(res,200,beta.config(id,safeContext));
    if(req.url==='/v1/beta/feedback'&&req.method==='POST')return send(res,201,beta.feedback(id,body,safeContext));
+   if(req.url==='/v1/beta/attachment'&&req.method==='POST')return send(res,201,beta.attachments.add(beta,id,body));
    if(req.url==='/v1/beta/request'&&req.method==='POST'){const result=beta.request(id,body);if(body.type==='BETA_REMOVAL')sessions.revokeAccount(id);return send(res,200,result)}
    const release=beta.config(id,safeContext).release;if(release?.updateLevel==='REQUIRED'&&(!safeContext.buildNumber||Number(safeContext.buildNumber)<Number(release.minimumBuild))&&['/v1/search/start','/dev/studio','/v1/beta/authorize'].includes(req.url))throw status('UPDATE_REQUIRED',426);
    if(req.url==='/v1/beta/authorize'&&req.method==='POST'){beta.requireFlag(body.flag,id);if(['rig_preview_enabled','nodes_visible','code_workspace_visible'].includes(body.flag)&&ledger.account(id).subscription?.status!=='ACTIVE')throw status('STUDIO_REQUIRED',403);return send(res,200,{allowed:true})}
@@ -53,7 +56,7 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
     const events=body.events.map(e=>{if(!e||Object.keys(e).some(k=>!['id','type','metadata'].includes(k))||typeof e.id!=='string'||!/^[a-f0-9-]{36}$/i.test(e.id)||!CLIENT_EVENTS.has(e.type))throw status('INVALID_CLIENT_EVENT',400);let safe;try{safe=safeMetadata(e.type,e.metadata)}catch{throw status('FORBIDDEN_ANALYTICS_FIELD',400)}return{...e,metadata:{...safe,...metadata}}});
     limit.count+=events.length;ingestionLimits.set(id,limit);let accepted=0;if(beta.tester(id)?.analyticsOptOut)return send(res,202,{accepted});for(const e of events)try{if(analytics.record({...e,accountId:id,environment:ledger.account(id).environment||mode,authority:'client'}))accepted++}catch{}return send(res,202,{accepted});
    }
-   if(req.method==='GET'&&req.url==='/v1/auth/session'){record('session_active',id,metadata,'active:'+id+':'+new Date(clock()).toISOString().slice(0,13));return send(res,200,{account:view(id),entitlements:{memoryCredits:ledger.view(id).balance,subscription:ledger.view(id).subscription,availableModels:[...available]},expiresAt:web?sessions.expiry(cookie):undefined})}
+   if(req.method==='GET'&&req.url==='/v1/auth/session'){record('session_active',id,metadata,'active:'+id+':'+new Date(clock()).toISOString().slice(0,13));return send(res,200,{account:view(id),beta:beta.config(id,safeContext),entitlements:{memoryCredits:ledger.view(id).balance,subscription:ledger.view(id).subscription,availableModels:[...available]},expiresAt:web?sessions.expiry(cookie):undefined})}
    if(req.method==='GET'&&req.url==='/v1/account')return send(res,200,view(id));
    if(req.method==='GET'&&req.url==='/v1/entitlements'){const account=ledger.view(id);return send(res,200,{accountId:id,memoryCredits:account.balance,creditsExpire:false,subscription:account.subscription,availableModels:[...available]})}
    if(req.method==='GET'&&req.url==='/v1/transactions')return send(res,200,{transactions:ledger.view(id).transactions});
@@ -76,7 +79,7 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
  });
  server.beta=beta;server.analytics=analytics;server.ledger=ledger;server.on('close',()=>{void analytics.close?.()});return server;
 }
-function betaRequestContext(req){const safe=requestMetadata(req);for(const [key,header]of [['manufacturer','x-honorable-manufacturer'],['modelFamily','x-honorable-model-family'],['ramClass','x-honorable-ram-class']]){try{const part=require('./beta/schema').context({[key]:req.headers[header]});Object.assign(safe,part)}catch{}}return safe}
+function betaRequestContext(req){const safe=requestMetadata(req);for(const [key,header]of [['manufacturer','x-honorable-manufacturer'],['modelFamily','x-honorable-model-family'],['ramClass','x-honorable-ram-class'],['vulkan','x-honorable-vulkan']]){try{const part=require('./beta/schema').context({[key]:req.headers[header]});Object.assign(safe,part)}catch{}}return safe}
 function requestMetadata(req){const platform=req.headers['x-honorable-platform']||(req.headers['x-honorable-web']==='1'?'WEB_TEST':'UNKNOWN'),metadata={platform:['ANDROID','WEB_TEST','IOS','UNKNOWN'].includes(platform)?platform:'UNKNOWN'};for(const[key,header]of [['appVersion','x-honorable-app-version'],['buildNumber','x-honorable-build'],['osVersion','x-honorable-os-version']])if(typeof req.headers[header]==='string'&&/^\d[\d.a-zA-Z_-]{0,23}$/.test(req.headers[header]))metadata[key]=req.headers[header];return metadata}
 function classifyError(route,error){if(error.message==='SEARCH_COMPLETION_VERIFICATION_REQUIRED')return'COMPLETION_REJECTED';if(route.includes('/auth/'))return'AUTH_FAILED';if(route.includes('/restore'))return'RESTORE_FAILED';if(error.message==='INSUFFICIENT_CREDITS')return'DEBIT_FAILED';if(route.includes('/search/'))return'SEARCH_FAILED';return error.status&&error.status<500?'API_FAILED':'SERVER_ERROR'}
 function bounded(value,fallback,min,max){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback}

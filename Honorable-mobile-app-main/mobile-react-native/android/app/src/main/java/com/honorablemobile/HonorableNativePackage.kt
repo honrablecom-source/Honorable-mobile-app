@@ -1,5 +1,6 @@
 package com.honorablemobile
 
+import app.honorable.auth.SafeBetaTelemetry
 import app.honorable.auth.AccountSession
 import app.honorable.auth.GoogleAccountSignIn
 import org.json.JSONObject
@@ -46,6 +47,30 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @Volatile private var enrichmentStatus="IDLE"
     @Volatile private var enrichmentProcessed=0
     @Volatile private var enrichmentTotal=0
+    private var screenshotPromise:Promise?=null
+    init { context.addActivityEventListener(object:BaseActivityEventListener(){
+        override fun onActivityResult(activity:android.app.Activity?,requestCode:Int,resultCode:Int,data:Intent?){
+            if(requestCode!=8104)return
+            val pending=screenshotPromise?:return;screenshotPromise=null
+            if(resultCode!=android.app.Activity.RESULT_OK||data?.data==null){pending.resolve(null);return}
+            work.execute {guarded(pending){
+                val uri=data.data!!;val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
+                context.contentResolver.openInputStream(uri).use{android.graphics.BitmapFactory.decodeStream(it,null,bounds)}
+                require(bounds.outWidth>0&&bounds.outHeight>0){"Choose an image screenshot"}
+                var sample=1;while(bounds.outWidth/sample>1024||bounds.outHeight/sample>1024)sample*=2
+                var bitmap=context.contentResolver.openInputStream(uri).use{android.graphics.BitmapFactory.decodeStream(it,null,android.graphics.BitmapFactory.Options().apply{inSampleSize=sample})}?:error("Image could not be opened")
+                var bytes:ByteArray
+                while(true){val stream=java.io.ByteArrayOutputStream();bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,stream);bytes=stream.toByteArray();if(bytes.size<=524288)break;val next=android.graphics.Bitmap.createScaledBitmap(bitmap,(bitmap.width*.7).toInt().coerceAtLeast(1),(bitmap.height*.7).toInt().coerceAtLeast(1),true);bitmap.recycle();bitmap=next}
+                bitmap.recycle();Arguments.createMap().apply{putString("base64",android.util.Base64.encodeToString(bytes,android.util.Base64.NO_WRAP))}
+            }}
+        }
+    }) }
+    @ReactMethod fun pickBetaScreenshot(promise:Promise){
+        if(screenshotPromise!=null){promise.reject("PICKER_BUSY","An attachment picker is already open");return}
+        val activity=context.currentActivity;if(activity==null){promise.reject("NO_ACTIVITY","Open the feedback screen first");return}
+        screenshotPromise=promise
+        activity.runOnUiThread{try{activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/*"},8104)}catch(error:Exception){screenshotPromise=null;promise.reject("PICKER_FAILED","Screenshot picker unavailable")}}
+    }
     override fun getName() = "HonorableSearchModule"
 
     @ReactMethod fun getStatus(promise: Promise) = work.execute { guarded(promise) {
@@ -63,8 +88,8 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
 
     @ReactMethod fun refreshIndex(promise: Promise) = work.execute { guarded(promise) {
         if(!hasMediaPermission()) throw IllegalStateException("Media permission is required")
-        val stats=runBlocking { AndroidMediaIndexer(context,database,embeddings,profile=activeSeranProfile()).synchronize(progress = {}) }
-        val count=reloadCatalog()
+        val started=System.currentTimeMillis();val stats=runBlocking { AndroidMediaIndexer(context,database,embeddings,profile=activeSeranProfile()).synchronize(progress = {}) }
+        SafeBetaTelemetry.duration(context,"INDEX",started);val count=reloadCatalog()
         Arguments.createMap().apply { putInt("added",stats.added);putInt("updated",stats.updated);putInt("deleted",stats.deleted);putInt("failed",stats.failed);putInt("skipped",stats.skipped);putInt("indexedCount",count) }
     } }
 
@@ -84,8 +109,8 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     private val accountSession by lazy { AccountSession(context,BuildConfig.HONORABLE_ACCOUNT_API_URL) }
     private fun accountMap(value:JSONObject):WritableMap {val map=Arguments.createMap();value.keys().forEach{key->when(val item=value.get(key)){JSONObject.NULL->map.putNull(key);is JSONObject->map.putMap(key,accountMap(item));is JSONArray->map.putArray(key,accountArray(item));is Boolean->map.putBoolean(key,item);is Number->map.putDouble(key,item.toDouble());else->map.putString(key,item.toString())}};return map}
     private fun accountArray(value:JSONArray):WritableArray {val array=Arguments.createArray();for(i in 0 until value.length()){when(val item=value.get(i)){JSONObject.NULL->array.pushNull();is JSONObject->array.pushMap(accountMap(item));is Boolean->array.pushBoolean(item);is Number->array.pushDouble(item.toDouble());else->array.pushString(item.toString())}};return array}
-    @ReactMethod fun restoreAccountSession(promise:Promise)=work.execute{guarded(promise){accountMap(accountSession.restore())}}
-    @ReactMethod fun signInAccountWithGoogle(promise:Promise)=work.execute{guarded(promise){val activity=context.currentActivity?:error("An active screen is required");val token=runBlocking{GoogleAccountSignIn.token(activity,BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID)};accountMap(accountSession.signIn(token))}}
+    @ReactMethod fun restoreAccountSession(promise:Promise)=work.execute{guarded(promise){val snapshot=accountSession.restore();if(snapshot.optString("status")=="online"){SafeBetaTelemetry.start(context,snapshot.getJSONObject("account").getString("accountId"),snapshot.optJSONObject("beta")?.optJSONObject("tester")?.let{it.optString("status")!="ACTIVE"||it.optBoolean("analyticsOptOut")}?:true);/* Process startup timing is emitted by the telemetry bootstrap. */};accountMap(snapshot)}}
+    @ReactMethod fun signInAccountWithGoogle(promise:Promise)=work.execute{guarded(promise){val activity=context.currentActivity?:error("An active screen is required");val token=runBlocking{GoogleAccountSignIn.token(activity,BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID)};val snapshot=accountSession.signIn(token);SafeBetaTelemetry.start(context,snapshot.getJSONObject("account").getString("accountId"),snapshot.optJSONObject("beta")?.optJSONObject("tester")?.let{it.optString("status")!="ACTIVE"||it.optBoolean("analyticsOptOut")}?:true);accountMap(snapshot)}}
     @ReactMethod fun accountSessionAction(route:String,body:String?,promise:Promise)=work.execute{guarded(promise){accountMap(accountSession.action(route,body?.let{JSONObject(it)}))}}
     @ReactMethod fun signOutAccountSession(promise:Promise)=work.execute{guarded(promise){accountSession.signOut();context.currentActivity?.let{activity->runCatching{runBlocking{GoogleAccountSignIn.clear(activity)}}};Arguments.createMap().apply{putBoolean("signedOut",true)}}}
     // Compatibility methods retain Credential Manager, but persistent account flows use the methods above.

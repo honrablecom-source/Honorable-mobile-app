@@ -6,7 +6,7 @@ You’re invited to the private Honorable beta. Sign in with the Google account 
 
 Honorable is in beta. Features may change, and search and editing may have bugs. Keep your originals and test Save As Copy on non-sensitive sample media first. Some advanced Studio workspaces are foundations or Coming Soon; they are not completed capabilities.
 
-Your private photos, videos, projects and search text are not automatically attached to feedback. We collect limited technical beta information such as app version, platform, OS/device family and operational activity. In Settings → Beta feedback & release status, you can report a problem and choose whether to include safe search diagnostics. Only include text you intend to share with the internal support team. Screenshot/file attachments are currently unavailable.
+Your private photos, videos, projects and search text are not automatically attached to feedback. We collect limited technical beta information such as app version, platform, OS/device family and operational activity. In Settings → Beta feedback & release status, you can report a problem and choose whether to include safe search diagnostics. Only include text you intend to share with the internal support team. You may deliberately select a screenshot and consent to sharing its contents, or attach safe diagnostic JSON. Attachments expire after 30 days; private media is never captured automatically.
 
 No production billing is enabled for this beta unless we explicitly announce and configure it later. Development/test Memory Pass grants are not paid purchases.
 
