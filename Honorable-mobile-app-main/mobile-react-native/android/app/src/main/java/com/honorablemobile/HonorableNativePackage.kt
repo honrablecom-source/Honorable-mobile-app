@@ -49,7 +49,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @Volatile private var enrichmentTotal=0
     private var screenshotPromise:Promise?=null
     init { context.addActivityEventListener(object:BaseActivityEventListener(){
-        override fun onActivityResult(activity:android.app.Activity?,requestCode:Int,resultCode:Int,data:Intent?){
+        override fun onActivityResult(activity:android.app.Activity,requestCode:Int,resultCode:Int,data:Intent?){
             if(requestCode!=8104)return
             val pending=screenshotPromise?:return;screenshotPromise=null
             if(resultCode!=android.app.Activity.RESULT_OK||data?.data==null){pending.resolve(null);return}
