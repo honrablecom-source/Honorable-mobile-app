@@ -10,7 +10,9 @@ Local verification completed for the private beta operations sprint:
 - Marketing handoff regression verifies that no assets are returned before readiness and only approved evidence is returned afterward.
 - `git diff --check` passes.
 
-Android candidate is **1.0.2 / build 3**. Final machine-readable build/artifact status and exact source commit are recorded in `android-build.json`. The preceding 1.0.1/build 2 candidate passed Actions run https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/34911177479 before the additional native instrumentation and attachment picker were added; that result is not reused to certify build 3.
+Android candidate **1.0.2 / build 3** passed [Actions run 35027385560](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/35027385560). Both `honorable-android-debug` (148,229,156 bytes) and `honorable-release-identity` were present and unexpired when checked on 2026-09-16. The downloaded identity manifest confirms native source commit `2845f668f81b704ac74d904e5097efd8eb53d192`, channel INTERNAL and DEBUG_ARTIFACT status. Later server/console fixes through `edb58da` do not change native build inputs. Machine-readable evidence is in `android-build.json`.
+
+The manifest reports **signInConfigured: false** and **deviceVerified: false**. This successful APK build does not establish readiness for invited production testing. Configure the Google/account build settings, deploy the production BETA service with a trusted native search completion verifier, then complete physical-device validation and controlled distribution.
 
 An initial run (`34911097394`) failed before compilation because the SDK setup action requested the unavailable legacy `tools` package. The workflow was corrected to request `platform-tools`; Android platform/build-tools requirements remain unchanged.
 

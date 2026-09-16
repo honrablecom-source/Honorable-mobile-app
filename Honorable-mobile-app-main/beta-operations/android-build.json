@@ -1,0 +1,31 @@
+{
+  "runId": 35027385560,
+  "url": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/35027385560",
+  "conclusion": "success",
+  "version": "1.0.2",
+  "buildNumber": 3,
+  "nativeCommit": "2845f668f81b704ac74d904e5097efd8eb53d192",
+  "operationsCommit": "edb58daef91b34b37b358efe21e1f07d56424273",
+  "channel": "INTERNAL",
+  "status": "DEBUG_ARTIFACT",
+  "artifacts": [
+    {
+      "name": "honorable-android-debug",
+      "sizeInBytes": 148229156
+    },
+    {
+      "name": "honorable-release-identity",
+      "sizeInBytes": 388
+    }
+  ],
+  "verifiedAt": "2026-09-16",
+  "signInConfigured": false,
+  "deviceVerified": false,
+  "releaseGate": "NO-GO",
+  "marketingReady": false,
+  "blockers": [
+    "Configure Google sign-in and private HTTPS account service for the Android build.",
+    "Deploy production-mode BETA account service with trusted native search completion verifier.",
+    "Complete physical-device validation and controlled distribution."
+  ]
+}
