@@ -1,0 +1,26 @@
+{
+  "uiCommit": "3df1d4472a0eee3d80d313a5efc86a2546ff07d5",
+  "previewCount": 27,
+  "previewSource": "Working browser client with clearly labelled local fixtures",
+  "visualReview": "Side-by-side review and focused correction pass completed",
+  "typeScript": "PASS",
+  "webBuild": "PASS",
+  "reactNativeTests": {
+    "suites": 6,
+    "tests": 12,
+    "result": "PASS"
+  },
+  "productBrowserSmoke": "PASS",
+  "authBrowserRegression": "PASS",
+  "betaBrowserRegression": "PASS",
+  "android": {
+    "runId": 35291214790,
+    "url": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/35291214790",
+    "composeKotlinCompilation": "PASS",
+    "sharedPhotoEditorCompilation": "PASS",
+    "apkAssembly": "IN_PROGRESS at handoff",
+    "physicalDeviceVisualReview": "NOT_PERFORMED"
+  },
+  "businessRulesChanged": false,
+  "rankingOrHoldoutChanged": false
+}

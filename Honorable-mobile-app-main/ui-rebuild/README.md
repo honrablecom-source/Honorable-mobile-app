@@ -40,7 +40,7 @@ Screens were inspected side by side, with full-size inspection of the mobile pho
 - Beta browser regression also passes after the Settings and renderer consolidation: invited sign-in, consented attachments, feedback and dashboard operations remain connected.
 - React Native behavior suite: 12 tests across six suites pass.
 - No benchmarks, holdout work, large indexing runs, ranking changes or repeated unrelated server suites were run locally.
-- Android compilation and physical-device review are separate checks. Check the final handoff for CI status; no native screenshot certification is inferred from these browser previews.
+- [Android CI run 35291214790](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/35291214790) passed the Compose Kotlin compilation, including the shared native photo editor. APK assembly was still running at handoff. Physical-device visual review has not been performed; browser captures do not certify native rendering. Machine-readable evidence is in `validation.json`.
 
 ## Run
 
