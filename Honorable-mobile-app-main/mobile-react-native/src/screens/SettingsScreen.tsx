@@ -1,23 +1,106 @@
-import React from'react';
-import {AccountPanel} from '../auth/AccountGate';
-import{Linking,Pressable,ScrollView,StyleSheet,View}from'react-native';
-import{SafeAreaView}from'react-native-safe-area-context';
-import{Check,ChevronRight,CircleUserRound,FileText,Heart,Images,ShieldCheck,Sparkles}from'lucide-react-native';
-import{useNavigation}from'@react-navigation/native';
-import type{NativeStackNavigationProp}from'@react-navigation/native-stack';
-import{Text}from'@/components/ui/text';
-import type{RootStackParamList}from'../navigation/types';
-
-const p={bg:'#E9EEF4',ink:'#071018',muted:'#53606C',soft:'rgba(255,255,255,.52)',strong:'rgba(213,224,235,.62)',line:'rgba(255,255,255,.82)',white:'#FFFFFF'};
-const glassDepth={shadowColor:'#34495C',shadowOffset:{width:0,height:14},shadowOpacity:.18,shadowRadius:24,elevation:7};
-function Row({icon,title,detail,onPress}:{icon:React.ReactNode;title:string;detail:string;onPress?:()=>void}){return <Pressable accessibilityRole="button" disabled={!onPress} onPress={onPress} style={[s.row,!onPress&&s.disabled]}><View style={s.rowIcon}>{icon}</View><View style={s.rowCopy}><Text style={s.rowTitle}>{title}</Text><Text style={s.rowDetail}>{detail}</Text></View><ChevronRight color={p.muted} size={18}/></Pressable>}
-
-export function SettingsScreen(){const navigation=useNavigation<NativeStackNavigationProp<RootStackParamList>>();return <SafeAreaView edges={['top']} style={s.safe}><ScrollView contentContainerStyle={s.content}>
-  <View style={s.utilityBar}><View style={s.profile}><CircleUserRound color={p.ink} size={18}/></View></View>
-  <View style={s.intro}><Text style={s.eyebrow}>SETTINGS</Text><Text accessibilityRole="header" style={s.title}>Made for you.</Text><Text style={[s.title,s.titleMuted]}>Private by design.</Text><Text style={s.subtitle}>Control access, plans, and the details that make Honorable yours.</Text></View>
-  <View style={s.privacyCard}><View style={s.privacyIcon}><ShieldCheck color={p.ink} size={22}/></View><View style={s.privacyCopy}><Text style={s.privacyLabel}>PRIVACY</Text><Text style={s.privacyTitle}>On-device by default</Text><Text style={s.privacyDetail}>Your searches and media stay on this phone.</Text></View><View style={s.check}><Check color={p.ink} size={15}/></View></View>
-  <View style={s.quickGrid}><Pressable style={[s.quick,glassDepth]} onPress={()=>Linking.openSettings()}><Images color={p.ink} size={20}/><Text style={s.quickLabel}>PHOTO ACCESS</Text><Text style={s.quickTitle}>Managed by device</Text><Text style={s.quickDetail}>Choose photos & videos</Text></Pressable><Pressable style={[s.quick,s.quickStrong,glassDepth]} onPress={()=>navigation.navigate('Usage')}><Heart color={p.ink} size={20}/><Text style={s.quickLabel}>YOUR PLAN</Text><Text style={s.quickTitle}>Usage & limits</Text><Text style={s.quickDetail}>See what is included</Text></Pressable></View>
-  <AccountPanel/><Pressable onPress={()=>navigation.navigate("BetaFeedback")}><Text>Beta feedback & release status</Text></Pressable><Pressable onPress={()=>navigation.navigate("Studio")}><Text>Studio membership</Text></Pressable><Text style={s.sectionLabel}>HONORABLE</Text><View style={[s.rows,glassDepth]}><Row icon={<Sparkles color={p.white} size={16}/>} title="Manage Memory Passes" detail="One-time purchases · never expires" onPress={()=>navigation.navigate('Pass')}/><Row icon={<ShieldCheck color={p.white} size={16}/>} title="Privacy & Data" detail="Seran participation and local privacy" onPress={()=>navigation.navigate('PrivacyData')}/><Row icon={<FileText color={p.white} size={16}/>} title="Terms of Service" detail="Draft product disclosure" onPress={()=>navigation.navigate('TermsOfService')}/><Row icon={<FileText color={p.white} size={16}/>} title="Privacy Policy" detail="Draft privacy disclosure" onPress={()=>navigation.navigate('PrivacyPolicy')}/><Row icon={<Sparkles color={p.white} size={16}/>} title="Seran Improvement Program" detail="Optional and off by default" onPress={()=>navigation.navigate('SeranImprovement')}/></View>
-</ScrollView></SafeAreaView>}
-
-const s=StyleSheet.create({safe:{flex:1,backgroundColor:p.bg},content:{paddingHorizontal:17,paddingTop:10,paddingBottom:104},utilityBar:{height:42,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'},profile:{width:38,height:38,borderRadius:19,borderWidth:1,borderColor:p.line,backgroundColor:p.white,alignItems:'center',justifyContent:'center'},intro:{marginTop:8},eyebrow:{color:p.muted,fontSize:9,fontWeight:'600',letterSpacing:1.2},title:{marginTop:8,color:p.ink,fontSize:40,lineHeight:38,fontWeight:'700',letterSpacing:-1.7},titleMuted:{marginTop:-2,color:'#898989'},subtitle:{maxWidth:315,marginTop:7,color:p.muted,fontSize:12,lineHeight:17},privacyCard:{height:126,marginTop:16,padding:14,borderRadius:38,backgroundColor:p.ink,flexDirection:'row',alignItems:'center'},privacyIcon:{width:62,height:62,borderRadius:31,backgroundColor:p.white,alignItems:'center',justifyContent:'center'},privacyCopy:{flex:1,paddingLeft:14},privacyLabel:{color:'#AEB7C2',fontSize:8,fontWeight:'600',letterSpacing:1},privacyTitle:{marginTop:6,color:p.white,fontSize:18,fontWeight:'700'},privacyDetail:{maxWidth:205,marginTop:5,color:'#AAAAAA',fontSize:9,lineHeight:12},check:{width:28,height:28,borderRadius:14,backgroundColor:p.white,alignItems:'center',justifyContent:'center'},quickGrid:{marginTop:9,flexDirection:'row',gap:8},quick:{width:'48.8%',height:124,padding:16,borderRadius:31,borderWidth:1,borderColor:p.line,backgroundColor:p.soft},quickStrong:{backgroundColor:p.strong},quickLabel:{marginTop:12,color:p.muted,fontSize:8,fontWeight:'600',letterSpacing:.8},quickTitle:{marginTop:5,color:p.ink,fontSize:16,fontWeight:'700'},quickDetail:{marginTop:4,color:p.muted,fontSize:8},sectionLabel:{marginTop:18,marginBottom:7,color:p.muted,fontSize:8,fontWeight:'600',letterSpacing:1},rows:{borderRadius:28,overflow:'hidden',borderWidth:1,borderColor:p.line,backgroundColor:'#EEEEEE'},row:{minHeight:66,paddingHorizontal:10,flexDirection:'row',alignItems:'center',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:p.line},disabled:{opacity:.72},rowIcon:{width:38,height:38,borderRadius:19,backgroundColor:p.ink,alignItems:'center',justifyContent:'center'},rowCopy:{flex:1,paddingLeft:10},rowTitle:{color:p.ink,fontSize:11,fontWeight:'700'},rowDetail:{marginTop:4,color:p.muted,fontSize:8}});
+import React from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Text } from '@/components/ui/text';
+import { AccountPanel } from '../auth/AccountGate';
+import { colors, spacing, typography } from '../design-system/tokens';
+import type { RootStackParamList } from '../navigation/types';
+export function SettingsScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const row = (title: string, detail: string, onPress: () => void) => (
+    <Pressable
+      key={title}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={s.row}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={s.label}>{title}</Text>
+        <Text style={s.detail}>{detail}</Text>
+      </View>
+      <ChevronRight size={18} color={colors.textSecondary} />
+    </Pressable>
+  );
+  return (
+    <SafeAreaView edges={['top']} style={s.safe}>
+      <ScrollView contentContainerStyle={s.content}>
+        <Pressable
+          accessibilityLabel="Back"
+          onPress={() => navigation.goBack()}
+          style={s.back}
+        >
+          <ChevronLeft color={colors.textPrimary} />
+        </Pressable>
+        <Text accessibilityRole="header" style={s.title}>
+          Account
+        </Text>
+        <AccountPanel />
+        <Text style={s.section}>Your library</Text>
+        {row('Photo & video access', 'Choose what Honorable can access', () =>
+          Linking.openSettings(),
+        )}
+        {row('Storage & indexing', 'Manage your local library', () =>
+          navigation.navigate('Activity'),
+        )}
+        {row('Privacy & Data', 'Your choices and participation', () =>
+          navigation.navigate('PrivacyData'),
+        )}
+        <Text style={s.section}>Membership & support</Text>
+        {row('Memory Passes', 'Purchased credits never expire', () =>
+          navigation.navigate('Pass'),
+        )}
+        {row('Usage', 'Credits and recent searches', () =>
+          navigation.navigate('Usage'),
+        )}
+        {row('Studio', 'Creative workspace membership', () =>
+          navigation.navigate('Studio'),
+        )}
+        {row('Beta feedback', 'Report a problem or check release status', () =>
+          navigation.navigate('BetaFeedback'),
+        )}
+        <Text style={s.section}>About Honorable</Text>
+        {row('Terms of Service', 'Product disclosure', () =>
+          navigation.navigate('TermsOfService'),
+        )}
+        {row('Privacy Policy', 'How your information is handled', () =>
+          navigation.navigate('PrivacyPolicy'),
+        )}
+        {row('Improvement program', 'Optional and off by default', () =>
+          navigation.navigate('SeranImprovement'),
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  content: { padding: spacing.xl, paddingBottom: 48 },
+  back: { minHeight: 44, width: 44, justifyContent: 'center' },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 16 },
+  section: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: 32,
+    marginBottom: 8,
+  },
+  row: {
+    minHeight: 72,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  label: { color: colors.textPrimary, fontSize: 16 },
+  detail: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+});

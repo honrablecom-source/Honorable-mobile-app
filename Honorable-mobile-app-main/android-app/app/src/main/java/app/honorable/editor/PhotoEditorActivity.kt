@@ -9,6 +9,8 @@ import android.content.Intent
 import android.graphics.*
 import android.net.Uri
 import android.view.ViewGroup
+import android.view.View
+import android.graphics.drawable.GradientDrawable
 import android.widget.*
 import java.util.concurrent.Executors
 import kotlin.math.pow
@@ -22,17 +24,28 @@ class PhotoEditorActivity:Activity(){
  private lateinit var image:ImageView;private lateinit var note:TextView;private lateinit var source:Uri
  private var bitmap:Bitmap?=null;private var rendered:Bitmap?=null;private val worker=Executors.newSingleThreadExecutor();private var revision=0
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);source=Uri.parse(intent.getStringExtra("uri")?:run{finish();return})
- val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.BLACK);setPadding(12,30,12,20)}
+ val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.BLACK);setPadding(12.dp(),24.dp(),12.dp(),16.dp())}
  fun row()=LinearLayout(this).also{root.addView(it)}
- fun button(parent:LinearLayout,label:String,action:()->Unit){parent.addView(Button(this).apply{text=label;setOnClickListener{action()}},LinearLayout.LayoutParams(0,52.dp(),1f))}
+ fun button(parent:LinearLayout,label:String,action:()->Unit){parent.addView(Button(this).apply{text=label;isAllCaps=false;textSize=12f;setTextColor(Color.WHITE);background=GradientDrawable().apply{setColor(Color.rgb(16,16,16));cornerRadius=6.dp().toFloat()};setOnClickListener{action()}},LinearLayout.LayoutParams(0,52.dp(),1f))}
  val top=row();button(top,"Back"){finish()};button(top,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}};button(top,"Redo"){if(redo.isNotEmpty()){tool("redo");undo.add(edit);edit=redo.removeAt(redo.lastIndex);preview()}}
  image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER};root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
  note=TextView(this).apply{setTextColor(Color.LTGRAY);text="Loading original…"};root.addView(note)
- val actions=row();button(actions,"Before / After"){before=!before;preview()};button(actions,"Reset"){tool("reset");change(Edit())};button(actions,"Save as copy"){if(bitmap!=null)startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}
- val scroll=ScrollView(this);val controls=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};scroll.addView(controls);root.addView(scroll,LinearLayout.LayoutParams(-1,220.dp()))
- fun adjust(name:String,max:Int,value:Int,update:(Int)->Edit){controls.addView(TextView(this).apply{text=name;setTextColor(Color.WHITE)});controls.addView(SeekBar(this).apply{this.max=max;progress=value;sliders.add(this);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){};override fun onStopTrackingTouch(s:SeekBar){tool(name.lowercase());change(update(s.progress))}})})}
+ val actions=row();button(actions,"Compare"){before=!before;preview()};button(actions,"Reset"){tool("reset");change(Edit())};button(top,"Save copy"){if(bitmap!=null)startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}
+ val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8.dp(),8.dp(),8.dp(),8.dp())};root.addView(panel)
+ val groups=mutableListOf<LinearLayout>()
+ fun adjust(name:String,max:Int,value:Int,update:(Int)->Edit){
+  val group=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;visibility=View.GONE};groups.add(group);panel.addView(group)
+  val label=TextView(this).apply{text="$name   0";setTextColor(Color.WHITE);textSize=14f};group.addView(label)
+  group.addView(SeekBar(this).apply{this.max=max;progress=value;contentDescription=name;sliders.add(this);progressTintList=android.content.res.ColorStateList.valueOf(Color.WHITE);thumbTintList=android.content.res.ColorStateList.valueOf(Color.WHITE);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){label.text="$name   ${v-value}"};override fun onStopTrackingTouch(s:SeekBar){tool(name.lowercase());change(update(s.progress))}})},LinearLayout.LayoutParams(-1,48.dp()))
+ }
  adjust("Brightness",200,100){edit.copy(brightness=(it-100)*1.28f)};adjust("Contrast",200,100){edit.copy(contrast=it/100f)};adjust("Saturation",200,100){edit.copy(saturation=it/100f)};adjust("Exposure",400,200){edit.copy(exposure=(it-200)/100f)}
- val transforms=row();button(transforms,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))};button(transforms,"Crop center"){tool("crop");change(edit.copy(crop=if(edit.crop>.51f)edit.crop-.1f else 1f))};button(transforms,"Mono"){tool("monochrome");change(edit.copy(saturation=0f))}
+ val toolScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false};val rail=LinearLayout(this);toolScroll.addView(rail);root.addView(toolScroll)
+ val toolButtons=mutableListOf<Button>()
+ listOf("Brightness","Contrast","Color","Exposure").forEachIndexed{i,name->
+  val control=Button(this).apply{text=name;isAllCaps=false;textSize=12f;setTextColor(Color.LTGRAY);setBackgroundColor(Color.BLACK);setOnClickListener{groups.forEachIndexed{index,view->view.visibility=if(index==i)View.VISIBLE else View.GONE};toolButtons.forEachIndexed{index,view->view.isSelected=index==i;view.setTextColor(if(index==i)Color.WHITE else Color.GRAY)}}};toolButtons.add(control);rail.addView(control,LinearLayout.LayoutParams(104.dp(),48.dp()))
+ }
+ val transforms=row();button(transforms,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))};button(transforms,"Crop center"){tool("crop");change(edit.copy(crop=if(edit.crop>.51f)edit.crop-.1f else 1f))};button(transforms,"Monochrome"){tool("monochrome");change(edit.copy(saturation=0f))}
+
  setContentView(root)
  SafeBetaTelemetry.emit(this,"editor_opened",JSONObject().put("mediaType","IMAGE"));
  worker.execute{try{SafeBetaTelemetry.authorizeEditor(this);val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){bitmap=loaded;preview()}else loaded.recycle()}}catch(e:Exception){runOnUiThread{note.text="Unable to open image: ${e.message}"}}}

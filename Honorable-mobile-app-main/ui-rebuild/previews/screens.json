@@ -1,0 +1,110 @@
+[
+  {
+    "id": "01-welcome",
+    "label": "Welcome"
+  },
+  {
+    "id": "02-home",
+    "label": "Home · fixture library"
+  },
+  {
+    "id": "03-home-search-active",
+    "label": "Home · search active"
+  },
+  {
+    "id": "04-searching",
+    "label": "Searching · preview state"
+  },
+  {
+    "id": "05-results",
+    "label": "Results · fixture, not search evidence"
+  },
+  {
+    "id": "06-memories",
+    "label": "Memories · fixture library"
+  },
+  {
+    "id": "07-memory-viewer",
+    "label": "Memory viewer"
+  },
+  {
+    "id": "08-pass",
+    "label": "Memory Pass · first 20"
+  },
+  {
+    "id": "09-pass-all",
+    "label": "Memory Pass · all 31"
+  },
+  {
+    "id": "10-usage",
+    "label": "Usage · test account"
+  },
+  {
+    "id": "11-studio-free",
+    "label": "Studio · free"
+  },
+  {
+    "id": "12-studio-member",
+    "label": "Studio · test membership"
+  },
+  {
+    "id": "13-photo-editor",
+    "label": "Photo editor"
+  },
+  {
+    "id": "14-crop",
+    "label": "Crop"
+  },
+  {
+    "id": "15-adjust",
+    "label": "Adjust"
+  },
+  {
+    "id": "16-before-after",
+    "label": "Before / After · showing original"
+  },
+  {
+    "id": "17-layers",
+    "label": "Layers"
+  },
+  {
+    "id": "18-video-editor",
+    "label": "Video editor · foundation"
+  },
+  {
+    "id": "19-nodes",
+    "label": "Nodes · foundation"
+  },
+  {
+    "id": "20-project-explorer",
+    "label": "Project explorer"
+  },
+  {
+    "id": "21-python-editor",
+    "label": "Python · execution unavailable"
+  },
+  {
+    "id": "22-java-editor",
+    "label": "Java · execution unavailable"
+  },
+  {
+    "id": "23-project-as-code",
+    "label": "Project as Code"
+  },
+  {
+    "id": "24-account-settings",
+    "label": "Account & Settings"
+  },
+  {
+    "id": "25-desktop-photo-editor",
+    "label": "Desktop photo editor"
+  },
+  {
+    "id": "26-desktop-video-editor",
+    "label": "Desktop video editor · foundation"
+  },
+  {
+    "id": "27-desktop-code-workspace",
+    "label": "Desktop code workspace"
+  }
+]

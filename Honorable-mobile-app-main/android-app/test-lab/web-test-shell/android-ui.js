@@ -1,51 +1,190 @@
-/* Presentation port of MainActivity.kt. CSS dimensions correspond to Compose dp/sp.
- * Search, media, account and indexing remain in the existing platform adapters. */
-const ai=(name)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${materialRounded[name]||materialRounded.spark}</svg>`;
-const tag=text=>`<span class=a-tag><i></i>${esc(text)}</span>`;
-const circle=(icon,cls='')=>`<span class="a-circle ${cls}">${ai(icon)}</span>`;
-const command=(label,attrs)=>`<button class=a-command ${attrs}>${ai('search')}<strong>${label}</strong><span>${ai('up')}</span></button>`;
-const pageHeader=(title,subtitle,icon)=>`<header class=a-page-header><div>${tag('honorable')}${circle(icon)}</div><h1>${title}</h1><p>${subtitle}</p></header>`;
-const nativeTabs=[['home','Home'],['memories','Memories'],['terms','Terms'],['activity','Activity'],['settings','Settings']];
-let memoryFocus=false, nativeMore=false;
-const testUsage=honorableActivity;
-const nativeEvents=[];
-honorableDock=()=>`<nav class="honorable-dock a-dock" role=tablist aria-label="Honorable tabs">${nativeTabs.map(([id,label])=>`<button role=tab aria-selected="${state.honorableTab===id}" data-htab="${id}" class="${state.honorableTab===id?'active':''}"><span>${ai(id)}</span><small>${label}</small></button>`).join('')}</nav>`;
-honorableHome=()=>`<div class=a-home><header class=a-brand><b>h</b><strong>honorable</strong>${tag('on device')}</header><section class=a-hero><div class=a-bubbles><i></i><i></i><i></i><i></i></div><div class=a-hero-content><div class=a-hero-top>${tag('Private by design')}<b>H</b></div><h1><span>Find the</span><em>moment</em><span>you meant.</span></h1><p>Say what you remember. Honorable understands the scene and brings it back—without sending it anywhere.</p>${command('Describe a memory','data-htab=memories')}</div></section><div class=a-routes>${[['01','Memories','Find any moment','memories'],['02','Terms','Know what you sign','terms']].map(([n,t,s,id])=>`<button class=a-route data-htab=${id}><div>${circle(id)}<b>${n}</b></div><strong>${t}</strong><small>${s}</small>${ai('arrow')}</button>`).join('')}</div><div class=a-trust>${circle('lock')}<span><strong>Yours means yours</strong><small>Private on-device intelligence</small></span><b>100%</b></div></div>`;
-function androidPrompt(image,label,text,query,featured=false){return `<button class="a-prompt ${featured?'featured':''}" data-prompt="${query}"><img src="/${image}" alt=""><div><small>${label}</small><strong>${text}</strong>${featured?'<em>Place + texture + color</em>':''}</div><span>${ai('arrow')}</span></button>`}
-const orb=()=>`<div class=a-search-indicator>${ai('search')}</div>`;
-const filteredNativeResults=()=>state.results?.results?.filter(x=>state.resultFilter==='All'||state.resultFilter==='Screenshots'&&x.isScreenshot===true||x.type===(state.resultFilter==='Photos'?'IMAGE':state.resultFilter==='Videos'?'VIDEO':''))||[];
-memories=()=>{
- if(state.results?.loading)return `<div class="a-memory a-searching"><div class=a-tag-row>${tag('understanding your words')}${tag('local')}</div>${orb()}<h1>Looking for<br>that feeling…</h1><p>“${esc(state.query)}”</p><div class=a-trust>${circle('lock')}<strong>Nothing uploaded</strong><small>always</small></div></div>`;
- if(state.results)return androidResults();
- if(memoryFocus)return `<div class="a-memory a-focus"><div class=a-tag-row>${tag('memory search')}<button class=a-icon-button id=a-close-search aria-label="Close search">${ai('close')}</button></div><h1>Paint it<br>with words.</h1><p>Messy is fine. A feeling can be enough.</p>${orb()}<form class="search a-search">${circle('spark')}<input id=q aria-label="Describe a memory" value="${esc(state.query)}" placeholder="blue shirt at tennis"><button aria-label=Search>${ai('up')}</button></form>${command('Find this moment','id=a-find')}</div>`;
- return `<div class="a-memory a-landing"><div class=a-tag-row>${tag(`${status.indexed??state.media.length} moments`)}${tag('private')}</div><h1>What do you<br>remember?</h1><p>A color, a place, a tiny detail—start anywhere.</p>${command('Start describing','id=a-focus')}<div class=a-section-title><h2>Start anywhere</h2><small>made for your library</small></div>${androidPrompt('prompt_beach.png','TRY A SCENE','white beach<br>with tall grass','white beach with tall grass',true)}<div class=a-prompt-row>${androidPrompt('prompt_red_car.png','COLOR + WEATHER','Red car<br>in snow','red car in snow')}${androidPrompt('prompt_birthday.png','OBJECT + LIGHT','Birthday cake<br>by a window','birthday cake by a window')}</div><div class=a-trust>${circle('check')}<span><strong>Private by default</strong><small>Photos and searches stay on this device.</small></span><small>${status.indexed??state.media.length} ready</small></div></div>`;
+/* Shared web presentation. Product state and requests remain in their adapters. */
+const ai = (name) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
+    honorableIcons[name] || honorableIcons.image
+  }</svg>`;
+const tag = (text) => `<span class=a-tag>${esc(text)}</span>`;
+const circle = (name, cls = "") =>
+  `<span class="a-circle ${cls}">${ai(name)}</span>`;
+const nativeTabs = [
+  ["home", "Home"],
+  ["memories", "Memories"],
+  ["studio", "Studio"],
+  ["pass", "Pass"],
+  ["usage", "Usage"],
+];
+let memoryFocus = false,
+  nativeMore = true;
+const testUsage = honorableActivity;
+honorableDock = () =>
+  `<nav class="honorable-dock a-dock" aria-label="Main navigation">${nativeTabs
+    .map(
+      ([id, label]) =>
+        `<button aria-current="${
+          state.honorableTab === id ? "page" : "false"
+        }" data-htab="${id}" class="${
+          state.honorableTab === id ? "active" : ""
+        }">${ai(id)}<small>${label}</small></button>`
+    )
+    .join("")}</nav>`;
+function androidPrompt(image, label, text, query, featured = false) {
+  return `<button class="a-prompt ${
+    featured ? "featured" : ""
+  }" data-prompt="${esc(
+    query
+  )}"><img src="/${image}" alt=""><div><small>Example scene</small><strong>${text}</strong></div></button>`;
+}
+const filteredNativeResults = () =>
+  state.results?.results?.filter(
+    (x) =>
+      state.resultFilter === "All" ||
+      (state.resultFilter === "Screenshots" && x.isScreenshot === true) ||
+      x.type ===
+        (state.resultFilter === "Photos"
+          ? "IMAGE"
+          : state.resultFilter === "Videos"
+          ? "VIDEO"
+          : "")
+  ) || [];
+memories = () =>
+  state.results?.loading
+    ? `<div class="a-memory a-searching"><button class=text-action id=cancel-product-search>${ai(
+        "back"
+      )} Cancel search</button><div class=search-progress role=status>${ai(
+        "search"
+      )}<h1>Searching your memories…</h1><p>${esc(
+        state.query
+      )}</p><small>Your media stays on this device.</small></div></div>`
+    : androidResults();
+function androidResults() {
+  const items = filteredNativeResults(),
+    best = items[0];
+  return `<div class=a-results><header><button class=text-action id=editsearch>${ai(
+    "back"
+  )} Change search</button><h1>${esc(state.query)}</h1><small>${items.length} ${
+    items.length === 1 ? "match" : "matches"
+  }${items.length ? " · Best first" : ""}</small></header>${
+    best
+      ? `<button class=a-best data-a-result=0 aria-label="Open leading result"><div>${visual(
+          best
+        )}${
+          best.timestamp != null
+            ? `<span class=media-time>${fmt(best.timestamp)}</span>`
+            : ""
+        }</div></button><div class=leading-caption><span>${esc(
+          best.name || "Memory"
+        )}</span><small>${
+          state.results.confident ? "Best match" : "Closest result"
+        }</small></div>${
+          !state.results.confident
+            ? "<p class=a-confidence>No clear match yet. Try another detail.</p>"
+            : ""
+        }`
+      : "<h2>No clear match yet.</h2><p>Try a place, color or something visible in the scene.</p>"
+  }<div class=a-filters>${["All", "Photos", "Videos", "Screenshots"]
+    .map(
+      (f) =>
+        `<button data-filter="${f}" aria-pressed="${
+          state.resultFilter === f
+        }" class="${state.resultFilter === f ? "active" : ""}">${f}</button>`
+    )
+    .join("")}</div>${
+    items.length > 1
+      ? `<div class=a-film>${items
+          .slice(1)
+          .map(
+            (x, i) =>
+              `<button data-a-result=${i + 1} aria-label="Open ${esc(
+                x.name
+              )}">${visual(x)}${
+                x.timestamp != null ? `<span>${fmt(x.timestamp)}</span>` : ""
+              }</button>`
+          )
+          .join("")}</div>`
+      : ""
+  }</div>`;
+}
+function androidPrivacy() {
+  return `<div class=a-privacy><button class=text-action data-htab=settings>${ai(
+    "back"
+  )} Account</button><h1>Privacy & Data</h1><p>Your library is yours.</p><div class=setting-row><span>On-device search<small>Photos and videos are processed locally.</small></span></div><div class=setting-row><span>Account information<small>Sign-in and credit records use your configured account service.</small></span></div><div class=setting-row><span>Feedback attachments<small>Only files you select and consent to share are sent.</small></span></div></div>`;
+}
+honorable = () => {
+  const bodies = {
+    home: honorableHome,
+    memories,
+    settings: honorableSettings,
+    models: honorableModels,
+    pass: honorablePass,
+    usage: testUsage,
+    privacy: androidPrivacy,
+  };
+  return `<div class="page honorable a-native">${(
+    bodies[state.honorableTab] || honorableHome
+  )()}</div>${honorableDock()}`;
 };
-function androidResults(){const items=filteredNativeResults(),best=items[0];return `<div class=a-results>${best?`<header><div>${tag(state.resultFilter==='Videos'?'video memories':'a private discovery')}<h1>Your moment,<br>found.</h1></div><b>${String(items.length).padStart(2,'0')}<small>${state.resultFilter==='Videos'?'Videos':'Matches'}</small></b></header><button class=a-best data-a-result=0><div>${visual(best)}<div class=a-best-tags>${tag(state.results.confident?'best match':'closest match')}${best.timestamp!=null?tag(fmt(best.timestamp)):''}</div><div class=a-best-title><small>${best.type==='VIDEO'?'The exact video moment':'The scene you described'}</small><h2>This feels<br>right.</h2></div></div><footer><span>${esc(state.query)} · ${best.type==='VIDEO'?'video':'visual match'}</span><b>Open ↗</b></footer></button><div class=a-result-note>${circle(best.type==='VIDEO'?'play':'spark')}<span><small>${best.type==='VIDEO'?'BEST MOMENT':'WHY THIS MATCHED'}</small><strong>${esc(best.why||'The scene and details line up.')}</strong></span><button class=a-icon-button data-a-result=0 aria-label="Open result">${ai('arrow')}</button></div>${!state.results.confident?`<p class=a-confidence>No confident match yet · ${esc(state.results.decision)}</p>`:''}`:'<h1>No confident<br>match yet</h1><p>Try a place, color, date, or something visible in the scene.</p>'}<div class=a-filters>${['All','Photos','Videos','Screenshots'].map(f=>`<button data-filter="${f}" class="${state.resultFilter===f?'active':''}">${f}</button>`).join('')}</div><button class=a-edit id=editsearch>Change search</button>${items.length>1?`<button class=a-more id=a-more>More close matches <b>+${items.length-1}</b></button><div class=a-film ${nativeMore?'':'hidden'}>${items.slice(1).map((x,i)=>`<button data-a-result=${i+1}>${visual(x)}<span>${tag(x.type==='VIDEO'?'video':'photo')}<strong>${esc(x.why||x.name)}</strong></span></button>`).join('')}</div>`:''}</div>`}
-function androidTerms(){return `<div class=a-terms><div class=a-inset><div class=a-tag-row>${tag('terms, made human')}${tag('private')}</div><h1>Skip the<br>fine-print fog.</h1><p>Drop in an agreement. Get the parts that matter, in language that actually sounds human.</p></div>${[['01','Paste a link','link'],['02','Paste text','text'],['03','Import a file','upload']].map(([n,label,icon])=>`<button class=a-action data-term=${icon}>${circle(icon)}<strong>${label}</strong><b>${n}</b>${circle('arrow')}</button>`).join('')}<div class=a-inset><button class=a-command id=a-analyze><strong>Make it clear</strong>${ai('spark')}</button><p class=a-terms-note>${ai('lock')}Analyzed locally · informational only</p><div id=a-term-input hidden><textarea aria-label="Agreement text" placeholder="Paste your agreement here"></textarea><input type=file accept="text/plain" aria-label="Agreement file"></div><p id=a-term-status role=status></p></div></div>`}
-honorableActivity=()=>`<div class=a-activity>${pageHeader('Your trail','A calm little record of what Honorable understood.','activity')}${nativeEvents.length?nativeEvents.map((event,i)=>`<div class=a-event>${circle('search')}<span><strong>${esc(event.title)}</strong><p>${esc(event.detail)}</p><small>${esc(event.time)}</small></span>${circle('chevron')}</div>`).join(''):`<p class=a-inset>No activity yet.</p>`}</div>`;
-honorableSettings=()=>`<div class=a-settings>${pageHeader('Make it yours','Privacy, intelligence, and the way Honorable feels.','settings')}<button class=a-upgrade data-a-settings=plus><b>+</b><span>${tag('plus')}<strong>More magic,<br>same privacy</strong></span>${circle('arrow')}</button>${[['privacy',[['Privacy promise','Everything stays right here','terms','privacy'],['Permissions','Photos and videos','lock','usage']]],['intelligence',[['AI & search','Private, on-device understanding','spark','models'],['Storage & index','Your local memory map','memories','usage'],['Engine health','Private developer diagnostics','activity','usage']]],['honorable',[['Appearance','Deep ink · bubble glow','settings','appearance'],['About','Version 0.1.0','terms','about']]]].map(([title,rows])=>`<section class=a-settings-group><h2>${title}</h2><div>${rows.map(([name,detail,icon,route])=>`<button data-a-settings=${route}>${circle(icon)}<span><strong>${name}</strong><small>${detail}</small></span>${circle('chevron')}</button>`).join('')}</div></section>`).join('')}</div>`;
-function androidPrivacy(){return `<div class=a-privacy><button class=a-icon-button data-htab=settings aria-label=Back>${ai('back')}</button>${tag('the honorable promise')}<h1>Your life.<br>Still yours.</h1><p>Good intelligence does not need a cloud copy of your memories.</p>${['Local AI','Local text reading','Local memory map','Nothing uploaded'].map((t,i)=>`<div class=a-action>${circle(i===3?'lock':'spark')}<strong>${t}</strong><b>0${i+1}</b></div>`).join('')}</div>`}
-honorable=()=>{const bodies={home:honorableHome,memories,terms:androidTerms,activity:honorableActivity,settings:honorableSettings,models:honorableModels,pass:honorablePass,usage:testUsage,privacy:androidPrivacy,plus:androidPlus};return `<div class="page honorable dark a-native ${['models','pass','usage'].includes(state.honorableTab)?'a-test-screen':''}">${(bodies[state.honorableTab]||honorableHome)()}</div>${['privacy','plus'].includes(state.honorableTab)?'':honorableDock()}`};
-const previousBind=window.bindWebTest;
-window.bindWebTest=()=>{
- previousBind();
- screen.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>{screen.querySelectorAll('[data-plan]').forEach(b=>b.classList.toggle('selected',b===el))});
- screen.querySelector('#a-plus-continue')?.addEventListener('click',()=>{screen.querySelector('#a-plus-note').textContent='Preview only · no payment collected. Development purchases are available in the Pass testing tool.'});
- screen.querySelector('#a-focus')?.addEventListener('click',()=>{memoryFocus=true;render();screen.querySelector('#q')?.focus()});
- screen.querySelector('#a-close-search')?.addEventListener('click',()=>{memoryFocus=false;render()});
- screen.querySelector('#editsearch')?.addEventListener('click',()=>{memoryFocus=true;state.results=null;render()});
- screen.querySelector('#a-find')?.addEventListener('click',()=>screen.querySelector('form.search').requestSubmit());
- screen.querySelector('#a-more')?.addEventListener('click',()=>{nativeMore=!nativeMore;screen.querySelector('.a-film').hidden=!nativeMore});
- screen.querySelectorAll('[data-a-result]').forEach(el=>el.onclick=()=>{const item=filteredNativeResults()[Number(el.dataset.aResult)];state.preview=item;state.opened=state.media.findIndex(x=>x.uri===item.uri);go('viewer')});
- screen.querySelectorAll('[data-a-settings]').forEach(el=>el.onclick=()=>{const route=el.dataset.aSettings;if(route==='appearance'||route==='about'){webNotice=route==='appearance'?'Android black-and-white appearance':'Honorable · Version 0.1.0 · Web test shell'}else state.honorableTab=route;render()});
- screen.querySelectorAll('[data-term]').forEach(el=>el.onclick=()=>{const form=screen.querySelector('#a-term-input');form.hidden=false;form.querySelector('textarea').focus();if(el.dataset.term==='upload')form.querySelector('input').click()});
- screen.querySelector('#a-term-input input')?.addEventListener('change',async e=>{const file=e.target.files[0];if(file)screen.querySelector('#a-term-input textarea').value=await file.text()});
- screen.querySelector('#a-analyze')?.addEventListener('click',()=>{screen.querySelector('#a-term-status').textContent='The Android Terms screen is a preview. No live agreement-analysis adapter is connected.'});
+let viewerChrome = true;
+viewer = () => {
+  const item = state.preview || state.media[state.opened];
+  if (!item) return gallery();
+  return `<div class="page a-viewer ${
+    viewerChrome ? "" : "chrome-hidden"
+  }">${visual(
+    item,
+    "viewer-media"
+  )}<button class=viewer-toggle id=viewer-toggle aria-label="${
+    viewerChrome ? "Hide" : "Show"
+  } controls"></button><header><button class=a-icon-button data-back aria-label=Back>${ai(
+    "back"
+  )}</button><span>${esc(
+    item.name || "Memory"
+  )}</span><a class=a-icon-button href="${src(
+    item
+  )}" target=_blank rel=noopener aria-label="Open original">${ai(
+    "arrow"
+  )}</a></header><section><small>${item.type === "VIDEO" ? "Video" : "Photo"}${
+    item.timestamp != null ? " · " + fmt(item.timestamp) : ""
+  }</small><p>${esc(item.name || "")}</p></section></div>`;
 };
-const originalSearch=runSearch;
-runSearch=async()=>{nativeMore=false;await originalSearch();nativeEvents.unshift({title:state.query,detail:`${state.results?.results?.length||0} moments found`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})})};
-document.querySelectorAll('[data-test-screen]').forEach(button=>button.onclick=()=>{state.app='honorable';state.honorableTab=button.dataset.testScreen;render()});
+const previousBind = window.bindWebTest;
+window.bindWebTest = () => {
+  previousBind();
+  screen.querySelector("#editsearch")?.addEventListener("click", () => {
+    state.results = null;
+    state.honorableTab = "home";
+    render();
+    screen.querySelector("#q")?.focus();
+  });
+  screen.querySelector("#viewer-toggle")?.addEventListener("click", () => {
+    viewerChrome = !viewerChrome;
+    screen
+      .querySelector(".a-viewer")
+      ?.classList.toggle("chrome-hidden", !viewerChrome);
+    screen
+      .querySelector("#viewer-toggle")
+      ?.setAttribute(
+        "aria-label",
+        viewerChrome ? "Hide controls" : "Show controls"
+      );
+  });
+  screen.querySelectorAll("[data-a-result]").forEach(
+    (el) =>
+      (el.onclick = () => {
+        state.preview = filteredNativeResults()[Number(el.dataset.aResult)];
+        state.opened = state.media.findIndex(
+          (x) => x.uri === state.preview.uri
+        );
+        viewerChrome = true;
+        go("viewer");
+      })
+  );
+};
+document.querySelectorAll("[data-test-screen]").forEach(
+  (button) =>
+    (button.onclick = () => {
+      state.app = "honorable";
+      state.honorableTab = button.dataset.testScreen;
+      render();
+    })
+);
 render();
-viewer=()=>{const item=state.preview||state.media[state.opened];if(!item)return gallery();return `<div class="page a-native a-viewer">${visual(item,'viewer-media')}<header><button class=a-icon-button data-back aria-label=Back>${ai('back')}</button><a class=a-icon-button href="${src(item)}" target=_blank rel=noopener aria-label="Open media">${ai('arrow')}</a></header><section><div>${circle('spark')}<span>${tag('best local match')}<h2>${item.type==='VIDEO'?'That video moment':'That’s the photo'}</h2></span></div><p>${esc(item.why||item.name)}</p><footer>${tag(state.results?.confident?'High confidence':'Closest match')}${item.timestamp!=null?tag(fmt(item.timestamp)):''}${ai('lock')}</footer></section></div>`};
-
-function androidPlus(){return `<div class=a-plus><button class=a-icon-button data-htab=settings aria-label=Back>${ai('back')}</button><section><div class=a-bubbles><i></i><i></i><i></i></div>${tag('honorable plus')}<h1>More ways<br>to remember.</h1><p>Same private foundation. More depth when you want it.</p></section><div class=a-inset><h2>Everything in your bubble</h2>${['Deeper memory understanding','Smarter video moments','Terms made human','No ads, ever','Future private tools'].map(t=>`<div class=a-plus-feature>${circle('check')}<strong>${t}</strong></div>`).join('')}<div class=a-plan-row><button data-plan=monthly>Monthly<strong>$5.99</strong></button><button data-plan=annual class=selected>Annual<strong>$39.99</strong></button></div><button class=a-command id=a-plus-continue><strong>Continue</strong>${ai('arrow')}</button><p id=a-plus-note>Preview only · store setup comes later</p></div></div>`}

@@ -6,16 +6,77 @@
     "surfaceSelected": "#171717",
     "border": "#242424",
     "textPrimary": "#FFFFFF",
-    "textSecondary": "#B8B8B8",
-    "textTertiary": "#777777",
+    "textSecondary": "#BDBAB4",
+    "textTertiary": "#94918C",
     "accent": "#A9D8C5",
     "danger": "#F47D84"
   },
   "radii": {
+    "sm": 6,
+    "md": 10,
+    "lg": 12,
+    "sheet": 12,
+    "pill": 999
+  },
+  "spacing": {
+    "xs": 4,
     "sm": 8,
     "md": 12,
     "lg": 16,
-    "sheet": 20,
-    "pill": 999
+    "xl": 24,
+    "xxl": 32,
+    "section": 40,
+    "hero": 48
+  },
+  "typography": {
+    "display": {
+      "fontSize": 40,
+      "lineHeight": 44,
+      "fontWeight": "400"
+    },
+    "title": {
+      "fontSize": 32,
+      "lineHeight": 38,
+      "fontWeight": "500"
+    },
+    "heading": {
+      "fontSize": 20,
+      "lineHeight": 28,
+      "fontWeight": "500"
+    },
+    "body": {
+      "fontSize": 16,
+      "lineHeight": 24,
+      "fontWeight": "400"
+    },
+    "secondary": {
+      "fontSize": 14,
+      "lineHeight": 20,
+      "fontWeight": "400"
+    },
+    "label": {
+      "fontSize": 13,
+      "lineHeight": 18,
+      "fontWeight": "500"
+    },
+    "metadata": {
+      "fontSize": 12,
+      "lineHeight": 16,
+      "fontWeight": "400"
+    },
+    "micro": {
+      "fontSize": 11,
+      "lineHeight": 16,
+      "fontWeight": "400"
+    }
+  },
+  "motion": {
+    "fast": 140,
+    "standard": 200,
+    "viewer": 240
+  },
+  "grid": {
+    "gap": 2,
+    "columns": 3
   }
 }

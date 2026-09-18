@@ -1,10 +1,141 @@
 import React from 'react';
-import {FlatList,Image,ImageSourcePropType,Pressable,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
-import {colors,grid} from '../design-system/tokens';
-import type {SearchResult} from '../native/HonorableNative';
-export type MediaItem={id:string;source?:ImageSourcePropType;uri?:string;mediaUri?:string;type:'IMAGE'|'VIDEO';duration?:string;cropIndex?:number;capturedAt?:number;displayName?:string;result?:SearchResult};
-const sheet=require('../assets/demo-media/honorable-preview-contact-sheet.png');
-export const previewMedia:MediaItem[]=['dog','birthday','car','receipt','tennis','food','lake','verification','concert'].map((id,index)=>({id,source:sheet,type:index===8?'VIDEO':'IMAGE',duration:index===8?'2:14':undefined,cropIndex:index}));
-function Tile({item,size,onPress}:{item:MediaItem;size:number;onPress:(item:MediaItem)=>void}){const crop=item.cropIndex;return <Pressable accessibilityRole="imagebutton" accessibilityLabel={`${item.type.toLowerCase()} ${item.displayName??'media'}`} onPress={()=>onPress(item)} style={[styles.tile,{width:size,height:size}]}>{crop===undefined&&item.uri?<Image source={item.source??{uri:item.uri}} style={styles.fill}/>:crop===undefined?<View style={styles.placeholder}><Text style={styles.placeholderText}>VIDEO</Text></View>:<Image source={item.source} resizeMode="stretch" style={{position:'absolute',width:size*3,height:size*3,left:-(crop%3)*size,top:-Math.floor(crop/3)*size}}/>}{item.type==='VIDEO'&&<View style={styles.video}><Text style={styles.videoText}>▶ {item.duration??'video'}</Text></View>}</Pressable>}
-export function MediaGrid({items,onPress}:{items:MediaItem[];onPress:(item:MediaItem)=>void}){const{width}=useWindowDimensions();const size=(width-grid.gap*2)/3;return <FlatList accessibilityLabel="Media results" data={items} keyExtractor={item=>item.id} numColumns={3} scrollEnabled={false} columnWrapperStyle={styles.row} renderItem={({item})=><Tile item={item} size={size} onPress={onPress}/>}/>}
-const styles=StyleSheet.create({row:{gap:grid.gap,marginBottom:grid.gap},tile:{backgroundColor:colors.surface,overflow:'hidden'},fill:{width:'100%',height:'100%',resizeMode:'cover'},placeholder:{flex:1,alignItems:'center',justifyContent:'center'},placeholderText:{color:colors.textMuted,fontSize:9,fontWeight:'700'},video:{position:'absolute',right:7,bottom:7,paddingHorizontal:7,paddingVertical:4,borderRadius:8,backgroundColor:'rgba(0,0,0,.68)'},videoText:{color:'#fff',fontSize:10,fontWeight:'700'}});
+import { Play } from 'lucide-react-native';
+import {
+  FlatList,
+  Image,
+  ImageSourcePropType,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { colors, grid } from '../design-system/tokens';
+import type { SearchResult } from '../native/HonorableNative';
+export type MediaItem = {
+  id: string;
+  source?: ImageSourcePropType;
+  uri?: string;
+  mediaUri?: string;
+  type: 'IMAGE' | 'VIDEO';
+  duration?: string;
+  cropIndex?: number;
+  capturedAt?: number;
+  displayName?: string;
+  result?: SearchResult;
+};
+const sheet = require('../assets/demo-media/honorable-preview-contact-sheet.png');
+export const previewMedia: MediaItem[] = [
+  'dog',
+  'birthday',
+  'car',
+  'receipt',
+  'tennis',
+  'food',
+  'lake',
+  'verification',
+  'concert',
+].map((id, index) => ({
+  id,
+  source: sheet,
+  type: index === 8 ? 'VIDEO' : 'IMAGE',
+  duration: index === 8 ? '2:14' : undefined,
+  cropIndex: index,
+}));
+function Tile({
+  item,
+  size,
+  onPress,
+}: {
+  item: MediaItem;
+  size: number;
+  onPress: (item: MediaItem) => void;
+}) {
+  const crop = item.cropIndex;
+  return (
+    <Pressable
+      accessibilityRole="imagebutton"
+      accessibilityLabel={`${item.type.toLowerCase()} ${
+        item.displayName ?? 'media'
+      }`}
+      onPress={() => onPress(item)}
+      style={[styles.tile, { width: size, height: size }]}
+    >
+      {crop === undefined && item.uri ? (
+        <Image source={item.source ?? { uri: item.uri }} style={styles.fill} />
+      ) : crop === undefined ? (
+        <View style={styles.placeholder}>
+          <Text style={styles.placeholderText}>VIDEO</Text>
+        </View>
+      ) : (
+        <Image
+          source={item.source}
+          resizeMode="stretch"
+          style={{
+            position: 'absolute',
+            width: size * 3,
+            height: size * 3,
+            left: -(crop % 3) * size,
+            top: -Math.floor(crop / 3) * size,
+          }}
+        />
+      )}
+      {item.type === 'VIDEO' && (
+        <View style={styles.video}>
+          <Play size={10} color="#fff" />
+          <Text style={styles.videoText}>{item.duration ?? 'video'}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+export function MediaGrid({
+  items,
+  onPress,
+  leading = false,
+}: {
+  items: MediaItem[];
+  onPress: (item: MediaItem) => void;
+  leading?: boolean;
+}) {
+  const { width } = useWindowDimensions();
+  const size = (width - grid.gap * 2) / 3;
+  return (
+    <View>
+      {leading && items[0] && (
+        <Tile item={items[0]} size={width} onPress={onPress} />
+      )}
+      <FlatList
+        accessibilityLabel="Media results"
+        data={leading ? items.slice(1) : items}
+        keyExtractor={item => item.id}
+        numColumns={3}
+        scrollEnabled={false}
+        columnWrapperStyle={styles.row}
+        renderItem={({ item }) => (
+          <Tile item={item} size={size} onPress={onPress} />
+        )}
+      />
+    </View>
+  );
+}
+const styles = StyleSheet.create({
+  row: { gap: grid.gap, marginBottom: grid.gap },
+  tile: { backgroundColor: colors.surface, overflow: 'hidden' },
+  fill: { width: '100%', height: '100%', resizeMode: 'cover' },
+  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  placeholderText: { color: colors.textMuted, fontSize: 9, fontWeight: '700' },
+  video: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    position: 'absolute',
+    right: 7,
+    bottom: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,.68)',
+  },
+  videoText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+});

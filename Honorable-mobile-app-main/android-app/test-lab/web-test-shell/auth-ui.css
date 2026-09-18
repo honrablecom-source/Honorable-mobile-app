@@ -1,1 +1,152 @@
-.auth-launch{position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#fff;font-family:AndroidRoboto,Arial,sans-serif}.auth-launch b{font-size:27px;letter-spacing:-1px}.auth-launch span{font-size:12px;color:#888}.auth-welcome{position:absolute;inset:0;padding:30px 26px!important;background:#000;font-family:AndroidRoboto,Arial,sans-serif;color:#fff;overflow:auto}.auth-wordmark{font-size:23px;letter-spacing:-.6px}.auth-photo{height:180px;margin:30px -26px 22px;position:relative}.auth-photo img{width:100%;height:100%;object-fit:cover;opacity:.65}.auth-photo:after{content:'';position:absolute;inset:0;background:linear-gradient(#000,transparent 25%,transparent 65%,#000)}.auth-welcome h1{font-size:52px;line-height:51px;letter-spacing:-2px;margin:0 0 16px;font-weight:800}.auth-welcome>p{font-size:17px;line-height:25px;color:#aaa;margin-bottom:24px}.auth-welcome #google-signin{min-height:44px;margin:24px 0 10px}.auth-welcome>strong{font-size:14px;display:block;margin:18px 0 10px}.auth-welcome>small{display:block;font-size:12px;line-height:18px;color:#888}.auth-welcome .auth-error{font-size:12px;color:#ccc;margin:10px 0}.auth-welcome #auth-retry{background:none;border:0;color:#aaa;font-size:12px;margin-top:12px;text-decoration:underline}.auth-account{border:1px solid #333;border-radius:28px;padding:22px;background:#111}.auth-avatar{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#fff;color:#111;font-size:23px;margin-bottom:12px}.auth-account h2{font-size:20px}.auth-account p{font-size:13px;margin:6px 0!important}.auth-account>strong,.auth-account>small{display:block;margin-top:12px}.auth-account button{width:100%;margin-top:20px;padding:12px;border:1px solid #555;border-radius:24px;background:#fff;color:#000}.test-auth-tool{position:fixed;right:16px;top:40px;background:#222;color:#aaa;border:1px solid #555;border-radius:15px;padding:6px 10px;font-size:11px;z-index:30}
+.auth-launch {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: #fff;
+  font-family: Honorable, Arial, sans-serif;
+}
+.auth-launch b {
+  font-size: 27px;
+  letter-spacing: -1px;
+}
+.auth-launch span {
+  font-size: 12px;
+  color: #888;
+}
+.auth-welcome {
+  position: absolute;
+  inset: 0;
+  padding: 32px 24px !important;
+  background: #000;
+  font-family: Honorable, Arial, sans-serif;
+  color: #fff;
+  overflow: auto;
+}
+.auth-wordmark {
+  font-size: 23px;
+  letter-spacing: -0.6px;
+}
+.auth-photo {
+  height: 180px;
+  margin: 30px -26px 22px;
+  position: relative;
+}
+.auth-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 1;
+}
+.auth-photo:after {
+  display: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#000, transparent 25%, transparent 65%, #000);
+}
+.auth-welcome h1 {
+  font-size: 52px;
+  line-height: 51px;
+  letter-spacing: -2px;
+  margin: 0 0 16px;
+  font-weight: 500;
+}
+.auth-welcome > p {
+  font-size: 17px;
+  line-height: 25px;
+  color: #aaa;
+  margin-bottom: 24px;
+}
+.auth-welcome #google-signin {
+  min-height: 44px;
+  margin: 24px 0 10px;
+}
+.auth-welcome > strong {
+  font-size: 14px;
+  display: block;
+  margin: 18px 0 10px;
+}
+.auth-welcome > small {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  color: #888;
+}
+.auth-welcome .auth-error {
+  font-size: 12px;
+  color: #ccc;
+  margin: 10px 0;
+}
+.auth-welcome #auth-retry {
+  background: none;
+  border: 0;
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 12px;
+  text-decoration: underline;
+}
+.auth-account {
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 22px;
+  background: #111;
+}
+.auth-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 23px;
+  margin-bottom: 12px;
+}
+.auth-account h2 {
+  font-size: 20px;
+}
+.auth-account p {
+  font-size: 13px;
+  margin: 6px 0 !important;
+}
+.auth-account > strong,
+.auth-account > small {
+  display: block;
+  margin-top: 12px;
+}
+.auth-account button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+}
+.test-auth-tool {
+  position: fixed;
+  right: 16px;
+  top: 40px;
+  background: #222;
+  color: #aaa;
+  border: 1px solid #555;
+  border-radius: 15px;
+  padding: 6px 10px;
+  font-size: 11px;
+  z-index: 30;
+}
+
+.auth-welcome #google-signin > button {
+  width: 100%;
+  background: var(--textPrimary);
+  color: var(--canvas);
+  min-height: 48px;
+}
+.auth-welcome #google-signin > button:disabled {
+  opacity: 0.65;
+}

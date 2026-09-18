@@ -26,7 +26,7 @@ import { honorableNative, SearchResponse } from '../native/HonorableNative';
 import { useLibrary } from '../library/LibraryContext';
 import { useSearchMode } from '../search/SearchModeContext';
 import type { MainTabParamList } from '../navigation/types';
-import {seranCreditCosts} from '../passes/catalog';
+import { seranCreditCosts } from '../passes/catalog';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
 type Filter = (typeof filters)[number];
@@ -39,8 +39,15 @@ export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const { items: library } = useLibrary();
   const { mode, setMode, entitlement } = useSearchMode();
-  const {connected:passConnected,startSearch,finishSearch}=useMemoryPass();
-  const [productModel,setProductModel]=useState<'SERAN_V1'|'SERAN_V2'>('SERAN_V1');
+  const {
+    account,
+    connected: passConnected,
+    startSearch,
+    finishSearch,
+  } = useMemoryPass();
+  const [productModel, setProductModel] = useState<'SERAN_V1' | 'SERAN_V2'>(
+    'SERAN_V1',
+  );
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState<SearchResponse>();
   const [loading, setLoading] = useState(false);
@@ -106,17 +113,23 @@ export function HomeScreen() {
     Keyboard.dismiss();
     setLoading(true);
     setError('');
-    const chargeRequestId=`search-${Date.now()}-${Math.random()}`;
+    const chargeRequestId = `search-${Date.now()}-${Math.random()}`;
     try {
-      if(!passConnected)throw Error('Reconnect to verify your Memory Credits.');
+      if (!passConnected)
+        throw Error('Reconnect to verify your Memory Credits.');
       await honorableNative.selectSeranModel(productModel);
-      await startSearch(productModel,chargeRequestId);
-      const result=await honorableNative.search(clean);
-      await finishSearch(chargeRequestId,result.results.length?'SUCCESS':'FAILED');
+      await startSearch(productModel, chargeRequestId);
+      const result = await honorableNative.search(clean);
+      await finishSearch(
+        chargeRequestId,
+        result.results.length ? 'SUCCESS' : 'FAILED',
+      );
       setResponse(result);
       await refreshHistory();
     } catch (reason) {
-      try{await finishSearch(chargeRequestId,'FAILED')}catch{}
+      try {
+        await finishSearch(chargeRequestId, 'FAILED');
+      } catch {}
       setError(reason instanceof Error ? reason.message : 'Search unavailable');
       setResponse(undefined);
     } finally {
@@ -133,19 +146,22 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        <View style={styles.utility}><Pressable accessibilityLabel="Account" onPress={()=>navigation.getParent()?.navigate("Settings")}><Text>honorable · Account</Text></Pressable>
+        <View style={styles.utility}>
+          <Pressable
+            accessibilityLabel="Account"
+            onPress={() => navigation.getParent()?.navigate('Settings')}
+          >
+            <Text>honorable · Account</Text>
+          </Pressable>
           <Text variant="muted" className="text-[12px]">
             On-device
           </Text>
         </View>
         <Text
           accessibilityRole="header"
-          className="mx-4 mt-2 text-[44px] font-semibold"
+          className="mx-4 mb-8 mt-8 text-[40px] font-medium"
         >
-          Find the moment you remember.
-        </Text>
-        <Text variant="muted" className="mx-4 mb-4 mt-1">
-          Describe what you remember — a person, place, action, color, text or moment.
+          What do you remember?
         </Text>
         <HonorableSearchBar
           value={query}
@@ -153,8 +169,70 @@ export function HomeScreen() {
           onSubmit={() => search()}
         />
 
-        <Pressable accessibilityLabel="Select search model" onPress={()=>setModeOpen(true)} style={{padding:16}}><Text>{productModel==='SERAN_V1'?'FAST':'VIDEO'} ▾ · {productModel==='SERAN_V1'?1:3} credit{productModel==='SERAN_V1'?'':'s'}</Text></Pressable>
-        <Modal visible={modeOpen} transparent animationType="slide" onRequestClose={()=>setModeOpen(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:colors.scrim}}><View style={{padding:24,gap:12,backgroundColor:colors.surfaceRaised,borderTopLeftRadius:20,borderTopRightRadius:20}}><Text>Select a model</Text>{seranCreditCosts.map(m=><Pressable key={m.model} disabled={!m.available||loading} onPress={()=>{if(m.model!=='SERAN_V3')setProductModel(m.model);setModeOpen(false)}} style={{padding:16,backgroundColor:colors.surfaceSelected,borderRadius:12}}><Text>{m.name} · {m.credits} credits{!m.available?' · Coming Soon':''}</Text></Pressable>)}<Pressable onPress={()=>setModeOpen(false)}><Text>Close</Text></Pressable></View></View></Modal>
+        <Pressable
+          accessibilityLabel="Select search model"
+          onPress={() => setModeOpen(true)}
+          style={{ padding: 16 }}
+        >
+          <Text>
+            {productModel === 'SERAN_V1' ? 'FAST' : 'VIDEO'} ▾ ·{' '}
+            {productModel === 'SERAN_V1' ? 1 : 3} credit
+            {productModel === 'SERAN_V1' ? '' : 's'}
+          </Text>
+        </Pressable>
+        <Modal
+          visible={modeOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModeOpen(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: 'flex-end',
+              backgroundColor: colors.scrim,
+            }}
+          >
+            <View
+              style={{
+                padding: 24,
+                gap: 12,
+                backgroundColor: colors.surfaceRaised,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+              }}
+            >
+              <Text>Select a model</Text>
+              {seranCreditCosts.map(m => (
+                <Pressable
+                  key={m.model}
+                  disabled={!m.available || loading}
+                  onPress={() => {
+                    if (m.model !== 'SERAN_V3') setProductModel(m.model);
+                    setModeOpen(false);
+                  }}
+                  style={{
+                    padding: 16,
+                    backgroundColor: colors.surfaceSelected,
+                    borderRadius: 12,
+                  }}
+                >
+                  <Text>
+                    {m.name} · {m.credits} credits
+                    {!m.available ? ' · Coming Soon' : ''}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable onPress={() => setModeOpen(false)}>
+                <Text>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+        <Text variant="muted" className="mx-4 mb-4 text-[12px]">
+          {account?.freeMonthlyRemaining ?? '—'} free ·{' '}
+          {account?.balance ?? '—'} purchased
+        </Text>
         {history.length > 0 && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>
@@ -204,17 +282,23 @@ export function HomeScreen() {
         {!loading && response && !response.confident && (
           <View style={styles.message}>
             <Text className="font-semibold">
-              {response.decision === 'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2'
+              {response.decision ===
+              'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2'
                 ? 'Video intelligence is available with Seran V2.'
                 : 'No clear match yet'}
             </Text>
             <Text variant="muted" className="mt-1">
-              {response.decision === 'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2'
+              {response.decision ===
+              'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2'
                 ? 'Switch models to search real video scenes and moments.'
                 : 'Try a color, place, date, object, or visible text.'}
             </Text>
-            {response.decision === 'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2' && (
-              <Button className="mt-4" onPress={() => navigation.getParent()?.navigate('Models')}>
+            {response.decision ===
+              'VIDEO_INTELLIGENCE_AVAILABLE_WITH_SERAN_V2' && (
+              <Button
+                className="mt-4"
+                onPress={() => navigation.getParent()?.navigate('Models')}
+              >
                 <Text>View Models</Text>
               </Button>
             )}
@@ -224,7 +308,9 @@ export function HomeScreen() {
           <>
             <View style={styles.resultsHeader}>
               <Text className="text-[17px] font-semibold">
-                {response ? `${nativeItems.length} matches` : 'Recently remembered'}
+                {response
+                  ? `${nativeItems.length} matches`
+                  : 'Recently remembered'}
               </Text>
               <Text variant="muted" className="text-[11px]">
                 {response ? 'Best first' : 'Your library'}
@@ -247,7 +333,11 @@ export function HomeScreen() {
                 </Button>
               ))}
             </ScrollView>
-            <MediaGrid items={visible} onPress={setSelected} />
+            <MediaGrid
+              leading={!!response}
+              items={visible}
+              onPress={setSelected}
+            />
           </>
         )}
       </ScrollView>
@@ -259,14 +349,15 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 90 },
   utility: {
-    height: 36,
+    minHeight: 48,
     paddingHorizontal: 16,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   history: { marginTop: 12 },
   historyTitle: {
-    paddingHorizontal: 17,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -279,7 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.glass,
+    backgroundColor: colors.surfaceRaised,
   },
   searching: {
     margin: 16,
@@ -287,14 +378,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderRadius: 20,
+    borderRadius: 10,
     backgroundColor: colors.surface,
   },
   error: { margin: 16, color: colors.danger },
   message: {
     margin: 16,
-    padding: 18,
-    borderRadius: 18,
+    padding: 16,
+    borderRadius: 10,
     backgroundColor: colors.surface,
   },
   resultsHeader: {
