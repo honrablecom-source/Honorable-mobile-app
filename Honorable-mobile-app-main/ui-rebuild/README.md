@@ -37,6 +37,7 @@ Screens were inspected side by side, with full-size inspection of the mobile pho
 - TypeScript and static web build pass.
 - Browser product smoke covers the five tabs, 20/31 Pass catalog, Usage, Home model/search controls, locked V3, result → viewer → editor, hideable chrome, adjustments, real changed pixels, undo/redo, Save As Copy download, Studio entitlement presentation, disabled script execution and desktop/mobile overflow checks.
 - Auth browser regression passes, including account continuity, offline sign-out and secure session restoration.
+- Beta browser regression also passes after the Settings and renderer consolidation: invited sign-in, consented attachments, feedback and dashboard operations remain connected.
 - React Native behavior suite: 12 tests across six suites pass.
 - No benchmarks, holdout work, large indexing runs, ranking changes or repeated unrelated server suites were run locally.
 - Android compilation and physical-device review are separate checks. Check the final handoff for CI status; no native screenshot certification is inferred from these browser previews.

@@ -1,21 +1,6 @@
-HONORABLE CURRENT MOBILE UI PREVIEW
+RETIRED STATIC PREVIEW SET
 
-Visual direction
-Light Bubble OS for the core experience, with pure-black premium Models and privacy flows. Six primary destinations:
-Home · Memories · Pass · Models · Activity · Settings
-
-Current previews
-01 Home — Current rounded hero and corrected four-item navigation.
-02 Memories — Current prompt-first media experience and corrected four-item navigation.
-03 Usage & Indexing — Current local index status and truthful indexing/analysis language without cloud-storage claims.
-04 Settings — Current privacy, photo access, plan, and legal controls with active Settings navigation.
-05 Searching — Local photo/video search in progress with index progress and privacy reassurance.
-06 Photo Results — Image-first photo matches with editable query and lightweight filters.
-07 Video Moment — Video result with matched timestamp, jump-to-moment action, and local playback context.
-08 Models — Native-authorized Seran model selection with honest availability labels.
-09 Privacy & Data — Default-off Seran participation, backend status, safeguards, and control.
-10 Seran Consent — Dedicated optional contribution consent with local-search reassurance.
-11 Memory Pass — One-time non-expiring credits, five pass sizes, live balance, model costs, and locked V3/Ultra states.
-
-Legacy concepts, stale Terms/Activity screens, dark variants, and superseded responsive captures were removed.
-All current preview entries are connected through preview-data.js and capture.cjs.
+These older captures are historical evidence, not the current interface.
+Current 27-screen review: ../ui-rebuild/previews/index.html
+Current design audit: ../ui-rebuild/README.md
+The retired renderer is isolated in legacy/.
