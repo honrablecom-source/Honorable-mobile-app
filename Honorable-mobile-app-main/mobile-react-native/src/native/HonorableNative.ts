@@ -73,6 +73,7 @@ export type ImprovementProgramState = {
   revokedAt?: number;
 };
 type NativeBoundary = {
+  pickWorkspaceMedia(kind: 'IMAGE' | 'VIDEO'): Promise<{uri: string} | null>;
   pickBetaScreenshot():Promise<{base64:string}|null>;
   restoreAccountSession():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
   signInAccountWithGoogle():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
@@ -109,6 +110,8 @@ type NativeBoundary = {
   getSearchHistory(): Promise<{ queries: string[] }>;
   clearSearchHistory(): Promise<{ cleared: boolean }>;
   editPhoto(uri:string):Promise<{opened:boolean}>;
+  editVideo(uri:string):Promise<{opened:boolean}>;
+  editVideoAtMoment(uri:string,timestampMs:number):Promise<{opened:boolean}>;
   openMedia(
     uri: string,
     kind: string,
@@ -125,6 +128,7 @@ function boundary(): NativeBoundary {
   return native;
 }
 export const honorableNative = {
+  pickWorkspaceMedia: (kind: 'IMAGE' | 'VIDEO') => boundary().pickWorkspaceMedia(kind),
   restoreAccountSession:()=>boundary().restoreAccountSession(),
   signInAccountWithGoogle:()=>boundary().signInAccountWithGoogle(),
   signOutAccountSession:()=>boundary().signOutAccountSession(),
@@ -155,6 +159,7 @@ export const honorableNative = {
   getSearchHistory: () => boundary().getSearchHistory(),
   clearSearchHistory: () => boundary().clearSearchHistory(),
   editPhoto:(uri:string)=>boundary().editPhoto(uri),
+  editVideo:(uri:string,timestampMs?:number)=>timestampMs===undefined?boundary().editVideo(uri):boundary().editVideoAtMoment(uri,timestampMs),
   openMedia: (item: {
     mediaUri: string;
     mediaType: 'IMAGE' | 'VIDEO';

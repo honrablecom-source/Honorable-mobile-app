@@ -14,6 +14,7 @@ import {
 import { ChevronLeft, Play } from 'lucide-react-native';
 import type { MediaItem } from './MediaGrid';
 import { honorableNative } from '../native/HonorableNative';
+import { editMemory } from '../native/editMemory';
 export function MediaViewer({
   item,
   onClose,
@@ -94,19 +95,9 @@ export function MediaViewer({
                 </Pressable>
                 <Pressable
                   onPress={() =>
-                    item.type === 'IMAGE'
-                      ? honorableNative
-                          .editPhoto(
-                            item.mediaUri ??
-                              item.result?.mediaUri ??
-                              item.uri ??
-                              '',
-                          )
-                          .catch(e => Alert.alert('Edit', e.message))
-                      : Alert.alert(
-                          'Video workspace',
-                          'Timeline foundation is available in the web test shell. Native video editing is Coming Soon.',
-                        )
+                    editMemory(item).catch(e =>
+                      Alert.alert(item.type === 'VIDEO' ? 'Edit video' : 'Edit', e.message),
+                    )
                   }
                 >
                   <Text style={styles.counter}>Edit</Text>

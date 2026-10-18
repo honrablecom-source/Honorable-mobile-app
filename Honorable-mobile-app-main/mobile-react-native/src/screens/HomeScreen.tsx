@@ -17,14 +17,10 @@ import { Text } from '@/components/ui/text';
 import { HonorableSearchBar } from '../components/HonorableSearchBar';
 import { MediaGrid, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
-import {
-  SearchModeControl,
-  SearchModeSheet,
-} from '../components/SearchModeSheet';
+import { NewWorkspace } from '../components/NewWorkspace';
 import { colors } from '../design-system/tokens';
 import { honorableNative, SearchResponse } from '../native/HonorableNative';
 import { useLibrary } from '../library/LibraryContext';
-import { useSearchMode } from '../search/SearchModeContext';
 import type { MainTabParamList } from '../navigation/types';
 import { seranCreditCosts } from '../passes/catalog';
 import { useMemoryPass } from '../passes/MemoryPassContext';
@@ -38,7 +34,6 @@ function duration(ms?: number) {
 export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const { items: library } = useLibrary();
-  const { mode, setMode, entitlement } = useSearchMode();
   const {
     account,
     connected: passConnected,
@@ -233,6 +228,7 @@ export function HomeScreen() {
           {account?.freeMonthlyRemaining ?? '—'} free ·{' '}
           {account?.balance ?? '—'} purchased
         </Text>
+        <NewWorkspace />
         {history.length > 0 && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>

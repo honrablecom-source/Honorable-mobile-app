@@ -12,14 +12,20 @@ data class QueryEmbeddings(
 
 /** Text inference happens once per distinct query/sub-concept; indexed media is never re-inferred at search time. */
 class SemanticQueryEncoder(private val embeddings: EmbeddingService, cacheSize: Int = 64) {
-    private val cache = object : LinkedHashMap<String, FloatArray?>(cacheSize, .75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, FloatArray?>?) = size > cacheSize
+    private val cache = object : LinkedHashMap<String, FloatArray>(cacheSize, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, FloatArray>?) = size > cacheSize
     }
-    @Synchronized private fun embed(text: String): FloatArray? = if (cache.containsKey(text)) cache[text] else embeddings.text(text)?.takeIf { it.size == embeddings.dimension }?.also { cache[text] = it } ?: run { cache[text] = null; null }
+    @Synchronized private fun embed(text: String): FloatArray? =
+        cache[text] ?: embeddings.text(text)?.takeIf { it.size == embeddings.dimension }?.also { cache[text] = it }
     fun encode(query: SearchQuery): QueryEmbeddings {
-        val raw=embed(query.raw)
-        val retrieval=LocalPromptPlanner.variants(query).mapNotNull(::embed).distinctBy { it.contentHashCode() }
-        return QueryEmbeddings(raw,query.semanticConcepts.associateWithNotNull(::embed),retrieval.ifEmpty{listOfNotNull(raw)})
+        val attempted = mutableMapOf<String, FloatArray?>()
+        fun embedOnce(text: String): FloatArray? {
+            if (attempted.containsKey(text)) return attempted[text]
+            return embed(text).also { attempted[text] = it }
+        }
+        val raw=embedOnce(query.raw)
+        val retrieval=LocalPromptPlanner.variants(query).mapNotNull(::embedOnce).distinctBy { it.contentHashCode() }
+        return QueryEmbeddings(raw,query.semanticConcepts.associateWithNotNull(::embedOnce),retrieval.ifEmpty{listOfNotNull(raw)})
     }
     private inline fun <K,V:Any> Iterable<K>.associateWithNotNull(transform:(K)->V?):Map<K,V>{val result=linkedMapOf<K,V>();for(item in this)transform(item)?.let{result[item]=it};return result}
 }

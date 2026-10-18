@@ -13,15 +13,12 @@ import { colors, radii } from '../design-system/tokens';
 import {
   Image as Photo,
   Film,
-  Box,
-  Code2,
-  Move,
-  Lock,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 import { memoryPasses } from '../passes/catalog';
 import { useNavigation } from '@react-navigation/native';
+import { useOpenWorkspace } from '../native/openWorkspace';
 export const productStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 24, paddingBottom: 40, gap: 16 },
@@ -281,8 +278,10 @@ export function ProductUsageScreen() {
   );
 }
 export function StudioScreen() {
+  const { busy: openingWorkspace, open: openWorkspace } = useOpenWorkspace();
   const { items } = useLibrary();
   const photo = items.find(item => item.mediaType === 'IMAGE');
+  const video = items.find(item => item.mediaType === 'VIDEO');
   const { account } = useMemoryPass();
   const navigation = useNavigation<any>();
   const [category, setCategory] = useState<string | null>(null);
@@ -290,7 +289,6 @@ export function StudioScreen() {
   const categories = [
     ['Photo', Photo],
     ['Video', Film],
-    ['Code', Code2],
   ] as const;
   return (
     <ProductPage title="Honorable Studio">
@@ -322,7 +320,7 @@ export function StudioScreen() {
             key={name}
             style={[
               s.tile,
-              name === 'Photo' && {
+              {
                 width: '100%',
                 minHeight: 220,
                 padding: 20,
@@ -333,10 +331,10 @@ export function StudioScreen() {
             ]}
             onPress={() => setCategory(name)}
           >
-            {name === 'Photo' && photo && (
+            {(name === 'Photo' ? photo : video) && (
               <>
                 <Image
-                  source={{ uri: photo.thumbnailUri ?? photo.mediaUri }}
+                  source={{ uri: name === 'Photo' ? photo!.thumbnailUri ?? photo!.mediaUri : video!.thumbnailUri ?? video!.mediaUri }}
                   style={StyleSheet.absoluteFill}
                   resizeMode="cover"
                 />
@@ -350,14 +348,11 @@ export function StudioScreen() {
             )}
             <View style={s.spread}>
               <Icon color={colors.textSecondary} size={30} strokeWidth={1.5} />
-              {name !== 'Photo' && !active && (
-                <Lock color={colors.textTertiary} size={14} />
-              )}
             </View>
             <View>
               <Text style={s.heading}>{name}</Text>
               <Text style={s.body}>
-                {name === 'Photo' ? 'Free essentials' : 'Studio workspace'}
+                {name === 'Photo' ? 'Adjust and save a copy' : 'Trim and save a copy'}
               </Text>
             </View>
           </Pressable>
@@ -384,19 +379,28 @@ export function StudioScreen() {
           <Text style={s.heading}>{category}</Text>
           <Text style={s.body}>
             {category === 'Photo'
-              ? 'Crop, rotate, adjust, undo, compare and export a new copy.'
+              ? 'Crop, rotate, adjust, undo, compare, read text on your device and export a new copy.'
               : category === 'Code'
               ? 'Python and Java editors are available in the web workspace. Execution is unavailable.'
               : category === 'Nodes'
               ? 'Node graph foundation is available in the web workspace. Processing is unavailable.'
-              : 'Advanced processing is Coming Soon.'}
+              : 'Preview, trim and export a new video copy. The original is preserved.'}
           </Text>
           {category === 'Photo' ? (
             <Pressable
               style={s.button}
-              onPress={() => navigation.navigate('Memories')}
+              disabled={openingWorkspace}
+              onPress={() => openWorkspace('IMAGE')}
             >
-              <Text style={s.label}>Choose a memory to edit</Text>
+              <Text style={s.label}>Choose a photo to edit</Text>
+            </Pressable>
+          ) : category === 'Video' ? (
+            <Pressable
+              style={s.button}
+              disabled={openingWorkspace}
+              onPress={() => openWorkspace('VIDEO')}
+            >
+              <Text style={s.label}>Choose a video to edit</Text>
             </Pressable>
           ) : (
             <Text style={s.body}>

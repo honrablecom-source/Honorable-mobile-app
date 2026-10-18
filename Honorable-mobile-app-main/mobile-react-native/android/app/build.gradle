@@ -25,6 +25,9 @@ react {
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
     // debuggableVariants = ["liteDebug", "liteDebugOptimized", "prodDebug", "prodDebugOptimized"]
 
+    // Internal test APKs must ship JavaScript and start without Metro.
+    debuggableVariants = ["debug", "debugOptimized"]
+
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
     // nodeExecutableAndArgs = ["node"]
@@ -82,6 +85,13 @@ def accountApiUrl = System.getenv("HONORABLE_ACCOUNT_API_URL") ?: ""
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
+    // A short local staging path avoids Windows' 260-character Ninja object paths.
+    // CI uses the standard location unless explicitly configured by the builder.
+    if (project.hasProperty("honorableNativeBuildStaging")) {
+        externalNativeBuild {
+            cmake { buildStagingDirectory = file(project.property("honorableNativeBuildStaging")) }
+        }
+    }
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
@@ -91,8 +101,9 @@ android {
         applicationId "com.honorablemobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.0.2"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        versionCode 4
+        versionName "1.0.3"
         buildConfigField "String", "HONORABLE_GOOGLE_WEB_CLIENT_ID", JsonOutput.toJson(googleWebClientId)
         buildConfigField "String", "HONORABLE_ACCOUNT_API_URL", JsonOutput.toJson(accountApiUrl)
     }
@@ -133,6 +144,13 @@ android {
             shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
+        internal {
+            initWith release
+            // Tester-only artifact. Store releases still require private signing.
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ["release"]
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+        }
     }
 }
 
@@ -146,12 +164,19 @@ gradle.taskGraph.whenReady { graph ->
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.media3:media3-effect:1.11.1")
+    implementation("androidx.media3:media3-common:1.11.1")
+    implementation("androidx.media3:media3-ui:1.11.1")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.credentials:credentials:1.5.0")

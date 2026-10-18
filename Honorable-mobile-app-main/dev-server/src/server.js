@@ -24,11 +24,19 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
   const started=clock();let accountId=null;const metadata={...requestMetadata(req),channel:releaseChannel};
   res.on('finish',()=>record('api_request',accountId,{...metadata,durationMs:Math.max(0,clock()-started),failed:res.statusCode>=400}));
   res.setHeader('content-type','application/json');res.setHeader('Cache-Control','no-store');
+  if(req.method==='GET'&&req.url==='/healthz')return send(res,200,{service:'honorable-account',status:'UP'});
+  if(req.method==='GET'&&req.url==='/readyz'){
+   const checks={productionMode:mode==='production',identityProvider:typeof google?.verify==='function',trustedSearchCompletion:typeof searchCompletionVerifier==='function'};
+   const ready=Object.values(checks).every(Boolean);
+   return send(res,ready?200:503,{service:'honorable-account',scope:'ACCOUNT_API_CONFIGURATION',ready,checks});
+  }
   try{
    const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName+'='))?.slice(cookieName.length+1);
    const web=req.headers['x-honorable-web']==='1';
    if((web||cookie)&&req.method!=='GET'&&(!web||!origins.has(req.headers.origin)))throw status('INVALID_WEB_ORIGIN',403);
-   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>(req.url==='/v1/beta/attachment'?750000:65536))throw status('REQUEST_TOO_LARGE',413)}const body=raw?JSON.parse(raw):{};
+   const chunks=[];let bytes=0;for await(const chunk of req){bytes+=chunk.length;if(bytes>(req.url==='/v1/beta/attachment'?750000:65536))throw status('REQUEST_TOO_LARGE',413);chunks.push(chunk)}
+   let body={};if(bytes){try{body=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)))}catch{throw status('INVALID_JSON_BODY',400)}}
+   if(body===null||typeof body!=='object'||Array.isArray(body))throw status('INVALID_REQUEST_BODY',400);
    if(req.method==='GET'&&req.url==='/v1/catalog')return send(res,200,{...catalog,passDetails:catalog.passes,passes,costs,available:[...available],freeMonthlyCredits:ledger.freeMonthly,creditsExpire:false});
    const establish=(id,ttl)=>{beta.assertAccess(id);accountId=id;if(body.installationId)registerInstallation(id,body.installationId,metadata);const value=sessions.issue(id,web?'web':'native',ttl);record('session_started',id,metadata);if(web){if(cookie)sessions.revoke(cookie);setCookie(res,value.refreshToken);return send(res,200,{account:view(id),expiresAt:value.expiresAt})}return send(res,200,{...value,account:view(id)})};
    if(req.method==='POST'&&req.url==='/v1/auth/google'){
@@ -37,7 +45,7 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
    if(req.method==='POST'&&req.url==='/dev/auth/token'){
     if(!dev)return send(res,404,{error:'NOT_FOUND'});const invite=beta.preflight(body.email,true),existing=ledger.data.identities['DEVELOPMENT:'+body.email],id=ledger.resolveIdentity('DEVELOPMENT',body.email);beta.accept(invite,id);ledger.account(id).profile={name:'Test account'};ledger.save();if(!existing)record('account_registered',id,metadata,'registration:'+id);return establish(id,body.ttlSeconds??900);
    }
-   if(req.method==='POST'&&req.url==='/v1/auth/refresh'){if(web)throw status('WEB_SESSION_USES_COOKIE',400);beta.assertAccess(sessions.lookup(body.refreshToken,'refresh')[1].accountId);return send(res,200,sessions.refresh(body.refreshToken))}
+   if(req.method==='POST'&&req.url==='/v1/auth/refresh'){if(web)throw status('WEB_SESSION_USES_COOKIE',400);return send(res,200,sessions.refresh(body.refreshToken,id=>beta.assertAccess(id)))}
    if(req.method==='POST'&&req.url==='/v1/auth/logout'){if(cookie)sessions.revoke(cookie);if(body.refreshToken)sessions.revoke(body.refreshToken);if(req.headers.authorization?.startsWith('Bearer '))sessions.revoke(req.headers.authorization.slice(7));if(web)setCookie(res,'',0);return send(res,200,{signedOut:true})}
    if(req.url.startsWith('/dev/')&&!dev)return send(res,404,{error:'NOT_FOUND'});
    const id=web?sessions.web(cookie):sessions.verify(req.headers.authorization);accountId=id;beta.assertAccess(id);

@@ -24,11 +24,11 @@
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-native": "0.87.0",
-    "react-native-reanimated": "^4.6.0",
+    "react-native-reanimated": "~4.6.0",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.27.0",
     "react-native-svg": "^15.15.5",
-    "react-native-worklets": "^0.12.1",
+    "react-native-worklets": "~0.12.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7"
@@ -56,5 +56,8 @@
   },
   "engines": {
     "node": ">= 22.11.0"
+  },
+  "overrides": {
+    "shell-quote": "1.12.0"
   }
 }

@@ -68,21 +68,6 @@ const PassTab = () => (
     <PassScreen />
   </TabTransition>
 );
-const ModelsTab = () => (
-  <TabTransition>
-    <ModelsScreen />
-  </TabTransition>
-);
-const ActivityTab = () => (
-  <TabTransition>
-    <StorageScreen />
-  </TabTransition>
-);
-const SettingsTab = () => (
-  <TabTransition>
-    <SettingsScreen />
-  </TabTransition>
-);
 function MainTabs() {
   return (
     <Tabs.Navigator

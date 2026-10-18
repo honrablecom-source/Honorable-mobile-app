@@ -19,13 +19,13 @@ class ProductionIntegrationContractTest {
     }
 
     @Test fun `permission denied and indexing states are wired to production UI`() {
-        val production=source("app/honorable/search/ProductionMemorySearch.kt")
+        val permissions=source("app/honorable/search/AndroidEngineRuntime.kt")
         val ui=source("app/honorable/MainActivity.kt")
-        assertTrue(production.contains("READ_MEDIA_IMAGES"))
-        assertTrue(production.contains("READ_MEDIA_VIDEO"))
-        assertTrue(production.contains("READ_EXTERNAL_STORAGE"))
+        assertTrue(permissions.contains("READ_MEDIA_IMAGES"))
+        assertTrue(permissions.contains("READ_MEDIA_VIDEO"))
+        assertTrue(permissions.contains("READ_EXTERNAL_STORAGE"))
         assertTrue(ui.contains("MemorySearchState.PermissionRequired->PermissionState"))
-        assertTrue(ui.contains("MemorySearchState.Indexing->IndexingState"))
+        assertTrue(ui.contains("is MemorySearchState.Indexing->IndexingState(state.progress)"))
     }
 
     @Test fun `production results consume ranked indexed matches not sample items`() {
@@ -52,9 +52,12 @@ class ProductionIntegrationContractTest {
         }
     }
 
-    @Test fun `application does not request internet permission`() {
+    @Test fun `account network access requires encrypted transport`() {
         val manifest=File("src/main/AndroidManifest.xml").readText()
-        assertFalse(manifest.contains("android.permission.INTERNET"))
+        // Accounts and the credit ledger need HTTPS; the separate runtime test
+        // above still prohibits networking in the local media search engine.
+        assertTrue(manifest.contains("android.permission.INTERNET"))
+        assertTrue(manifest.contains("android:usesCleartextTraffic=\"false\""))
     }
 
     @Test fun `media store IDs are namespaced by kind`() {

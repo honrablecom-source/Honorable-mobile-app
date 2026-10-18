@@ -6,11 +6,19 @@ on:
     paths:
       - "Honorable-mobile-app-main/mobile-react-native/**"
       - "Honorable-mobile-app-main/android-app/**"
+      - "Honorable-mobile-app-main/scripts/**"
+      - "Honorable-mobile-app-main/dev-server/**"
+      - "Honorable-mobile-app-main/product/studio/**"
+      - "Honorable-mobile-app-main/beta-operations/RELEASE-NOTES-*.md"
       - ".github/workflows/android-build.yml"
   pull_request:
     paths:
       - "Honorable-mobile-app-main/mobile-react-native/**"
       - "Honorable-mobile-app-main/android-app/**"
+      - "Honorable-mobile-app-main/scripts/**"
+      - "Honorable-mobile-app-main/dev-server/**"
+      - "Honorable-mobile-app-main/product/studio/**"
+      - "Honorable-mobile-app-main/beta-operations/RELEASE-NOTES-*.md"
       - ".github/workflows/android-build.yml"
 
 permissions:
@@ -19,6 +27,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 75
     defaults:
       run:
         working-directory: Honorable-mobile-app-main/mobile-react-native
@@ -32,6 +41,8 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: Honorable-mobile-app-main/mobile-react-native/package-lock.json
+      - name: Test Android build tooling
+        run: node --test ../scripts/android-sdk-config.test.cjs ../scripts/release-manifest.test.cjs ../scripts/check-account-config.test.cjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -40,8 +51,31 @@ jobs:
         with:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
-      - name: Install Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install the declared Android SDK and NDK
+        shell: bash
+        run: |
+          sdk_output="$(node ../scripts/android-sdk-config.cjs --packages)"
+          mapfile -t sdk_packages <<< "$sdk_output"
+          # Keep the standalone Compose app's existing Build Tools available too.
+          if command -v android >/dev/null 2>&1; then
+            cli_packages=()
+            for package in "${sdk_packages[@]}"; do
+              cli_packages+=("${package//;/\/}")
+            done
+            android --no-metrics --sdk "$ANDROID_HOME" sdk install "${cli_packages[@]}" "build-tools/35.0.0"
+          else
+            sdkmanager "${sdk_packages[@]}" "build-tools;35.0.0"
+          fi
+          # Some SDK wrappers report exit 0 even when a package is missing.
+          for package in "${sdk_packages[@]}"; do
+            package_path="${package//;/\/}"
+            if [[ ! -d "$ANDROID_HOME/$package_path" ]]; then
+              echo "::error::Declared Android SDK package was not installed: $package"
+              exit 1
+            fi
+          done
+          build_tools="$(node ../scripts/android-sdk-config.cjs --build-tools)"
+          echo "HONORABLE_ANDROID_BUILD_TOOLS=$build_tools" >> "$GITHUB_ENV"
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -51,45 +85,88 @@ jobs:
         run: npm test -- --runInBand
       - name: Test account and beta release operations
         run: node --test ../dev-server/test/*.test.js ../product/studio/project.test.js
-      - name: Typecheck account presentation
+      - name: Typecheck React Native
         run: npm run typecheck
-      - name: Compile Compose production authentication
+      - name: Lint React Native
+        run: npm run lint
+      - name: Test native integration and photo memory budgets
         working-directory: Honorable-mobile-app-main/android-app
-        run: bash gradlew --no-daemon :app:compileDebugKotlin
+        run: bash gradlew --no-daemon --max-workers=2 --stacktrace :app:testDebugUnitTest
       - name: Report optional sign-in configuration
         shell: bash
         run: |
           if [[ -n "$HONORABLE_GOOGLE_WEB_CLIENT_ID" && -n "$HONORABLE_ACCOUNT_API_URL" ]]; then
             echo "Building with Google sign-in and account API configuration."
           else
-            echo "::notice::Sign-in secrets are not configured; building the debug APK without sign-in configuration."
+            echo "::notice::Sign-in is not configured; device sign-in cannot be validated with these APKs."
           fi
-      - name: Make Gradle wrapper executable
-        run: chmod +x android/gradlew
-      - name: Build debug APK
-        working-directory: Honorable-mobile-app-main/mobile-react-native/android
-        run: ./gradlew --no-daemon :app:assembleDebug
-      - name: Verify APK package and report signing SHA-1
+      - name: Build developer and self-contained internal APKs
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         shell: bash
         run: |
-          apk="app/build/outputs/apk/debug/app-debug.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" \
-            | sed -n 's/^Signer #1 certificate SHA-1 digest: /GitHub Actions APK signing SHA-1: /p'
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" \
-            | grep -q "package: name='com.honorablemobile'"
-      - name: Record build identity
-        run: node ../scripts/release-manifest.cjs
-      - name: Upload release identity
+          bash gradlew --no-daemon --max-workers=2 --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleInternal 2>&1 | tee "$RUNNER_TEMP/honorable-android-build.log"
+      - name: Verify bundled application and local model assets
+        working-directory: Honorable-mobile-app-main/mobile-react-native/android
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          apk = "app/build/outputs/apk/internal/app-internal.apk"
+          with zipfile.ZipFile(apk) as package:
+              for asset in ("assets/index.android.bundle", "assets/tinyclip/model_int8.onnx", "assets/tinyclip/tokenizer.json"):
+                  if package.getinfo(asset).file_size == 0:
+                      raise SystemExit("Empty required APK asset: " + asset)
+              if package.getinfo("assets/tinyclip/model_int8.onnx").file_size < 1_000_000:
+                  raise SystemExit("Bundled model is unexpectedly small; check for a Git LFS pointer.")
+          print("Internal APK contains application code and local search assets; phone testing remains required.")
+          PY
+      - name: Verify APK packages and signing
+        working-directory: Honorable-mobile-app-main/mobile-react-native/android
+        shell: bash
+        run: |
+          tools="$ANDROID_HOME/build-tools/$HONORABLE_ANDROID_BUILD_TOOLS"
+          for variant in debug internal; do
+            apk="app/build/outputs/apk/$variant/app-$variant.apk"
+            "$tools/zipalign" -c -P 16 -v 4 "$apk" > "$RUNNER_TEMP/honorable-$variant-zipalign.log"
+            "$tools/apksigner" verify --print-certs "$apk" \
+              | sed -n "s/^Signer #1 certificate SHA-1 digest: /$variant APK signing SHA-1: /p"
+            badging="$("$tools/aapt" dump badging "$apk")"
+            grep -q "package: name='com.honorablemobile'" <<< "$badging"
+            if [[ "$variant" == internal ]] && grep -q '^application-debuggable' <<< "$badging"; then
+              echo "::error::Internal APK unexpectedly enables Android debugging."
+              exit 1
+            fi
+          done
+      - name: Record internal artifact identity and SHA-256
+        run: node ../scripts/release-manifest.cjs internal
+      - name: Upload internal release identity
         uses: actions/upload-artifact@v4
         with:
           name: honorable-release-identity
           path: Honorable-mobile-app-main/mobile-react-native/release-manifest.json
           if-no-files-found: error
-      - name: Upload debug APK
+      - name: Upload self-contained tester APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: honorable-android-internal
+          retention-days: 14
+          path: Honorable-mobile-app-main/mobile-react-native/android/app/build/outputs/apk/internal/app-internal.apk
+          if-no-files-found: error
+      - name: Upload developer APK (requires Metro)
         uses: actions/upload-artifact@v4
         with:
           name: honorable-android-debug
           retention-days: 14
           path: Honorable-mobile-app-main/mobile-react-native/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Preserve Android build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: honorable-android-build-diagnostics
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/honorable-android-build.log
+            ${{ runner.temp }}/honorable-*-zipalign.log
+            Honorable-mobile-app-main/mobile-react-native/android/app/build/reports/
+            Honorable-mobile-app-main/android-app/app/build/reports/tests/
+          if-no-files-found: ignore

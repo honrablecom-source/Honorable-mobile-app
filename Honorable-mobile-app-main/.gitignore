@@ -38,3 +38,6 @@ local.properties
 !/test-media/evaluation-short.json
 /android-app/.kotlin/
 /android-app/test-lab/models/
+
+# Generated artifact identity; publish through CI, not source history.
+/mobile-react-native/release-manifest.json

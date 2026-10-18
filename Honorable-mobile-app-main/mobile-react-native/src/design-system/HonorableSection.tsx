@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, radii, spacing } from './tokens';
+import { colors, spacing } from './tokens';
 export function HonorableSection({
   children,
   style,

@@ -48,8 +48,30 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @Volatile private var enrichmentProcessed=0
     @Volatile private var enrichmentTotal=0
     private var screenshotPromise:Promise?=null
+    private var workspaceSelection: Pair<String, Promise>? = null
     init { context.addActivityEventListener(object:BaseActivityEventListener(){
         override fun onActivityResult(activity:android.app.Activity,requestCode:Int,resultCode:Int,data:Intent?){
+            if (requestCode == 8105) {
+                val (kind, pending) = workspaceSelection ?: return
+                workspaceSelection = null
+                val uri = data?.data
+                if (resultCode != android.app.Activity.RESULT_OK || uri == null) {
+                    pending.resolve(null)
+                    return
+                }
+                work.execute { guarded(pending) {
+                    require(uri.scheme == "content") { "Choose a photo or video from the picker" }
+                    val expectedType = if (kind == "IMAGE") "image/" else "video/"
+                    require(context.contentResolver.getType(uri)?.startsWith(expectedType) == true) {
+                        "Choose a ${if (kind == "IMAGE") "photo" else "video"}"
+                    }
+                    context.contentResolver.openFileDescriptor(uri, "r").use {
+                        requireNotNull(it) { "The selected file could not be opened" }
+                    }
+                    Arguments.createMap().apply { putString("uri", uri.toString()) }
+                } }
+                return
+            }
             if(requestCode!=8104)return
             val pending=screenshotPromise?:return;screenshotPromise=null
             if(resultCode!=android.app.Activity.RESULT_OK||data?.data==null){pending.resolve(null);return}
@@ -65,6 +87,35 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
             }}
         }
     }) }
+    @ReactMethod fun pickWorkspaceMedia(kind: String, promise: Promise) {
+        if (kind !in setOf("IMAGE", "VIDEO")) {
+            promise.reject("INVALID_MEDIA_KIND", "Choose Photo or Video")
+            return
+        }
+        val activity = context.currentActivity
+        if (activity == null) {
+            promise.reject("NO_ACTIVITY", "Open Honorable before choosing a file")
+            return
+        }
+        activity.runOnUiThread {
+            if (workspaceSelection != null) {
+                promise.reject("PICKER_BUSY", "A workspace picker is already open")
+            } else {
+                workspaceSelection = kind to promise
+                try {
+                    activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = if (kind == "IMAGE") "image/*" else "video/*"
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+                    }, 8105)
+                } catch (error: Exception) {
+                    workspaceSelection = null
+                    promise.reject("PICKER_FAILED", "The media picker is unavailable")
+                }
+            }
+        }
+    }
     @ReactMethod fun pickBetaScreenshot(promise:Promise){
         if(screenshotPromise!=null){promise.reject("PICKER_BUSY","An attachment picker is already open");return}
         val activity=context.currentActivity;if(activity==null){promise.reject("NO_ACTIVITY","Open the feedback screen first");return}
@@ -120,6 +171,15 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @ReactMethod fun getSearchHistory(promise:Promise)=work.execute{guarded(promise){Arguments.createMap().apply{putArray("queries",Arguments.fromList(searchHistory()))}}}
     @ReactMethod fun clearSearchHistory(promise:Promise)=work.execute{guarded(promise){context.getSharedPreferences("honorable-ui",0).edit().remove("search-history").apply();Arguments.createMap().apply{putBoolean("cleared",true)}}}
     @ReactMethod fun editPhoto(uri:String,promise:Promise)=work.execute{guarded(promise){accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"));context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri)});Arguments.createMap().apply{putBoolean("opened",true)}}}
+    @ReactMethod fun editVideo(uri:String,promise:Promise)=launchVideoEditor(uri,null,promise)
+    @ReactMethod fun editVideoAtMoment(uri:String,timestampMs:Double,promise:Promise)=launchVideoEditor(uri,timestampMs,promise)
+    private fun launchVideoEditor(uri:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){
+        require(Uri.parse(uri).scheme=="content") { "Choose a video from your library" }
+        require(timestampMs==null||(timestampMs.isFinite()&&timestampMs>=0)) { "This video moment is unavailable" }
+        accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"))
+        context.startActivity(Intent(context,HonorableVideoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri);timestampMs?.let{putExtra("timestampMs",it.toLong())}})
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
     @ReactMethod fun openMedia(uri:String,kind:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){context.startActivity(Intent(context,HonorableMediaViewerActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri);putExtra("kind",kind);timestampMs?.let{putExtra("timestampMs",it.toLong())}});Arguments.createMap().apply{putBoolean("opened",true)}}}
 
     @ReactMethod fun getEntitlementState(promise: Promise) = work.execute { guarded(promise) {
