@@ -23,6 +23,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.Executors
 import androidx.media3.common.util.UnstableApi
 
 @UnstableApi
@@ -37,6 +38,8 @@ class HonorableVideoEditorActivity : Activity() {
     private var durationMs = 0
     private var saving = false
     private var analyzing = false
+    private var draftBusy = false
+    private val draftWorker = Executors.newSingleThreadExecutor()
     private var pendingRange: Pair<Long, Long>? = null
     private var pendingSegments: List<VideoSegment>? = null
     private var project: VideoEditProject? = null
@@ -93,7 +96,7 @@ class HonorableVideoEditorActivity : Activity() {
         actions.addView(Button(this).apply {
             text = "Preview clip"
             setOnClickListener {
-                if (saving || pendingRange != null || durationMs <= 0) return@setOnClickListener
+                if (saving || draftBusy || pendingRange != null || durationMs <= 0) return@setOnClickListener
                 stopProjectPreview()
                 video.seekTo(start.progress * 1000)
                 video.start()
@@ -110,7 +113,7 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(actions)
         val clipActions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         fun clipButton(title: String, action: () -> Unit) {
-            clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving) action() } },
+            clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         clipButton("Previous") { if (selectedClip > 0) { selectedClip--; showClip() } }
@@ -128,7 +131,7 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(clipActions)
         val historyActions = LinearLayout(this)
         fun historyButton(title: String, action: () -> Unit) {
-            historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving) action() } },
+            historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         historyButton("Move left") { moveClip(-1) }
@@ -139,7 +142,7 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(historyActions)
         val audioActions = LinearLayout(this)
         fun audioButton(title: String, action: () -> Unit) {
-            audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving) action() } },
+            audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         audioButton("Speed") {
@@ -155,6 +158,13 @@ class HonorableVideoEditorActivity : Activity() {
             showClip()
         }
         controls.addView(audioActions)
+        val drafts = LinearLayout(this)
+        drafts.addView(Button(this).apply { text = "Save draft"; setOnClickListener { draftOperation(false) } },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        drafts.addView(Button(this).apply { text = "Restore draft"; setOnClickListener { draftOperation(true) } },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        controls.addView(drafts)
+        controls.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
         setContentView(root)
         video.setOnPreparedListener { player ->
             durationMs = player.duration.coerceAtLeast(0)
@@ -207,7 +217,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun previewProject() {
-        if (saving || analyzing || pendingRange != null) return
+        if (saving || analyzing || draftBusy || pendingRange != null) return
         val clips = project?.segments ?: return
         stopProjectPreview()
         video.pause()
@@ -255,7 +265,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun suggestScene() {
-        if (analyzing || saving || pendingRange != null || durationMs <= 0) return
+        if (analyzing || saving || draftBusy || pendingRange != null || durationMs <= 0) return
         analyzing = true
         status.text = "Finding a scene on this device..."
         Thread {
@@ -301,7 +311,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun saveCopy() {
-        if (saving || analyzing || pendingRange != null || durationMs <= 0) return
+        if (saving || analyzing || draftBusy || pendingRange != null || durationMs <= 0) return
         val current = project?.segments?.getOrNull(selectedClip) ?: return
         val from = maxOf(start.progress * 1000L, current.startMs)
         val to = minOf(end.progress * 1000L, current.endMs)
@@ -357,6 +367,57 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
+    private fun draftOperation(restore: Boolean) {
+        if (saving || analyzing || draftBusy || pendingRange != null || durationMs <= 0) return
+        val current = project ?: return
+        val sourceDuration = durationMs.toLong()
+        val snapshot = if (restore) null else runCatching {
+            val clip = current.segments[selectedClip]
+            VideoDraft(durationMs.toLong(), current.segments.toList(), selectedClip,
+                video.currentPosition.toLong().coerceIn(0L, durationMs.toLong() - 1),
+                maxOf(start.progress * 1000L, clip.startMs), minOf(end.progress * 1000L, clip.endMs))
+        }.getOrElse { status.text = "Choose a valid range before saving a draft (up to 1,000 clips)."; return }
+        draftBusy = true
+        start.isEnabled = false; end.isEnabled = false
+        stopProjectPreview()
+        video.pause()
+        previewHandler.removeCallbacks(stopPreview)
+        status.text = if (restore) "Restoring local draft..." else "Saving local draft..."
+        draftWorker.execute {
+            var persistence: VideoDraftPersistence? = null
+            val result = runCatching {
+                VideoDraftPersistence(this, source.toString()).also { persistence = it }.let { storage ->
+                    if (restore) storage.load(sourceDuration)
+                    else { storage.save(requireNotNull(snapshot)); null }
+                }
+            }
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                draftBusy = false
+                start.isEnabled = true; end.isEnabled = true
+                if (result.isFailure || runCatching { requireNotNull(persistence).requireCurrentOwner() }.isFailure) {
+                    status.text = "Draft unavailable. Check your account and try again."
+                    return@runOnUiThread
+                }
+                if (project !== current || durationMs.toLong() != sourceDuration) {
+                    status.text = "Video changed. Try the draft action again."
+                    return@runOnUiThread
+                }
+                val saved = result.getOrNull()
+                if (restore && saved != null) {
+                    current.applyDraft(saved.segments)
+                    selectedClip = saved.selectedClip
+                    showClip()
+                    start.progress = (saved.trimStartMs / 1000).toInt()
+                    end.progress = ((saved.trimEndMs + 999) / 1000).toInt().coerceAtMost(end.max)
+                    video.seekTo(saved.previewPositionMs.toInt())
+                    status.text = "Draft restored. Preview before saving a copy. Undo restores prior clip edits."
+                } else status.text = if (restore) "No compatible draft is saved for this video and account."
+                    else "Draft saved on this device. Your original is unchanged."
+            }
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         if (::start.isInitialized) outState.putInt("startProgress", start.progress)
@@ -387,6 +448,7 @@ class HonorableVideoEditorActivity : Activity() {
         previewHandler.removeCallbacks(stopPreview)
         stopProjectPreview()
         analysisCancellation.set(true)
+        draftWorker.shutdownNow()
         exportCancellation.cancel()
         exporter?.cancel()
         super.onDestroy()

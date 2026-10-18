@@ -60,3 +60,14 @@ All checks above remain NOT RUN until recorded on a physical device. Later roadm
 - Record cold and repeated local search timing on development media. If a transient model failure occurs, record the error and retry result. The JVM fixtures establish cache recovery and bounded successful caching, rather than actual phone latency or real-model quality.
 
 Billing/live hosting is deferred at the owner's request. These device checks still require the existing authorized account service; no bypass is part of the internal artifact.
+
+## Local video drafts — physical acceptance NOT RUN
+
+1. Open a chosen video through the existing authorized flow. Split/reorder clips, change speed/volume/mute, choose a pending trim and preview position, then press Save draft. Confirm the app reports success only after storage finishes.
+2. Close/relaunch the app, select the same video, and press Restore draft. Compare clip order/ranges, audio settings, pending trim and preview position. Export and inspect the actual resulting media separately; source hashes must remain unchanged.
+3. Make different clip edits before restoring. Restore the draft, then Undo/Redo; verify prior clip edits are recoverable. Undo history from the previous app launch is not persisted.
+4. Open another video; the first video's draft must not appear. Switch accounts and sign out/expire the session; the former account's draft must not be restored under another identity. Returning to the original authorized account may restore its own draft.
+5. Delete, replace or revoke access to the original source. A draft is a local editing recipe, not a media backup; inaccessible or duration-incompatible sources must not report a successful restore/export.
+6. Leave the screen while saving/restoring, repeat actions, and simulate storage failure on a test device. No overlapping project changes, crash, wrong-account restore or false saved message. Corrupt/future/oversized draft payload rejection is covered by JVM tests; Android keystore/AtomicFile behavior still needs device execution.
+
+Drafts use the existing encrypted no-backup storage and one explicit saved draft per account/API/source. Saving does not overwrite the media, automatically reopen edits, or create a completed export. These controls do not establish multi-source projects, multitrack editing or generative AI.

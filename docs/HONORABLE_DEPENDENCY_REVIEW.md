@@ -1,5 +1,7 @@
 # Dependency review — October 11, 2026
 
+October 18 continuation: refreshed `npm audit --omit=dev` against the current RN lockfile. Counts remain **0 critical, 25 high, 5 moderate** affected package entries. No forced fixes, framework downgrade or lockfile changes were made. Full RN lint now passes with 34 warnings / zero errors; standalone Compose regression passes 57 tests. Complete ARM64 internal builds have passed; current exact-artifact evidence is in HONORABLE_CURRENT_STATUS.md. These findings remain an unresolved security-review gate, not production clearance.
+
 The compatible dependency update was installed locally and passed TypeScript, ESLint (zero errors), and all 12 React Native tests. The full Android build remains in progress.
 
 Production npm audit after the update: **0 critical, 25 high, 5 moderate** affected package entries. This is not a claim of production security clearance. Full development-tool audit also has additional findings.

@@ -31,6 +31,11 @@ internal class VideoEditProject(durationMs: Long) {
         redo.clear()
     }
 
+    fun applyDraft(clips: List<VideoSegment>) {
+        require(clips.isNotEmpty() && clips.all { it.endMs <= sourceDurationMs })
+        change(clips.toList())
+    }
+
     val totalDurationMs: Long get() = segments.sumOf { it.durationMs }
     val canUndo: Boolean get() = undo.isNotEmpty()
     val canRedo: Boolean get() = redo.isNotEmpty()
