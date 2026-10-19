@@ -1,9 +1,9 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { colors } from './src/design-system/tokens';
+import { HONORABLE_THEME } from './lib/theme';
 import { PortalHost } from '@rn-primitives/portal';
 import { LibraryProvider } from './src/library/LibraryContext';
 import { LibraryGate } from './src/library/LibraryGate';
@@ -12,29 +12,16 @@ import { MemoryPassProvider } from './src/passes/MemoryPassContext';
 import { AccountGate } from './src/auth/AccountGate';
 import './global.css';
 
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: colors.accent,
-    background: colors.canvas,
-    card: colors.surfaceSelected,
-    text: colors.textPrimary,
-    border: colors.border,
-    notification: colors.textSecondary,
-  },
-};
-
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <MemoryPassProvider>
         <AccountGate>
           <LibraryProvider>
             <SearchModeProvider>
               <LibraryGate>
-                <NavigationContainer theme={navigationTheme}>
+                <NavigationContainer theme={HONORABLE_THEME}>
                   <AppNavigator />
                 </NavigationContainer>
               </LibraryGate>

@@ -24,6 +24,8 @@ import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import android.graphics.drawable.GradientDrawable
 import androidx.media3.common.util.UnstableApi
 
 @UnstableApi
@@ -44,6 +46,7 @@ class HonorableVideoEditorActivity : Activity() {
     private var pendingSegments: List<VideoSegment>? = null
     private var project: VideoEditProject? = null
     private var selectedClip = 0
+    private lateinit var timeline: LinearLayout
     private lateinit var clipStatus: TextView
     private var exporter: VideoCompositionExporter? = null
     private val exportCancellation = CancellationSignal()
@@ -60,20 +63,22 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         source = Uri.parse(intent.getStringExtra("uri") ?: run { finish(); return })
-        window.statusBarColor = Color.BLACK
-        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = Color.WHITE
+        window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) Color.WHITE else Color.BLACK
+        window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+            (if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(Color.WHITE)
             setPadding(20, 24, 20, 24)
         }
         fun label(value: String, size: Float = 15f) = TextView(this).apply {
-            text = value; textSize = size; setTextColor(Color.WHITE); setPadding(0, 8, 0, 8)
+            text = value; textSize = size; setTextColor(Color.BLACK); setPadding(0, 8, 0, 8)
         }
         root.addView(label("Video editor", 28f))
-        root.addView(label("Edit clips locally and save a separate copy. Your original stays untouched."))
+
         val previewFrame = FrameLayout(this)
-        video = VideoView(this).apply { setVideoURI(source); setBackgroundColor(Color.BLACK) }
+        video = VideoView(this).apply { setVideoURI(source); setBackgroundColor(Color.WHITE) }
         previewFrame.addView(video, FrameLayout.LayoutParams(-1, -1))
         projectPreviewView = PlayerView(this).apply { visibility = View.GONE; useController = true }
         previewFrame.addView(projectPreviewView, FrameLayout.LayoutParams(-1, -1))
@@ -89,6 +94,9 @@ class HonorableVideoEditorActivity : Activity() {
         status = label("Loading video...")
         controls.addView(status)
         clipStatus = label("Clip 1", 13f)
+        controls.addView(label("Timeline · tap a clip", 12f))
+        timeline = LinearLayout(this)
+        controls.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(timeline) })
         controls.addView(clipStatus)
         controls.addView(Button(this).apply { text = "Suggest scene (experimental)"; setOnClickListener { suggestScene() } })
         controls.addView(label("Uses on-device labels from sampled frames. Preview the suggestion; it may miss the action.", 12f))
@@ -129,6 +137,23 @@ class HonorableVideoEditorActivity : Activity() {
                 .onFailure { status.text = "Keep at least one clip." }
         }
         controls.addView(clipActions)
+        val extraActions = LinearLayout(this)
+        extraActions.addView(Button(this).apply { text = "Apply trim"; setOnClickListener {
+            if (saving || draftBusy || pendingRange != null) return@setOnClickListener
+            val clip = project?.segments?.getOrNull(selectedClip) ?: return@setOnClickListener
+            runCatching { project?.trim(selectedClip, maxOf(start.progress * 1_000L, clip.startMs), minOf(end.progress * 1_000L, clip.endMs)) }
+                .onSuccess { showClip() }.onFailure { status.text = "Select a valid range inside this clip." }
+        } }, LinearLayout.LayoutParams(0, -2, 1f))
+        extraActions.addView(Button(this).apply { text = "Duplicate"; setOnClickListener {
+            if (saving || draftBusy || pendingRange != null) return@setOnClickListener
+            runCatching { requireNotNull(project).duplicate(selectedClip) }
+                .onSuccess { selectedClip++; showClip() }.onFailure { status.text = "Cannot duplicate this clip. Check the project clip limit." }
+        } }, LinearLayout.LayoutParams(0, -2, 1f))
+        extraActions.addView(Button(this).apply { text = "Mute"; setOnClickListener {
+            if (saving || draftBusy || pendingRange != null) return@setOnClickListener
+            project?.setVolume(selectedClip, 0f); showClip()
+        } }, LinearLayout.LayoutParams(0, -2, 1f))
+        controls.addView(extraActions)
         val historyActions = LinearLayout(this)
         fun historyButton(title: String, action: () -> Unit) {
             historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
@@ -165,6 +190,7 @@ class HonorableVideoEditorActivity : Activity() {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         controls.addView(drafts)
         controls.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
+        styleEditorControls(root, previewFrame)
         setContentView(root)
         video.setOnPreparedListener { player ->
             durationMs = player.duration.coerceAtLeast(0)
@@ -214,6 +240,7 @@ class HonorableVideoEditorActivity : Activity() {
         clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project"
         video.seekTo(clip.startMs.toInt())
         showRange()
+        renderTimeline()
     }
 
     private fun previewProject() {
@@ -264,8 +291,46 @@ class HonorableVideoEditorActivity : Activity() {
         showClip()
     }
 
+    private fun styleEditorControls(view: View, player: View) {
+        if (view === player) return // Media/player overlay colors are independent of UI chrome.
+        if (view is TextView) view.setTextColor(Color.BLACK)
+        if (view is Button) {
+            view.isAllCaps = false; view.textSize = 12f
+            view.minHeight = (48 * resources.displayMetrics.density).toInt()
+            view.background = GradientDrawable().apply {
+                setColor(Color.WHITE); setStroke(resources.displayMetrics.density.toInt().coerceAtLeast(1), Color.BLACK)
+                cornerRadius = 6 * resources.displayMetrics.density
+            }
+        }
+        if (view is SeekBar) {
+            view.progressTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
+            view.thumbTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
+        }
+        if (view is ViewGroup) for (i in 0 until view.childCount) styleEditorControls(view.getChildAt(i), player)
+    }
+
+    private fun renderTimeline() {
+        timeline.removeAllViews()
+        project?.segments?.forEachIndexed { index, clip ->
+            timeline.addView(Button(this).apply {
+                text = "${index + 1} · ${clip.durationMs / 1_000f}s\n${clip.startMs / 1_000f}–${clip.endMs / 1_000f}s"
+                contentDescription = "Select clip ${index + 1}"
+                setOnClickListener { if (!saving && !draftBusy && pendingRange == null) { selectedClip = index; showClip() } }
+                styleEditorControls(this, projectPreviewView)
+                if (index == selectedClip) background = GradientDrawable().apply {
+                    setColor(Color.rgb(240,240,240)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.BLACK)
+                    cornerRadius = 6 * resources.displayMetrics.density
+                }
+            }, LinearLayout.LayoutParams((116 * resources.displayMetrics.density).toInt(), (64 * resources.displayMetrics.density).toInt()))
+        }
+    }
+
     private fun suggestScene() {
         if (analyzing || saving || draftBusy || pendingRange != null || durationMs <= 0) return
+        val selection = runCatching { VideoSceneSelection.capture(project?.segments ?: emptyList(), selectedClip,
+            start.progress * 1_000L, end.progress * 1_000L) }.getOrElse {
+            status.text = "Choose a valid range before suggesting a scene."; return
+        }
         analyzing = true
         status.text = "Finding a scene on this device..."
         Thread {
@@ -274,24 +339,26 @@ class HonorableVideoEditorActivity : Activity() {
                 val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
                 try {
                     retriever.setDataSource(this, source)
-                    val count = minOf(12, maxOf(1, durationMs / 4000))
-                    var bestTime = durationMs / 2L
+                    var bestTime = selection.startMs
                     var bestScore = -1f
-                    for (index in 0 until count) {
+                    for (time in selection.sampleTimes()) {
                         if (analysisCancellation.get()) break
-                        val time = ((index + .5) * durationMs / count).toLong()
                         val frame = if (Build.VERSION.SDK_INT >= 27) {
-                            retriever.getScaledFrameAtTime(time * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 384, 384)
+                            retriever.getScaledFrameAtTime(time * 1000, MediaMetadataRetriever.OPTION_CLOSEST, 384, 384)
                         } else {
-                            val full = retriever.getFrameAtTime(time * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                            val full = retriever.getFrameAtTime(time * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
                             full?.let { android.graphics.Bitmap.createScaledBitmap(it, 384, 384, true).also { scaled -> if (scaled !== it) it.recycle() } }
                         } ?: continue
+                        val task = try { labeler.process(InputImage.fromBitmap(frame, 0)) } catch (error: Throwable) { frame.recycle(); throw error }
                         try {
-                            val labels = Tasks.await(labeler.process(InputImage.fromBitmap(frame, 0)))
+                            val labels = Tasks.await(task, 10, TimeUnit.SECONDS)
                             val score = labels.filterNot { it.text.lowercase() in setOf("photography", "video", "image", "snapshot") }
                                 .sumOf { it.confidence.toDouble().coerceAtMost(.85) }.toFloat()
                             if (score > bestScore) { bestScore = score; bestTime = time }
-                        } finally { frame.recycle() }
+                        } finally {
+                            // A timed-out task may still own the bitmap; release only after completion.
+                            if (task.isComplete) frame.recycle() else task.addOnCompleteListener { frame.recycle() }
+                        }
                     }
                     require(bestScore >= 0) { "No frames could be analyzed" }
                     bestTime
@@ -300,10 +367,14 @@ class HonorableVideoEditorActivity : Activity() {
             runOnUiThread {
                 analyzing = false
                 if (isDestroyed || isFinishing || analysisCancellation.get()) return@runOnUiThread
+                if (!selection.stillMatches(project?.segments ?: emptyList(), selectedClip,
+                        start.progress * 1_000L, end.progress * 1_000L)) {
+                    status.text = "Your edits changed. Run scene suggestion again for this selection."; return@runOnUiThread
+                }
                 result.onSuccess { center ->
-                    val centerSeconds = (center / 1000).toInt()
-                    start.progress = (centerSeconds - 4).coerceAtLeast(0)
-                    end.progress = (centerSeconds + 4).coerceAtMost(end.max)
+                    val range = selection.suggestedRange(center)
+                    start.progress = (range.first / 1_000).toInt()
+                    end.progress = ((range.second + 999) / 1_000).toInt().coerceAtMost(end.max)
                     status.text = "Suggested scene: ${start.progress}s - ${end.progress}s. Preview and adjust before saving."
                 }.onFailure { status.text = "Scene suggestion unavailable. Set the trim range manually." }
             }

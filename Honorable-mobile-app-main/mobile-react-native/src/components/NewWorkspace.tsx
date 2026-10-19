@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Image as Photo, Film, ArrowUpRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { colors } from '../design-system/tokens';
 import { useOpenWorkspace, WorkspaceKind } from '../native/openWorkspace';
@@ -8,7 +9,9 @@ export function NewWorkspace() {
   const { busy, open } = useOpenWorkspace();
   return (
     <View style={styles.section}>
-      <Text accessibilityRole="header">New Workspace</Text>
+      <Text accessibilityRole="header" style={styles.heading}>
+        Start creating
+      </Text>
       <View style={styles.row}>
         {(['IMAGE', 'VIDEO'] as WorkspaceKind[]).map(kind => (
           <Pressable
@@ -24,8 +27,15 @@ export function NewWorkspace() {
             onPress={() => open(kind)}
             style={[styles.tile, busy && styles.busy]}
           >
-            <Text style={styles.plus}>+</Text>
-            <Text>{kind === 'IMAGE' ? 'Photo' : 'Video'}</Text>
+            {kind === 'IMAGE' ? (
+              <Photo size={17} color={colors.textSecondary} />
+            ) : (
+              <Film size={17} color={colors.textSecondary} />
+            )}
+            <Text style={styles.label}>
+              {kind === 'IMAGE' ? 'Edit photo' : 'Edit video'}
+            </Text>
+            <ArrowUpRight size={13} color={colors.textTertiary} />
           </Pressable>
         ))}
       </View>
@@ -34,19 +44,21 @@ export function NewWorkspace() {
 }
 
 const styles = StyleSheet.create({
-  section: { marginHorizontal: 16, marginVertical: 16, gap: 12 },
+  section: { marginHorizontal: 20, marginVertical: 20, gap: 12 },
   row: { flexDirection: 'row', gap: 12 },
   tile: {
     flex: 1,
-    minHeight: 88,
+    minHeight: 54,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 8,
     backgroundColor: colors.surfaceRaised,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
   },
-  plus: { fontSize: 28, color: colors.textSecondary },
+  heading: { fontSize: 12, color: colors.textTertiary },
+  label: { fontSize: 12, color: colors.textSecondary },
   busy: { opacity: 0.5 },
 });

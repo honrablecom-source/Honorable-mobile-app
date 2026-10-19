@@ -37,6 +37,23 @@ class VideoEditProjectTest {
         assertEquals(project.segments, restored.segments)
     }
 
+    @Test fun duplicatedClipKeepsItsEditsAndIsUndoable() {
+        val project = VideoEditProject(10_000)
+        project.trim(0, 2_000, 8_000)
+        project.setSpeed(0, 2f)
+        project.setVolume(0, .5f)
+        project.duplicate(0)
+        assertEquals(listOf(VideoSegment(2_000, 8_000, 2f, .5f), VideoSegment(2_000, 8_000, 2f, .5f)), project.segments)
+        assertEquals(6_000L, project.totalDurationMs)
+        project.setVolume(1, 0f)
+        assertEquals(.5f, project.segments[0].volume)
+        assertTrue(project.undo())
+        assertTrue(project.undo())
+        assertEquals(1, project.segments.size)
+        assertTrue(project.redo())
+        assertEquals(2, project.segments.size)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun restoreRejectsRangesBeyondSource() {
         VideoEditProject(1_000).restore(listOf(VideoSegment(0, 2_000)))

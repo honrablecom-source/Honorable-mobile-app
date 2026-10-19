@@ -22,7 +22,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
     return (
       <View style={s.screen}>
         <View style={s.orb}>
-          <Images color="#fff" size={32} />
+          <Images color={colors.textPrimary} size={32} />
         </View>
         <Text style={s.kicker}>PRIVATE PHOTO SEARCH</Text>
         <Text style={s.title}>Find anything{`\n`}you remember.</Text>
@@ -101,7 +101,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceRaised,
   },
-  progressText: { color: '#fff', fontSize: 28, fontWeight: '700' },
+  progressText: { color: colors.textPrimary, fontSize: 28, fontWeight: '700' },
   kicker: {
     marginTop: 28,
     color: colors.textSecondary,
@@ -126,6 +126,8 @@ const s = StyleSheet.create({
   },
   button: {
     height: 56,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginTop: 28,
     borderRadius: 8,
     alignItems: 'center',
@@ -133,7 +135,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   disabled: { opacity: 0.55 },
-  buttonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  buttonText: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
   note: {
     marginTop: 18,
     flexDirection: 'row',
@@ -142,5 +144,5 @@ const s = StyleSheet.create({
     gap: 8,
   },
   noteText: { color: colors.textSecondary, fontSize: 12 },
-  error: { marginTop: 14, color: '#A33', textAlign: 'center' },
+  error: { marginTop: 14, color: colors.danger, textAlign: 'center' },
 });

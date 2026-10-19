@@ -9,7 +9,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Clock3, X } from 'lucide-react-native';
+import {
+  Clock3,
+  X,
+  UserRound,
+  ChevronDown,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Button } from '@/components/ui/button';
@@ -35,7 +41,6 @@ export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const { items: library } = useLibrary();
   const {
-    account,
     connected: passConnected,
     startSearch,
     finishSearch,
@@ -138,43 +143,65 @@ export function HomeScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
         <View style={styles.utility}>
+          <View style={styles.wordmarkRow}>
+            <View style={styles.brandMark}>
+              <Text style={styles.brandLetter}>h</Text>
+            </View>
+            <Text style={styles.wordmark}>honorable</Text>
+          </View>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Account"
+            style={styles.accountButton}
             onPress={() => navigation.getParent()?.navigate('Settings')}
           >
-            <Text>honorable · Account</Text>
+            <UserRound size={19} color={colors.textSecondary} />
           </Pressable>
-          <Text variant="muted" className="text-[12px]">
-            On-device
+        </View>
+        <View style={styles.hero}>
+          <View style={styles.eyebrowRow}>
+            <View style={styles.statusDot} />
+            <Text style={styles.eyebrow}>YOUR MEMORIES, CLOSE AT HAND</Text>
+          </View>
+          <Text accessibilityRole="header" style={styles.heroTitle}>
+            Find a moment.{'\n'}Make it yours.
+          </Text>
+          <Text style={styles.heroDetail}>
+            A place, a feeling, a little detail.{'\n'}Start with what you
+            remember.
           </Text>
         </View>
-        <Text
-          accessibilityRole="header"
-          className="mx-4 mb-8 mt-8 text-[40px] font-medium"
-        >
-          What do you remember?
-        </Text>
         <HonorableSearchBar
           value={query}
           onChangeText={setQuery}
           onSubmit={() => search()}
+          busy={loading}
+          footer={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Select search model"
+              style={styles.modelButton}
+              onPress={() => setModeOpen(true)}
+            >
+              <Text style={styles.modelName}>
+                Seran {productModel === 'SERAN_V1' ? 'Fast' : 'Video'}
+              </Text>
+              <ChevronDown size={12} color={colors.textSecondary} />
+              <Text style={styles.modelCost}>
+                {productModel === 'SERAN_V1' ? '1 credit' : '3 credits'}
+              </Text>
+            </Pressable>
+          }
         />
-
-        <Pressable
-          accessibilityLabel="Select search model"
-          onPress={() => setModeOpen(true)}
-          style={{ padding: 16 }}
-        >
-          <Text>
-            {productModel === 'SERAN_V1' ? 'FAST' : 'VIDEO'} ▾ ·{' '}
-            {productModel === 'SERAN_V1' ? 1 : 3} credit
-            {productModel === 'SERAN_V1' ? '' : 's'}
-          </Text>
-        </Pressable>
+        <View style={styles.privacyRow}>
+          <ShieldCheck size={12} color={colors.textTertiary} />
+          <Text style={styles.privacyText}>Search runs on your device</Text>
+        </View>
         <Modal
           visible={modeOpen}
           transparent
@@ -224,10 +251,6 @@ export function HomeScreen() {
             </View>
           </View>
         </Modal>
-        <Text variant="muted" className="mx-4 mb-4 text-[12px]">
-          {account?.freeMonthlyRemaining ?? '—'} free ·{' '}
-          {account?.balance ?? '—'} purchased
-        </Text>
         <NewWorkspace />
         {history.length > 0 && !response && (
           <View style={styles.history}>
@@ -304,12 +327,10 @@ export function HomeScreen() {
           <>
             <View style={styles.resultsHeader}>
               <Text className="text-[17px] font-semibold">
-                {response
-                  ? `${nativeItems.length} matches`
-                  : 'Recently remembered'}
+                {response ? `${nativeItems.length} matches` : 'Your memories'}
               </Text>
               <Text variant="muted" className="text-[11px]">
-                {response ? 'Best first' : 'Your library'}
+                {response ? 'Best first' : 'Recently added'}
               </Text>
             </View>
             <ScrollView
@@ -343,14 +364,85 @@ export function HomeScreen() {
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: 90 },
+  content: { paddingBottom: 48 },
   utility: {
     minHeight: 48,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  wordmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandMark: {
+    width: 28,
+    height: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandLetter: {
+    fontSize: 23,
+    lineHeight: 27,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  wordmark: { fontSize: 19, fontWeight: '600', letterSpacing: -0.7 },
+  accountButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hero: { paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 18,
+  },
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  eyebrow: { fontSize: 10, letterSpacing: 1.5, color: colors.textTertiary },
+  heroTitle: {
+    fontSize: 37,
+    lineHeight: 43,
+    fontWeight: '500',
+    letterSpacing: -1.6,
+  },
+  heroDetail: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textSecondary,
+    marginTop: 16,
+  },
+  modelButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  modelName: { fontSize: 12, color: colors.textSecondary },
+  modelCost: { fontSize: 11, color: colors.textTertiary, marginLeft: 3 },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  privacyText: { fontSize: 11, color: colors.textTertiary },
   history: { marginTop: 12 },
   historyTitle: {
     paddingHorizontal: 16,

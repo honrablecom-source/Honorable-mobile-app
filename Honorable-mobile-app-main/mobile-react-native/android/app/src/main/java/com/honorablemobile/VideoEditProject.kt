@@ -73,6 +73,12 @@ internal class VideoEditProject(durationMs: Long) {
         change(segments.toMutableList().apply { set(index, get(index).copy(volume = volume)) })
     }
 
+    fun duplicate(index: Int) {
+        require(segments.size < 1_000) { "A project supports up to 1000 clips" }
+        val clip = segments[index]
+        change(segments.toMutableList().apply { add(index + 1, clip.copy()) })
+    }
+
     fun delete(index: Int) {
         require(segments.size > 1) { "Cannot delete the last clip" }
         change(segments.toMutableList().apply { removeAt(index) })

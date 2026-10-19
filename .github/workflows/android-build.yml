@@ -24,6 +24,11 @@ on:
 permissions:
   contents: read
 
+# Cancel stale builds on the same branch or PR; retain distinct PR merge checks.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -104,7 +109,8 @@ jobs:
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         shell: bash
         run: |
-          bash gradlew --no-daemon --max-workers=2 --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleInternal 2>&1 | tee "$RUNNER_TEMP/honorable-android-build.log"
+          # Instrumentation compilation is not a device execution result.
+          bash gradlew --no-daemon --max-workers=2 --stacktrace :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin :app:assembleDebug :app:assembleInternal 2>&1 | tee "$RUNNER_TEMP/honorable-android-build.log"
       - name: Verify bundled application and local model assets
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         run: |

@@ -5,8 +5,7 @@ import {
   Home,
   Images,
   SlidersHorizontal,
-  Ticket,
-  Activity,
+  UserRound,
 } from 'lucide-react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -40,8 +39,7 @@ const icons = {
   Home,
   Memories: Images,
   Studio: SlidersHorizontal,
-  Pass: Ticket,
-  Usage: Activity,
+  Account: UserRound,
 };
 function TabIcon({
   name,
@@ -61,11 +59,6 @@ const HomeTab = () => (
 const MemoriesTab = () => (
   <TabTransition>
     <MemoriesScreen />
-  </TabTransition>
-);
-const PassTab = () => (
-  <TabTransition>
-    <PassScreen />
   </TabTransition>
 );
 function MainTabs() {
@@ -89,8 +82,7 @@ function MainTabs() {
       <Tabs.Screen name="Home" component={HomeTab} />
       <Tabs.Screen name="Memories" component={MemoriesTab} />
       <Tabs.Screen name="Studio" component={StudioScreen} />
-      <Tabs.Screen name="Pass" component={PassTab} />
-      <Tabs.Screen name="Usage" component={UsageScreen} />
+      <Tabs.Screen name="Account" component={SettingsScreen} />
     </Tabs.Navigator>
   );
 }

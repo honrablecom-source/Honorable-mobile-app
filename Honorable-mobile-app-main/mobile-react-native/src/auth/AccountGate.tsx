@@ -1,4 +1,5 @@
 import React from 'react';
+import { colors } from '../design-system/tokens';
 import { BetaUpdateNotice } from '../screens/BetaUpdateNotice';
 import {
   ActivityIndicator,
@@ -24,7 +25,7 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
     return (
       <View style={styles.launch}>
         <Text style={styles.wordmark}>honorable</Text>
-        <ActivityIndicator color="#aaa" />
+        <ActivityIndicator color={colors.textSecondary} />
         <Text style={styles.small}>Opening your memories…</Text>
       </View>
     );
@@ -106,55 +107,57 @@ export function AccountPanel() {
   );
 }
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#000' },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   launch: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 18,
   },
   content: { padding: 24, paddingBottom: 40 },
   wordmark: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 23,
     fontWeight: '700',
     letterSpacing: -0.6,
   },
   photo: { height: 180, width: '100%', marginVertical: 28, opacity: 1 },
   title: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 52,
     lineHeight: 51,
     fontWeight: '500',
     letterSpacing: -2,
   },
   copy: {
-    color: '#aaa',
+    color: colors.textSecondary,
     fontSize: 17,
     lineHeight: 25,
     marginTop: 16,
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.canvas,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 16,
     alignItems: 'center',
     marginVertical: 16,
   },
-  buttonText: { fontSize: 16, fontWeight: '600', color: '#000' },
+  buttonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   privacy: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '700',
     marginTop: 18,
     marginBottom: 10,
   },
-  small: { color: '#999', fontSize: 12, lineHeight: 18 },
+  small: { color: colors.textTertiary, fontSize: 12, lineHeight: 18 },
   panel: {
     borderBottomWidth: 1,
-    borderBottomColor: '#242424',
+    borderBottomColor: colors.border,
     paddingVertical: 16,
     marginVertical: 16,
   },

@@ -1,3 +1,21 @@
+# Latest checkpoint — functional editing batch
+
+Combined Android editing APK built and independently checked; 65 shared and 16 RN native JVM tests passed, 67 Node checks passed. Scene selection/stale results fixed; Apply trim, Duplicate, Mute and real clip strip wired to existing project/render paths. Native controls follow white-outline direction but UI is NOT accepted. See HONORABLE_EDITING_CHECKPOINT.md and HONORABLE_DELIVERY_BOARD.md for completed/next scope and remaining device/account/generation/iOS gates.
+
+# Latest UI correction — Review 04: WHITE majority, BLACK outlines
+
+Owner rejected Review 03. Shared palette now white-first; Home/Studio/navigation, account and permission gates adapted. Framed creative canvas and compact controls, conversational search input. Current UI is under owner review. TypeScript and 28 RN tests pass; changed-file lint has 0 errors / 6 warnings. No new native build/device proof; native editor hard-coded chrome still needs adaptation. Current source is local/unpushed. See latest section of HONORABLE_PROGRESS_2026-10-19.md.
+
+# Latest UI correction — mobile monochrome
+
+Owner rejected PC-style layout and mint. Review 03 uses a phone-first Studio, bottom-sheet details, pinned primary action, and a shared black/white/neutral grayscale palette. Generated RN/Compose/web palette outputs updated; no new native build/device acceptance. See the Review 03 section in HONORABLE_PROGRESS_2026-10-19.md.
+
+# Latest checkpoint — October 19, 2026
+
+The owner reprioritized UI and a complete creative roadmap, then rejected the first plain UI pass. Review 02 now has a composer-led Home, real library/source-selection Studio and four-tab navigation in local RN source; TypeScript, lint (0 errors) and 28 RN tests pass. Four screenshots are of a separate interactive HTML design reference, not the native app. Source remains unpushed and no new UI APK has been built. See [UI and creative roadmap](HONORABLE_UI_AND_CREATIVE_ROADMAP.md), [October 19 progress](HONORABLE_PROGRESS_2026-10-19.md) and [feature register](HONORABLE_FEATURE_STATUS.md). The historical recovery record below is superseded where later logs provide evidence: Video V1 and encrypted drafts have been implemented, built and pushed in 5a6de15 / fd173d7 on codex/android-internal-readiness; draft PR #1 exists. Person cutout is local, Android build passed with 65 Compose and 10 RN native JVM tests; instrumentation compiled but did not run. New UI changes are local and not included in that APK. Phone tests, hosted/native sign-in, paid services, store release and iOS remain unverified/incomplete. No whole-product investor-ready claim.
+
+# Historical initial recovery record (not current completion status)
+
 # Honorable current status
 
 ## October 18, 2026 explicit local video draft checkpoint

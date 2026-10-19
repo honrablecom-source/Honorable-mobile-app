@@ -71,3 +71,28 @@ Billing/live hosting is deferred at the owner's request. These device checks sti
 6. Leave the screen while saving/restoring, repeat actions, and simulate storage failure on a test device. No overlapping project changes, crash, wrong-account restore or false saved message. Corrupt/future/oversized draft payload rejection is covered by JVM tests; Android keystore/AtomicFile behavior still needs device execution.
 
 Drafts use the existing encrypted no-backup storage and one explicit saved draft per account/API/source. Saving does not overwrite the media, automatically reopen edits, or create a completed export. These controls do not establish multi-source projects, multitrack editing or generative AI.
+
+## Person cutout and verified photo copy — NOT RUN on a device
+
+1. Use consented or synthetic photos with one person, multiple people, fine hair, dark/light backgrounds and no person. Tap Cut out person (beta); check that unclear detections fail visibly instead of pretending a successful cutout. This is person segmentation, not arbitrary-object removal or generative fill.
+2. Inspect soft edges against the transparency grid, then crop/rotate/adjust, Undo/Redo, Compare and Reset. Preview and saved transparent PNG must use the same source-aligned matte. Check skin, hair, clothing, partial occlusion and small subjects; record failures honestly.
+3. Save a PNG copy, reopen it in another alpha-aware viewer and inspect actual pixels/dimensions/transparency. Hash the original before/after. Verify a differently named URI that aliases the original is rejected before truncation; use synthetic files/providers for destructive-path testing.
+4. Test local Documents/MediaStore providers, unknown/non-seekable identities, unavailable read-back, disk-full and failed writes. A saved message requires read-back hash and PNG dimension/type verification. Failed copies may leave a partial destination; no automatic deletion of user documents occurs.
+5. Change edits while inference runs, close the editor mid-task, repeat inference and export, and test low memory. Stale inference must not overwrite the newer edit; owned inference inputs and mattes must not be recycled while in use. Photo edit persistence across recreation remains a separate unfinished lifecycle requirement.
+6. After the authorized editor opens, enable airplane mode and use person cutout. The model is bundled. Record actual device behavior and latency; bundled assets and JVM tests are not offline/runtime proof.
+
+The new pixel/transform tests are Android instrumentation tests. Their compilation is not execution or image-quality evidence. The bundled ML Kit selfie-segmentation SDK is beta; model/hardware quality and modern-device compatibility require acceptance before release.
+
+## Functional video batch — not run on a device
+
+- Split a source into clips, select a later clip, narrow its pending trim and run scene suggestion. Sampling targets and suggested range must remain in that effective selection.
+- Change trim, selected clip, order, speed or volume during analysis. A late result must preserve current edits and ask to rerun.
+- Exercise inference timeout, background/foreground and activity destruction. No crash, stale result or recycled-bitmap access.
+- Apply trim, then Undo/Redo. Preview, saved draft and exported clip must retain the intended source range.
+- Duplicate a trimmed/speed-adjusted clip with custom volume. Verify adjacent duplicate, independent subsequent edits, Undo/Redo, saved draft and composition/export duration/order/audio.
+- Mute a clip, export and inspect audio. Undo must restore its previous volume.
+- Select each real clip-strip item; verify the matching source range, labels and preview seek, including after delete/reorder/reset/restore.
+- Verify system navigation contrast on Android 24/25 and Android 26+, plus modern edge-to-edge behavior. UI remains white/outlined; original media colors unchanged.
+- Compare original file hashes before/after all exports. Test provider denial, cancel, alias destination and storage failures.
+
+JVM tests and successful APK compilation do not execute these media/device cases. No device acceptance is recorded for this batch.

@@ -2,6 +2,8 @@
 
 October 18 continuation: refreshed `npm audit --omit=dev` against the current RN lockfile. Counts remain **0 critical, 25 high, 5 moderate** affected package entries. No forced fixes, framework downgrade or lockfile changes were made. Full RN lint now passes with 34 warnings / zero errors; standalone Compose regression passes 57 tests. Complete ARM64 internal builds have passed; current exact-artifact evidence is in HONORABLE_CURRENT_STATUS.md. These findings remain an unresolved security-review gate, not production clearance.
 
+Local person-cutout increment: added the pinned bundled `com.google.mlkit:segmentation-selfie:16.0.0-beta6` dependency to both Android targets, following [Google's implementation reference](https://developers.google.com/ml-kit/vision/selfie-segmentation/android). This beta SDK targets people; it is not a general object/generative editing engine. The vendor model is `selfiesegmentation_mlkit-256x256-2021_01_19-v1215.f16.tflite`, 249,024 bytes, SHA-256 `8d13b7fae74af625c641226813616a2117bd6bca19eb3b75574621fc08557f27`. Verify that exact model reaches each APK. The npm audit does not assess this native dependency; model quality, hardware compatibility, licensing/security disposition and phone behavior remain acceptance work. No media upload or paid inference provider was introduced.
+
 The compatible dependency update was installed locally and passed TypeScript, ESLint (zero errors), and all 12 React Native tests. The full Android build remains in progress.
 
 Production npm audit after the update: **0 critical, 25 high, 5 moderate** affected package entries. This is not a claim of production security clearance. Full development-tool audit also has additional findings.

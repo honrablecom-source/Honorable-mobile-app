@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { useLibrary } from '../library/LibraryContext';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,15 +8,9 @@ import {
   View,
 } from 'react-native';
 import { colors, radii } from '../design-system/tokens';
-import {
-  Image as Photo,
-  Film,
-} from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 import { memoryPasses } from '../passes/catalog';
-import { useNavigation } from '@react-navigation/native';
-import { useOpenWorkspace } from '../native/openWorkspace';
 export const productStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 24, paddingBottom: 40, gap: 16 },
@@ -277,154 +269,4 @@ export function ProductUsageScreen() {
     </ProductPage>
   );
 }
-export function StudioScreen() {
-  const { busy: openingWorkspace, open: openWorkspace } = useOpenWorkspace();
-  const { items } = useLibrary();
-  const photo = items.find(item => item.mediaType === 'IMAGE');
-  const video = items.find(item => item.mediaType === 'VIDEO');
-  const { account } = useMemoryPass();
-  const navigation = useNavigation<any>();
-  const [category, setCategory] = useState<string | null>(null);
-  const active = account?.subscription.status === 'ACTIVE';
-  const categories = [
-    ['Photo', Photo],
-    ['Video', Film],
-  ] as const;
-  return (
-    <ProductPage title="Honorable Studio">
-      {active ? (
-        <>
-          <Text style={s.heading}>Continue editing</Text>
-          <Text style={s.body}>
-            Open a memory to start or continue a photo edit.
-          </Text>
-          <Pressable
-            style={s.button}
-            onPress={() => navigation.navigate('Memories')}
-          >
-            <Text style={s.label}>Choose a memory</Text>
-          </Pressable>
-        </>
-      ) : (
-        <View style={{ paddingVertical: 24 }}>
-          <Text style={s.heroTitle}>Make something{'\n'}of a memory.</Text>
-          <Text style={[s.body, { marginTop: 12 }]}>
-            Start with a photo. Keep the original.
-          </Text>
-        </View>
-      )}
-      <Text style={s.eyebrow}>Create</Text>
-      <View style={s.grid}>
-        {categories.map(([name, Icon]) => (
-          <Pressable
-            key={name}
-            style={[
-              s.tile,
-              {
-                width: '100%',
-                minHeight: 220,
-                padding: 20,
-                justifyContent: 'flex-end',
-                overflow: 'hidden',
-                backgroundColor: colors.surfaceRaised,
-              },
-            ]}
-            onPress={() => setCategory(name)}
-          >
-            {(name === 'Photo' ? photo : video) && (
-              <>
-                <Image
-                  source={{ uri: name === 'Photo' ? photo!.thumbnailUri ?? photo!.mediaUri : video!.thumbnailUri ?? video!.mediaUri }}
-                  style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
-                />
-                <View
-                  style={[
-                    StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(0,0,0,.3)' },
-                  ]}
-                />
-              </>
-            )}
-            <View style={s.spread}>
-              <Icon color={colors.textSecondary} size={30} strokeWidth={1.5} />
-            </View>
-            <View>
-              <Text style={s.heading}>{name}</Text>
-              <Text style={s.body}>
-                {name === 'Photo' ? 'Adjust and save a copy' : 'Trim and save a copy'}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-      {active && (
-        <>
-          <Text style={s.eyebrow}>ADVANCED</Text>
-          <View style={s.spread}>
-            {['Nodes', 'Code'].map(name => (
-              <Pressable
-                key={name}
-                style={[s.button, { flex: 1 }]}
-                onPress={() => setCategory(name)}
-              >
-                <Text style={s.label}>{name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
-      )}
-      {category && (
-        <View style={s.row}>
-          <Text style={s.heading}>{category}</Text>
-          <Text style={s.body}>
-            {category === 'Photo'
-              ? 'Crop, rotate, adjust, undo, compare, read text on your device and export a new copy.'
-              : category === 'Code'
-              ? 'Python and Java editors are available in the web workspace. Execution is unavailable.'
-              : category === 'Nodes'
-              ? 'Node graph foundation is available in the web workspace. Processing is unavailable.'
-              : 'Preview, trim and export a new video copy. The original is preserved.'}
-          </Text>
-          {category === 'Photo' ? (
-            <Pressable
-              style={s.button}
-              disabled={openingWorkspace}
-              onPress={() => openWorkspace('IMAGE')}
-            >
-              <Text style={s.label}>Choose a photo to edit</Text>
-            </Pressable>
-          ) : category === 'Video' ? (
-            <Pressable
-              style={s.button}
-              disabled={openingWorkspace}
-              onPress={() => openWorkspace('VIDEO')}
-            >
-              <Text style={s.label}>Choose a video to edit</Text>
-            </Pressable>
-          ) : (
-            <Text style={s.body}>
-              {active ? 'Studio member' : 'Requires Studio membership'}
-            </Text>
-          )}
-          <Pressable onPress={() => setCategory(null)}>
-            <Text style={s.label}>Close</Text>
-          </Pressable>
-        </View>
-      )}
-      <Pressable
-        style={s.button}
-        onPress={() =>
-          Alert.alert(
-            'Honorable Studio',
-            'Monthly membership pricing is not finalized. Store subscriptions are not connected.',
-          )
-        }
-      >
-        <Text style={s.label}>
-          {active ? 'Studio active' : 'Explore Studio membership'}
-        </Text>
-      </Pressable>
-    </ProductPage>
-  );
-}
+export { StudioScreen } from './StudioScreen';
