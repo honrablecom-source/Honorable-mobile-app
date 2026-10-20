@@ -1,3 +1,7 @@
+# Current work — photo lifecycle recovery
+
+Recovery implementation added with same-account/API/source isolation and local mask rebuild. 70 shared Android JVM tests, 16 RN native JVM tests and 67 Node checks pass; the combined unshrunk internal APK is built and independently verified. Scene analysis now owns its input and rejects stale edits. RTK OSS installed as a portable, explicitly invoked output filter; one log shrank 95.2%, not a total-credit measurement. See HONORABLE_PHOTO_RECOVERY_CHECKPOINT.md. Existing UI acceptance, hosted account service, physical device, store signing, generation and iOS gates remain open. Historical headings below are superseded by this checkpoint.
+
 # Latest checkpoint — functional editing batch
 
 Combined Android editing APK built and independently checked; 65 shared and 16 RN native JVM tests passed, 67 Node checks passed. Scene selection/stale results fixed; Apply trim, Duplicate, Mute and real clip strip wired to existing project/render paths. Native controls follow white-outline direction but UI is NOT accepted. See HONORABLE_EDITING_CHECKPOINT.md and HONORABLE_DELIVERY_BOARD.md for completed/next scope and remaining device/account/generation/iOS gates.

@@ -21,7 +21,7 @@ October 19, 2026. Current owner instruction: stop spending whole milestones on U
 | Owner requirement | Existing foundation | Not complete / next |
 | --- | --- | --- |
 | Find described photos/videos through Seran | Native/shared search, index, OCR/semantic signals, results and video moment handoff | Measured current retrieval quality, especially V2; real device flow. V3 remains locked |
-| Simple and professional photo editing | Basic color/crop/rotate/undo/compare; OCR; scene adjustments; person cutout beta | Edit recovery, mask refinement, layers/RAW/curves, advanced pixel engines |
+| Simple and professional photo editing | Basic color/crop/rotate/undo/compare; OCR; scene adjustments; person cutout beta | Lifecycle recovery implemented; physical validation pending. Persistent photo projects, mask refinement, layers/RAW/curves, advanced pixel engines |
 | Real video editing | Media3 single-source clip project, trim/split/delete/reorder/speed/volume, composition/export and encrypted drafts | Multiple sources/tracks, effects/transitions/titles/keyframes/compositing; real output validation |
 | Generate photos | Full scope recorded: prompts, references, sketches, transformations | No generation engine integrated; first needs accepted privacy and operating-cost model |
 | Generate videos | Scope recorded: text/photos/video/storyboards/characters/first-last frames/camera/extension | No generation engine integrated; actual adapter/job/cancel/output validation required |

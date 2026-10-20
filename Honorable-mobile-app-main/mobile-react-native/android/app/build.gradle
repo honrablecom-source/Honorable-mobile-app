@@ -148,6 +148,11 @@ android {
             initWith release
             // Tester-only artifact. Store releases still require private signing.
             signingConfig signingConfigs.debug
+            // Optional local iteration mode; default internal and release keep shrinking.
+            if (providers.gradleProperty("honorableFastInternalBuild").orNull == "true") {
+                minifyEnabled false
+                shrinkResources false
+            }
             matchingFallbacks = ["release"]
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }

@@ -19,16 +19,33 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 
 /** Local, non-destructive raster editor. Exports through CREATE_DOCUMENT; never writes source URI. */
 class PhotoEditorActivity:Activity(){
- data class Edit(val rotation:Int=0,val crop:Float=1f,val brightness:Float=0f,val contrast:Float=1f,val saturation:Float=1f,val exposure:Float=0f,val personCutout:Boolean=false)
- private var readingText=false;private var enhancing=false;private var cuttingOut=false;private var exportEdit:Edit?=null
+
+ private var activeTool=-1
+ private var restoredSession:PhotoSessionSnapshot?=null
+ private var pendingDestination:Uri?=null
+ private var exportInProgress=false
+ private var waitingForPicker=false
+ private var loadedScope:String?=null
+ private fun currentScope():String?=runCatching {
+  val session=app.honorable.auth.SecureAccountStore(this).read()?:return@runCatching null
+  if(session.optLong("expiresAt")<=System.currentTimeMillis())return@runCatching null
+  val account=session.optJSONObject("cached")?.optJSONObject("account")?.optString("accountId").orEmpty()
+  val api=session.optString("apiUrl")
+  if(account.isBlank()||!api.startsWith("https://"))return@runCatching null
+  PhotoSessionCodec.scope(account,api,source.toString())
+ }.getOrNull()
+ private var readingText=false;private var enhancing=false;private var cuttingOut=false;private var exportEdit:PhotoEdit?=null
  @Volatile private var personMask:Bitmap?=null
  private var cutoutJob:AutoCloseable?=null
  private val openedAt=System.currentTimeMillis()
  private fun tool(name:String){SafeBetaTelemetry.emit(this,"edit_tool_used",JSONObject().put("tool",name))}
- private val sliders=mutableListOf<SeekBar>();private var edit=Edit();private val undo=mutableListOf<Edit>();private val redo=mutableListOf<Edit>();private var before=false
+ private val sliders=mutableListOf<SeekBar>();private var edit=PhotoEdit();private val undo=mutableListOf<PhotoEdit>();private val redo=mutableListOf<PhotoEdit>();private var before=false
  private lateinit var image:ImageView;private lateinit var note:TextView;private lateinit var source:Uri
  private var bitmap:Bitmap?=null;private var rendered:Bitmap?=null;private val worker=Executors.newSingleThreadExecutor();@Volatile private var revision=0
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);source=Uri.parse(intent.getStringExtra("uri")?:run{finish();return})
+ restoredSession=runCatching{val bytes=savedInstanceState?.getByteArray("photoSession")?:return@runCatching null
+  PhotoSessionCodec.decode(bytes,currentScope()?:return@runCatching null)}.getOrNull()
+ exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
  window.statusBarColor=Color.WHITE;window.navigationBarColor=if(android.os.Build.VERSION.SDK_INT>=26)Color.WHITE else Color.BLACK
  window.decorView.systemUiVisibility=window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if(android.os.Build.VERSION.SDK_INT>=26)View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(12.dp(),24.dp(),12.dp(),16.dp())}
@@ -37,10 +54,10 @@ class PhotoEditorActivity:Activity(){
  val top=row();button(top,"Back"){finish()};button(top,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}};button(top,"Redo"){if(redo.isNotEmpty()){tool("redo");undo.add(edit);edit=redo.removeAt(redo.lastIndex);preview()}}
  image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER};root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
  note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…"};root.addView(note)
- val actions=row();button(actions,"Compare"){before=!before;preview()};button(actions,"Reset"){tool("reset");change(Edit())};button(top,"Save copy"){if(bitmap!=null&&exportEdit==null&&!cuttingOut){exportEdit=edit;try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}catch(e:Exception){exportEdit=null;note.text="No app is available to save a copy."}}}
+ val actions=row();button(actions,"Compare"){before=!before;preview()};button(actions,"Reset"){tool("reset");change(PhotoEdit())};button(top,"Save copy"){if(bitmap!=null&&exportEdit==null&&!cuttingOut){exportEdit=edit;waitingForPicker=true;try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}}}
  val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8.dp(),8.dp(),8.dp(),8.dp())};root.addView(panel)
  val groups=mutableListOf<LinearLayout>()
- fun adjust(name:String,max:Int,value:Int,update:(Int)->Edit){
+ fun adjust(name:String,max:Int,value:Int,update:(Int)->PhotoEdit){
   val group=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;visibility=View.GONE};groups.add(group);panel.addView(group)
   val label=TextView(this).apply{text="$name   0";setTextColor(Color.BLACK);textSize=14f};group.addView(label)
   group.addView(SeekBar(this).apply{this.max=max;progress=value;contentDescription=name;sliders.add(this);progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){label.text="$name   ${v-value}"};override fun onStopTrackingTouch(s:SeekBar){tool(name.lowercase());change(update(s.progress))}})},LinearLayout.LayoutParams(-1,48.dp()))
@@ -49,7 +66,7 @@ class PhotoEditorActivity:Activity(){
  val toolScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false};val rail=LinearLayout(this);toolScroll.addView(rail);root.addView(toolScroll)
  val toolButtons=mutableListOf<Button>()
  listOf("Brightness","Contrast","Color","Exposure").forEachIndexed{i,name->
-  val control=Button(this).apply{text=name;isAllCaps=false;textSize=12f;setTextColor(Color.DKGRAY);setBackgroundColor(Color.WHITE);setOnClickListener{groups.forEachIndexed{index,view->view.visibility=if(index==i)View.VISIBLE else View.GONE};toolButtons.forEachIndexed{index,view->view.isSelected=index==i;view.setTextColor(if(index==i)Color.BLACK else Color.GRAY)}}};toolButtons.add(control);rail.addView(control,LinearLayout.LayoutParams(104.dp(),48.dp()))
+  val control=Button(this).apply{text=name;isAllCaps=false;textSize=12f;setTextColor(Color.DKGRAY);setBackgroundColor(Color.WHITE);setOnClickListener{activeTool=i;groups.forEachIndexed{index,view->view.visibility=if(index==i)View.VISIBLE else View.GONE};toolButtons.forEachIndexed{index,view->view.isSelected=index==i;view.setTextColor(if(index==i)Color.BLACK else Color.GRAY)}}};toolButtons.add(control);rail.addView(control,LinearLayout.LayoutParams(104.dp(),48.dp()))
  }
  button(actions,"Read text"){readText()}
  val smart=row();button(smart,"AI scene enhance"){enhanceScene()};button(smart,"Cut out person (beta)"){cutOutPerson()}
@@ -57,16 +74,23 @@ class PhotoEditorActivity:Activity(){
 
  setContentView(root)
  SafeBetaTelemetry.emit(this,"editor_opened",JSONObject().put("mediaType","IMAGE"));
- worker.execute{try{SafeBetaTelemetry.authorizeEditor(this);val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){bitmap=loaded;preview()}else loaded.recycle()}}catch(e:Exception){runOnUiThread{if(!isDestroyed)note.text="Unable to open this image. Check access and try again."}}catch(e:OutOfMemoryError){runOnUiThread{if(!isDestroyed)note.text="Not enough memory to open this photo. Try a smaller image."}}}
+ worker.execute{try{SafeBetaTelemetry.authorizeEditor(this);val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){
+   bitmap=loaded;loadedScope=currentScope()
+   restoredSession?.takeIf{it.scope==loadedScope}?.let{saved->edit=saved.edit;undo.addAll(saved.undo);redo.addAll(saved.redo);before=saved.compareOriginal;activeTool=saved.activeTool
+    if(activeTool in toolButtons.indices)toolButtons[activeTool].performClick()}
+   if(restoredSession!=null&&restoredSession?.scope!=loadedScope){exportEdit=null;pendingDestination=null;note.text="Previous edits belong to another session."}
+   restoredSession=null;preview();resumePendingExport()
+  }else loaded.recycle()}}catch(e:Exception){runOnUiThread{if(!isDestroyed)note.text="Unable to open this image. Check access and try again."}}catch(e:OutOfMemoryError){runOnUiThread{if(!isDestroyed)note.text="Not enough memory to open this photo. Try a smaller image."}}}
  }
  private fun Int.dp()=(this*resources.displayMetrics.density).toInt()
- private fun change(next:Edit){undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
+ private fun change(next:PhotoEdit){undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
  private fun decode(limit:Int):Bitmap{val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true};contentResolver.openInputStream(source).use{BitmapFactory.decodeStream(it,null,bounds)};require(bounds.outWidth>0){"Unsupported image"};val runtime=Runtime.getRuntime();val headroom=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory());require(headroom>8L*1024*1024){"Not enough memory. Close other tools and try again."};val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;val maxPixels=(headroom/24).coerceAtMost(if(low)1_500_000L else 6_000_000L);val sample=PhotoDecodeBudget.sampleSize(bounds.outWidth,bounds.outHeight,limit,maxPixels);val options=BitmapFactory.Options().apply{inSampleSize=sample};val decoded=contentResolver.openInputStream(source).use{BitmapFactory.decodeStream(it,null,options)}?:error("Unable to decode image");val orientation=runCatching{contentResolver.openInputStream(source).use{android.media.ExifInterface(requireNotNull(it)).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1)}}.getOrDefault(1);val matrix=Matrix();when(orientation){2->matrix.setScale(-1f,1f);3->matrix.setRotate(180f);4->matrix.setScale(1f,-1f);5->{matrix.setRotate(90f);matrix.postScale(-1f,1f)};6->matrix.setRotate(90f);7->{matrix.setRotate(-90f);matrix.postScale(-1f,1f)};8->matrix.setRotate(-90f)};if(orientation==1)return decoded;val oriented=Bitmap.createBitmap(decoded,0,0,decoded.width,decoded.height,matrix,true);if(oriented!==decoded)decoded.recycle();return oriented}
- private fun render(input:Bitmap,e:Edit):Bitmap=PhotoRasterRenderer.render(input,e,personMask)
+ private fun render(input:Bitmap,e:PhotoEdit):Bitmap=PhotoRasterRenderer.render(input,e,personMask)
  private fun preview() {
   listOf((edit.brightness/1.28f+100).toInt(),(edit.contrast*100).toInt(),(edit.saturation*100).toInt(),(edit.exposure*100+200).toInt()).forEachIndexed{i,v->sliders.getOrNull(i)?.progress=v}
   val input=bitmap?:return
-  val state=if(before)Edit()else edit
+  val state=if(before)PhotoEdit()else edit
+  if(state.personCutout&&personMask==null){note.text="Restoring person cutout on this device…";cutOutPerson(true);return}
   image.background=if(state.personCutout)TransparencyGridDrawable(12.dp())else null
   val request=++revision
   val started=System.currentTimeMillis()
@@ -87,10 +111,10 @@ class PhotoEditorActivity:Activity(){
    }
   }
  }
- private fun cutOutPerson() {
+ private fun cutOutPerson(recover:Boolean=false) {
   val input=bitmap?:return
-  if(cuttingOut||readingText||enhancing||exportEdit!=null||isFinishing)return
-  if(personMask!=null){tool("person_cutout");change(edit.copy(personCutout=true));return}
+  if(cuttingOut||readingText||enhancing||(!recover&&exportEdit!=null)||isFinishing)return
+  if(personMask!=null){if(recover){preview();resumePendingExport()}else{tool("person_cutout");change(edit.copy(personCutout=true))};return}
   cuttingOut=true
   val request=++revision
   note.text="Separating the person on this device…"
@@ -106,45 +130,50 @@ class PhotoEditorActivity:Activity(){
        cutoutJob=null;cuttingOut=false
        val mask=result.getOrNull()
        if(isDestroyed||isFinishing){mask?.recycle();return@start}
-       if(mask==null){note.text=if(result.exceptionOrNull() is PersonMaskAlpha.NoClearPerson)"No clear person boundary found. Try a photo with a person." else "Person cutout unavailable. Try again.";return@start}
+       if(mask==null){if(recover){exportEdit=null;pendingDestination=null};note.text=if(result.exceptionOrNull() is PersonMaskAlpha.NoClearPerson)"No clear person boundary found. Try a photo with a person." else "Person cutout unavailable. Try again.";return@start}
        personMask=mask
-       if(request==revision){tool("person_cutout");change(edit.copy(personCutout=true))}
+       if(recover){preview();resumePendingExport()}
+       else if(request==revision){tool("person_cutout");change(edit.copy(personCutout=true))}
        else note.text="Cutout ready. Tap Cut out person to apply it to your current edit."
       }
-     }.onFailure{owned.recycle();cuttingOut=false;note.text="Person cutout unavailable. Try again."}
+     }.onFailure{owned.recycle();cuttingOut=false;if(recover){exportEdit=null;pendingDestination=null};note.text="Person cutout unavailable. Try again."}
     }
-   }catch(error:Throwable){runOnUiThread{cuttingOut=false;if(!isDestroyed)note.text="Not enough resources for person cutout. Try a smaller photo."}}
+   }catch(error:Throwable){runOnUiThread{cuttingOut=false;if(recover){exportEdit=null;pendingDestination=null};if(!isDestroyed)note.text="Not enough resources for person cutout. Try a smaller photo."}}
   }
  }
  private fun enhanceScene() {
   val input=bitmap?:return
   if(enhancing||cuttingOut||exportEdit!=null||isFinishing)return
+  val owned=runCatching{requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory for scene analysis.";return}
+  val initial=edit;val request=revision
   enhancing=true;note.text="Analyzing this photo on your device…"
   val labeler=ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
-  labeler.process(InputImage.fromBitmap(input,0))
+  try{labeler.process(InputImage.fromBitmap(owned,0))
    .addOnSuccessListener { labels ->
     if(isDestroyed||isFinishing)return@addOnSuccessListener
+    if(request!=revision){note.text="Photo changed during analysis. Run scene enhance again.";return@addOnSuccessListener}
     val scene=labels.filter{it.confidence>=.55f}.map{it.text.lowercase()}
     val isPerson=scene.any{it.contains("person")||it.contains("face")||it.contains("portrait")}
     val isOutdoor=scene.any{it.contains("landscape")||it.contains("beach")||it.contains("sky")||it.contains("nature")}
     val isNight=scene.any{it.contains("night")||it.contains("dark")}
-    val light=sampleLight(input)
+    val light=sampleLight(owned)
     val exposureBoost=when {
      light>=.72f -> 0f
      light<.28f -> if(isNight).38f else .3f
      light<.46f -> .15f
      else -> .05f
     }
-    val next=edit.copy(
-     exposure=(edit.exposure+exposureBoost).coerceIn(-2f,2f),
-     contrast=(edit.contrast*(if(isPerson)1.03f else 1.08f)).coerceIn(0f,2f),
-     saturation=(edit.saturation*(if(isOutdoor)1.12f else if(isPerson)1.01f else 1.05f)).coerceIn(0f,2f)
+    val next=initial.copy(
+     exposure=(initial.exposure+exposureBoost).coerceIn(-2f,2f),
+     contrast=(initial.contrast*(if(isPerson)1.03f else 1.08f)).coerceIn(0f,2f),
+     saturation=(initial.saturation*(if(isOutdoor)1.12f else if(isPerson)1.01f else 1.05f)).coerceIn(0f,2f)
     )
     tool("ai_scene_enhance");change(next)
     note.text="Scene-aware adjustments applied on device. Compare before saving a copy."
    }
    .addOnFailureListener { if(!isDestroyed)note.text="Scene analysis failed. Try manual adjustments." }
-   .addOnCompleteListener { enhancing=false;labeler.close() }
+   .addOnCompleteListener { enhancing=false;labeler.close();owned.recycle() }
+  }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();note.text="Scene analysis failed. Try manual adjustments."}
  }
  private fun sampleLight(input:Bitmap):Float {
   var total=0.0;var count=0
@@ -180,9 +209,19 @@ class PhotoEditorActivity:Activity(){
  override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
   super.onActivityResult(requestCode,resultCode,data)
   if(requestCode!=20)return
-  val state=exportEdit?:edit
+  waitingForPicker=false
+  if(exportEdit==null){pendingDestination=null;note.text="Save interrupted. Choose Save copy again.";return}
   if(resultCode!=RESULT_OK||data?.data==null){exportEdit=null;return}
-  val destination=requireNotNull(data.data)
+  pendingDestination=requireNotNull(data.data)
+  resumePendingExport()
+ }
+ private fun resumePendingExport(){
+  val destination=pendingDestination?:return
+  if(bitmap==null||exportInProgress||isDestroyed)return
+  if(loadedScope!=null&&currentScope()!=loadedScope){pendingDestination=null;exportEdit=null;note.text="Account changed. Reopen this photo before saving.";return}
+  val state=exportEdit?:run{pendingDestination=null;return}
+  if(state.personCutout&&personMask==null){cutOutPerson(true);return}
+  pendingDestination=null;exportInProgress=true
   note.text="Exporting copy…"
   worker.execute {
    var input:Bitmap?=null
@@ -196,13 +235,24 @@ class PhotoEditorActivity:Activity(){
     SafePhotoCopy.save(this,source,destination,result)
     val dimensions="${result.width} × ${result.height}"
     SafeBetaTelemetry.emit(this,"edit_saved",JSONObject().put("mediaType","IMAGE"))
-    runOnUiThread{exportEdit=null;if(!isDestroyed)note.text="Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."}
+    runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."}
    } catch(e:Exception) {
     SafeBetaTelemetry.emit(this,"client_error",JSONObject().put("errorCode","SAVE_FAILED"))
-    runOnUiThread{exportEdit=null;if(!isDestroyed)note.text="Export failed. Choose a local writable destination; check Files for a partial copy."}
+    runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Export failed. Choose a local writable destination; check Files for a partial copy."}
    } catch(e:OutOfMemoryError) {
-    runOnUiThread{exportEdit=null;if(!isDestroyed)note.text="Not enough memory to save this photo. Close other tools and try again."}
+    runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Not enough memory to save this photo. Close other tools and try again."}
    } finally {output?.recycle();input?.recycle()}
+  }
+ }
+ override fun onSaveInstanceState(outState:Bundle){
+  super.onSaveInstanceState(outState)
+  runCatching {
+   val scope=currentScope()?:return@runCatching
+   val pending=restoredSession?.takeIf{it.scope==scope}
+   if(restoredSession!=null&&pending==null)return@runCatching
+   val snapshot=pending?.copy(pendingExport=if(waitingForPicker)exportEdit else null)?:PhotoSessionSnapshot(scope,edit,undo.toList(),redo.toList(),before,activeTool,
+    if(waitingForPicker&&!exportInProgress&&pendingDestination==null)exportEdit else null)
+   if(loadedScope==null||loadedScope==scope)outState.putByteArray("photoSession",PhotoSessionCodec.encode(snapshot))
   }
  }
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}

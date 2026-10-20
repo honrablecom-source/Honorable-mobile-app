@@ -73,3 +73,10 @@ Next: refine actual native editor chrome to match the chosen light outline direc
 ## Functional editing delivery
 
 Returned focus to functional native work after the owner rejected repeated UI previews. This batch adds selected-clip scene suggestions with stale-result protection and bounded waits; undoable trim/duplicate and direct mute; a real clip-selection strip; light native control chrome. Full combined ARM64 build and independent APK checks pass; 65 Compose + 16 RN native JVM and 67 Node tests pass. Phone/instrumentation execution remains unavailable. See HONORABLE_EDITING_CHECKPOINT.md for the exact APK and completed/next record. Generation, rigging, advanced compositing and iOS remain unfinished.
+
+
+## Photo lifecycle recovery and command-output efficiency
+
+Added bounded same-account/API/source photo state and undo/redo recovery, local cutout-mask reconstruction and pending-picker settings. Started exports are not replayed. Fixed scene-analysis bitmap ownership and stale-result overwrite. Five new codec tests cover roundtrip, bounds, scope isolation and malformed inputs; 70 shared JVM and 67 Node checks pass, integrated verification pending. Restored the existing short Windows build mappings when absent. Portable RTK OSS 1.0.1 official archive digest verified; explicit log/Git filtering only. One retained build log reduced 95.2% in bytes, with a Gradle task-name false error classification; full raw logs remain authoritative. Billing remains deferred and device validation unavailable. See HONORABLE_PHOTO_RECOVERY_CHECKPOINT.md.
+
+Final photo checkpoint: account-switch-during-loading and missing-frozen-export guards added. Final 70 shared / 16 RN native JVM / 67 Node checks pass; instrumentation compiled only. Combined ARM64 unshrunk internal APK independently verified; SHA-256 7176f55e3a77c3428b5b1fab6b6fc566f8e0f364262b0b75daf3398a40f73e80. Opt-in honorableFastInternalBuild skips shrinking, with default/internal production policy preserved. First unshrunk build took 3m54s, so no overall time saving established. Physical device and hosted API gates remain open.

@@ -7,6 +7,7 @@ Updated October 19, 2026. Continue the existing application and design. No featu
 | Home/library/search/results/viewer | Existing RN presentation and native Seran integration | Physical permissions, usability/accessibility, grounded retrieval and performance |
 | Workspace selection | Typed local Photo/Video pickers and existing editors | Physical cancel/denial/provider behavior |
 | Basic photo editing | Crop/rotate, brightness/contrast/saturation/exposure, monochrome, undo/redo/reset/compare | Phone pixels/export/orientation, lifecycle and memory checks |
+| Photo lifecycle recovery | Bounded scalar edits, undo/redo, compare/tool and pending-picker settings; account/API/source isolation; masks recomputed locally | JVM coverage and combined internal APK pass; physical rotation/process/picker validation pending; not persistent photo projects |
 | Photo text recognition | Bundled on-device OCR, review and explicit copy | Real recognition/error/offline acceptance |
 | Scene-aware photo enhancement | On-device labels plus bounded color/exposure adjustments | Image-quality and resource/lifecycle acceptance |
 | Person cutout | New local person segmentation, source-aligned soft matte, transparent PNG path and undo/compare; ARM64 build passed; 65 Compose and 10 RN native JVM tests passed; no device inference proof | Real person/no-person/edge quality, transforms and saved-alpha validation on a phone |
