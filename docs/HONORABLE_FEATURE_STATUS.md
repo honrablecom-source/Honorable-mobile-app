@@ -41,3 +41,7 @@ Home hierarchy, compact workspace actions, direct Studio pickers and navigation 
 ## Functional editing checkpoint
 
 Selection-bounded/stale-safe scene suggestions, Apply trim, edited clip duplication, direct mute and actual clip-selection strip are implemented. 65 Compose + 16 RN native JVM tests and the combined full ARM64 build pass; APK independently checked. Person inference, media output and native visual quality still need device acceptance. See HONORABLE_EDITING_CHECKPOINT.md.
+
+## Multi-source milestone
+
+Multiple imported document videos now share a real timeline; source IDs survive clip operations, preview/export/scene inference, encrypted draft restore and bounded lifecycle recovery. Added 7 JVM regressions (23 RN native total); 67 Node checks and combined APK verification pass. URI ordering and secondary-original hard-link protection instrumentation compiles only. Mixed-media output and physical lifecycle/permission validation remain open. Titles/transitions, tracks, advanced generation/rigging and iOS remain incomplete.

@@ -16,13 +16,17 @@ October 19, 2026. Current owner instruction: stop spending whole milestones on U
 | Native editor white-outline chrome | Photo/video control colors and view styling updated | Compilation/build pass; no screenshot/device acceptance |
 | Person cutout and verified PNG copy safety | Existing local implementation preserved in batch | Prior tests/build pass; current combined APK verified; device pixels/inference unverified |
 
+## Multi-source extension
+
+Add video, durable source grants, per-clip mapping, v2/v1-compatible encrypted drafts and protection of all imported originals are implemented. 23 native JVM/67 Node checks and combined APK verification pass; new source-order/alias instrumentation compiles but has not run. See HONORABLE_MULTI_SOURCE_CHECKPOINT.md.
+
 ## Whole product: what works versus what is next
 
 | Owner requirement | Existing foundation | Not complete / next |
 | --- | --- | --- |
 | Find described photos/videos through Seran | Native/shared search, index, OCR/semantic signals, results and video moment handoff | Measured current retrieval quality, especially V2; real device flow. V3 remains locked |
 | Simple and professional photo editing | Basic color/crop/rotate/undo/compare; OCR; scene adjustments; person cutout beta | Lifecycle recovery implemented; physical validation pending. Persistent photo projects, mask refinement, layers/RAW/curves, advanced pixel engines |
-| Real video editing | Media3 single-source clip project, trim/split/delete/reorder/speed/volume, composition/export and encrypted drafts | Multiple sources/tracks, effects/transitions/titles/keyframes/compositing; real output validation |
+| Real video editing | Media3 multi-source clip project, trim/split/delete/reorder/speed/volume, composition/export and encrypted drafts | Multi-source import/preview/export/drafts implemented with JVM/build evidence; physical validation pending. Multiple tracks, effects/transitions/titles/keyframes/compositing remain incomplete |
 | Generate photos | Full scope recorded: prompts, references, sketches, transformations | No generation engine integrated; first needs accepted privacy and operating-cost model |
 | Generate videos | Scope recorded: text/photos/video/storyboards/characters/first-last frames/camera/extension | No generation engine integrated; actual adapter/job/cancel/output validation required |
 | Animate almost anything | Person separation is a limited foundation | Rigs/mesh deformation, depth, paths/keyframes, reconstruction, temporal consistency and motion transfer |

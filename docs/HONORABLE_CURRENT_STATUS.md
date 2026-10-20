@@ -1,3 +1,7 @@
+# Current checkpoint — multi-source video editing
+
+Add video now uses durable document access; per-clip source IDs flow through edit history, clip/project preview, scene sampling, export and encrypted drafts. v1 drafts remain readable; v2 stores bounded source metadata and checks document durations on restore. Copy safety checks every imported original before truncation. 23 RN native JVM and 67 Node tests pass; instrumentation compiles only. Combined ARM64 internal APK built and independently verified. Shared photo/Compose code is unchanged from its earlier 70 passing tests. See HONORABLE_MULTI_SOURCE_CHECKPOINT.md. Next: titles/transitions and soundtrack/tracks; advanced photo tools, generation, rigging, Studio and iOS remain incomplete. Existing device/API/UI/store gates remain open.
+
 # Current work — photo lifecycle recovery
 
 Recovery implementation added with same-account/API/source isolation and local mask rebuild. 70 shared Android JVM tests, 16 RN native JVM tests and 67 Node checks pass; the combined unshrunk internal APK is built and independently verified. Scene analysis now owns its input and rejects stale edits. RTK OSS installed as a portable, explicitly invoked output filter; one log shrank 95.2%, not a total-credit measurement. See HONORABLE_PHOTO_RECOVERY_CHECKPOINT.md. Existing UI acceptance, hosted account service, physical device, store signing, generation and iOS gates remain open. Historical headings below are superseded by this checkpoint.

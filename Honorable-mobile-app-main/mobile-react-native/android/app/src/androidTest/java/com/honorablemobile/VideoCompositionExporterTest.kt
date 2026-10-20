@@ -113,4 +113,29 @@ class VideoCompositionExporterTest {
             assertEquals(original, digest(source))
         } finally { rendered.delete(); output.delete(); source.delete() }
     }
+    @Test fun compositionResolvesEachClipToItsOwnDocument() {
+        val first = Uri.parse("content://test/first")
+        val second = Uri.parse("content://test/second")
+        val composition = VideoCompositionExporter.composition(mapOf("primary" to first, "second" to second),
+            listOf(VideoSegment(0, 1000, sourceId="second"), VideoSegment(0,1000)))
+        val items = composition.sequences.single().editedMediaItems
+        assertEquals(listOf(second, first), items.map { it.mediaItem.localConfiguration!!.uri })
+    }
+
+    @Test fun destinationAliasOfAnyImportedOriginalIsRejectedBeforeTruncation() {
+        val first = fixture(); val second = fixture()
+        val original = digest(second)
+        val alias = File(second.parentFile, second.name+"-alias")
+        try {
+            android.system.Os.link(second.absolutePath, alias.absolutePath)
+            try {
+                VideoCompositionExporter.copyRenderedToDocument(context,
+                    mapOf("primary" to Uri.fromFile(first), "second" to Uri.fromFile(second)),
+                    Uri.fromFile(alias), first, listOf(VideoSegment(0,3000)), AtomicBoolean(false))
+                fail("An imported original alias must be rejected")
+            } catch(failure: VideoExportFailure) { assertFalse(failure.partialDocumentMayRemain) }
+            assertEquals(original, digest(second)); assertEquals(original, digest(alias))
+        } finally { alias.delete(); second.delete(); first.delete() }
+    }
+
 }

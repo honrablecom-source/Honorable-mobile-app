@@ -38,6 +38,13 @@ class HonorableVideoEditorActivity : Activity() {
     private lateinit var end: SeekBar
     private lateinit var status: TextView
     private var durationMs = 0
+    private var primaryDurationMs = 0L
+    private val importedSources = linkedMapOf<String, VideoSource>()
+    private var videoSourceId = "primary"
+    private var pendingSeekMs = 0L
+    private var importing = false
+    private var sourceReady = false
+    private var recoveryBytes: ByteArray? = null
     private var saving = false
     private var analyzing = false
     private var draftBusy = false
@@ -55,13 +62,14 @@ class HonorableVideoEditorActivity : Activity() {
     private val stopPreview = object : Runnable {
         override fun run() {
             if (!::video.isInitialized || !video.isPlaying) return
-            if (video.currentPosition >= end.progress * 1000) video.pause()
+            if (video.currentPosition.toLong() >= end.progress * 1000L) video.pause()
             else previewHandler.postDelayed(this, 100)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        recoveryBytes = savedInstanceState?.getByteArray("multiSourceProject")
         source = Uri.parse(intent.getStringExtra("uri") ?: run { finish(); return })
         window.statusBarColor = Color.WHITE
         window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) Color.WHITE else Color.BLACK
@@ -98,15 +106,16 @@ class HonorableVideoEditorActivity : Activity() {
         timeline = LinearLayout(this)
         controls.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(timeline) })
         controls.addView(clipStatus)
+        controls.addView(Button(this).apply { text = "Add video"; setOnClickListener { importVideo() } })
         controls.addView(Button(this).apply { text = "Suggest scene (experimental)"; setOnClickListener { suggestScene() } })
         controls.addView(label("Uses on-device labels from sampled frames. Preview the suggestion; it may miss the action.", 12f))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         actions.addView(Button(this).apply {
             text = "Preview clip"
             setOnClickListener {
-                if (saving || draftBusy || pendingRange != null || durationMs <= 0) return@setOnClickListener
+                if (saving || draftBusy || importing || pendingRange != null || durationMs <= 0 || !sourceReady) return@setOnClickListener
                 stopProjectPreview()
-                video.seekTo(start.progress * 1000)
+                video.seekTo((start.progress * 1000L).coerceAtMost(durationMs.toLong()-1).toInt())
                 video.start()
                 previewHandler.removeCallbacks(stopPreview)
                 previewHandler.post(stopPreview)
@@ -121,12 +130,13 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(actions)
         val clipActions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         fun clipButton(title: String, action: () -> Unit) {
-            clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
+            clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         clipButton("Previous") { if (selectedClip > 0) { selectedClip--; showClip() } }
         clipButton("Next") { if (selectedClip + 1 < (project?.segments?.size ?: 0)) { selectedClip++; showClip() } }
         clipButton("Split") {
+            if(!sourceReady) return@clipButton
             runCatching { requireNotNull(project).split(selectedClip, video.currentPosition.toLong()) }
                 .onSuccess { selectedClip++; showClip() }
                 .onFailure { status.text = "Play or seek inside this clip, then split." }
@@ -139,24 +149,24 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(clipActions)
         val extraActions = LinearLayout(this)
         extraActions.addView(Button(this).apply { text = "Apply trim"; setOnClickListener {
-            if (saving || draftBusy || pendingRange != null) return@setOnClickListener
+            if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
             val clip = project?.segments?.getOrNull(selectedClip) ?: return@setOnClickListener
             runCatching { project?.trim(selectedClip, maxOf(start.progress * 1_000L, clip.startMs), minOf(end.progress * 1_000L, clip.endMs)) }
                 .onSuccess { showClip() }.onFailure { status.text = "Select a valid range inside this clip." }
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         extraActions.addView(Button(this).apply { text = "Duplicate"; setOnClickListener {
-            if (saving || draftBusy || pendingRange != null) return@setOnClickListener
+            if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
             runCatching { requireNotNull(project).duplicate(selectedClip) }
                 .onSuccess { selectedClip++; showClip() }.onFailure { status.text = "Cannot duplicate this clip. Check the project clip limit." }
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         extraActions.addView(Button(this).apply { text = "Mute"; setOnClickListener {
-            if (saving || draftBusy || pendingRange != null) return@setOnClickListener
+            if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
             project?.setVolume(selectedClip, 0f); showClip()
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(extraActions)
         val historyActions = LinearLayout(this)
         fun historyButton(title: String, action: () -> Unit) {
-            historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
+            historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         historyButton("Move left") { moveClip(-1) }
@@ -167,7 +177,7 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(historyActions)
         val audioActions = LinearLayout(this)
         fun audioButton(title: String, action: () -> Unit) {
-            audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy) action() } },
+            audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         audioButton("Speed") {
@@ -192,26 +202,43 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
         styleEditorControls(root, previewFrame)
         setContentView(root)
+        video.setOnErrorListener { _, _, _ -> status.text = "Video unavailable. Check access to the selected source."; true }
         video.setOnPreparedListener { player ->
-            durationMs = player.duration.coerceAtLeast(0)
-            if (durationMs > 0) {
-                project = VideoEditProject(durationMs.toLong())
-                readSegments(savedInstanceState, "project")?.let { saved ->
-                    runCatching { project?.restore(saved) }
-                }
-                selectedClip = (savedInstanceState?.getInt("selectedClip") ?: 0)
-                    .coerceIn(0, requireNotNull(project).segments.lastIndex)
+            sourceReady = true
+            if(project != null) {
+                video.seekTo(pendingSeekMs.coerceIn(0L, (durationMs.toLong()-1).coerceAtLeast(0L)).toInt())
+                return@setOnPreparedListener
             }
-            val seconds = ((durationMs + 999) / 1000).coerceAtLeast(1)
-            start.max = seconds
-            end.max = seconds
-            start.progress = savedInstanceState?.getInt("startProgress", 0) ?: 0
-            end.progress = savedInstanceState?.getInt("endProgress", seconds) ?: seconds
-            showRange()
+            durationMs = player.duration.coerceAtLeast(0)
+            if(durationMs <= 0) { status.text = "This video has no supported duration."; return@setOnPreparedListener }
+            primaryDurationMs = durationMs.toLong()
+            val current = VideoEditProject(primaryDurationMs)
+            project = current
             showClip()
-            val previewPosition = savedInstanceState?.getLong("previewPositionMs")
-                ?: intent.getLongExtra("timestampMs", 0L)
-            video.seekTo(previewPosition.coerceIn(0L, (durationMs.toLong() - 1L).coerceAtLeast(0L)).toInt())
+            val saved = recoveryBytes?.let { VideoDraftCodec.decode(it, primaryDurationMs) }
+            if(saved != null) {
+                draftBusy = true
+                status.text = "Checking restored video sources..."
+                draftWorker.execute {
+                    val checked = runCatching { validateSources(saved.sources) }
+                    runOnUiThread {
+                        draftBusy = false
+                        if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
+                        recoveryBytes = null
+                        checked.onSuccess { runCatching { applySavedDraft(current, saved, false) }
+                            .onFailure { status.text = "Project recovery unavailable. The original video remains open." } }
+                            .onFailure { status.text = "A restored video is unavailable or changed. Reopen its document and try the saved draft." }
+                    }
+                }
+            } else {
+                recoveryBytes = null
+                // Preserve lifecycle compatibility with the earlier single-source editor.
+                readSegments(savedInstanceState, "project")?.let { runCatching { current.restore(it) } }
+                selectedClip = (savedInstanceState?.getInt("selectedClip") ?: 0).coerceIn(0, current.segments.lastIndex)
+                showClip()
+                pendingSeekMs = savedInstanceState?.getLong("previewPositionMs") ?: intent.getLongExtra("timestampMs", 0L)
+                video.seekTo(pendingSeekMs.coerceIn(0L, primaryDurationMs-1).toInt())
+            }
         }
         val listener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) { if (fromUser) showRange() }
@@ -220,11 +247,7 @@ class HonorableVideoEditorActivity : Activity() {
         }
         start.setOnSeekBarChangeListener(listener)
         end.setOnSeekBarChangeListener(listener)
-        if (savedInstanceState?.containsKey("pendingStartMs") == true) {
-            pendingRange = savedInstanceState.getLong("pendingStartMs") to savedInstanceState.getLong("pendingEndMs")
-            pendingSegments = readSegments(savedInstanceState, "pending")
-            start.isEnabled = false; end.isEnabled = false
-        }
+        // A system save picker is intentionally cancelled across recreation; no frozen export is replayed.
     }
 
     private fun showRange() {
@@ -235,16 +258,25 @@ class HonorableVideoEditorActivity : Activity() {
         stopProjectPreview()
         val clips = project?.segments ?: return
         val clip = clips[selectedClip]
+        durationMs = sourceDuration(clip.sourceId).toInt()
+        val seconds = ((durationMs + 999L) / 1000).toInt().coerceAtLeast(1)
+        start.max = seconds; end.max = seconds
         start.progress = (clip.startMs / 1000).toInt()
         end.progress = ((clip.endMs + 999) / 1000).toInt().coerceAtMost(end.max)
-        clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project"
-        video.seekTo(clip.startMs.toInt())
+        clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · source ${sourceNumber(clip.sourceId)} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project"
+        pendingSeekMs = clip.startMs
+        if(videoSourceId != clip.sourceId) {
+            video.pause(); previewHandler.removeCallbacks(stopPreview)
+            sourceReady = false
+            videoSourceId = clip.sourceId
+            video.setVideoURI(sourceUri(clip.sourceId))
+        } else video.seekTo(clip.startMs.toInt())
         showRange()
         renderTimeline()
     }
 
     private fun previewProject() {
-        if (saving || analyzing || draftBusy || pendingRange != null) return
+        if (saving || analyzing || draftBusy || importing || pendingRange != null) return
         val clips = project?.segments ?: return
         stopProjectPreview()
         video.pause()
@@ -261,7 +293,7 @@ class HonorableVideoEditorActivity : Activity() {
                 projectPreviewView.player = player
                 projectPreviewView.visibility = View.VISIBLE
                 video.visibility = View.GONE
-                player.setComposition(VideoCompositionExporter.composition(source, clips))
+                player.setComposition(VideoCompositionExporter.composition(sourceUris(), clips))
                 player.prepare()
                 player.play()
                 status.text = "Previewing ${clips.size} clips in project order"
@@ -313,9 +345,9 @@ class HonorableVideoEditorActivity : Activity() {
         timeline.removeAllViews()
         project?.segments?.forEachIndexed { index, clip ->
             timeline.addView(Button(this).apply {
-                text = "${index + 1} · ${clip.durationMs / 1_000f}s\n${clip.startMs / 1_000f}–${clip.endMs / 1_000f}s"
+                text = "${index + 1} · S${sourceNumber(clip.sourceId)} · ${clip.durationMs / 1_000f}s\n${clip.startMs / 1_000f}–${clip.endMs / 1_000f}s"
                 contentDescription = "Select clip ${index + 1}"
-                setOnClickListener { if (!saving && !draftBusy && pendingRange == null) { selectedClip = index; showClip() } }
+                setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) { selectedClip = index; showClip() } }
                 styleEditorControls(this, projectPreviewView)
                 if (index == selectedClip) background = GradientDrawable().apply {
                     setColor(Color.rgb(240,240,240)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.BLACK)
@@ -326,11 +358,12 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun suggestScene() {
-        if (analyzing || saving || draftBusy || pendingRange != null || durationMs <= 0) return
+        if (analyzing || saving || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val selection = runCatching { VideoSceneSelection.capture(project?.segments ?: emptyList(), selectedClip,
             start.progress * 1_000L, end.progress * 1_000L) }.getOrElse {
             status.text = "Choose a valid range before suggesting a scene."; return
         }
+        val selectedSource = sourceUri(selection.clips[selection.selectedIndex].sourceId)
         analyzing = true
         status.text = "Finding a scene on this device..."
         Thread {
@@ -338,7 +371,7 @@ class HonorableVideoEditorActivity : Activity() {
                 val retriever = MediaMetadataRetriever()
                 val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
                 try {
-                    retriever.setDataSource(this, source)
+                    retriever.setDataSource(this, selectedSource)
                     var bestTime = selection.startMs
                     var bestScore = -1f
                     for (time in selection.sampleTimes()) {
@@ -382,7 +415,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun saveCopy() {
-        if (saving || analyzing || draftBusy || pendingRange != null || durationMs <= 0) return
+        if (saving || analyzing || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val current = project?.segments?.getOrNull(selectedClip) ?: return
         val from = maxOf(start.progress * 1000L, current.startMs)
         val to = minOf(end.progress * 1000L, current.endMs)
@@ -408,6 +441,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode == 23) { finishImport(resultCode, data); return }
         if (requestCode != 22) return
         val range = pendingRange
         val clips = pendingSegments
@@ -421,7 +455,7 @@ class HonorableVideoEditorActivity : Activity() {
         status.text = "Saving copy..."
         exporter = VideoCompositionExporter(this)
         runCatching {
-            exporter!!.export(source, destination, clips) { result ->
+            exporter!!.export(sourceUris(), destination, clips) { result ->
                 saving = false
                 exporter = null
                 if (isDestroyed || isFinishing) return@export
@@ -439,15 +473,11 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun draftOperation(restore: Boolean) {
-        if (saving || analyzing || draftBusy || pendingRange != null || durationMs <= 0) return
+        if (saving || analyzing || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val current = project ?: return
-        val sourceDuration = durationMs.toLong()
-        val snapshot = if (restore) null else runCatching {
-            val clip = current.segments[selectedClip]
-            VideoDraft(durationMs.toLong(), current.segments.toList(), selectedClip,
-                video.currentPosition.toLong().coerceIn(0L, durationMs.toLong() - 1),
-                maxOf(start.progress * 1000L, clip.startMs), minOf(end.progress * 1000L, clip.endMs))
-        }.getOrElse { status.text = "Choose a valid range before saving a draft (up to 1,000 clips)."; return }
+        val sourceDuration = primaryDurationMs
+        val snapshot = if (restore) null else runCatching { currentDraft() }
+            .getOrElse { status.text = "Choose a valid range before saving a draft (up to 1,000 clips)."; return }
         draftBusy = true
         start.isEnabled = false; end.isEnabled = false
         stopProjectPreview()
@@ -458,7 +488,7 @@ class HonorableVideoEditorActivity : Activity() {
             var persistence: VideoDraftPersistence? = null
             val result = runCatching {
                 VideoDraftPersistence(this, source.toString()).also { persistence = it }.let { storage ->
-                    if (restore) storage.load(sourceDuration)
+                    if (restore) storage.load(sourceDuration)?.also { validateSources(it.sources) }
                     else { storage.save(requireNotNull(snapshot)); null }
                 }
             }
@@ -470,21 +500,100 @@ class HonorableVideoEditorActivity : Activity() {
                     status.text = "Draft unavailable. Check your account and try again."
                     return@runOnUiThread
                 }
-                if (project !== current || durationMs.toLong() != sourceDuration) {
+                if (project !== current || primaryDurationMs != sourceDuration) {
                     status.text = "Video changed. Try the draft action again."
                     return@runOnUiThread
                 }
                 val saved = result.getOrNull()
                 if (restore && saved != null) {
-                    current.applyDraft(saved.segments)
-                    selectedClip = saved.selectedClip
-                    showClip()
-                    start.progress = (saved.trimStartMs / 1000).toInt()
-                    end.progress = ((saved.trimEndMs + 999) / 1000).toInt().coerceAtMost(end.max)
-                    video.seekTo(saved.previewPositionMs.toInt())
+                    val applied = runCatching { applySavedDraft(current, saved, true) }
+                    if(applied.isFailure) { status.text = "Draft sources conflict with the current project. Current edits preserved."; return@runOnUiThread }
                     status.text = "Draft restored. Preview before saving a copy. Undo restores prior clip edits."
                 } else status.text = if (restore) "No compatible draft is saved for this video and account."
                     else "Draft saved on this device. Your original is unchanged."
+            }
+        }
+    }
+
+    private fun sourceUri(id: String): Uri = if(id == "primary") source else Uri.parse(requireNotNull(importedSources[id]).uri)
+    private fun sourceDuration(id: String): Long = if(id == "primary") primaryDurationMs else requireNotNull(importedSources[id]).durationMs
+    private fun sourceNumber(id: String): Int = if(id == "primary") 1 else importedSources.keys.indexOf(id) + 2
+    private fun sourceUris(): Map<String, Uri> = mapOf("primary" to source) + importedSources.mapValues { Uri.parse(it.value.uri) }
+
+    private fun currentDraft(): VideoDraft {
+        val clips = requireNotNull(project).segments
+        val clip = clips[selectedClip]
+        return VideoDraft(primaryDurationMs, clips.toList(), selectedClip,
+            (if(sourceReady) video.currentPosition.toLong() else pendingSeekMs).coerceIn(0L, sourceDuration(clip.sourceId)-1),
+            maxOf(start.progress*1000L, clip.startMs), minOf(end.progress*1000L, clip.endMs), importedSources.values.toList())
+    }
+    private fun inspectSource(uri: Uri): Long {
+        require(uri.scheme == "content") { "Choose a video document" }
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(this, uri)
+            require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes")
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
+            require(duration in 1..Int.MAX_VALUE.toLong())
+            duration
+        } finally { retriever.release() }
+    }
+    private fun validateSources(sources: List<VideoSource>) {
+        sources.forEach { require(inspectSource(Uri.parse(it.uri)) == it.durationMs) { "Imported source changed or unavailable" } }
+    }
+    private fun applySavedDraft(current: VideoEditProject, saved: VideoDraft, undoable: Boolean) {
+        val merged = importedSources + saved.sources.associateBy { it.id }
+        require(saved.sources.all { importedSources[it.id]?.let { old -> old == it } ?: true })
+        require(merged.size <= 31 && merged.values.map { it.uri }.distinct().size == merged.size)
+        val durations = merged.mapValues { it.value.durationMs }
+        if(undoable) current.applyDraft(saved.segments, durations) else current.restore(saved.segments, durations)
+        importedSources.putAll(merged)
+        selectedClip = saved.selectedClip
+        showClip()
+        start.progress = (saved.trimStartMs/1000).toInt()
+        end.progress = ((saved.trimEndMs+999)/1000).toInt().coerceAtMost(end.max)
+        pendingSeekMs = saved.previewPositionMs
+        video.seekTo(saved.previewPositionMs.toInt())
+    }
+    private fun importVideo() {
+        if(project == null || saving || analyzing || draftBusy || importing || pendingRange != null) return
+        if(importedSources.size >= 31) { status.text = "A project supports up to 32 source videos."; return }
+        importing = true
+        video.pause(); stopProjectPreview(); previewHandler.removeCallbacks(stopPreview)
+        try {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE); type = "video/*"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }, 23)
+        } catch(error: Exception) { importing = false; status.text = "No document picker is available." }
+    }
+    private fun finishImport(resultCode: Int, data: Intent?) {
+        val uri = data?.data
+        if(resultCode != RESULT_OK || uri == null || isDestroyed || isFinishing) { importing = false; return }
+        val current = project ?: run { importing = false; return }
+        status.text = "Checking imported video on this device..."
+        draftWorker.execute {
+            val result = runCatching {
+                require(uri.scheme == "content")
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                require(contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
+                inspectSource(uri)
+            }
+            runOnUiThread {
+                importing = false
+                if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
+                result.onSuccess { duration ->
+                    runCatching {
+                        val existing = if(uri == source) "primary" else importedSources.values.firstOrNull { it.uri == uri.toString() }?.id
+                        val id = existing ?: java.util.UUID.randomUUID().toString()
+                        if(existing != null) require(sourceDuration(id) == duration) { "Source changed" }
+                        val metadata = if(id != "primary") VideoSource(id, uri.toString(), duration) else null
+                        current.appendSource(id, duration)
+                        metadata?.let { importedSources[id] = it }
+                        selectedClip = current.segments.lastIndex; showClip()
+                        status.text = "Video added. Preview the project before saving a copy."
+                    }.onFailure { status.text = "Video could not be added. Check source duration and project limits." }
+                }.onFailure { status.text = "Choose a readable video from a provider that keeps document access. Nothing was added." }
             }
         }
     }
@@ -495,9 +604,7 @@ class HonorableVideoEditorActivity : Activity() {
         if (::end.isInitialized) outState.putInt("endProgress", end.progress)
         if (::video.isInitialized) outState.putLong("previewPositionMs", video.currentPosition.toLong())
         outState.putInt("selectedClip", selectedClip)
-        project?.segments?.let { writeSegments(outState, "project", it) }
-        pendingRange?.let { outState.putLong("pendingStartMs", it.first); outState.putLong("pendingEndMs", it.second) }
-        pendingSegments?.let { writeSegments(outState, "pending", it) }
+        (recoveryBytes ?: runCatching { VideoDraftCodec.encode(currentDraft()) }.getOrNull())?.let { outState.putByteArray("multiSourceProject", it) }
     }
 
     private fun writeSegments(state: Bundle, key: String, clips: List<VideoSegment>) {

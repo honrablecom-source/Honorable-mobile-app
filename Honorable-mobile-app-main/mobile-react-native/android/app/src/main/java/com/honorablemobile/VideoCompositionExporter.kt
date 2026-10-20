@@ -34,10 +34,12 @@ internal class VideoExportFailure(message: String, cause: Throwable, val partial
 @UnstableApi
 internal class VideoCompositionExporter(private val context: Context) {
     companion object {
-        fun composition(source: Uri, clips: List<VideoSegment>): Composition {
+        fun composition(source: Uri, clips: List<VideoSegment>): Composition = composition(mapOf("primary" to source), clips)
+
+        fun composition(sources: Map<String, Uri>, clips: List<VideoSegment>): Composition {
             require(clips.isNotEmpty())
             val items = clips.map { clip ->
-                val media = MediaItem.Builder().setUri(source).setClippingConfiguration(
+                val media = MediaItem.Builder().setUri(requireNotNull(sources[clip.sourceId]) { "Missing clip source" }).setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder()
                         .setStartPositionMs(clip.startMs)
                         .setEndPositionMs(clip.endMs)
@@ -68,21 +70,37 @@ internal class VideoCompositionExporter(private val context: Context) {
             cancelled: AtomicBoolean,
             onChunkCopied: () -> Unit = {},
         ) {
+            copyRenderedToDocument(context, mapOf("primary" to source), destination, rendered, clips, cancelled, onChunkCopied)
+        }
+
+        internal fun copyRenderedToDocument(
+            context: Context,
+            sources: Map<String, Uri>,
+            destination: Uri,
+            rendered: File,
+            clips: List<VideoSegment>,
+            cancelled: AtomicBoolean,
+            onChunkCopied: () -> Unit = {},
+        ) {
             val resolver = context.contentResolver
             var safeToDelete = false
             try {
                 if (cancelled.get()) throw OperationCanceledException()
+                require(clips.isNotEmpty() && clips.all { it.sourceId in sources })
                 require(rendered.length() > 0) { "Rendered video is empty" }
-                resolver.openFileDescriptor(source, "r").use { input ->
-                    resolver.openFileDescriptor(destination, "rw").use { output ->
-                        requireNotNull(input) { "Cannot open source video" }
-                        requireNotNull(output) { "Cannot open destination" }
-                        val from = Os.fstat(input.fileDescriptor)
-                        val to = Os.fstat(output.fileDescriptor)
-                        require(from.st_ino != 0L && to.st_ino != 0L) { "Cannot verify separate source and destination files" }
-                        require(from.st_dev != to.st_dev || from.st_ino != to.st_ino) {
-                            "The destination is the source video"
+                require(sources.isNotEmpty() && destination !in sources.values) { "A copy cannot replace any imported original" }
+                resolver.openFileDescriptor(destination, "rw").use { output ->
+                    requireNotNull(output) { "Cannot open destination" }
+                    val to = Os.fstat(output.fileDescriptor)
+                    for(source in sources.values.distinct()) {
+                        resolver.openFileDescriptor(source, "r").use { input ->
+                            requireNotNull(input) { "Cannot open source video" }
+                            val from = Os.fstat(input.fileDescriptor)
+                            require(from.st_ino != 0L && to.st_ino != 0L) { "Cannot verify separate source and destination files" }
+                            require(from.st_dev != to.st_dev || from.st_ino != to.st_ino) { "The destination is the source video" }
                         }
+                    }
+                    // All originals were checked before truncating the destination.
                         safeToDelete = true
                         Os.ftruncate(output.fileDescriptor, 0)
                         rendered.inputStream().use { stream ->
@@ -98,10 +116,9 @@ internal class VideoCompositionExporter(private val context: Context) {
                                 sink.flush()
                             }
                         }
-                    }
                 }
                 if (cancelled.get()) throw OperationCanceledException()
-                verifyOutput(context, source, destination, clips)
+                verifyOutput(context, sources, destination, clips)
                 if (cancelled.get()) throw OperationCanceledException()
             } catch (error: Throwable) {
                 val removed = if (safeToDelete) runCatching {
@@ -112,8 +129,9 @@ internal class VideoCompositionExporter(private val context: Context) {
             }
         }
 
-        private fun verifyOutput(context: Context, source: Uri, destination: Uri, clips: List<VideoSegment>) {
+        private fun verifyOutput(context: Context, sources: Map<String, Uri>, destination: Uri, clips: List<VideoSegment>) {
             val expectedDurationMs = clips.sumOf { it.durationMs }
+            val source = requireNotNull(sources[clips.first().sourceId])
             val sourceExtractor = MediaExtractor()
             val outputExtractor = MediaExtractor()
             val sourceMetadata = MediaMetadataRetriever()
@@ -134,7 +152,12 @@ internal class VideoCompositionExporter(private val context: Context) {
                 }
                 val videoTrack = track(outputExtractor, "video/") ?: error("Saved copy has no video")
                 requireSample(videoTrack, "video")
-                if (track(sourceExtractor, "audio/") != null) {
+                val needsAudio = clips.map { requireNotNull(sources[it.sourceId]) }.distinct().any { uri ->
+                    val extractor = MediaExtractor()
+                    try { extractor.setDataSource(context, uri, null); track(extractor, "audio/") != null }
+                    finally { extractor.release() }
+                }
+                if (needsAudio) {
                     val audioTrack = track(outputExtractor, "audio/") ?: error("Saved copy has no audio")
                     requireSample(audioTrack, "audio")
                 }
@@ -173,7 +196,10 @@ internal class VideoCompositionExporter(private val context: Context) {
     private var copying = false
     private val cancelled = AtomicBoolean(false)
 
-    fun export(source: Uri, destination: Uri, clips: List<VideoSegment>, done: (Result<Unit>) -> Unit) {
+    fun export(source: Uri, destination: Uri, clips: List<VideoSegment>, done: (Result<Unit>) -> Unit) =
+        export(mapOf("primary" to source), destination, clips, done)
+
+    fun export(sources: Map<String, Uri>, destination: Uri, clips: List<VideoSegment>, done: (Result<Unit>) -> Unit) {
         check(Looper.myLooper() == Looper.getMainLooper())
         check(transformer == null)
         fun complete(result: Result<Unit>) {
@@ -185,11 +211,11 @@ internal class VideoCompositionExporter(private val context: Context) {
             done(result)
         }
         try {
-            require(source != destination && clips.isNotEmpty())
+            require(sources.isNotEmpty() && destination !in sources.values && clips.isNotEmpty())
             val renderedFile = File.createTempFile("honorable-edit-", ".mp4", context.cacheDir)
             temporary = renderedFile
             require(renderedFile.delete()) { "Cannot prepare temporary video" } // Transformer requires a new path.
-            val composition = composition(source, clips)
+            val composition = composition(sources, clips)
             transformer = Transformer.Builder(context)
             .setVideoMimeType(MimeTypes.VIDEO_H264)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
@@ -198,7 +224,7 @@ internal class VideoCompositionExporter(private val context: Context) {
                     if (cancelled.get()) { complete(Result.failure(OperationCanceledException())); return }
                     copying = true
                     Thread {
-                        val copied = runCatching { copyRenderedToDocument(context, source, destination, renderedFile, clips, cancelled) }
+                        val copied = runCatching { copyRenderedToDocument(context, sources, destination, renderedFile, clips, cancelled) }
                         main.post {
                             if (finished) { renderedFile.delete(); temporary = null }
                             else complete(copied)

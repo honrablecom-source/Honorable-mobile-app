@@ -6,8 +6,10 @@ internal data class VideoSegment(
     val endMs: Long,
     val speed: Float = 1f,
     val volume: Float = 1f,
+    val sourceId: String = "primary",
 ) {
     init {
+        require(sourceId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
         require(startMs >= 0 && endMs > startMs)
         require(speed in setOf(.5f, 1f, 1.5f, 2f))
         require(volume in 0f..1f)
@@ -17,22 +19,42 @@ internal data class VideoSegment(
 
 internal class VideoEditProject(durationMs: Long) {
     init { require(durationMs > 0) }
-    private val sourceDurationMs = durationMs
+    private val sourceDurations = mutableMapOf("primary" to durationMs)
     private val original = listOf(VideoSegment(0, durationMs))
     private val undo = ArrayDeque<List<VideoSegment>>()
     private val redo = ArrayDeque<List<VideoSegment>>()
     var segments: List<VideoSegment> = original
         private set
 
-    fun restore(clips: List<VideoSegment>) {
-        require(clips.isNotEmpty() && clips.all { it.endMs <= sourceDurationMs })
+    private fun validate(clips: List<VideoSegment>, sources: Map<String, Long>) {
+        require(clips.size in 1..1000 && sources.size in 1..32)
+        require(sources.all { (id, duration) -> id.matches(Regex("[A-Za-z0-9_-]{1,64}")) && duration > 0 })
+        require(clips.all { it.endMs <= (sources[it.sourceId] ?: 0) }) { "Unknown source or clip outside its source" }
+    }
+    private fun mergedSources(extra: Map<String, Long>): Map<String, Long> {
+        require(extra.all { (id, duration) -> sourceDurations[id]?.let { it == duration } ?: true })
+        return sourceDurations + extra
+    }
+    fun appendSource(id: String, duration: Long) {
+        val catalog = mergedSources(mapOf(id to duration))
+        val next = segments + VideoSegment(0, duration, sourceId = id)
+        validate(next, catalog)
+        sourceDurations.putAll(catalog)
+        change(next)
+    }
+    fun restore(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap()) {
+        val catalog = mergedSources(sources)
+        validate(clips, catalog)
+        sourceDurations.putAll(catalog)
         segments = clips.toList()
         undo.clear()
         redo.clear()
     }
 
-    fun applyDraft(clips: List<VideoSegment>) {
-        require(clips.isNotEmpty() && clips.all { it.endMs <= sourceDurationMs })
+    fun applyDraft(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap()) {
+        val catalog = mergedSources(sources)
+        validate(clips, catalog)
+        sourceDurations.putAll(catalog)
         change(clips.toList())
     }
 
@@ -41,7 +63,7 @@ internal class VideoEditProject(durationMs: Long) {
     val canRedo: Boolean get() = redo.isNotEmpty()
 
     private fun change(next: List<VideoSegment>) {
-        require(next.isNotEmpty()) { "A project needs at least one clip" }
+        validate(next, sourceDurations)
         if (next == segments) return
         undo.addLast(segments)
         if (undo.size > 50) undo.removeFirst()
