@@ -134,6 +134,8 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(label("Start")); controls.addView(start)
         controls.addView(label("End")); controls.addView(end)
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
+        assistTools.addView(Button(this).apply { text = "AI rough cut"; setOnClickListener { roughCutOptions() } })
+        assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
         assistTools.addView(Button(this).apply { text = "Suggest scene"; setOnClickListener { suggestScene() } })
         assistTools.addView(label("Experimental · on-device sampled-frame labels. Preview every suggestion.", 12f))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -450,6 +452,7 @@ class HonorableVideoEditorActivity : Activity() {
             status.text = "Choose a valid range before suggesting a scene."; return
         }
         val selectedSource = sourceUri(selection.clips[selection.selectedIndex].sourceId)
+        analysisCancellation.set(false)
         analyzing = true
         status.text = "Finding a scene on this device..."
         Thread {
@@ -485,7 +488,8 @@ class HonorableVideoEditorActivity : Activity() {
             }
             runOnUiThread {
                 analyzing = false
-                if (isDestroyed || isFinishing || analysisCancellation.get()) return@runOnUiThread
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                if(analysisCancellation.get()){status.text="Analysis cancelled. Your project is unchanged.";return@runOnUiThread}
                 if (!selection.stillMatches(project?.segments ?: emptyList(), selectedClip,
                         start.progress * 1_000L, end.progress * 1_000L)) {
                     status.text = "Your edits changed. Run scene suggestion again for this selection."; return@runOnUiThread
@@ -496,6 +500,82 @@ class HonorableVideoEditorActivity : Activity() {
                     end.progress = ((range.second + 999) / 1_000).toInt().coerceAtMost(end.max)
                     status.text = "Suggested scene: ${start.progress}s - ${end.progress}s. Preview and adjust before saving."
                 }.onFailure { status.text = "Scene suggestion unavailable. Set the trim range manually." }
+            }
+        }.start()
+    }
+
+    private fun roughCutOptions() {
+        if(isDestroyed||isFinishing||analyzing||saving||draftBusy||importing||pendingRange!=null)return
+        val clips=project?.segments?:return
+        if(clips.size>VideoRoughCut.MAX_CLIPS){status.text="AI rough cut supports up to 8 timeline clips. Keep a smaller selection first.";return}
+        val content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(8),dp(20),dp(8))}
+        content.addView(TextView(this).apply{text="Create a shorter draft from the timeline. Local scene labels choose moments from four sampled frames per clip. This does not analyze speech or musical beats.";setTextColor(Color.DKGRAY)})
+        val length=Spinner(this).apply{adapter=ArrayAdapter(this@HonorableVideoEditorActivity,android.R.layout.simple_spinner_dropdown_item,listOf("15 seconds","30 seconds","60 seconds"));setSelection(1);contentDescription="Rough cut duration"}
+        val focus=Spinner(this).apply{adapter=ArrayAdapter(this@HonorableVideoEditorActivity,android.R.layout.simple_spinner_dropdown_item,listOf("Balanced","People","Scenery"));contentDescription="Rough cut focus"}
+        content.addView(length,LinearLayout.LayoutParams(-1,dp(48)));content.addView(focus,LinearLayout.LayoutParams(-1,dp(48)))
+        android.app.AlertDialog.Builder(this).setTitle("AI-assisted rough cut").setView(content).setNegativeButton("Cancel",null)
+            .setPositiveButton("Create draft"){_,_->createRoughCut(listOf(15_000L,30_000L,60_000L)[length.selectedItemPosition],RoughCutFocus.values()[focus.selectedItemPosition])}.show()
+    }
+
+    private fun createRoughCut(target:Long,focus:RoughCutFocus) {
+        if(isDestroyed||isFinishing||analyzing||saving||draftBusy||importing||pendingRange!=null||!sourceReady)return
+        val current=project?:return
+        val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
+        val track=current.soundtrack
+        val effective=selection.clips.toMutableList().apply{set(selectedClip,get(selectedClip).copy(startMs=selection.startMs,endMs=selection.endMs))}.toList()
+        if(effective.size>VideoRoughCut.MAX_CLIPS){status.text="AI rough cut supports up to 8 clips.";return}
+        if(effective.sumOf{it.durationMs}<=target){status.text="The timeline is already shorter than this target. No edits were changed.";return}
+        val uris=sourceUris()
+        analysisCancellation.set(false);analyzing=true
+        status.text="Choosing moments on this device..."
+        Thread {
+            val result=runCatching {
+                val labeler=ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
+                val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(60)
+                try {
+                    val centers=effective.mapIndexed{index,clip->
+                        val retriever=MediaMetadataRetriever()
+                        try {
+                            retriever.setDataSource(this,requireNotNull(uris[clip.sourceId]))
+                            var bestScore=-1f;var bestTime=clip.startMs
+                            for(time in VideoRoughCut.sampleTimes(clip)) {
+                                check(!analysisCancellation.get() && System.nanoTime()<deadline){"Analysis cancelled or timed out"}
+                                val frame=if(Build.VERSION.SDK_INT>=27)retriever.getScaledFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST,384,384)
+                                    else retriever.getFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST)?.let{original->
+                                        android.graphics.Bitmap.createScaledBitmap(original,384,384,true).also{if(it!==original)original.recycle()}}
+                                if(frame==null)continue
+                                val task=try{labeler.process(InputImage.fromBitmap(frame,0))}catch(error:Throwable){frame.recycle();throw error}
+                                try {
+                                    val secondsLeft=TimeUnit.NANOSECONDS.toMillis((deadline-System.nanoTime()).coerceAtLeast(1)).coerceIn(1,5_000)
+                                    val labels=Tasks.await(task,secondsLeft,TimeUnit.MILLISECONDS)
+                                    val score=VideoRoughCut.score(labels.map{it.text to it.confidence},focus)
+                                    if(score>bestScore){bestScore=score;bestTime=time}
+                                } finally {if(task.isComplete)frame.recycle()else task.addOnCompleteListener{frame.recycle()}}
+                            }
+                            require(bestScore>0){"No recognized subjects in one of the clips"}
+                            runOnUiThread{if(!isDestroyed&&!isFinishing&&analyzing)status.text="Analyzed clip ${index+1}/${effective.size}"}
+                            bestTime
+                        }finally{retriever.release()}
+                    }
+                    check(!analysisCancellation.get() && System.nanoTime()<deadline)
+                    VideoRoughCut.assemble(effective,centers,target)
+                }finally{labeler.close()}
+            }
+            runOnUiThread {
+                analyzing=false
+                if(isDestroyed||isFinishing)return@runOnUiThread
+                if(analysisCancellation.get()){status.text="Analysis cancelled. Your project is unchanged.";return@runOnUiThread}
+                fun stillMatches()=project===current && current.soundtrack==track && selection.stillMatches(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)
+                if(!stillMatches()){status.text="Your edits changed. Create the rough cut again.";return@runOnUiThread}
+                result.onSuccess{clips->
+                    android.app.AlertDialog.Builder(this).setTitle("Rough cut ready")
+                        .setMessage("${clips.size} clips, ${clips.sumOf{it.durationMs}/1000f} seconds. Replaces the timeline as one undoable edit. Sampled labels may miss important action; preview before exporting.")
+                        .setNegativeButton("Cancel",null).setPositiveButton("Apply draft"){_,_->
+                            if(!stillMatches()||analyzing||saving||draftBusy||importing||pendingRange!=null){status.text="Project changed. Create the rough cut again.";return@setPositiveButton}
+                            runCatching{current.applyDraft(clips,soundtrack=track)}.onSuccess{selectedClip=0;showClip();status.text="AI-assisted rough cut applied. Preview project; Undo restores your timeline."}
+                                .onFailure{status.text="Could not apply this draft. Your project is unchanged."}
+                        }.show()
+                }.onFailure{status.text="Rough cut unavailable or timed out. No project edits were changed."}
             }
         }.start()
     }

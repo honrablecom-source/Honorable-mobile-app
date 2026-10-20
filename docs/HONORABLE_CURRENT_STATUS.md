@@ -1,3 +1,11 @@
+# Latest checkpoint — local photo/video creative assistance, October 20, 2026
+
+Owner resumed work on AI editing/creation. Added photo RGB curves/local exposure with source-aligned placement, on-device label/pixel-guided looks, and sampled-label video rough-cut draft creation with cancellation, stale-result protection and atomic undo. The previously paused tone drafts are now integrated and tested; do not reapply their old backup. App-wide UI retained. Full generative creation remains unfinished.
+
+81 shared Android JVM tests and 45 RN-native JVM tests pass (126 total, 0 failures/errors/skips). Nineteen new regression cases cover tone/alpha, crop/rotation, adaptive looks, lifecycle v1/v2 compatibility, duration allocation, speed/boundaries, label scoring and atomic undo. Android bitmap integration tests compiled only; no device execution. Full ARM64 unshrunk internal APK built and independently verified for package, JS/models/native integration markers, expected signing certificate and ZIP alignment; 572 frozen app-tree file hashes match. APK: Honorable-1.0.3-creative-assist-arm64.apk; SHA-256: 9b2450648e203544d557dec98389c50430d18a8db87065abe0c266ce1292246f.
+
+RTK output filtering is active; one log preview cut characters by 94.4%, not a total-token/credit measurement. Device/API/store/iOS and generative-engine gates remain open. Next: actual local generation worker, using the confirmed ~15 GiB workstation GPU as a candidate. See HONORABLE_CREATIVE_ASSIST_CHECKPOINT.md.
+
 # Latest checkpoint — app-wide UI correction, October 20, 2026
 
 The earlier 063ca9c APK covered only the video editor and did not satisfy the whole-app request. The routed React Native app and native photo/video/playback surfaces now share the white-background, black-outline direction: shared headers/navigation, Home/Seran, Library, Studio, onboarding, account/settings, membership/usage/plans, models, privacy/consent/legal, feedback and locked states. Native editor/viewer bars and cutouts have inset handling; Android dialogs use a light monochrome theme.

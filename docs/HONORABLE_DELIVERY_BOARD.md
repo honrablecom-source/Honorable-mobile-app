@@ -1,6 +1,6 @@
 # Honorable delivery board
 
-October 20, 2026. Latest owner instruction: finish the entire app UI correction, then pause. The previous video-only checkpoint was insufficient. Shared RN screens and native photo/video/playback have now been updated and the combined internal APK verified. White backgrounds, black outlines and existing engines are preserved. UI remains unaccepted until owner/device review. See HONORABLE_APP_UI_CHECKPOINT.md. No further feature work today.
+October 20, 2026. Owner resumed development and prioritized photo/video AI editing and creation. Current native creative-assist batch is implemented, locally tested and built: RGB curves/local light, classifier-guided photo looks and sampled-label rough-cut video creation. App UI retained; visual/device acceptance is still open. RTK is used for compact output. Next: a real local generative worker and secure jobs; no paid hosting or personal-media upload was enabled. See HONORABLE_CREATIVE_ASSIST_CHECKPOINT.md.
 
 ## Current functional batch
 

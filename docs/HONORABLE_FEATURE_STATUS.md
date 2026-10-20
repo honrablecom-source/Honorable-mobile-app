@@ -10,13 +10,14 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Basic photo editing | Crop/rotate, brightness/contrast/saturation/exposure, monochrome, undo/redo/reset/compare | Phone pixels/export/orientation, lifecycle and memory checks |
 | Photo lifecycle recovery | Bounded scalar edits, undo/redo, compare/tool and pending-picker settings; account/API/source isolation; masks recomputed locally | JVM coverage and combined internal APK pass; physical rotation/process/picker validation pending; not persistent photo projects |
 | Photo text recognition | Bundled on-device OCR, review and explicit copy | Real recognition/error/offline acceptance |
-| Scene-aware photo enhancement | On-device labels plus bounded color/exposure adjustments | Image-quality and resource/lifecycle acceptance |
+| Scene-aware photo enhancement / looks | On-device labels plus sampled luminance, RGB curves, bounded exposure/color; Auto/Cinematic/Portrait/Vivid/Mono; stale results rejected | Physical model/quality/performance acceptance |
 | Person cutout | Local person segmentation, source-aligned soft matte, transparent PNG path and undo/compare; combined ARM64 build verified; no device inference proof | Real person/no-person/edge quality, transforms and saved-alpha validation on a phone |
 | Photo export safety | New URI/inode refusal before truncation, private PNG encoding and saved-copy hash/dimension checks | Real providers, aliases, cancellation/failure and original-byte integrity |
 | Generic subject selection/masks | Not implemented beyond person cutout | Object-aware selection, refinement and reliable output |
 | Generative fill / expansion | Planned | Actual generation engine, accepted hardware/privacy/cost model and output validation |
 | Content-aware move/patch / relight | Planned | Real pixel-processing engines and controls |
-| RAW / curves / advanced filters | Planned | Supported decoders, processing and render/export parity |
+| RGB curves / local exposure | Implemented graph/dialog, source-aligned radial exposure, history/lifecycle, common preview/export; JVM/build checks pass | Physical raster/alpha/placement/quality acceptance |
+| RAW / advanced filter engine | Planned beyond the above curves and classifier-guided looks | Supported decoders, processing and render/export parity |
 | Rig/pose manipulation | Incomplete foundation/aspiration | Genuine segmentation/keypoints/deformation; no fake skeleton-only claim |
 | Layers / smart layers / compositing | Web project foundation; native advanced engine unfinished | Canonical persisted state, masks/blending and matching renders |
 | Video Editor V1 | Multi-source trim/split/delete/reorder, speed/volume, titles/fade edges, composition preview and copy export | Actual phone rendering, order/speed/audio/orientation and original integrity |
@@ -27,6 +28,7 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | General multitrack editing | Incomplete beyond a video sequence plus one soundtrack | Track UI, arbitrary audio/video overlays, scheduling and compositing |
 | Basic clip titles and visual fades | Implemented with local wrapped overlay and output-time fade-through-black, shared preview/export and history/drafts | Physical GPU/text/fade acceptance, richer title styling/timing |
 | Overlapping crossfades/keyframes | Planned | Actual overlap scheduling/render engine and visual controls |
+| AI-assisted video rough-cut creation | Existing-clip assembly using bounded sampled local labels, 15/30/60s targets, review/cancel/undo; source/speed/music retained | Physical inference quality, rendered output and cancellation/lifecycle acceptance; no speech/beat/generative model |
 | AI captions / advanced AI video | Planned | Real inference and timing, editable results, output/performance/privacy validation |
 | Tracking / stabilization / video 3D | Planned | Real tracking/render engines and supported hardware |
 | Nodes / Code workspace | Web foundations; processing/script execution unavailable | Canonical project/render engine and robust sandbox before execution |

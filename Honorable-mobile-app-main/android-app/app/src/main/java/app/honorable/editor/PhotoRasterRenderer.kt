@@ -37,6 +37,15 @@ object PhotoRasterRenderer {
                     })
                 canvas.restore()
             }
+            val tone=PhotoToneKernel(edit,input.width,input.height)
+            if(tone.active) {
+                val row=IntArray(output.width)
+                for(y in 0 until output.height) {
+                    output.getPixels(row,0,output.width,0,y,output.width,1)
+                    for(x in row.indices) row[x]=tone.apply(row[x],x,y)
+                    output.setPixels(row,0,output.width,0,y,output.width,1)
+                }
+            }
             return output
         } catch (error: Throwable) { output.recycle(); throw error }
     }

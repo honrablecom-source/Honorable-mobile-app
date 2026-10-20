@@ -20,6 +20,9 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 /** Local, non-destructive raster editor. Exports through CREATE_DOCUMENT; never writes source URI. */
 class PhotoEditorActivity:Activity(){
 
+ private var renderedEdit:PhotoEdit?=null
+ private var placingLight:PhotoRadialLight?=null
+ private var placingOn:PhotoEdit?=null
  private var activeTool=-1
  private var restoredSession:PhotoSessionSnapshot?=null
  private var pendingDestination:Uri?=null
@@ -62,6 +65,27 @@ class PhotoEditorActivity:Activity(){
  export.apply{contentDescription="Save copy of photo";layoutParams=LinearLayout.LayoutParams(88.dp(),48.dp());setTextColor(Color.WHITE);background=GradientDrawable().apply{setColor(Color.BLACK);cornerRadius=8.dp().toFloat()}}
  image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setPadding(4.dp(),8.dp(),4.dp(),8.dp())}
  root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
+ image.setOnTouchListener { _,event ->
+  val light=placingLight
+  if(light==null)false else {
+   if(event.action==android.view.MotionEvent.ACTION_UP){
+    val input=bitmap;val shown=rendered
+    if(placingOn!=edit||before||exportEdit!=null){placingLight=null;placingOn=null;note.text="Photo changed. Open local light again."}
+    else if(input!=null&&shown!=null&&renderedEdit==edit){
+     val inverse=Matrix();val point=floatArrayOf(event.x-image.paddingLeft,event.y-image.paddingTop)
+     if(image.imageMatrix.invert(inverse)){
+      inverse.mapPoints(point)
+      if(point[0] in 0f..shown.width.toFloat() && point[1] in 0f..shown.height.toFloat()){
+       val center=PhotoToneGeometry(input.width,input.height,edit).normalizedSourcePoint(point[0],point[1])
+       tool("local_light");change(edit.copy(radialLight=light.copy(centerX=center.x,centerY=center.y)))
+      }else note.text="Tap inside the photo to place the light."
+     }
+    }else note.text="Wait for the edited preview, then tap again."
+    image.performClick()
+   }
+   true
+  }
+ }
  val transport=row()
  button(transport,"Compare"){before=!before;preview()}
  button(transport,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}}
@@ -95,7 +119,11 @@ class PhotoEditorActivity:Activity(){
  val finishRow=row(transforms)
  button(finishRow,"Monochrome"){tool("monochrome");change(edit.copy(saturation=0f))}
  button(finishRow,"Reset"){tool("reset");change(PhotoEdit())}
+ val toneRow=row(adjustments)
+ button(toneRow,"Tone curve"){showCurve()}
+ button(toneRow,"Local light"){showLocalLight()}
  button(row(assist),"AI scene enhance"){enhanceScene()}
+ button(row(assist),"AI photo looks"){chooseLook()}
  button(row(assist),"Cut out person (beta)"){cutOutPerson()}
  button(row(assist),"Read text"){readText()}
  val tabs=row();val tabButtons=mutableListOf<Button>()
@@ -118,7 +146,7 @@ class PhotoEditorActivity:Activity(){
   }else loaded.recycle()}}catch(e:Exception){runOnUiThread{if(!isDestroyed)note.text="Unable to open this image. Check access and try again."}}catch(e:OutOfMemoryError){runOnUiThread{if(!isDestroyed)note.text="Not enough memory to open this photo. Try a smaller image."}}}
  }
  private fun Int.dp()=(this*resources.displayMetrics.density).toInt()
- private fun change(next:PhotoEdit){undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
+ private fun change(next:PhotoEdit){placingLight=null;placingOn=null;undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
  private fun decode(limit:Int):Bitmap{val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true};contentResolver.openInputStream(source).use{BitmapFactory.decodeStream(it,null,bounds)};require(bounds.outWidth>0){"Unsupported image"};val runtime=Runtime.getRuntime();val headroom=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory());require(headroom>8L*1024*1024){"Not enough memory. Close other tools and try again."};val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;val maxPixels=(headroom/24).coerceAtMost(if(low)1_500_000L else 6_000_000L);val sample=PhotoDecodeBudget.sampleSize(bounds.outWidth,bounds.outHeight,limit,maxPixels);val options=BitmapFactory.Options().apply{inSampleSize=sample};val decoded=contentResolver.openInputStream(source).use{BitmapFactory.decodeStream(it,null,options)}?:error("Unable to decode image");val orientation=runCatching{contentResolver.openInputStream(source).use{android.media.ExifInterface(requireNotNull(it)).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1)}}.getOrDefault(1);val matrix=Matrix();when(orientation){2->matrix.setScale(-1f,1f);3->matrix.setRotate(180f);4->matrix.setScale(1f,-1f);5->{matrix.setRotate(90f);matrix.postScale(-1f,1f)};6->matrix.setRotate(90f);7->{matrix.setRotate(-90f);matrix.postScale(-1f,1f)};8->matrix.setRotate(-90f)};if(orientation==1)return decoded;val oriented=Bitmap.createBitmap(decoded,0,0,decoded.width,decoded.height,matrix,true);if(oriented!==decoded)decoded.recycle();return oriented}
  private fun render(input:Bitmap,e:PhotoEdit):Bitmap=PhotoRasterRenderer.render(input,e,personMask)
  private fun preview() {
@@ -137,7 +165,7 @@ class PhotoEditorActivity:Activity(){
      if(request==revision&&!isDestroyed){
       val old=rendered;rendered=result
       SafeBetaTelemetry.duration(this,"EDITOR_RESPONSE",started)
-      image.setImageBitmap(result);old?.recycle()
+      image.setImageBitmap(result);renderedEdit=state;old?.recycle()
       if(!readingText&&!cuttingOut&&exportEdit==null)note.text=if(before)"Original preview" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
      }else result.recycle()
     }
@@ -176,7 +204,25 @@ class PhotoEditorActivity:Activity(){
    }catch(error:Throwable){runOnUiThread{cuttingOut=false;if(recover){exportEdit=null;pendingDestination=null};if(!isDestroyed)note.text="Not enough resources for person cutout. Try a smaller photo."}}
   }
  }
- private fun enhanceScene() {
+ private fun showCurve(){
+  if(bitmap==null||exportEdit!=null||enhancing||cuttingOut)return
+  val base=edit;val request=revision
+  PhotoToneControls.curve(this,base.curve){curve->if(edit==base&&request==revision){tool("tone_curve");change(edit.copy(curve=curve))}else note.text="Photo changed. Open the curve tool again."}
+ }
+ private fun showLocalLight(){
+  if(bitmap==null||exportEdit!=null||enhancing||cuttingOut)return
+  val base=edit;val request=revision
+  fun unchanged()=edit==base&&request==revision&&exportEdit==null
+  PhotoToneControls.light(this,base.radialLight,{light->if(unchanged()){tool("local_light");change(edit.copy(radialLight=light))}else note.text="Photo changed. Open local light again."},{light->
+   if(unchanged()){before=false;preview();placingLight=light;placingOn=edit;note.text="Tap the edited photo to place the local light."}
+  })
+ }
+ private fun chooseLook(){
+  if(bitmap==null||enhancing||cuttingOut||exportEdit!=null)return
+  val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
+  android.app.AlertDialog.Builder(this).setTitle("AI-assisted photo look").setItems(names){_,which->enhanceScene(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
+ }
+ private fun enhanceScene(look:PhotoLook=PhotoLook.AUTO) {
   val input=bitmap?:return
   if(enhancing||cuttingOut||exportEdit!=null||isFinishing)return
   val owned=runCatching{requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory for scene analysis.";return}
@@ -188,37 +234,14 @@ class PhotoEditorActivity:Activity(){
     if(isDestroyed||isFinishing)return@addOnSuccessListener
     if(request!=revision){note.text="Photo changed during analysis. Run scene enhance again.";return@addOnSuccessListener}
     val scene=labels.filter{it.confidence>=.55f}.map{it.text.lowercase()}
-    val isPerson=scene.any{it.contains("person")||it.contains("face")||it.contains("portrait")}
-    val isOutdoor=scene.any{it.contains("landscape")||it.contains("beach")||it.contains("sky")||it.contains("nature")}
-    val isNight=scene.any{it.contains("night")||it.contains("dark")}
-    val light=sampleLight(owned)
-    val exposureBoost=when {
-     light>=.72f -> 0f
-     light<.28f -> if(isNight).38f else .3f
-     light<.46f -> .15f
-     else -> .05f
-    }
-    val next=initial.copy(
-     exposure=(initial.exposure+exposureBoost).coerceIn(-2f,2f),
-     contrast=(initial.contrast*(if(isPerson)1.03f else 1.08f)).coerceIn(0f,2f),
-     saturation=(initial.saturation*(if(isOutdoor)1.12f else if(isPerson)1.01f else 1.05f)).coerceIn(0f,2f)
-    )
+    val pixels=IntArray(32*32){index->owned.getPixel(((index%32+.5f)*owned.width/32).toInt().coerceAtMost(owned.width-1),((index/32+.5f)*owned.height/32).toInt().coerceAtMost(owned.height-1))}
+    val next=runCatching{PhotoAutoLook.apply(initial,PhotoLightStats.measure(pixels),scene.toSet(),look)}.getOrElse{note.text="No visible photo content to analyze. Try manual adjustments.";return@addOnSuccessListener}
     tool("ai_scene_enhance");change(next)
-    note.text="Scene-aware adjustments applied on device. Compare before saving a copy."
+    note.text="Scene-aware tone and color look applied on device. Compare before saving a copy."
    }
    .addOnFailureListener { if(!isDestroyed)note.text="Scene analysis failed. Try manual adjustments." }
    .addOnCompleteListener { enhancing=false;labeler.close();owned.recycle() }
   }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();note.text="Scene analysis failed. Try manual adjustments."}
- }
- private fun sampleLight(input:Bitmap):Float {
-  var total=0.0;var count=0
-  val stepX=(input.width/32).coerceAtLeast(1);val stepY=(input.height/32).coerceAtLeast(1)
-  for(y in 0 until input.height step stepY)for(x in 0 until input.width step stepX){
-   val pixel=input.getPixel(x,y)
-   total+=(.2126*Color.red(pixel)+.7152*Color.green(pixel)+.0722*Color.blue(pixel))/255.0
-   count++
-  }
-  return (total/count.coerceAtLeast(1)).toFloat()
  }
  private fun readText() {
   val input=bitmap?:return
