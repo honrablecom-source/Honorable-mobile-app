@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { colors } from '../design-system/tokens';
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
 import { useLibrary } from '../library/LibraryContext';
 import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
@@ -94,15 +95,10 @@ export function StudioScreen() {
   );
   return (
     <SafeAreaView edges={['top']} style={st.safe}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={st.content}
-      >
-        <View style={st.header}>
-          <View style={st.headerText}>
-            <Text style={st.title}>Studio</Text>
-            <Text style={st.subtitle}>Photo & video workspace.</Text>
-          </View>
+      <WorkspaceHeader
+        title="Studio"
+        section="honorable / create"
+        action={
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Import media"
@@ -111,10 +107,15 @@ export function StudioScreen() {
             onPress={() => open(mode)}
             style={st.importButton}
           >
-            <Plus size={16} color={colors.textPrimary} />
-            <Text style={st.value}>Add media</Text>
+            <Plus size={17} color={colors.textPrimary} />
+            <Text style={st.value}>Import</Text>
           </Pressable>
-        </View>
+        }
+      />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={st.content}
+      >
         <View style={st.modeBar}>
           <View style={st.modes}>
             {(['IMAGE', 'VIDEO'] as const).map(kind => {
@@ -184,9 +185,7 @@ export function StudioScreen() {
                         )}
                       </View>
                       <Text style={st.emptyTitle}>
-                        {selected
-                          ? 'Video selected'
-                          : 'A blank canvas. Your idea.'}
+                        {selected ? 'Video selected' : 'Choose your source'}
                       </Text>
                       <Text style={st.emptyDetail}>
                         {selected
@@ -227,7 +226,7 @@ export function StudioScreen() {
         </View>
         <View style={st.assetHeader}>
           <View style={st.sectionHeading}>
-            <Text style={st.libraryTitle}>Choose a memory</Text>
+            <Text style={st.libraryTitle}>Source media</Text>
             <Text style={st.count}>{assets.length}</Text>
           </View>
           <Text style={st.fitLabel}>Recent</Text>
@@ -297,7 +296,7 @@ export function StudioScreen() {
               ? 'Edit photo'
               : 'Edit video'}
           </Text>
-          <ArrowUpRight size={18} color={colors.textPrimary} />
+          <ArrowUpRight size={18} color={colors.canvas} />
         </Pressable>
         <Text style={st.copyNote}>
           Edits save as a copy. Your original stays yours.
@@ -325,8 +324,8 @@ export function StudioScreen() {
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
-    padding: 20,
-    paddingBottom: 28,
+    padding: 16,
+    paddingBottom: 24,
     maxWidth: 560,
     width: '100%',
     alignSelf: 'center',
@@ -416,9 +415,9 @@ const st = StyleSheet.create({
   },
   fitLabel: { fontSize: 10, color: colors.textTertiary },
   stage: {
-    minHeight: 230,
-    aspectRatio: 1.12,
-    backgroundColor: colors.surfaceSelected,
+    minHeight: 200,
+    aspectRatio: 1.2,
+    backgroundColor: colors.surfaceRaised,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 12,
@@ -484,14 +483,14 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
     minHeight: 54,
     paddingHorizontal: 18,
   },
-  primaryLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  primaryLabel: { fontSize: 15, fontWeight: '600', color: colors.canvas },
   disabled: { opacity: 0.4 },
   assetHeader: {
     flexDirection: 'row',

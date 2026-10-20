@@ -99,11 +99,13 @@ export function MediaGrid({
   leading?: boolean;
 }) {
   const { width } = useWindowDimensions();
-  const size = (width - grid.gap * 2) / 3;
+  const inset = 16;
+  const availableWidth = width - inset * 2;
+  const size = (availableWidth - grid.gap * 2) / 3;
   return (
-    <View>
+    <View style={{ paddingHorizontal: inset }}>
       {leading && items[0] && (
-        <Tile item={items[0]} size={width} onPress={onPress} />
+        <Tile item={items[0]} size={availableWidth} onPress={onPress} />
       )}
       <FlatList
         accessibilityLabel="Media results"
@@ -121,7 +123,11 @@ export function MediaGrid({
 }
 const styles = StyleSheet.create({
   row: { gap: grid.gap, marginBottom: grid.gap },
-  tile: { backgroundColor: colors.surface, overflow: 'hidden' },
+  tile: {
+    backgroundColor: colors.surfaceSelected,
+    overflow: 'hidden',
+    borderRadius: 4,
+  },
   fill: { width: '100%', height: '100%', resizeMode: 'cover' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   placeholderText: { color: colors.textMuted, fontSize: 9, fontWeight: '700' },

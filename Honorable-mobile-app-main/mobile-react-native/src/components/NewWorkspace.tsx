@@ -10,7 +10,7 @@ export function NewWorkspace() {
   return (
     <View style={styles.section}>
       <Text accessibilityRole="header" style={styles.heading}>
-        Start creating
+        Create from your media
       </Text>
       <View style={styles.row}>
         {(['IMAGE', 'VIDEO'] as WorkspaceKind[]).map(kind => (
@@ -48,17 +48,18 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12 },
   tile: {
     flex: 1,
-    minHeight: 54,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
     gap: 8,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.canvas,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
   },
   heading: { fontSize: 12, color: colors.textTertiary },
-  label: { fontSize: 12, color: colors.textSecondary },
+  label: { fontSize: 13, color: colors.textPrimary },
   busy: { opacity: 0.5 },
 });

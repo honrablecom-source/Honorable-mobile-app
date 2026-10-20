@@ -1,3 +1,5 @@
+import { colors } from '../design-system/tokens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -22,6 +24,7 @@ export function MediaViewer({
   item?: MediaItem;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [chrome, setChrome] = useState(true);
   if (!item) return null;
@@ -60,13 +63,13 @@ export function MediaViewer({
         ) : null}
         {chrome && (
           <>
-            <View style={styles.top}>
+            <View style={[styles.top, { top: insets.top + 8 }]}>
               <Pressable
                 accessibilityLabel="Close viewer"
                 onPress={onClose}
                 style={styles.control}
               >
-                <ChevronLeft color="#fff" />
+                <ChevronLeft color={colors.textPrimary} />
               </Pressable>
               <Text style={styles.counter}>
                 {item.type === 'VIDEO' ? 'Video' : 'Photo'}
@@ -88,15 +91,18 @@ export function MediaViewer({
                 )}
               </Pressable>
             )}
-            <View style={styles.details}>
+            <View style={[styles.details, { bottom: insets.bottom + 8 }]}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable onPress={openVideo}>
+                <Pressable accessibilityRole="button" onPress={openVideo}>
                   <Text style={styles.counter}>Open</Text>
                 </Pressable>
                 <Pressable
                   onPress={() =>
                     editMemory(item).catch(e =>
-                      Alert.alert(item.type === 'VIDEO' ? 'Edit video' : 'Edit', e.message),
+                      Alert.alert(
+                        item.type === 'VIDEO' ? 'Edit video' : 'Edit',
+                        e.message,
+                      ),
                     )
                   }
                 >
@@ -135,7 +141,7 @@ function formatDuration(ms: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 const styles = StyleSheet.create({
-  canvas: { flex: 1, backgroundColor: '#000', justifyContent: 'center' },
+  canvas: { flex: 1, backgroundColor: colors.canvas, justifyContent: 'center' },
   fill: { width: '100%', height: '100%' },
   top: {
     position: 'absolute',
@@ -147,19 +153,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   control: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,.76)',
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   controlPlaceholder: { width: 44, height: 44 },
   counter: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
-    backgroundColor: 'rgba(0,0,0,.68)',
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 6,
@@ -176,7 +186,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moment: { marginTop: 6, color: '#000000', fontSize: 10, fontWeight: '700' },
-  details: { position: 'absolute', left: 18, right: 18, bottom: 28 },
-  name: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  date: { marginTop: 4, color: '#bbb', fontSize: 12 },
+  details: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 28,
+    padding: 12,
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.canvas,
+  },
+  name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+  date: { marginTop: 4, color: colors.textSecondary, fontSize: 12 },
 });

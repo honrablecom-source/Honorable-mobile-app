@@ -48,14 +48,35 @@ class PhotoEditorActivity:Activity(){
  exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
  window.statusBarColor=Color.WHITE;window.navigationBarColor=if(android.os.Build.VERSION.SDK_INT>=26)Color.WHITE else Color.BLACK
  window.decorView.systemUiVisibility=window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if(android.os.Build.VERSION.SDK_INT>=26)View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
- val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(12.dp(),24.dp(),12.dp(),16.dp())}
- fun row()=LinearLayout(this).also{root.addView(it)}
- fun button(parent:LinearLayout,label:String,action:()->Unit){parent.addView(Button(this).apply{text=label;isAllCaps=false;textSize=12f;setTextColor(Color.BLACK);background=GradientDrawable().apply{setColor(Color.WHITE);setStroke(1.dp(),Color.BLACK);cornerRadius=6.dp().toFloat()};setOnClickListener{action()}},LinearLayout.LayoutParams(0,52.dp(),1f))}
- val top=row();button(top,"Back"){finish()};button(top,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}};button(top,"Redo"){if(redo.isNotEmpty()){tool("redo");undo.add(edit);edit=redo.removeAt(redo.lastIndex);preview()}}
- image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER};root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
- note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…"};root.addView(note)
- val actions=row();button(actions,"Compare"){before=!before;preview()};button(actions,"Reset"){tool("reset");change(PhotoEdit())};button(top,"Save copy"){if(bitmap!=null&&exportEdit==null&&!cuttingOut){exportEdit=edit;waitingForPicker=true;try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}}}
- val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(8.dp(),8.dp(),8.dp(),8.dp())};root.addView(panel)
+ val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(12.dp(),4.dp(),12.dp(),8.dp())}
+ fun row(parent:LinearLayout=root)=LinearLayout(this).also{parent.addView(it)}
+ fun button(parent:LinearLayout,label:String,action:()->Unit):Button {
+  val control=Button(this).apply{text=label;contentDescription=label;isAllCaps=false;textSize=12f;minWidth=0;minimumWidth=0;setPadding(6.dp(),4.dp(),6.dp(),4.dp());setTextColor(Color.BLACK);background=GradientDrawable().apply{setColor(Color.WHITE);setStroke(1.dp(),Color.BLACK);cornerRadius=8.dp().toFloat()};setOnClickListener{action()}}
+  parent.addView(control,LinearLayout.LayoutParams(0,48.dp(),1f).apply{setMargins(2.dp(),2.dp(),2.dp(),2.dp())})
+  return control
+ }
+ val top=row()
+ button(top,"‹"){finish()}.apply{contentDescription="Close photo editor";layoutParams=LinearLayout.LayoutParams(48.dp(),48.dp())}
+ top.addView(TextView(this).apply{text="Honorable / Photo";textSize=17f;setTextColor(Color.BLACK);gravity=android.view.Gravity.CENTER_VERTICAL},LinearLayout.LayoutParams(0,48.dp(),1f))
+ val export=button(top,"Export"){if(bitmap!=null&&exportEdit==null&&!cuttingOut){exportEdit=edit;waitingForPicker=true;try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}}}
+ export.apply{contentDescription="Save copy of photo";layoutParams=LinearLayout.LayoutParams(88.dp(),48.dp());setTextColor(Color.WHITE);background=GradientDrawable().apply{setColor(Color.BLACK);cornerRadius=8.dp().toFloat()}}
+ image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setPadding(4.dp(),8.dp(),4.dp(),8.dp())}
+ root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
+ val transport=row()
+ button(transport,"Compare"){before=!before;preview()}
+ button(transport,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}}
+ button(transport,"Redo"){if(redo.isNotEmpty()){tool("redo");undo.add(edit);edit=redo.removeAt(redo.lastIndex);preview()}}
+ note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…";textSize=12f;maxLines=2;setPadding(4.dp(),8.dp(),4.dp(),8.dp());accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE};root.addView(note)
+ val tray=FrameLayout(this);root.addView(tray,LinearLayout.LayoutParams(-1,140.dp()))
+ val categories=linkedMapOf<String,LinearLayout>()
+ fun category(name:String):LinearLayout {
+  val content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(4.dp(),8.dp(),4.dp(),8.dp())}
+  categories[name]=content
+  tray.addView(ScrollView(this).apply{visibility=View.GONE;addView(content)},FrameLayout.LayoutParams(-1,-1))
+  return content
+ }
+ val adjustments=category("Adjust");val transforms=category("Transform");val assist=category("Assist")
+ val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};adjustments.addView(panel)
  val groups=mutableListOf<LinearLayout>()
  fun adjust(name:String,max:Int,value:Int,update:(Int)->PhotoEdit){
   val group=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;visibility=View.GONE};groups.add(group);panel.addView(group)
@@ -63,16 +84,30 @@ class PhotoEditorActivity:Activity(){
   group.addView(SeekBar(this).apply{this.max=max;progress=value;contentDescription=name;sliders.add(this);progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){label.text="$name   ${v-value}"};override fun onStopTrackingTouch(s:SeekBar){tool(name.lowercase());change(update(s.progress))}})},LinearLayout.LayoutParams(-1,48.dp()))
  }
  adjust("Brightness",200,100){edit.copy(brightness=(it-100)*1.28f)};adjust("Contrast",200,100){edit.copy(contrast=it/100f)};adjust("Saturation",200,100){edit.copy(saturation=it/100f)};adjust("Exposure",400,200){edit.copy(exposure=(it-200)/100f)}
- val toolScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false};val rail=LinearLayout(this);toolScroll.addView(rail);root.addView(toolScroll)
+ val toolScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false};val rail=LinearLayout(this);toolScroll.addView(rail);adjustments.addView(toolScroll)
  val toolButtons=mutableListOf<Button>()
  listOf("Brightness","Contrast","Color","Exposure").forEachIndexed{i,name->
   val control=Button(this).apply{text=name;isAllCaps=false;textSize=12f;setTextColor(Color.DKGRAY);setBackgroundColor(Color.WHITE);setOnClickListener{activeTool=i;groups.forEachIndexed{index,view->view.visibility=if(index==i)View.VISIBLE else View.GONE};toolButtons.forEachIndexed{index,view->view.isSelected=index==i;view.setTextColor(if(index==i)Color.BLACK else Color.GRAY)}}};toolButtons.add(control);rail.addView(control,LinearLayout.LayoutParams(104.dp(),48.dp()))
  }
- button(actions,"Read text"){readText()}
- val smart=row();button(smart,"AI scene enhance"){enhanceScene()};button(smart,"Cut out person (beta)"){cutOutPerson()}
- val transforms=row();button(transforms,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))};button(transforms,"Crop center"){tool("crop");change(edit.copy(crop=if(edit.crop>.51f)edit.crop-.1f else 1f))};button(transforms,"Monochrome"){tool("monochrome");change(edit.copy(saturation=0f))}
+ val transformRow=row(transforms)
+ button(transformRow,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))}
+ button(transformRow,"Crop center"){tool("crop");change(edit.copy(crop=if(edit.crop>.51f)edit.crop-.1f else 1f))}
+ val finishRow=row(transforms)
+ button(finishRow,"Monochrome"){tool("monochrome");change(edit.copy(saturation=0f))}
+ button(finishRow,"Reset"){tool("reset");change(PhotoEdit())}
+ button(row(assist),"AI scene enhance"){enhanceScene()}
+ button(row(assist),"Cut out person (beta)"){cutOutPerson()}
+ button(row(assist),"Read text"){readText()}
+ val tabs=row();val tabButtons=mutableListOf<Button>()
+ fun selectCategory(name:String){
+  categories.forEach{(key,content)->(content.parent as View).visibility=if(key==name)View.VISIBLE else View.GONE}
+  tabButtons.forEach{control->val selected=control.text.toString()==name;control.isSelected=selected;control.setTextColor(if(selected)Color.WHITE else Color.BLACK);control.background=GradientDrawable().apply{setColor(if(selected)Color.BLACK else Color.WHITE);cornerRadius=8.dp().toFloat()}}
+ }
+ categories.keys.forEach{name->tabButtons.add(button(tabs,name){selectCategory(name)})}
+ selectCategory("Adjust");toolButtons.first().performClick()
 
  setContentView(root)
+ NativeWorkspaceInsets.install(this,root)
  SafeBetaTelemetry.emit(this,"editor_opened",JSONObject().put("mediaType","IMAGE"));
  worker.execute{try{SafeBetaTelemetry.authorizeEditor(this);val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){
    bitmap=loaded;loadedScope=currentScope()

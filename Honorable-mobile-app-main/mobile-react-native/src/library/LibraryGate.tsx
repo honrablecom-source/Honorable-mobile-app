@@ -6,7 +6,9 @@ import {
   StyleSheet,
   Text,
   View,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Images, ShieldCheck } from 'lucide-react-native';
 import { useLibrary } from './LibraryContext';
 export function LibraryGate({ children }: { children: React.ReactNode }) {
@@ -14,71 +16,79 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
     useLibrary();
   if (loading)
     return (
-      <View style={s.screen}>
-        <ActivityIndicator color={colors.textPrimary} />
-      </View>
+      <SafeAreaView style={s.safe}>
+        <ScrollView contentContainerStyle={s.screen}>
+          <ActivityIndicator color={colors.textPrimary} />
+        </ScrollView>
+      </SafeAreaView>
     );
   if (!status?.permissionGranted)
     return (
-      <View style={s.screen}>
-        <View style={s.orb}>
-          <Images color={colors.textPrimary} size={32} />
-        </View>
-        <Text style={s.kicker}>PRIVATE PHOTO SEARCH</Text>
-        <Text style={s.title}>Find anything{`\n`}you remember.</Text>
-        <Text style={s.copy}>
-          Choose the photos and videos Honorable can search. Your media stays on
-          this device.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={requestAccess}
-          style={s.button}
-        >
-          <Text style={s.buttonText}>Choose photos & videos</Text>
-        </Pressable>
-        <View style={s.note}>
-          <ShieldCheck color={colors.textPrimary} size={17} />
-          <Text style={s.noteText}>You can change access at any time.</Text>
-        </View>
-        {!!error && <Text style={s.error}>{error}</Text>}
-      </View>
+      <SafeAreaView style={s.safe}>
+        <ScrollView contentContainerStyle={s.screen}>
+          <View style={s.orb}>
+            <Images color={colors.textPrimary} size={32} />
+          </View>
+          <Text style={s.kicker}>PRIVATE PHOTO SEARCH</Text>
+          <Text style={s.title}>Find anything{`\n`}you remember.</Text>
+          <Text style={s.copy}>
+            Choose the photos and videos Honorable can search. Your media stays
+            on this device.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={requestAccess}
+            style={s.button}
+          >
+            <Text style={s.buttonText}>Choose photos & videos</Text>
+          </Pressable>
+          <View style={s.note}>
+            <ShieldCheck color={colors.textPrimary} size={17} />
+            <Text style={s.noteText}>You can change access at any time.</Text>
+          </View>
+          {!!error && <Text style={s.error}>{error}</Text>}
+        </ScrollView>
+      </SafeAreaView>
     );
   if (status.indexedCount === 0)
     return (
-      <View style={s.screen}>
-        <View style={s.progressOrb}>
-          <Text style={s.progressText}>{indexing ? '••' : '0'}</Text>
-        </View>
-        <Text style={s.kicker}>LOCAL INDEX</Text>
-        <Text style={s.title}>
-          {indexing
-            ? 'Preparing your library.'
-            : 'Make your library searchable.'}
-        </Text>
-        <Text style={s.copy}>
-          {indexing
-            ? 'Honorable is analyzing accessible media on this device.'
-            : 'Build a private index of the photos and videos you selected.'}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          disabled={indexing}
-          onPress={reindex}
-          style={[s.button, indexing && s.disabled]}
-        >
-          <Text style={s.buttonText}>
-            {indexing ? 'Indexing…' : 'Start indexing'}
+      <SafeAreaView style={s.safe}>
+        <ScrollView contentContainerStyle={s.screen}>
+          <View style={s.progressOrb}>
+            <Text style={s.progressText}>{indexing ? '••' : '0'}</Text>
+          </View>
+          <Text style={s.kicker}>LOCAL INDEX</Text>
+          <Text style={s.title}>
+            {indexing
+              ? 'Preparing your library.'
+              : 'Make your library searchable.'}
           </Text>
-        </Pressable>
-        {!!error && <Text style={s.error}>{error}</Text>}
-      </View>
+          <Text style={s.copy}>
+            {indexing
+              ? 'Honorable is analyzing accessible media on this device.'
+              : 'Build a private index of the photos and videos you selected.'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={indexing}
+            onPress={reindex}
+            style={[s.button, indexing && s.disabled]}
+          >
+            <Text style={s.buttonText}>
+              {indexing ? 'Indexing…' : 'Start indexing'}
+            </Text>
+          </Pressable>
+          {!!error && <Text style={s.error}>{error}</Text>}
+        </ScrollView>
+      </SafeAreaView>
     );
   return <>{children}</>;
 }
 const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.canvas },
   screen: {
-    flex: 1,
+    flexGrow: 1,
+    paddingVertical: 32,
     paddingHorizontal: 24,
     justifyContent: 'center',
     backgroundColor: colors.canvas,
@@ -86,7 +96,9 @@ const s = StyleSheet.create({
   orb: {
     width: 74,
     height: 74,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceRaised,
@@ -95,26 +107,26 @@ const s = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
-    borderWidth: 8,
+    borderWidth: 2,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceRaised,
   },
-  progressText: { color: colors.textPrimary, fontSize: 28, fontWeight: '700' },
+  progressText: { color: colors.textPrimary, fontSize: 28, fontWeight: '500' },
   kicker: {
     marginTop: 28,
     color: colors.textSecondary,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '500',
     letterSpacing: 1.4,
   },
   title: {
     marginTop: 10,
     color: colors.textPrimary,
-    fontSize: 36,
-    lineHeight: 40,
-    fontWeight: '700',
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '500',
     letterSpacing: -1.4,
   },
   copy: {
@@ -132,10 +144,10 @@ const s = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.textPrimary,
   },
   disabled: { opacity: 0.55 },
-  buttonText: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
+  buttonText: { color: colors.canvas, fontSize: 14, fontWeight: '500' },
   note: {
     marginTop: 18,
     flexDirection: 'row',

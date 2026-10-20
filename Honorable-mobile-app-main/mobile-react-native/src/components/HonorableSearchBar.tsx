@@ -25,11 +25,15 @@ export function HonorableSearchBar({
       <View style={styles.inputRow}>
         {compact && <Search color={colors.iconMuted} size={18} />}
         <Input
-          accessibilityLabel="Describe a photo or video"
+          accessibilityLabel={
+            compact
+              ? 'Search filenames in your library'
+              : 'Describe a photo or video'
+          }
           returnKeyType="search"
           blurOnSubmit={false}
           onSubmitEditing={() => canSubmit && onSubmit()}
-          placeholder="Describe a moment…"
+          placeholder={compact ? 'Search filenames…' : 'Describe a moment…'}
           placeholderTextColor={colors.textTertiary}
           value={value}
           onChangeText={onChangeText}
@@ -62,7 +66,7 @@ export function HonorableSearchBar({
             ) : (
               <ArrowUp
                 size={20}
-                color={canSubmit ? colors.textPrimary : colors.textTertiary}
+                color={canSubmit ? colors.canvas : colors.textTertiary}
               />
             )}
           </Pressable>
@@ -75,8 +79,8 @@ const styles = StyleSheet.create({
   shell: {
     marginHorizontal: 20,
     padding: 14,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceRaised,
+    borderRadius: 14,
+    backgroundColor: colors.canvas,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -101,12 +105,12 @@ const styles = StyleSheet.create({
   },
   footerContent: { flex: 1 },
   submit: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
   },

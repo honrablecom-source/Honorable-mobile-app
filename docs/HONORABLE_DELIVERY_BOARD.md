@@ -1,6 +1,6 @@
 # Honorable delivery board
 
-October 19, 2026. Current owner instruction: stop spending whole milestones on UI mockups; finish small real capabilities first. Current UI has NOT been accepted. Keep white-majority, black-outline mobile direction, and reference actual editing tools when improving native controls. Preserve the existing code and engines.
+October 20, 2026. Latest owner instruction: finish the entire app UI correction, then pause. The previous video-only checkpoint was insufficient. Shared RN screens and native photo/video/playback have now been updated and the combined internal APK verified. White backgrounds, black outlines and existing engines are preserved. UI remains unaccepted until owner/device review. See HONORABLE_APP_UI_CHECKPOINT.md. No further feature work today.
 
 ## Current functional batch
 

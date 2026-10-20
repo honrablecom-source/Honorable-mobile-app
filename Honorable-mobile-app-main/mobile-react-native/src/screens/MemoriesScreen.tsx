@@ -6,7 +6,7 @@ import { Text } from '@/components/ui/text';
 import { HonorableSearchBar } from '../components/HonorableSearchBar';
 import { MediaGrid, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
-import { colors } from '../design-system';
+import { colors, WorkspaceHeader } from '../design-system';
 import { useLibrary } from '../library/LibraryContext';
 
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
@@ -68,22 +68,16 @@ export function MemoriesScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        <View style={styles.header}>
-          <View>
-            <Text className="text-[12px] font-semibold tracking-[2px] text-muted-foreground">
-              MEMORIES
+        <WorkspaceHeader
+          title="Library"
+          section="honorable / memories"
+          action={
+            <Text variant="muted" className="text-[12px]">
+              {total.toLocaleString()} items
             </Text>
-            <Text
-              accessibilityRole="header"
-              className="mt-1 text-[28px] font-semibold"
-            >
-              Your library
-            </Text>
-          </View>
-          <Text variant="muted" className="text-[12px]">
-            {total.toLocaleString()} items
-          </Text>
-        </View>
+          }
+        />
+        <View style={{ height: 16 }} />
         <HonorableSearchBar
           compact
           value={query}
@@ -141,7 +135,7 @@ export function MemoriesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: 90 },
+  content: { paddingBottom: 24 },
   header: {
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -158,6 +152,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   more: {
     height: 48,
@@ -167,5 +163,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

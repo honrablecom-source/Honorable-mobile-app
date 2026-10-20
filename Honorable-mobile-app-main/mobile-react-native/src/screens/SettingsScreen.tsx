@@ -1,12 +1,13 @@
 import React from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text } from '@/components/ui/text';
 import { AccountPanel } from '../auth/AccountGate';
-import { colors, spacing, typography } from '../design-system/tokens';
+import { colors, typography } from '../design-system/tokens';
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
 import type { RootStackParamList } from '../navigation/types';
 export function SettingsScreen() {
   const navigation =
@@ -27,17 +28,12 @@ export function SettingsScreen() {
   );
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
+      <WorkspaceHeader
+        title="Account"
+        section="honorable / settings"
+        onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+      />
       <ScrollView contentContainerStyle={s.content}>
-        <Pressable
-          accessibilityLabel="Back"
-          onPress={() => navigation.goBack()}
-          style={s.back}
-        >
-          <ChevronLeft color={colors.textPrimary} />
-        </Pressable>
-        <Text accessibilityRole="header" style={s.title}>
-          Account
-        </Text>
         <AccountPanel />
         <Text style={s.section}>Your library</Text>
         {row('Photo & video access', 'Choose what Honorable can access', () =>
@@ -78,20 +74,21 @@ export function SettingsScreen() {
 }
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: spacing.xl, paddingBottom: 48 },
+  content: { padding: 20, paddingBottom: 32 },
   back: { minHeight: 44, width: 44, justifyContent: 'center' },
   title: { ...typography.title, color: colors.textPrimary, marginTop: 16 },
   section: {
     color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 32,
+    fontSize: 11,
+    letterSpacing: 1,
+    marginTop: 28,
     marginBottom: 8,
   },
   row: {
     minHeight: 72,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.surfaceSelected,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BetaFeedbackScreen } from '../screens/BetaFeedbackScreen';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
   Images,
@@ -62,6 +63,7 @@ const MemoriesTab = () => (
   </TabTransition>
 );
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs.Navigator
       screenListeners={({ navigation, route }) => ({
@@ -74,13 +76,21 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.textPrimary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          { height: 62 + insets.bottom, paddingBottom: insets.bottom + 4 },
+        ],
         tabBarLabelStyle: styles.label,
+        tabBarActiveBackgroundColor: colors.surfaceSelected,
         tabBarIcon: ({ color }) => <TabIcon color={color} name={route.name} />,
       })}
     >
       <Tabs.Screen name="Home" component={HomeTab} />
-      <Tabs.Screen name="Memories" component={MemoriesTab} />
+      <Tabs.Screen
+        name="Memories"
+        component={MemoriesTab}
+        options={{ title: 'Library' }}
+      />
       <Tabs.Screen name="Studio" component={StudioScreen} />
       <Tabs.Screen name="Account" component={SettingsScreen} />
     </Tabs.Navigator>

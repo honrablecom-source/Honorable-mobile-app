@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '../design-system/tokens';
+import { UserRound, ShieldCheck } from 'lucide-react-native';
 import { BetaUpdateNotice } from '../screens/BetaUpdateNotice';
 import {
   ActivityIndicator,
@@ -38,14 +39,16 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
           style={styles.photo}
           accessibilityLabel="A quiet beach memory"
         />
-        <Text style={styles.title}>Find any{'\n'}memory.</Text>
+        <Text style={styles.title}>Your memories. Your workspace.</Text>
         <Text style={styles.copy}>
-          You remember the moment.{'\n'}Honorable finds it.
+          Search with Seran. Edit photos and videos. Start with what you
+          remember.
         </Text>
         <Pressable
           accessibilityRole="button"
           disabled={!auth.googleConfigured}
-          style={styles.button}
+          accessibilityState={{ disabled: !auth.googleConfigured }}
+          style={[styles.button, !auth.googleConfigured && { opacity: 0.45 }]}
           onPress={auth.signInGoogle}
         >
           <Text style={styles.buttonText}>Continue with Google</Text>
@@ -55,7 +58,10 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
             {auth.error}
           </Text>
         )}
-        <Text style={styles.privacy}>Your memories stay yours.</Text>
+        <View style={styles.privacyRow}>
+          <ShieldCheck size={17} color={colors.textSecondary} />
+          <Text style={styles.small}>Your memories stay yours.</Text>
+        </View>
         <Text style={styles.small}>
           Signing in keeps your Memory Passes, credits and account access
           connected across sessions and devices.
@@ -73,6 +79,9 @@ export function AccountPanel() {
   const auth = useMemoryPass();
   return (
     <View style={styles.panel}>
+      <View style={styles.avatar}>
+        <UserRound size={23} color={colors.textPrimary} />
+      </View>
       <Text style={styles.privacy}>
         {auth.account?.profile?.name || 'Your account'}
       </Text>
@@ -99,14 +108,39 @@ export function AccountPanel() {
       <Pressable
         onPress={auth.signOut}
         accessibilityRole="button"
-        style={styles.button}
+        style={styles.signOut}
       >
-        <Text style={styles.buttonText}>Sign out</Text>
+        <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
     </View>
   );
 }
 const styles = StyleSheet.create({
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  signOut: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  signOutText: { color: colors.textPrimary, fontSize: 14 },
   safe: { flex: 1, backgroundColor: colors.canvas },
   launch: {
     flex: 1,
@@ -122,13 +156,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.6,
   },
-  photo: { height: 180, width: '100%', marginVertical: 28, opacity: 1 },
+  photo: { height: 180, width: '100%', marginVertical: 24, borderRadius: 12 },
   title: {
     color: colors.textPrimary,
-    fontSize: 52,
-    lineHeight: 51,
+    fontSize: 36,
+    lineHeight: 42,
     fontWeight: '500',
-    letterSpacing: -2,
+    letterSpacing: -1.2,
   },
   copy: {
     color: colors.textSecondary,
@@ -138,15 +172,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: colors.canvas,
-    borderRadius: 8,
+    backgroundColor: colors.textPrimary,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
     alignItems: 'center',
     marginVertical: 16,
   },
-  buttonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  buttonText: { fontSize: 15, fontWeight: '600', color: colors.canvas },
   privacy: {
     color: colors.textPrimary,
     fontSize: 14,
@@ -156,9 +190,9 @@ const styles = StyleSheet.create({
   },
   small: { color: colors.textTertiary, fontSize: 12, lineHeight: 18 },
   panel: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingVertical: 16,
-    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 20,
   },
 });

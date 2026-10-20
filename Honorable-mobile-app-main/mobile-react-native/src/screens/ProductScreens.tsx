@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { colors, radii } from '../design-system/tokens';
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 import { memoryPasses } from '../passes/catalog';
@@ -29,7 +31,9 @@ export const productStyles = StyleSheet.create({
   body: { color: colors.textSecondary, fontSize: 14, lineHeight: 21 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radii.lg,
     padding: 16,
     width: '48%',
@@ -39,8 +43,10 @@ export const productStyles = StyleSheet.create({
   button: {
     padding: 14,
     borderRadius: radii.md,
-    backgroundColor: colors.surfaceSelected,
-    minHeight: 44,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 48,
   },
   label: { color: colors.textPrimary },
   row: {
@@ -59,7 +65,7 @@ export const productStyles = StyleSheet.create({
   },
   eyebrow: { fontSize: 12, letterSpacing: 0.5, color: colors.textSecondary },
   balance: { flex: 1, paddingVertical: 20, gap: 8 },
-  bar: { height: 4, backgroundColor: colors.border, overflow: 'hidden' },
+  bar: { height: 4, backgroundColor: colors.surfaceSelected, overflow: 'hidden' },
   hero: {
     height: 270,
     justifyContent: 'flex-end',
@@ -102,12 +108,15 @@ export function ProductPage({
   title: string;
   children: React.ReactNode;
 }) {
+  const navigation = useNavigation();
   return (
     <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.title}>{title}</Text>
-        {children}
-      </ScrollView>
+      <WorkspaceHeader
+        title={title}
+        section="honorable / membership"
+        onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+      />
+      <ScrollView contentContainerStyle={s.content}>{children}</ScrollView>
     </SafeAreaView>
   );
 }

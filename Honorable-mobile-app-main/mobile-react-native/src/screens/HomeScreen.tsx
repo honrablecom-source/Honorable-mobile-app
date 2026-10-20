@@ -166,14 +166,13 @@ export function HomeScreen() {
         <View style={styles.hero}>
           <View style={styles.eyebrowRow}>
             <View style={styles.statusDot} />
-            <Text style={styles.eyebrow}>YOUR MEMORIES, CLOSE AT HAND</Text>
+            <Text style={styles.eyebrow}>SERAN / MEMORY SEARCH</Text>
           </View>
           <Text accessibilityRole="header" style={styles.heroTitle}>
-            Find a moment.{'\n'}Make it yours.
+            What do you remember?
           </Text>
           <Text style={styles.heroDetail}>
-            A place, a feeling, a little detail.{'\n'}Start with what you
-            remember.
+            Describe a photo or a moment in a video.
           </Text>
         </View>
         <HonorableSearchBar
@@ -235,8 +234,10 @@ export function HomeScreen() {
                   }}
                   style={{
                     padding: 16,
-                    backgroundColor: colors.surfaceSelected,
-                    borderRadius: 12,
+                    backgroundColor: colors.canvas,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 10,
                   }}
                 >
                   <Text>
@@ -245,7 +246,12 @@ export function HomeScreen() {
                   </Text>
                 </Pressable>
               ))}
-              <Pressable onPress={() => setModeOpen(false)}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close model selection"
+                style={{ minHeight: 48, justifyContent: 'center' }}
+                onPress={() => setModeOpen(false)}
+              >
                 <Text>Close</Text>
               </Pressable>
             </View>
@@ -278,6 +284,7 @@ export function HomeScreen() {
                 <Pressable
                   key={item}
                   onPress={() => search(item)}
+                  accessibilityRole="button"
                   style={styles.historyChip}
                 >
                   <Text className="text-[11px]">{item}</Text>
@@ -343,7 +350,7 @@ export function HomeScreen() {
                   key={item}
                   size="sm"
                   variant={filter === item ? 'default' : 'ghost'}
-                  className="rounded-full"
+                  className="rounded-md"
                   onPress={() => setFilter(item)}
                 >
                   <Text>{item}</Text>
@@ -369,6 +376,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -399,12 +409,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hero: { paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 },
+  hero: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 22 },
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    marginBottom: 18,
+    marginBottom: 10,
   },
   statusDot: {
     width: 5,
@@ -414,10 +424,10 @@ const styles = StyleSheet.create({
   },
   eyebrow: { fontSize: 10, letterSpacing: 1.5, color: colors.textTertiary },
   heroTitle: {
-    fontSize: 37,
-    lineHeight: 43,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '500',
-    letterSpacing: -1.6,
+    letterSpacing: -1,
   },
   heroDetail: {
     fontSize: 14,
@@ -454,8 +464,10 @@ const styles = StyleSheet.create({
   historyItems: { paddingHorizontal: 16, paddingTop: 8, gap: 6 },
   historyChip: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceRaised,

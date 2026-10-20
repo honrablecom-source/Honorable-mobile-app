@@ -278,6 +278,7 @@ class HonorableVideoEditorActivity : Activity() {
         exportButton.background = GradientDrawable().apply { setColor(Color.BLACK); cornerRadius = dp(8).toFloat() }
         selectTools("Edit")
         setContentView(root)
+        app.honorable.editor.NativeWorkspaceInsets.install(this,root)
         video.setOnErrorListener { _, _, _ -> status.text = "Video unavailable. Check access to the selected source."; true }
         video.setOnPreparedListener { player ->
             sourceReady = true
