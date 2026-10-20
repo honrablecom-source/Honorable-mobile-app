@@ -7,26 +7,36 @@ internal data class VideoSegment(
     val speed: Float = 1f,
     val volume: Float = 1f,
     val sourceId: String = "primary",
+    val title: String = "",
+    val fadeEdges: Boolean = false,
 ) {
     init {
-        require(sourceId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+        require(title.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == title)
+        require(title.length <= 120 && title.count { it == '\n' } <= 2 && title.none { it.isISOControl() && it != '\n' })
+        require(!sourceId.startsWith("__") && sourceId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
         require(startMs >= 0 && endMs > startMs)
         require(speed in setOf(.5f, 1f, 1.5f, 2f))
         require(volume in 0f..1f)
     }
-    val durationMs: Long get() = ((endMs - startMs) / speed).toLong()
+    val durationUs: Long get() = (((endMs - startMs) * 1000.0) / speed).toLong().coerceAtLeast(1)
+    val durationMs: Long get() = durationUs / 1000
 }
 
 internal class VideoEditProject(durationMs: Long) {
     init { require(durationMs > 0) }
     private val sourceDurations = mutableMapOf("primary" to durationMs)
     private val original = listOf(VideoSegment(0, durationMs))
-    private val undo = ArrayDeque<List<VideoSegment>>()
-    private val redo = ArrayDeque<List<VideoSegment>>()
+    private data class State(val clips: List<VideoSegment>, val soundtrack: VideoSoundtrack?)
+    private val undo = ArrayDeque<State>()
+    private val redo = ArrayDeque<State>()
+    var soundtrack: VideoSoundtrack? = null
+        private set
+    private fun state() = State(segments,soundtrack)
     var segments: List<VideoSegment> = original
         private set
 
     private fun validate(clips: List<VideoSegment>, sources: Map<String, Long>) {
+        require(clips.sumOf { it.title.toByteArray(Charsets.UTF_8).size } <= 128_000) { "Project title text limit reached" }
         require(clips.size in 1..1000 && sources.size in 1..32)
         require(sources.all { (id, duration) -> id.matches(Regex("[A-Za-z0-9_-]{1,64}")) && duration > 0 })
         require(clips.all { it.endMs <= (sources[it.sourceId] ?: 0) }) { "Unknown source or clip outside its source" }
@@ -42,33 +52,34 @@ internal class VideoEditProject(durationMs: Long) {
         sourceDurations.putAll(catalog)
         change(next)
     }
-    fun restore(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap()) {
+    fun restore(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null) {
         val catalog = mergedSources(sources)
         validate(clips, catalog)
         sourceDurations.putAll(catalog)
-        segments = clips.toList()
+        segments = clips.toList(); this.soundtrack = soundtrack
         undo.clear()
         redo.clear()
     }
 
-    fun applyDraft(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap()) {
+    fun applyDraft(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null) {
         val catalog = mergedSources(sources)
         validate(clips, catalog)
         sourceDurations.putAll(catalog)
-        change(clips.toList())
+        change(clips.toList(), soundtrack)
     }
 
     val totalDurationMs: Long get() = segments.sumOf { it.durationMs }
+    fun soundtrackUris(): Set<String> = (undo.toList() + redo.toList() + state()).mapNotNull { it.soundtrack?.uri }.toSet()
     val canUndo: Boolean get() = undo.isNotEmpty()
     val canRedo: Boolean get() = redo.isNotEmpty()
 
-    private fun change(next: List<VideoSegment>) {
+    private fun change(next: List<VideoSegment>, music: VideoSoundtrack? = soundtrack) {
         validate(next, sourceDurations)
-        if (next == segments) return
-        undo.addLast(segments)
+        if (next == segments && music == soundtrack) return
+        undo.addLast(state())
         if (undo.size > 50) undo.removeFirst()
         redo.clear()
-        segments = next
+        segments = next; soundtrack = music
     }
 
     fun split(index: Int, sourceTimeMs: Long) {
@@ -95,6 +106,11 @@ internal class VideoEditProject(durationMs: Long) {
         change(segments.toMutableList().apply { set(index, get(index).copy(volume = volume)) })
     }
 
+    fun setSoundtrack(track: VideoSoundtrack?) = change(segments,track)
+
+    fun setTitle(index: Int, title: String) = change(segments.toMutableList().apply { set(index, get(index).copy(title = title)) })
+    fun setFadeEdges(index: Int, enabled: Boolean) = change(segments.toMutableList().apply { set(index, get(index).copy(fadeEdges = enabled)) })
+
     fun duplicate(index: Int) {
         require(segments.size < 1_000) { "A project supports up to 1000 clips" }
         val clip = segments[index]
@@ -113,17 +129,17 @@ internal class VideoEditProject(durationMs: Long) {
 
     fun undo(): Boolean {
         if (undo.isEmpty()) return false
-        redo.addLast(segments)
-        segments = undo.removeLast()
+        redo.addLast(state())
+        val restored = undo.removeLast();segments = restored.clips;soundtrack = restored.soundtrack
         return true
     }
 
     fun redo(): Boolean {
         if (redo.isEmpty()) return false
-        undo.addLast(segments)
-        segments = redo.removeLast()
+        undo.addLast(state())
+        val restored = redo.removeLast();segments = restored.clips;soundtrack = restored.soundtrack
         return true
     }
 
-    fun reset() = change(original)
+    fun reset() = change(original,null)
 }

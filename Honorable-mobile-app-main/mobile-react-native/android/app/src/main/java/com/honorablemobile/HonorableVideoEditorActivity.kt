@@ -34,6 +34,8 @@ class HonorableVideoEditorActivity : Activity() {
     private lateinit var video: VideoView
     private lateinit var projectPreviewView: PlayerView
     private var previewPlayer: CompositionPlayer? = null
+    private var previewSegments: List<VideoSegment>? = null
+    private var previewSelectedIndex: Int? = null
     private lateinit var start: SeekBar
     private lateinit var end: SeekBar
     private lateinit var status: TextView
@@ -114,11 +116,11 @@ class HonorableVideoEditorActivity : Activity() {
             text = "Preview clip"
             setOnClickListener {
                 if (saving || draftBusy || importing || pendingRange != null || durationMs <= 0 || !sourceReady) return@setOnClickListener
-                stopProjectPreview()
-                video.seekTo((start.progress * 1000L).coerceAtMost(durationMs.toLong()-1).toInt())
-                video.start()
-                previewHandler.removeCallbacks(stopPreview)
-                previewHandler.post(stopPreview)
+                val clip = project?.segments?.getOrNull(selectedClip) ?: return@setOnClickListener
+                runCatching {
+                    val trimmed = clip.copy(startMs = maxOf(start.progress*1000L,clip.startMs), endMs = minOf(end.progress*1000L,clip.endMs))
+                    previewComposition(listOf(trimmed), selectedClip)
+                }.onFailure { status.text = "Choose a valid clip range to preview." }
             }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         actions.addView(Button(this).apply {
@@ -136,10 +138,10 @@ class HonorableVideoEditorActivity : Activity() {
         clipButton("Previous") { if (selectedClip > 0) { selectedClip--; showClip() } }
         clipButton("Next") { if (selectedClip + 1 < (project?.segments?.size ?: 0)) { selectedClip++; showClip() } }
         clipButton("Split") {
-            if(!sourceReady) return@clipButton
-            runCatching { requireNotNull(project).split(selectedClip, video.currentPosition.toLong()) }
+            if(!sourceReady && previewPlayer == null) return@clipButton
+            runCatching { requireNotNull(project).split(selectedClip, splitPosition()) }
                 .onSuccess { selectedClip++; showClip() }
-                .onFailure { status.text = "Play or seek inside this clip, then split." }
+                .onFailure { status.text = "Select the playing clip or seek inside this clip, then split." }
         }
         clipButton("Delete") {
             runCatching { requireNotNull(project).delete(selectedClip) }
@@ -193,6 +195,34 @@ class HonorableVideoEditorActivity : Activity() {
             showClip()
         }
         controls.addView(audioActions)
+        val creative = LinearLayout(this)
+        creative.addView(Button(this).apply { text = "Title"; setOnClickListener { editTitle() } },LinearLayout.LayoutParams(0,-2,1f))
+        creative.addView(Button(this).apply { text = "Video fade"; setOnClickListener {
+            if(saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
+            val current = project ?: return@setOnClickListener
+            val clip = current.segments[selectedClip]
+            current.setFadeEdges(selectedClip,!clip.fadeEdges); showClip()
+            status.text = if(clip.fadeEdges) "Video fade removed." else "Fade through black added. Preview the project to check it."
+        } },LinearLayout.LayoutParams(0,-2,1f))
+        controls.addView(creative)
+        val music = LinearLayout(this)
+        fun musicButton(title: String, action: () -> Unit) {
+            music.addView(Button(this).apply { text = title; setOnClickListener {
+                if(!saving && !draftBusy && !importing && pendingRange == null) action()
+            } },LinearLayout.LayoutParams(0,-2,1f))
+        }
+        musicButton("Add music") { importSoundtrack() }
+        musicButton("Music volume") {
+            val current = project ?: return@musicButton
+            val track = current.soundtrack ?: run { status.text = "Add a soundtrack first."; return@musicButton }
+            val levels = listOf(.25f,.5f,1f,0f)
+            current.setSoundtrack(track.copy(volume=levels[(levels.indexOf(track.volume)+1)%levels.size]))
+            showClip(); status.text = "Soundtrack volume ${(requireNotNull(current.soundtrack).volume*100).toInt()}%. Preview project to check the mix."
+        }
+        musicButton("Remove music") { project?.setSoundtrack(null);showClip();status.text = "Soundtrack removed. Undo restores it." }
+        controls.addView(music)
+        controls.addView(label("Soundtrack loops to the video length. Use Preview project to check the mix.",12f))
+        controls.addView(label("Titles appear throughout the clip. Video fades are up to 0.5s at each edge; audio is unchanged.",12f))
         val drafts = LinearLayout(this)
         drafts.addView(Button(this).apply { text = "Save draft"; setOnClickListener { draftOperation(false) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -220,7 +250,7 @@ class HonorableVideoEditorActivity : Activity() {
                 draftBusy = true
                 status.text = "Checking restored video sources..."
                 draftWorker.execute {
-                    val checked = runCatching { validateSources(saved.sources) }
+                    val checked = runCatching { validateSavedMedia(saved) }
                     runOnUiThread {
                         draftBusy = false
                         if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
@@ -263,7 +293,7 @@ class HonorableVideoEditorActivity : Activity() {
         start.max = seconds; end.max = seconds
         start.progress = (clip.startMs / 1000).toInt()
         end.progress = ((clip.endMs + 999) / 1000).toInt().coerceAtMost(end.max)
-        clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · source ${sourceNumber(clip.sourceId)} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project"
+        clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · source ${sourceNumber(clip.sourceId)} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project${if(clip.title.isNotBlank()) " · title" else ""}${if(clip.fadeEdges) " · fade" else ""}"
         pendingSeekMs = clip.startMs
         if(videoSourceId != clip.sourceId) {
             video.pause(); previewHandler.removeCallbacks(stopPreview)
@@ -278,12 +308,17 @@ class HonorableVideoEditorActivity : Activity() {
     private fun previewProject() {
         if (saving || analyzing || draftBusy || importing || pendingRange != null) return
         val clips = project?.segments ?: return
+        previewComposition(clips, null)
+    }
+
+    private fun previewComposition(clips: List<VideoSegment>, selectedIndex: Int?) {
         stopProjectPreview()
         video.pause()
         previewHandler.removeCallbacks(stopPreview)
         runCatching {
             CompositionPlayer.Builder(this).build().also { player ->
                 previewPlayer = player
+                previewSegments = clips.toList(); previewSelectedIndex = selectedIndex
                 player.addListener(object : Player.Listener {
                     override fun onPlayerError(error: PlaybackException) {
                         status.text = "Project preview unavailable: ${error.message ?: "Playback error"}"
@@ -293,7 +328,7 @@ class HonorableVideoEditorActivity : Activity() {
                 projectPreviewView.player = player
                 projectPreviewView.visibility = View.VISIBLE
                 video.visibility = View.GONE
-                player.setComposition(VideoCompositionExporter.composition(sourceUris(), clips))
+                player.setComposition(VideoCompositionExporter.composition(sourceUris(), clips, sourceDurations(), if(selectedIndex == null) project?.soundtrack else null))
                 player.prepare()
                 player.play()
                 status.text = "Previewing ${clips.size} clips in project order"
@@ -306,7 +341,7 @@ class HonorableVideoEditorActivity : Activity() {
 
     private fun stopProjectPreview() {
         previewPlayer?.release()
-        previewPlayer = null
+        previewPlayer = null; previewSegments = null; previewSelectedIndex = null
         if (::projectPreviewView.isInitialized) {
             projectPreviewView.player = null
             projectPreviewView.visibility = View.GONE
@@ -441,6 +476,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
         if(requestCode == 23) { finishImport(resultCode, data); return }
         if (requestCode != 22) return
         val range = pendingRange
@@ -455,7 +491,7 @@ class HonorableVideoEditorActivity : Activity() {
         status.text = "Saving copy..."
         exporter = VideoCompositionExporter(this)
         runCatching {
-            exporter!!.export(sourceUris(), destination, clips) { result ->
+            exporter!!.export(sourceUris(), destination, clips, sourceDurations(), project?.soundtrack) { result ->
                 saving = false
                 exporter = null
                 if (isDestroyed || isFinishing) return@export
@@ -488,7 +524,7 @@ class HonorableVideoEditorActivity : Activity() {
             var persistence: VideoDraftPersistence? = null
             val result = runCatching {
                 VideoDraftPersistence(this, source.toString()).also { persistence = it }.let { storage ->
-                    if (restore) storage.load(sourceDuration)?.also { validateSources(it.sources) }
+                    if (restore) storage.load(sourceDuration)?.also { validateSavedMedia(it) }
                     else { storage.save(requireNotNull(snapshot)); null }
                 }
             }
@@ -515,17 +551,47 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
+    private fun splitPosition(): Long {
+        val player = previewPlayer ?: return video.currentPosition.toLong()
+        val clips = requireNotNull(previewSegments)
+        val position = VideoTimeline.locate(clips,player.currentPosition.coerceAtLeast(0)*1000)
+        require((previewSelectedIndex ?: position.clipIndex) == selectedClip) { "Select the playing clip" }
+        return position.sourceTimeMs
+    }
+    private fun editTitle() {
+        if(saving || draftBusy || importing || pendingRange != null) return
+        val current = project ?: return
+        val index = selectedClip; val clip = current.segments[index]
+        val input = EditText(this).apply {
+            setText(clip.title); setTextColor(Color.BLACK); setBackgroundColor(Color.WHITE)
+            hint = "Title (leave blank to remove)"; maxLines = 3
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            filters = arrayOf(android.text.InputFilter.LengthFilter(120))
+        }
+        val dialog = android.app.AlertDialog.Builder(this,android.R.style.Theme_Material_Light_Dialog_Alert).setTitle("Clip title").setView(input)
+            .setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
+        dialog.setOnShowListener { dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            if(project !== current || selectedClip != index || current.segments.getOrNull(index) != clip || saving || draftBusy || importing || pendingRange != null) { dialog.dismiss(); return@setOnClickListener }
+            runCatching { current.setTitle(index,input.text.toString().trim()) }.onSuccess {
+                dialog.dismiss();showClip();status.text = "Title updated. Preview the project before saving a copy."
+            }.onFailure { input.error = "Use up to 120 characters and three lines; project title text is limited." }
+        } }
+        dialog.show()
+    }
+    private fun sourceDurations(): Map<String, Long> = mapOf("primary" to primaryDurationMs) + importedSources.mapValues { it.value.durationMs }
+
     private fun sourceUri(id: String): Uri = if(id == "primary") source else Uri.parse(requireNotNull(importedSources[id]).uri)
     private fun sourceDuration(id: String): Long = if(id == "primary") primaryDurationMs else requireNotNull(importedSources[id]).durationMs
     private fun sourceNumber(id: String): Int = if(id == "primary") 1 else importedSources.keys.indexOf(id) + 2
-    private fun sourceUris(): Map<String, Uri> = mapOf("primary" to source) + importedSources.mapValues { Uri.parse(it.value.uri) }
+    private fun sourceUris(): Map<String, Uri> = mapOf("primary" to source) + importedSources.mapValues { Uri.parse(it.value.uri) } +
+        (project?.soundtrackUris()?.mapIndexed { index, uri -> "__audio_$index" to Uri.parse(uri) }?.toMap() ?: emptyMap())
 
     private fun currentDraft(): VideoDraft {
         val clips = requireNotNull(project).segments
         val clip = clips[selectedClip]
         return VideoDraft(primaryDurationMs, clips.toList(), selectedClip,
             (if(sourceReady) video.currentPosition.toLong() else pendingSeekMs).coerceIn(0L, sourceDuration(clip.sourceId)-1),
-            maxOf(start.progress*1000L, clip.startMs), minOf(end.progress*1000L, clip.endMs), importedSources.values.toList())
+            maxOf(start.progress*1000L, clip.startMs), minOf(end.progress*1000L, clip.endMs), importedSources.values.toList(), project?.soundtrack)
     }
     private fun inspectSource(uri: Uri): Long {
         require(uri.scheme == "content") { "Choose a video document" }
@@ -538,6 +604,54 @@ class HonorableVideoEditorActivity : Activity() {
             duration
         } finally { retriever.release() }
     }
+    private fun inspectSoundtrack(uri: Uri): Long {
+        require(uri.scheme == "content")
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(this,uri)
+            require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes")
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
+            require(duration in 1..Int.MAX_VALUE.toLong()); duration
+        } finally { retriever.release() }
+    }
+    private fun validateSavedMedia(saved: VideoDraft) {
+        validateSources(saved.sources)
+        saved.soundtrack?.let { require(inspectSoundtrack(Uri.parse(it.uri)) == it.durationMs) { "Soundtrack changed or unavailable" } }
+    }
+    private fun importSoundtrack() {
+        if(project == null || saving || analyzing || draftBusy || importing || pendingRange != null) return
+        importing = true;video.pause();stopProjectPreview()
+        try {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE);type="audio/*"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            },24)
+        } catch(error: Exception) { importing=false;status.text="No audio document picker is available." }
+    }
+    private fun finishSoundtrackImport(resultCode: Int, data: Intent?) {
+        val uri = data?.data
+        if(resultCode != RESULT_OK || uri == null || isDestroyed || isFinishing) { importing=false;return }
+        val current=project ?: run { importing=false;return }
+        status.text="Checking soundtrack on this device..."
+        draftWorker.execute {
+            val result=runCatching {
+                contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                require(contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
+                VideoSoundtrack(uri.toString(),inspectSoundtrack(uri))
+            }
+            runOnUiThread {
+                importing=false
+                if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
+                result.onSuccess { track ->
+                    runCatching { VideoTimeline.soundtrackRepeatCount(current.segments,track);current.setSoundtrack(track) }
+                        .onSuccess { showClip();status.text="Soundtrack added at 25%. Preview project to check the mix." }
+                        .onFailure { status.text="Choose longer audio; this project supports up to 1000 soundtrack repeats." }
+                }
+                    .onFailure { status.text="Choose readable audio from a provider that keeps document access. Nothing was added." }
+            }
+        }
+    }
+
     private fun validateSources(sources: List<VideoSource>) {
         sources.forEach { require(inspectSource(Uri.parse(it.uri)) == it.durationMs) { "Imported source changed or unavailable" } }
     }
@@ -546,7 +660,7 @@ class HonorableVideoEditorActivity : Activity() {
         require(saved.sources.all { importedSources[it.id]?.let { old -> old == it } ?: true })
         require(merged.size <= 31 && merged.values.map { it.uri }.distinct().size == merged.size)
         val durations = merged.mapValues { it.value.durationMs }
-        if(undoable) current.applyDraft(saved.segments, durations) else current.restore(saved.segments, durations)
+        if(undoable) current.applyDraft(saved.segments, durations, saved.soundtrack) else current.restore(saved.segments, durations, saved.soundtrack)
         importedSources.putAll(merged)
         selectedClip = saved.selectedClip
         showClip()

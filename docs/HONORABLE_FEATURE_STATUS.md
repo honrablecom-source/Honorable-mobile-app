@@ -10,7 +10,7 @@ Updated October 19, 2026. Continue the existing application and design. No featu
 | Photo lifecycle recovery | Bounded scalar edits, undo/redo, compare/tool and pending-picker settings; account/API/source isolation; masks recomputed locally | JVM coverage and combined internal APK pass; physical rotation/process/picker validation pending; not persistent photo projects |
 | Photo text recognition | Bundled on-device OCR, review and explicit copy | Real recognition/error/offline acceptance |
 | Scene-aware photo enhancement | On-device labels plus bounded color/exposure adjustments | Image-quality and resource/lifecycle acceptance |
-| Person cutout | New local person segmentation, source-aligned soft matte, transparent PNG path and undo/compare; ARM64 build passed; 65 Compose and 10 RN native JVM tests passed; no device inference proof | Real person/no-person/edge quality, transforms and saved-alpha validation on a phone |
+| Person cutout | Local person segmentation, source-aligned soft matte, transparent PNG path and undo/compare; combined ARM64 build verified; no device inference proof | Real person/no-person/edge quality, transforms and saved-alpha validation on a phone |
 | Photo export safety | New URI/inode refusal before truncation, private PNG encoding and saved-copy hash/dimension checks | Real providers, aliases, cancellation/failure and original-byte integrity |
 | Generic subject selection/masks | Not implemented beyond person cutout | Object-aware selection, refinement and reliable output |
 | Generative fill / expansion | Planned | Actual generation engine, accepted hardware/privacy/cost model and output validation |
@@ -18,11 +18,14 @@ Updated October 19, 2026. Continue the existing application and design. No featu
 | RAW / curves / advanced filters | Planned | Supported decoders, processing and render/export parity |
 | Rig/pose manipulation | Incomplete foundation/aspiration | Genuine segmentation/keypoints/deformation; no fake skeleton-only claim |
 | Layers / smart layers / compositing | Web project foundation; native advanced engine unfinished | Canonical persisted state, masks/blending and matching renders |
-| Video Editor V1 | Single-source trim/split/delete/reorder, speed/audio, composition preview and copy export | Actual phone rendering, order/speed/audio/orientation and original integrity |
-| Video drafts | Explicit encrypted account/API/source-scoped save/restore; clip changes undoable | Keystore/files/lifecycle/account switching on a phone; no old-session undo-history persistence |
+| Video Editor V1 | Multi-source trim/split/delete/reorder, speed/volume, titles/fade edges, composition preview and copy export | Actual phone rendering, order/speed/audio/orientation and original integrity |
+| Video drafts | Encrypted account/API/root-source-scoped save/restore; v1/v2 readable and v3 persists titles/fades/soundtrack; restore undoable | Keystore/files/lifecycle/account switching on a phone; no old-session undo-history persistence |
 | Video scene suggestion | Experimental sampled-frame local label analysis | Grounded quality, cancellation and preview/export acceptance |
-| Multiple sources/tracks | Planned | Project schema, permissions, synchronization, rendering and persistence |
-| Titles/transitions/keyframes | Planned | Timeline state, useful controls and matching rendered output |
+| Multiple video sources | Implemented with durable document grants, per-clip routing and compatible drafts | Physical provider/codec/audio/aspect and lifecycle acceptance |
+| Project soundtrack | One looping audio sequence, gain/removal, undo, drafts and original-file protection | Physical loop boundaries, mix/sync/output; richer audio timeline still incomplete |
+| General multitrack editing | Incomplete beyond a video sequence plus one soundtrack | Track UI, arbitrary audio/video overlays, scheduling and compositing |
+| Basic clip titles and visual fades | Implemented with local wrapped overlay and output-time fade-through-black, shared preview/export and history/drafts | Physical GPU/text/fade acceptance, richer title styling/timing |
+| Overlapping crossfades/keyframes | Planned | Actual overlap scheduling/render engine and visual controls |
 | AI captions / advanced AI video | Planned | Real inference and timing, editable results, output/performance/privacy validation |
 | Tracking / stabilization / video 3D | Planned | Real tracking/render engines and supported hardware |
 | Nodes / Code workspace | Web foundations; processing/script execution unavailable | Canonical project/render engine and robust sandbox before execution |

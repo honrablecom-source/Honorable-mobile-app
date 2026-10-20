@@ -32,7 +32,7 @@ internal class VideoDraftPersistence(private val context: Context, sourceUri: St
     fun load(durationMs: Long): VideoDraft? = synchronized(draftLock) {
         requireCurrentOwner()
         val encoded = store.read()?.optString("draft") ?: return@synchronized null
-        if (encoded.length > 180_000) return@synchronized null
+        if (encoded.length > 350_000) return@synchronized null
         runCatching { VideoDraftCodec.decode(Base64.decode(encoded, Base64.NO_WRAP), durationMs) }.getOrNull()
     }
 }

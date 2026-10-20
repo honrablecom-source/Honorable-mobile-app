@@ -138,4 +138,53 @@ class VideoCompositionExporterTest {
         } finally { alias.delete(); second.delete(); first.delete() }
     }
 
+    @Test fun trimmedCreativeClipKeepsFullSourceDurationAndBothEffectTypes() {
+        val composition = VideoCompositionExporter.composition(mapOf("primary" to Uri.parse("content://video/1")),
+            listOf(VideoSegment(5000,10_000,2f,.5f,title="Title",fadeEdges=true)),mapOf("primary" to 20_000L))
+        val item = composition.sequences.single().editedMediaItems.single()
+        assertEquals(20_000_000L,item.durationUs)
+        assertEquals(2_500_000L,item.presentationDurationUs)
+        assertEquals(1,item.effects.audioProcessors.size)
+        assertEquals(1,item.effects.videoEffects.size)
+        assertEquals(1,composition.effects.videoEffects.size)
+    }
+
+    @Test fun titleBitmapIsBoundedWrappedAndReleased() {
+        val overlay=VideoTitleOverlay("A long title with several words and a second line")
+        overlay.configure(androidx.media3.common.util.Size(3840,2160))
+        val bitmap=overlay.getBitmap(0)
+        assertTrue(bitmap.width<=1024 && bitmap.height<=512)
+        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(bitmap.width/2,bitmap.height/2))>0)
+        overlay.release();assertTrue(bitmap.isRecycled)
+    }
+
+    @Test fun soundtrackIsASeparateLoopingAudioSequence() {
+        val music=VideoSoundtrack("content://audio/music",3000,.25f)
+        val composition=VideoCompositionExporter.composition(mapOf("primary" to Uri.parse("content://video/source")),
+            listOf(VideoSegment(0,10_000)),mapOf("primary" to 10_000L),music)
+        assertEquals(2,composition.sequences.size)
+        assertFalse(composition.sequences[0].isLooping)
+        val sequence=composition.sequences[1];assertTrue(sequence.isLooping)
+        val item=sequence.editedMediaItems.single()
+        assertTrue(item.removeVideo);assertFalse(item.removeAudio)
+        assertEquals(3_000_000L,item.durationUs)
+        assertEquals(Uri.parse(music.uri),item.mediaItem.localConfiguration!!.uri)
+        assertEquals(1,item.effects.audioProcessors.size)
+    }
+
+    @Test fun soundtrackOriginalAliasCannotBeOverwritten() {
+        val video=fixture();val audio=fixture();val before=digest(audio)
+        val alias=File(audio.parentFile,audio.name+"-audio-alias")
+        try {
+            android.system.Os.link(audio.absolutePath,alias.absolutePath)
+            try {
+                VideoCompositionExporter.copyRenderedToDocument(context,
+                    mapOf("primary" to Uri.fromFile(video),"__soundtrack__" to Uri.fromFile(audio)),
+                    Uri.fromFile(alias),video,listOf(VideoSegment(0,3000)),AtomicBoolean(false))
+                fail("Soundtrack aliases must be protected")
+            } catch(failure: VideoExportFailure) { assertFalse(failure.partialDocumentMayRemain) }
+            assertEquals(before,digest(audio))
+        } finally { alias.delete();audio.delete();video.delete() }
+    }
+
 }

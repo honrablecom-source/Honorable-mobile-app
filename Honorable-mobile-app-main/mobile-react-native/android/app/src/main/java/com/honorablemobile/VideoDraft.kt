@@ -5,13 +5,25 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 
 /** Additional imported source metadata; bytes remain in the original document provider. */
 internal data class VideoSource(val id: String, val uri: String, val durationMs: Long) {
     init {
-        require(id != "primary" && id.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+        require(id != "primary" && !id.startsWith("__") && id.matches(Regex("[A-Za-z0-9_-]{1,64}")))
+        require(uri.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == uri)
         require(uri.startsWith("content://") && uri.toByteArray(Charsets.UTF_8).size <= 2048 && uri.none { it.isISOControl() })
         require(durationMs in 1..Int.MAX_VALUE.toLong())
+    }
+}
+
+/** Project-wide looping soundtrack; imported bytes stay with the document provider. */
+internal data class VideoSoundtrack(val uri: String, val durationMs: Long, val volume: Float = .25f) {
+    init {
+        require(uri.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == uri)
+        require(uri.startsWith("content://") && uri.toByteArray(Charsets.UTF_8).size <= 2048 && uri.none { it.isISOControl() })
+        require(durationMs in 1..Int.MAX_VALUE.toLong() && volume.isFinite() && volume in 0f..1f)
     }
 }
 
@@ -24,8 +36,10 @@ internal data class VideoDraft(
     val trimStartMs: Long,
     val trimEndMs: Long,
     val sources: List<VideoSource> = emptyList(),
+    val soundtrack: VideoSoundtrack? = null,
 ) {
     init {
+        require(segments.sumOf { it.title.toByteArray(Charsets.UTF_8).size } <= 128_000)
         require(sourceDurationMs > 0 && segments.size in 1..1000)
         require(sources.size <= 31 && sources.map { it.id }.distinct().size == sources.size)
         require(sources.map { it.uri }.distinct().size == sources.size)
@@ -40,13 +54,13 @@ internal data class VideoDraft(
 
 internal object VideoDraftCodec {
     private const val MAGIC = 0x484e5644 // HNVD
-    private const val VERSION = 2
-    private const val MAX_BYTES = 128_000
+    private const val VERSION = 3
+    private const val MAX_BYTES = 256_000
 
     fun encode(draft: VideoDraft): ByteArray = ByteArrayOutputStream().use { bytes ->
         DataOutputStream(bytes).use { output ->
             output.writeInt(MAGIC)
-            val version = if(draft.sources.isEmpty()) 1 else VERSION
+            val version = if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
             output.writeInt(version)
             output.writeLong(draft.sourceDurationMs)
             output.writeInt(draft.selectedClip)
@@ -57,11 +71,16 @@ internal object VideoDraftCodec {
             draft.segments.forEach { clip ->
                 output.writeLong(clip.startMs); output.writeLong(clip.endMs)
                 output.writeFloat(clip.speed); output.writeFloat(clip.volume)
-                if(version == 2) output.writeInt((listOf("primary") + draft.sources.map { it.id }).indexOf(clip.sourceId))
+                if(version >= 2) output.writeInt((listOf("primary") + draft.sources.map { it.id }).indexOf(clip.sourceId))
+                if(version == 3) { writeText(output,clip.title,360); output.writeBoolean(clip.fadeEdges) }
             }
-            if(version == 2) {
+            if(version >= 2) {
                 output.writeInt(draft.sources.size)
-                draft.sources.forEach { source -> output.writeUTF(source.id); output.writeUTF(source.uri); output.writeLong(source.durationMs) }
+                draft.sources.forEach { source -> output.writeUTF(source.id); if(version == 3) writeText(output,source.uri,2048) else output.writeUTF(source.uri); output.writeLong(source.durationMs) }
+            }
+            if(version == 3) {
+                output.writeBoolean(draft.soundtrack != null)
+                draft.soundtrack?.let { writeText(output,it.uri,2048);output.writeLong(it.durationMs);output.writeFloat(it.volume) }
             }
         }
         bytes.toByteArray().also { require(it.size <= MAX_BYTES) }
@@ -82,20 +101,32 @@ internal object VideoDraftCodec {
             require(count in 1..1000)
             val indices = mutableListOf<Int>()
             val raw = List(count) {
-                VideoSegment(input.readLong(), input.readLong(), input.readFloat(), input.readFloat()).also {
-                    indices.add(if(version == 2) input.readInt() else 0)
-                }
+                val clip = VideoSegment(input.readLong(), input.readLong(), input.readFloat(), input.readFloat())
+                indices.add(if(version >= 2) input.readInt() else 0)
+                if(version == 3) clip.copy(title = readText(input,360), fadeEdges = input.readBoolean()) else clip
             }
-            val sources = if(version == 2) {
-                val size = input.readInt(); require(size in 1..31)
-                List(size) { VideoSource(input.readUTF(), input.readUTF(), input.readLong()) }
+            val sources = if(version >= 2) {
+                val size = input.readInt(); require(size in (if(version == 3) 0 else 1)..31)
+                List(size) { VideoSource(input.readUTF(), if(version == 3) readText(input,2048) else input.readUTF(), input.readLong()) }
             } else emptyList()
             val ids = listOf("primary") + sources.map { it.id }
             val segments = raw.mapIndexed { index, clip -> clip.copy(sourceId = ids.getOrNull(indices[index]) ?: error("Unknown clip source")) }
+            val soundtrack = if(version == 3 && input.readBoolean()) VideoSoundtrack(readText(input,2048),input.readLong(),input.readFloat()) else null
             require(input.available() == 0)
-            VideoDraft(sourceDurationMs, segments, selected, position, start, end, sources)
+            VideoDraft(sourceDurationMs, segments, selected, position, start, end, sources, soundtrack)
         }
     }.getOrNull()
+
+    private fun writeText(output: DataOutputStream, text: String, max: Int) {
+        val bytes=text.toByteArray(Charsets.UTF_8); require(bytes.size <= max)
+        output.writeInt(bytes.size);output.write(bytes)
+    }
+    private fun readText(input: DataInputStream, max: Int): String {
+        val size=input.readInt();require(size in 0..max)
+        val bytes=ByteArray(size);input.readFully(bytes)
+        return Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
+    }
 
     /** Account, API and selected source isolate drafts; private identifiers never become filenames. */
     fun storageName(accountId: String, apiUrl: String, sourceUri: String): String {

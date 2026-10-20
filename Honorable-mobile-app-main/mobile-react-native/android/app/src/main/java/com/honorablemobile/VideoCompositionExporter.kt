@@ -13,6 +13,7 @@ import android.system.Os
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.C
+import androidx.media3.effect.OverlayEffect
 import androidx.media3.common.audio.DefaultGainProvider
 import androidx.media3.common.audio.GainProcessor
 import androidx.media3.common.audio.SpeedProvider
@@ -36,8 +37,9 @@ internal class VideoCompositionExporter(private val context: Context) {
     companion object {
         fun composition(source: Uri, clips: List<VideoSegment>): Composition = composition(mapOf("primary" to source), clips)
 
-        fun composition(sources: Map<String, Uri>, clips: List<VideoSegment>): Composition {
+        fun composition(sources: Map<String, Uri>, clips: List<VideoSegment>, sourceDurations: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null): Composition {
             require(clips.isNotEmpty())
+            soundtrack?.let { VideoTimeline.soundtrackRepeatCount(clips,it) }
             val items = clips.map { clip ->
                 val media = MediaItem.Builder().setUri(requireNotNull(sources[clip.sourceId]) { "Missing clip source" }).setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder()
@@ -46,18 +48,29 @@ internal class VideoCompositionExporter(private val context: Context) {
                         .build()
                 ).build()
                 EditedMediaItem.Builder(media).apply {
-                    setDurationUs((clip.endMs - clip.startMs) * 1000)
+                    sourceDurations[clip.sourceId]?.let { duration ->
+                        require(duration >= clip.endMs)
+                        setDurationUs(duration * 1000)
+                    }
                     if (clip.speed != 1f) setSpeed(object : SpeedProvider {
                         override fun getSpeed(timeUs: Long) = clip.speed
                         override fun getNextSpeedChangeTimeUs(timeUs: Long) = C.TIME_UNSET
                     })
-                    if (clip.volume != 1f) setEffects(Effects(
-                        listOf(GainProcessor(DefaultGainProvider.Builder(clip.volume).build())),
-                        emptyList(),
-                    ))
+                    val audio = if(clip.volume != 1f) listOf(GainProcessor(DefaultGainProvider.Builder(clip.volume).build())) else emptyList()
+                    val visual = if(clip.title.isNotBlank()) listOf(OverlayEffect(listOf(VideoTitleOverlay(clip.title)))) else emptyList()
+                    setEffects(Effects(audio, visual))
                 }.build()
             }
-            return Composition.Builder(EditedMediaItemSequence.withAudioAndVideoFrom(items)).build()
+            val sequences = mutableListOf(EditedMediaItemSequence.withAudioAndVideoFrom(items))
+            soundtrack?.let { track ->
+                val audio = EditedMediaItem.Builder(MediaItem.fromUri(Uri.parse(track.uri)))
+                    .setDurationUs(track.durationMs*1000).setRemoveVideo(true)
+                    .setEffects(Effects(listOf(GainProcessor(DefaultGainProvider.Builder(track.volume).build())),emptyList())).build()
+                sequences.add(EditedMediaItemSequence.withAudioFrom(listOf(audio)).buildUpon().setIsLooping(true).build())
+            }
+            return Composition.Builder(sequences).apply {
+                if(clips.any { it.fadeEdges }) setEffects(Effects(emptyList(),listOf(VideoTimelineFade(clips.toList()))))
+            }.build()
         }
 
         /** Only call after rendering to a private file; never open the source for writing. */
@@ -152,7 +165,7 @@ internal class VideoCompositionExporter(private val context: Context) {
                 }
                 val videoTrack = track(outputExtractor, "video/") ?: error("Saved copy has no video")
                 requireSample(videoTrack, "video")
-                val needsAudio = clips.map { requireNotNull(sources[it.sourceId]) }.distinct().any { uri ->
+                val needsAudio = sources.containsKey("__soundtrack__") || clips.map { requireNotNull(sources[it.sourceId]) }.distinct().any { uri ->
                     val extractor = MediaExtractor()
                     try { extractor.setDataSource(context, uri, null); track(extractor, "audio/") != null }
                     finally { extractor.release() }
@@ -197,9 +210,9 @@ internal class VideoCompositionExporter(private val context: Context) {
     private val cancelled = AtomicBoolean(false)
 
     fun export(source: Uri, destination: Uri, clips: List<VideoSegment>, done: (Result<Unit>) -> Unit) =
-        export(mapOf("primary" to source), destination, clips, done)
+        export(mapOf("primary" to source), destination, clips, done = done)
 
-    fun export(sources: Map<String, Uri>, destination: Uri, clips: List<VideoSegment>, done: (Result<Unit>) -> Unit) {
+    fun export(sources: Map<String, Uri>, destination: Uri, clips: List<VideoSegment>, sourceDurations: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null, done: (Result<Unit>) -> Unit) {
         check(Looper.myLooper() == Looper.getMainLooper())
         check(transformer == null)
         fun complete(result: Result<Unit>) {
@@ -211,11 +224,12 @@ internal class VideoCompositionExporter(private val context: Context) {
             done(result)
         }
         try {
-            require(sources.isNotEmpty() && destination !in sources.values && clips.isNotEmpty())
+            val protectedSources = sources + (soundtrack?.let { mapOf("__soundtrack__" to Uri.parse(it.uri)) } ?: emptyMap())
+            require(protectedSources.isNotEmpty() && destination !in protectedSources.values && clips.isNotEmpty())
             val renderedFile = File.createTempFile("honorable-edit-", ".mp4", context.cacheDir)
             temporary = renderedFile
             require(renderedFile.delete()) { "Cannot prepare temporary video" } // Transformer requires a new path.
-            val composition = composition(sources, clips)
+            val composition = composition(protectedSources, clips, sourceDurations, soundtrack)
             transformer = Transformer.Builder(context)
             .setVideoMimeType(MimeTypes.VIDEO_H264)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
@@ -224,7 +238,7 @@ internal class VideoCompositionExporter(private val context: Context) {
                     if (cancelled.get()) { complete(Result.failure(OperationCanceledException())); return }
                     copying = true
                     Thread {
-                        val copied = runCatching { copyRenderedToDocument(context, sources, destination, renderedFile, clips, cancelled) }
+                        val copied = runCatching { copyRenderedToDocument(context, protectedSources, destination, renderedFile, clips, cancelled) }
                         main.post {
                             if (finished) { renderedFile.delete(); temporary = null }
                             else complete(copied)
