@@ -90,3 +90,8 @@ Implemented Add video with persistent document read grants and metadata checks, 
 ## Video titles, visual fades and soundtrack
 
 Implemented bounded local lower-third titles, output-time fades through black, and a looping project soundtrack with gain/removal. Clip and music edits share undo/redo; v3 drafts retain metadata with strict bounded UTF-8 and v1/v2 compatibility. Export protects source videos and music referenced by current/history state. Loop count is capped at 1000 to bound preview resource expansion. Corrected Media3 original duration metadata, effects-based clip preview and speed-aware split mapping. Final 37 native JVM tests (14 new cases) pass; instrumentation compiles only. 67 Node checks passed in this batch; their inputs remain unchanged by later soundtrack edits. Unchanged shared photo code retains earlier 70-test evidence. Final combined internal ARM64 build passed in 2m08s and independently verified; SHA-256 eabf3b7ebc6bfb334303e66c8c62e9071fa15b6b45e7f6ca2a28d7a1db29e519. GPU pixels/audio/device behavior remain unverified. No paid service, new dependency or investor-readiness claim. See HONORABLE_VIDEO_CREATIVE_CHECKPOINT.md.
+
+
+## End-of-day mobile video workspace
+
+Redesigned actual Android editor around Premiere mobile workspace hierarchy and contextual editing tools: white-majority surfaces, black outlines, compact export header, persistent preview/timeline and five bottom tool tabs. Preserved engine and working actions. 37 native tests pass; instrumentation compiled only; full internal APK and independent verification pass. Owner visual acceptance/device validation remain open. Paused untested photo-tone work preserved and excluded. Stop for today; see HONORABLE_MOBILE_WORKSPACE_CHECKPOINT.md.

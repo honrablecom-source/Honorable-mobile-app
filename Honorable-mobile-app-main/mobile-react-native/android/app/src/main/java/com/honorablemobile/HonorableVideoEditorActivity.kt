@@ -80,12 +80,19 @@ class HonorableVideoEditorActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
-            setPadding(20, 24, 20, 24)
+            setPadding(dp(12), dp(4), dp(12), dp(8))
         }
         fun label(value: String, size: Float = 15f) = TextView(this).apply {
             text = value; textSize = size; setTextColor(Color.BLACK); setPadding(0, 8, 0, 8)
         }
-        root.addView(label("Video editor", 28f))
+        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        header.addView(Button(this).apply { text = "‹"; contentDescription = "Close video editor"; setOnClickListener { finish() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(label("Honorable / Studio", 17f), LinearLayout.LayoutParams(0, -2, 1f))
+        val exportButton = Button(this).apply { text = "Export"; contentDescription = "Export video as a new copy"; setOnClickListener { saveCopy() } }
+        header.addView(exportButton, LinearLayout.LayoutParams(dp(88), dp(48)))
+        root.addView(header)
+        fun divider() = View(this).apply { setBackgroundColor(Color.rgb(225,225,225)) }
+        root.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)))
 
         val previewFrame = FrameLayout(this)
         video = VideoView(this).apply { setVideoURI(source); setBackgroundColor(Color.WHITE) }
@@ -94,23 +101,41 @@ class HonorableVideoEditorActivity : Activity() {
         previewFrame.addView(projectPreviewView, FrameLayout.LayoutParams(-1, -1))
         root.addView(previewFrame, LinearLayout.LayoutParams(-1, 0, 1f))
         video.setMediaController(MediaController(this).apply { setAnchorView(video) })
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val controlsHeight = (300 * resources.displayMetrics.density).toInt()
-        root.addView(ScrollView(this).apply { addView(controls) }, LinearLayout.LayoutParams(-1, controlsHeight))
+        // Preview and timeline stay visible; only the chosen tool group occupies the tray.
+        val transport = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        root.addView(transport)
+        clipStatus = label("Clip 1", 11f).apply { maxLines = 2 }
+        root.addView(clipStatus)
+        timeline = LinearLayout(this)
+        root.addView(HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; contentDescription = "Video clip timeline"; addView(timeline)
+        }, LinearLayout.LayoutParams(-1, dp(72)))
+        status = label("Loading video...", 12f).apply { maxLines = 2; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+        root.addView(status)
+        root.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)))
+        val tray = FrameLayout(this)
+        root.addView(tray, LinearLayout.LayoutParams(-1, dp(140)))
+        val groups = linkedMapOf<String, LinearLayout>()
+        fun group(name: String): LinearLayout {
+            val tools = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            groups[name] = tools
+            tray.addView(ScrollView(this).apply {
+                visibility = View.GONE; isFillViewport = true; addView(tools)
+            }, FrameLayout.LayoutParams(-1,-1))
+            return tools
+        }
+        val controls = group("Edit")
+        val audioTools = group("Audio")
+        val creativeTools = group("Titles")
+        val projectTools = group("Project")
+        val assistTools = group("Assist")
         start = SeekBar(this)
         end = SeekBar(this)
         controls.addView(label("Start")); controls.addView(start)
         controls.addView(label("End")); controls.addView(end)
-        status = label("Loading video...")
-        controls.addView(status)
-        clipStatus = label("Clip 1", 13f)
-        controls.addView(label("Timeline · tap a clip", 12f))
-        timeline = LinearLayout(this)
-        controls.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(timeline) })
-        controls.addView(clipStatus)
-        controls.addView(Button(this).apply { text = "Add video"; setOnClickListener { importVideo() } })
-        controls.addView(Button(this).apply { text = "Suggest scene (experimental)"; setOnClickListener { suggestScene() } })
-        controls.addView(label("Uses on-device labels from sampled frames. Preview the suggestion; it may miss the action.", 12f))
+        projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
+        assistTools.addView(Button(this).apply { text = "Suggest scene"; setOnClickListener { suggestScene() } })
+        assistTools.addView(label("Experimental · on-device sampled-frame labels. Preview every suggestion.", 12f))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         actions.addView(Button(this).apply {
             text = "Preview clip"
@@ -127,16 +152,13 @@ class HonorableVideoEditorActivity : Activity() {
             text = "Preview project"
             setOnClickListener { previewProject() }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        actions.addView(Button(this).apply { text = "Save copy"; setOnClickListener { saveCopy() } },
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        controls.addView(actions)
+
+        transport.addView(actions, LinearLayout.LayoutParams(-1, -2))
         val clipActions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         fun clipButton(title: String, action: () -> Unit) {
             clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
-        clipButton("Previous") { if (selectedClip > 0) { selectedClip--; showClip() } }
-        clipButton("Next") { if (selectedClip + 1 < (project?.segments?.size ?: 0)) { selectedClip++; showClip() } }
         clipButton("Split") {
             if(!sourceReady && previewPlayer == null) return@clipButton
             runCatching { requireNotNull(project).split(selectedClip, splitPosition()) }
@@ -176,7 +198,8 @@ class HonorableVideoEditorActivity : Activity() {
         historyButton("Undo") { if (project?.undo() == true) { selectedClip = selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex); showClip() } }
         historyButton("Redo") { if (project?.redo() == true) { selectedClip = selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex); showClip() } }
         historyButton("Reset") { project?.reset(); selectedClip = 0; showClip() }
-        controls.addView(historyActions)
+        projectTools.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(historyActions) })
+        for (i in 0 until historyActions.childCount) historyActions.getChildAt(i).layoutParams = LinearLayout.LayoutParams(dp(88), dp(48))
         val audioActions = LinearLayout(this)
         fun audioButton(title: String, action: () -> Unit) {
             audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
@@ -194,7 +217,7 @@ class HonorableVideoEditorActivity : Activity() {
             project?.setVolume(selectedClip, volumes[(volumes.indexOf(clip.volume) + 1) % volumes.size])
             showClip()
         }
-        controls.addView(audioActions)
+        audioTools.addView(audioActions)
         val creative = LinearLayout(this)
         creative.addView(Button(this).apply { text = "Title"; setOnClickListener { editTitle() } },LinearLayout.LayoutParams(0,-2,1f))
         creative.addView(Button(this).apply { text = "Video fade"; setOnClickListener {
@@ -204,7 +227,7 @@ class HonorableVideoEditorActivity : Activity() {
             current.setFadeEdges(selectedClip,!clip.fadeEdges); showClip()
             status.text = if(clip.fadeEdges) "Video fade removed." else "Fade through black added. Preview the project to check it."
         } },LinearLayout.LayoutParams(0,-2,1f))
-        controls.addView(creative)
+        creativeTools.addView(creative)
         val music = LinearLayout(this)
         fun musicButton(title: String, action: () -> Unit) {
             music.addView(Button(this).apply { text = title; setOnClickListener {
@@ -220,17 +243,40 @@ class HonorableVideoEditorActivity : Activity() {
             showClip(); status.text = "Soundtrack volume ${(requireNotNull(current.soundtrack).volume*100).toInt()}%. Preview project to check the mix."
         }
         musicButton("Remove music") { project?.setSoundtrack(null);showClip();status.text = "Soundtrack removed. Undo restores it." }
-        controls.addView(music)
-        controls.addView(label("Soundtrack loops to the video length. Use Preview project to check the mix.",12f))
-        controls.addView(label("Titles appear throughout the clip. Video fades are up to 0.5s at each edge; audio is unchanged.",12f))
+        audioTools.addView(music)
+        audioTools.addView(label("Soundtrack loops to the video length. Use Preview project to check the mix.",12f))
+        creativeTools.addView(label("Titles appear throughout the clip. Video fades are up to 0.5s at each edge; audio is unchanged.",12f))
         val drafts = LinearLayout(this)
         drafts.addView(Button(this).apply { text = "Save draft"; setOnClickListener { draftOperation(false) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         drafts.addView(Button(this).apply { text = "Restore draft"; setOnClickListener { draftOperation(true) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        controls.addView(drafts)
-        controls.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
+        projectTools.addView(drafts)
+        projectTools.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
+        val tabs = LinearLayout(this)
+        val tabButtons = mutableListOf<Button>()
+        fun selectTools(name: String) {
+            groups.forEach { (key, tools) -> (tools.parent as View).visibility = if(key == name) View.VISIBLE else View.GONE }
+            tabButtons.forEach { button ->
+                val selected = button.text.toString() == name
+                button.isSelected = selected
+                button.setTextColor(if(selected) Color.WHITE else Color.BLACK)
+                button.background = GradientDrawable().apply {
+                    setColor(if(selected) Color.BLACK else Color.WHITE)
+                    cornerRadius = dp(8).toFloat()
+                }
+            }
+        }
+        groups.keys.forEach { name ->
+            val tab = Button(this).apply { text = name; contentDescription = "$name tools"; setOnClickListener { selectTools(name) } }
+            tabButtons.add(tab)
+            tabs.addView(tab, LinearLayout.LayoutParams(0, dp(52), 1f).apply { setMargins(dp(2),dp(4),dp(2),0) })
+        }
+        root.addView(tabs)
         styleEditorControls(root, previewFrame)
+        exportButton.setTextColor(Color.WHITE)
+        exportButton.background = GradientDrawable().apply { setColor(Color.BLACK); cornerRadius = dp(8).toFloat() }
+        selectTools("Edit")
         setContentView(root)
         video.setOnErrorListener { _, _, _ -> status.text = "Video unavailable. Check access to the selected source."; true }
         video.setOnPreparedListener { player ->
@@ -358,11 +404,15 @@ class HonorableVideoEditorActivity : Activity() {
         showClip()
     }
 
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+
     private fun styleEditorControls(view: View, player: View) {
         if (view === player) return // Media/player overlay colors are independent of UI chrome.
         if (view is TextView) view.setTextColor(Color.BLACK)
         if (view is Button) {
             view.isAllCaps = false; view.textSize = 12f
+            view.setPadding(dp(6), dp(4), dp(6), dp(4))
+            view.minimumWidth = 0; view.minWidth = 0
             view.minHeight = (48 * resources.displayMetrics.density).toInt()
             view.background = GradientDrawable().apply {
                 setColor(Color.WHITE); setStroke(resources.displayMetrics.density.toInt().coerceAtLeast(1), Color.BLACK)
@@ -388,7 +438,7 @@ class HonorableVideoEditorActivity : Activity() {
                     setColor(Color.rgb(240,240,240)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.BLACK)
                     cornerRadius = 6 * resources.displayMetrics.density
                 }
-            }, LinearLayout.LayoutParams((116 * resources.displayMetrics.density).toInt(), (64 * resources.displayMetrics.density).toInt()))
+            }, LinearLayout.LayoutParams(dp(132), dp(64)).apply { setMargins(dp(2),dp(4),dp(2),dp(4)) })
         }
     }
 
