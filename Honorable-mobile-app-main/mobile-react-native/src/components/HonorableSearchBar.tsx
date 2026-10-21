@@ -1,7 +1,12 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { ArrowUp, Search, X } from 'lucide-react-native';
-import { Input } from '@/components/ui/input';
 import { colors, radii } from '../design-system/tokens';
 
 export function HonorableSearchBar({
@@ -24,7 +29,7 @@ export function HonorableSearchBar({
     <View style={[styles.shell, compact && styles.compact]}>
       <View style={styles.inputRow}>
         {compact && <Search color={colors.iconMuted} size={18} />}
-        <Input
+        <TextInput
           accessibilityLabel={
             compact
               ? 'Search filenames in your library'
@@ -37,7 +42,7 @@ export function HonorableSearchBar({
           placeholderTextColor={colors.textTertiary}
           value={value}
           onChangeText={onChangeText}
-          className="h-12 flex-1 border-0 bg-transparent px-0 text-[16px] text-foreground shadow-none"
+          style={styles.input}
         />
         {!!value && (
           <Pressable
@@ -78,9 +83,9 @@ export function HonorableSearchBar({
 const styles = StyleSheet.create({
   shell: {
     marginHorizontal: 20,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: colors.canvas,
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -90,7 +95,19 @@ const styles = StyleSheet.create({
     gap: 10,
     minHeight: 48,
   },
-  compact: { paddingVertical: 4, borderRadius: radii.md },
+  input: {
+    flex: 1,
+    minHeight: 48,
+    paddingVertical: 8,
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  compact: {
+    paddingVertical: 0,
+    borderRadius: radii.md,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSelected,
+  },
   clear: {
     minWidth: 44,
     minHeight: 44,
@@ -101,13 +118,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 4,
   },
   footerContent: { flex: 1 },
   submit: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.textPrimary,

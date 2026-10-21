@@ -1,3 +1,9 @@
+# Latest checkpoint — mobile workspace redesign, October 21, 2026
+
+Redesigned the four main routes (Home, Library, Studio and Account), shared navigation/theme and native photo/video controls/inspector. Studio uses actual source selection instead of a blank editing canvas. Existing engines, routes, Seran and account/credit protections remain. **0 new editing/AI capabilities**; this is UI work. The owner-authorized ChatGPT design consultation completed and public mobile editor references informed the hierarchy.
+
+161 Android JVM tests + 32 RN tests and TypeScript pass. Lint: 0 errors / 36 warnings. Android integration tests compile only. Loaded/empty component-tree browser previews use isolated sample data; they are not Android screenshots. Full ARM64 internal APK built and independently verified against 475 frozen inputs, package, bundled models/code, expected signature and ZIP alignment. Artifact: Honorable-1.0.3-mobile-polish-arm64.apk; SHA-256 08074c347eac97692fa88d95ce411549a87054d6430807f6a1b87b3b9af8e112. Internal public-debug signing; signInConfigured remains false. Native device/UI, owner visual acceptance, live account API, private signing/store, iOS and full generative creation remain open. See HONORABLE_MOBILE_UI_POLISH_CHECKPOINT.md.
+
 # Latest checkpoint — 15 editing tools, inspectors and Studio/app UI, October 20, 2026
 
 Added **15 editing tools/workflows** (8 photo + 7 video), listed individually in HONORABLE_CREATIVE15_CHECKPOINT.md. Separate UI work adds real phone tool/inspector panels to both editors, a Tools/Source Studio inspector, and shared header/navigation/search/media refinements. White-majority/black-outline direction retained. These are editing additions, not 15 generative AI capabilities. Existing local AI, Seran, architecture, credits and copy protections remain.

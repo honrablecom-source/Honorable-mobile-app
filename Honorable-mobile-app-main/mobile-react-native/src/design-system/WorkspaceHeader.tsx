@@ -28,10 +28,12 @@ export function WorkspaceHeader({
         </Pressable>
       )}
       <View style={s.copy}>
-        <Text style={s.section}>{section}</Text>
         <Text accessibilityRole="header" style={s.title}>
           {title}
         </Text>
+        {section !== 'honorable' && !section.startsWith('honorable /') && (
+          <Text style={s.section}>{section}</Text>
+        )}
       </View>
       {action && <View style={s.action}>{action}</View>}
     </View>
@@ -43,28 +45,28 @@ export const workspaceStyles = StyleSheet.create({
 });
 const s = StyleSheet.create({
   header: {
-    minHeight: 76,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    minHeight: 84,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
     borderBottomColor: colors.border,
     backgroundColor: colors.canvas,
   },
-  copy: { flex: 1, gap: 3 },
+  copy: { flex: 1, gap: 4 },
   section: {
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
     color: colors.textSecondary,
-    letterSpacing: 1.1,
+    letterSpacing: 0,
   },
   title: {
-    fontSize: 22,
-    lineHeight: 29,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '600',
-    letterSpacing: -0.6,
+    letterSpacing: -0.9,
     color: colors.textPrimary,
   },
   back: {

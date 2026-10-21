@@ -54,20 +54,20 @@ class PhotoEditorActivity:Activity(){
  if(restoredSession!=null){exportEncoding=SafePhotoCopy.Encoding.values().getOrNull(savedInstanceState?.getInt("photoEncoding",0)?:0)?:SafePhotoCopy.Encoding.PNG;exportQuality=(savedInstanceState?.getInt("photoQuality",95)?:95).coerceIn(1,100)}
  window.statusBarColor=Color.WHITE;window.navigationBarColor=if(android.os.Build.VERSION.SDK_INT>=26)Color.WHITE else Color.BLACK
  window.decorView.systemUiVisibility=window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if(android.os.Build.VERSION.SDK_INT>=26)View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
- val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(12.dp(),4.dp(),12.dp(),8.dp())}
+ val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(16.dp(),4.dp(),16.dp(),8.dp())}
  fun row(parent:LinearLayout=root)=LinearLayout(this).also{parent.addView(it)}
  fun button(parent:LinearLayout,label:String,action:()->Unit):Button {
-  val control=Button(this).apply{text=label;contentDescription=label;isAllCaps=false;textSize=12f;minWidth=0;minimumWidth=0;setPadding(6.dp(),4.dp(),6.dp(),4.dp());setTextColor(Color.BLACK);background=GradientDrawable().apply{setColor(Color.WHITE);setStroke(1.dp(),Color.BLACK);cornerRadius=8.dp().toFloat()};setOnClickListener{action()}}
+  val control=Button(this).apply{text=label;contentDescription=label;EditorChrome.style(this);setOnClickListener{action()}}
   parent.addView(control,LinearLayout.LayoutParams(0,48.dp(),1f).apply{setMargins(2.dp(),2.dp(),2.dp(),2.dp())})
   return control
  }
  val top=row()
  button(top,"‹"){finish()}.apply{contentDescription="Close photo editor";layoutParams=LinearLayout.LayoutParams(48.dp(),48.dp())}
- top.addView(TextView(this).apply{text="Honorable / Photo";textSize=17f;setTextColor(Color.BLACK);gravity=android.view.Gravity.CENTER_VERTICAL},LinearLayout.LayoutParams(0,48.dp(),1f))
+ top.addView(TextView(this).apply{text="Photo editor";textSize=16f;typeface=Typeface.create("sans-serif-medium",0);setTextColor(Color.BLACK);gravity=android.view.Gravity.CENTER_VERTICAL},LinearLayout.LayoutParams(0,48.dp(),1f))
  button(top,"Tools"){openInspector()}.apply{layoutParams=LinearLayout.LayoutParams(64.dp(),48.dp())}
  val export=button(top,"Export"){chooseExport()}
  export.apply{contentDescription="Save copy of photo";layoutParams=LinearLayout.LayoutParams(88.dp(),48.dp());setTextColor(Color.WHITE);background=GradientDrawable().apply{setColor(Color.BLACK);cornerRadius=8.dp().toFloat()}}
- image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setPadding(4.dp(),8.dp(),4.dp(),8.dp())}
+ image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setBackgroundColor(0xFFFAFAFA.toInt());setPadding(4.dp(),12.dp(),4.dp(),12.dp())}
  root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
  image.setOnTouchListener { _,event ->
   val light=placingLight
@@ -94,7 +94,7 @@ class PhotoEditorActivity:Activity(){
  button(transport,"Compare"){before=!before;preview()}
  button(transport,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}}
  button(transport,"Redo"){if(redo.isNotEmpty()){tool("redo");undo.add(edit);edit=redo.removeAt(redo.lastIndex);preview()}}
- note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…";textSize=12f;maxLines=2;setPadding(4.dp(),8.dp(),4.dp(),8.dp());accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE};root.addView(note)
+ note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…";textSize=11f;maxLines=2;setPadding(4.dp(),8.dp(),4.dp(),8.dp());accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE};root.addView(note)
  val tray=FrameLayout(this);root.addView(tray,LinearLayout.LayoutParams(-1,140.dp()))
  val categories=linkedMapOf<String,LinearLayout>()
  fun category(name:String):LinearLayout {
@@ -115,7 +115,7 @@ class PhotoEditorActivity:Activity(){
  val toolScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false};val rail=LinearLayout(this);toolScroll.addView(rail);adjustments.addView(toolScroll)
  val toolButtons=mutableListOf<Button>()
  listOf("Brightness","Contrast","Color","Exposure").forEachIndexed{i,name->
-  val control=Button(this).apply{text=name;isAllCaps=false;textSize=12f;setTextColor(Color.DKGRAY);setBackgroundColor(Color.WHITE);setOnClickListener{activeTool=i;groups.forEachIndexed{index,view->view.visibility=if(index==i)View.VISIBLE else View.GONE};toolButtons.forEachIndexed{index,view->view.isSelected=index==i;view.setTextColor(if(index==i)Color.BLACK else Color.GRAY)}}};toolButtons.add(control);rail.addView(control,LinearLayout.LayoutParams(104.dp(),48.dp()))
+  val control=Button(this).apply{text=name;EditorChrome.style(this,true);setTextColor(Color.DKGRAY);setOnClickListener{activeTool=i;groups.forEachIndexed{index,view->view.visibility=if(index==i)View.VISIBLE else View.GONE};toolButtons.forEachIndexed{index,view->view.isSelected=index==i;view.setTextColor(if(index==i)Color.BLACK else Color.GRAY)}}};toolButtons.add(control);rail.addView(control,LinearLayout.LayoutParams(92.dp(),72.dp()))
  }
  val transformRow=row(transforms)
  button(transformRow,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))}
@@ -144,9 +144,9 @@ class PhotoEditorActivity:Activity(){
  val tabs=row();val tabButtons=mutableListOf<Button>()
  fun selectCategory(name:String){
   categories.forEach{(key,content)->(content.parent as View).visibility=if(key==name)View.VISIBLE else View.GONE}
-  tabButtons.forEach{control->val selected=control.text.toString()==name;control.isSelected=selected;control.setTextColor(if(selected)Color.WHITE else Color.BLACK);control.background=GradientDrawable().apply{setColor(if(selected)Color.BLACK else Color.WHITE);cornerRadius=8.dp().toFloat()}}
+  tabButtons.forEach{control->val selected=control.text.toString()==name;control.isSelected=selected;control.setTextColor(Color.BLACK);control.background=GradientDrawable().apply{setColor(if(selected)0xFFF1F1F1.toInt() else Color.WHITE);cornerRadius=14.dp().toFloat()}}
  }
- categories.keys.forEach{name->tabButtons.add(button(tabs,name){selectCategory(name)})}
+ categories.keys.forEach{name->tabButtons.add(button(tabs,name){selectCategory(name)}.apply{EditorChrome.style(this,true);layoutParams=LinearLayout.LayoutParams(0,72.dp(),1f)})}
  selectCategory("Adjust");toolButtons.first().performClick()
 
  setContentView(root)

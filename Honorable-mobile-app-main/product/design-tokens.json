@@ -4,7 +4,7 @@
     "surface": "#FFFFFF",
     "surfaceRaised": "#FAFAFA",
     "surfaceSelected": "#F1F1F1",
-    "border": "#202020",
+    "border": "#DEDEDE",
     "textPrimary": "#111111",
     "textSecondary": "#555555",
     "textTertiary": "#6B6B6B",
@@ -13,9 +13,9 @@
   },
   "radii": {
     "sm": 6,
-    "md": 10,
-    "lg": 12,
-    "sheet": 12,
+    "md": 14,
+    "lg": 18,
+    "sheet": 24,
     "pill": 999
   },
   "spacing": {
@@ -76,7 +76,7 @@
     "viewer": 240
   },
   "grid": {
-    "gap": 2,
+    "gap": 4,
     "columns": 3
   }
 }

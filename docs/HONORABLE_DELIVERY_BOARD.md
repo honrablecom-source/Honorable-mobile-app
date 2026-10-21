@@ -1,3 +1,7 @@
+# Latest delivery — mobile UI redesign, October 21, 2026
+
+4 core screens + native photo/video controls and inspector refreshed; **0 new editing/AI capabilities**. 161 Android JVM + 32 RN tests pass, TypeScript passes; lint 0 errors / 36 warnings. Full internal APK built and independently verified. Browser previews are component-tree adaptations with sample media; phone/native visual and owner acceptance remain open. See HONORABLE_MOBILE_UI_POLISH_CHECKPOINT.md.
+
 # Honorable delivery board
 
 October 20, 2026. Latest batch adds **15 editing features** (8 photo / 7 video), then native tool/inspector panels, Studio Tools/Source sheet and shared app UI refinements. 161 Android JVM + 31 RN tests pass, TypeScript/lint pass (0 errors / 31 warnings), new instrumentation compiles only, full ARM64 internal APK built and independently verified. Physical output/quality/UX and owner acceptance remain open. No extra model/dependency/paid service or private-media upload. See HONORABLE_CREATIVE15_CHECKPOINT.md for the 15-item register and next scope.

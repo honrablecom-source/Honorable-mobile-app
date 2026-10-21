@@ -25,6 +25,7 @@ import { MediaGrid, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
 import { NewWorkspace } from '../components/NewWorkspace';
 import { colors } from '../design-system/tokens';
+import { FilterTabs, SectionHeading } from '../design-system/CreativeChrome';
 import { honorableNative, SearchResponse } from '../native/HonorableNative';
 import { useLibrary } from '../library/LibraryContext';
 import type { MainTabParamList } from '../navigation/types';
@@ -149,9 +150,6 @@ export function HomeScreen() {
       >
         <View style={styles.utility}>
           <View style={styles.wordmarkRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandLetter}>h</Text>
-            </View>
             <Text style={styles.wordmark}>honorable</Text>
           </View>
           <Pressable
@@ -164,10 +162,6 @@ export function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.hero}>
-          <View style={styles.eyebrowRow}>
-            <View style={styles.statusDot} />
-            <Text style={styles.eyebrow}>SERAN / MEMORY SEARCH</Text>
-          </View>
           <Text accessibilityRole="header" style={styles.heroTitle}>
             What do you remember?
           </Text>
@@ -270,6 +264,12 @@ export function HomeScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Clear search history"
+                style={{
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
                 onPress={clearHistory}
               >
                 <X color={colors.iconMuted} size={15} />
@@ -332,31 +332,17 @@ export function HomeScreen() {
         )}
         {!loading && visible.length > 0 && (
           <>
-            <View style={styles.resultsHeader}>
-              <Text className="text-[17px] font-semibold">
-                {response ? `${nativeItems.length} matches` : 'Your memories'}
-              </Text>
-              <Text variant="muted" className="text-[11px]">
-                {response ? 'Best first' : 'Recently added'}
-              </Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filters}
-            >
-              {filters.map(item => (
-                <Button
-                  key={item}
-                  size="sm"
-                  variant={filter === item ? 'default' : 'ghost'}
-                  className="rounded-md"
-                  onPress={() => setFilter(item)}
-                >
-                  <Text>{item}</Text>
-                </Button>
-              ))}
-            </ScrollView>
+            <SectionHeading
+              title={
+                response ? `${nativeItems.length} matches` : 'Your memories'
+              }
+              detail={
+                response
+                  ? 'Best matches first'
+                  : 'Recently added to your library'
+              }
+            />
+            <FilterTabs items={filters} value={filter} onChange={setFilter} />
             <MediaGrid
               leading={!!response}
               items={visible}
@@ -373,11 +359,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 48 },
   utility: {
-    minHeight: 48,
+    minHeight: 64,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
     borderBottomColor: colors.border,
     alignItems: 'center',
     flexDirection: 'row',
@@ -399,17 +385,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  wordmark: { fontSize: 19, fontWeight: '600', letterSpacing: -0.7 },
+  wordmark: { fontSize: 24, fontWeight: '600', letterSpacing: -0.7 },
   accountButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1,
+    backgroundColor: colors.surfaceSelected,
+    borderWidth: 0,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hero: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 22 },
+  hero: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -426,14 +413,14 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 30,
     lineHeight: 36,
-    fontWeight: '500',
+    fontWeight: '600',
     letterSpacing: -1,
   },
   heroDetail: {
     fontSize: 14,
     lineHeight: 22,
     color: colors.textSecondary,
-    marginTop: 16,
+    marginTop: 10,
   },
   modelButton: {
     minHeight: 44,
@@ -455,20 +442,20 @@ const styles = StyleSheet.create({
   privacyText: { fontSize: 11, color: colors.textTertiary },
   history: { marginTop: 12 },
   historyTitle: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   historyLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  historyItems: { paddingHorizontal: 16, paddingTop: 8, gap: 6 },
+  historyItems: { paddingHorizontal: 20, paddingTop: 8, gap: 6 },
   historyChip: {
     paddingHorizontal: 12,
     minHeight: 48,
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 22,
+    borderWidth: 0,
     borderColor: colors.border,
     backgroundColor: colors.surfaceRaised,
   },
@@ -491,7 +478,7 @@ const styles = StyleSheet.create({
   resultsHeader: {
     marginTop: 20,
     marginBottom: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

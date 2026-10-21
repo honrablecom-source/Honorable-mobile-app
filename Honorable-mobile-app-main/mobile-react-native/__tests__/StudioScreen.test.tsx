@@ -42,6 +42,7 @@ jest.mock('lucide-react-native', () => {
     Plus: View,
     Info: View,
     X: View,
+    Check: View, ChevronRight: View, SlidersHorizontal: View, Crop: View, Type: View, WandSparkles: View, Music2: View, Download: View,
   };
 });
 jest.mock('react-native-safe-area-context', () => ({
@@ -117,7 +118,7 @@ test('tools inspector opens the selected source through the real editor callback
 
 test('source inspector can switch to tools without changing the selected media', async () => {
   await act(async () => button('Video workspace').props.onPress());
-  await act(async () => button('Open source inspector').props.onPress());
+  await act(async () => button('Toggle source details').props.onPress());
   await act(async () => button('tools inspector tab').props.onPress());
   await act(async () => button('Open editor from inspector').props.onPress());
   expect(mockEdit).toHaveBeenCalledWith({
@@ -132,4 +133,13 @@ test('source detail icon opens the source inspector rather than the tools tab', 
   expect(button('source inspector tab').props.accessibilityState.selected).toBe(
     true,
   );
+});
+
+test('Studio launch imports the requested media kind without changing an existing selection', async () => {
+  await act(async () => button('Create a new video').props.onPress());
+  expect(mockOpen).toHaveBeenLastCalledWith('VIDEO');
+  await act(async () => button('Choose a photo to edit').props.onPress());
+  expect(mockOpen).toHaveBeenLastCalledWith('IMAGE');
+  await act(async () => button('Open selected media in editor').props.onPress());
+  expect(mockEdit).toHaveBeenLastCalledWith({id:'1',mediaUri:'content://fixture/photo1',type:'IMAGE'});
 });

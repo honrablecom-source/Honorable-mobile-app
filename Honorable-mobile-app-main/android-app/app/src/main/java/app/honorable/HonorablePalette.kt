@@ -7,7 +7,7 @@ internal object HonorablePalette {
  val surface=Color(0xFFFFFFFF)
  val surfaceRaised=Color(0xFFFAFAFA)
  val surfaceSelected=Color(0xFFF1F1F1)
- val border=Color(0xFF202020)
+ val border=Color(0xFFDEDEDE)
  val textPrimary=Color(0xFF111111)
  val textSecondary=Color(0xFF555555)
  val textTertiary=Color(0xFF6B6B6B)

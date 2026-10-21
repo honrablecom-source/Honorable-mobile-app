@@ -82,14 +82,15 @@ class HonorableVideoEditorActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
-            setPadding(dp(12), dp(4), dp(12), dp(8))
+            setPadding(dp(16), dp(4), dp(16), dp(8))
         }
         fun label(value: String, size: Float = 15f) = TextView(this).apply {
             text = value; textSize = size; setTextColor(Color.BLACK); setPadding(0, 8, 0, 8)
         }
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(Button(this).apply { text = "‹"; contentDescription = "Close video editor"; setOnClickListener { finish() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        header.addView(label("Honorable / Studio", 17f), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(label("Video editor", 16f).apply{typeface=android.graphics.Typeface.create("sans-serif-medium",0)}, LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(Button(this).apply {text="Tools";contentDescription="Open video inspector";setOnClickListener{openInspector()}},LinearLayout.LayoutParams(dp(60),dp(48)))
         val exportButton = Button(this).apply { text = "Export"; contentDescription = "Export video as a new copy"; setOnClickListener { saveCopy() } }
         header.addView(exportButton, LinearLayout.LayoutParams(dp(88), dp(48)))
         root.addView(header)
@@ -97,7 +98,7 @@ class HonorableVideoEditorActivity : Activity() {
         root.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)))
 
         val previewFrame = FrameLayout(this)
-        video = VideoView(this).apply { setVideoURI(source); setBackgroundColor(Color.WHITE) }
+        video = VideoView(this).apply { setVideoURI(source); setBackgroundColor(Color.rgb(250,250,250)) }
         previewFrame.addView(video, FrameLayout.LayoutParams(-1, -1))
         projectPreviewView = PlayerView(this).apply { visibility = View.GONE; useController = true }
         previewFrame.addView(projectPreviewView, FrameLayout.LayoutParams(-1, -1))
@@ -273,20 +274,21 @@ class HonorableVideoEditorActivity : Activity() {
             tabButtons.forEach { button ->
                 val selected = button.text.toString() == name
                 button.isSelected = selected
-                button.setTextColor(if(selected) Color.WHITE else Color.BLACK)
+                button.setTextColor(Color.BLACK)
                 button.background = GradientDrawable().apply {
-                    setColor(if(selected) Color.BLACK else Color.WHITE)
-                    cornerRadius = dp(8).toFloat()
+                    setColor(if(selected) Color.rgb(241,241,241) else Color.WHITE)
+                    cornerRadius = dp(14).toFloat()
                 }
             }
         }
         groups.keys.forEach { name ->
             val tab = Button(this).apply { text = name; contentDescription = "$name tools"; setOnClickListener { selectTools(name) } }
             tabButtons.add(tab)
-            tabs.addView(tab, LinearLayout.LayoutParams(0, dp(52), 1f).apply { setMargins(dp(2),dp(4),dp(2),0) })
+            tabs.addView(tab, LinearLayout.LayoutParams(0, dp(72), 1f).apply { setMargins(dp(2),dp(4),dp(2),0) })
         }
         root.addView(tabs)
         styleEditorControls(root, previewFrame)
+        tabButtons.forEach { app.honorable.editor.EditorChrome.style(it,true) }
         exportButton.setTextColor(Color.WHITE)
         exportButton.background = GradientDrawable().apply { setColor(Color.BLACK); cornerRadius = dp(8).toFloat() }
         selectTools("Edit")
@@ -423,16 +425,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun styleEditorControls(view: View, player: View) {
         if (view === player) return // Media/player overlay colors are independent of UI chrome.
         if (view is TextView) view.setTextColor(Color.BLACK)
-        if (view is Button) {
-            view.isAllCaps = false; view.textSize = 12f
-            view.setPadding(dp(6), dp(4), dp(6), dp(4))
-            view.minimumWidth = 0; view.minWidth = 0
-            view.minHeight = (48 * resources.displayMetrics.density).toInt()
-            view.background = GradientDrawable().apply {
-                setColor(Color.WHITE); setStroke(resources.displayMetrics.density.toInt().coerceAtLeast(1), Color.BLACK)
-                cornerRadius = 6 * resources.displayMetrics.density
-            }
-        }
+        if (view is Button) app.honorable.editor.EditorChrome.style(view)
         if (view is SeekBar) {
             view.progressTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
             view.thumbTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
@@ -450,7 +443,7 @@ class HonorableVideoEditorActivity : Activity() {
                 styleEditorControls(this, projectPreviewView)
                 if (index == selectedClip) background = GradientDrawable().apply {
                     setColor(Color.rgb(240,240,240)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.BLACK)
-                    cornerRadius = 6 * resources.displayMetrics.density
+                    cornerRadius = 12 * resources.displayMetrics.density
                 }
             }, LinearLayout.LayoutParams(dp(132), dp(64)).apply { setMargins(dp(2),dp(4),dp(2),dp(4)) })
         }

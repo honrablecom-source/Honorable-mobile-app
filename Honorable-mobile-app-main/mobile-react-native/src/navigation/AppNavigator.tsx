@@ -50,7 +50,7 @@ function TabIcon({
   color: string;
 }) {
   const Icon = icons[name];
-  return <Icon color={color} size={21} strokeWidth={1.7} />;
+  return <Icon color={color} size={22} strokeWidth={1.8} />;
 }
 const HomeTab = () => (
   <TabTransition>
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     height: 64,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 6,
+    borderTopColor: colors.surfaceSelected,
+    paddingTop: 8,
   },
   label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.1 },
 });

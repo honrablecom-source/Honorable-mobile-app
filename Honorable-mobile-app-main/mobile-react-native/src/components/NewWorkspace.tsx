@@ -10,7 +10,7 @@ export function NewWorkspace() {
   return (
     <View style={styles.section}>
       <Text accessibilityRole="header" style={styles.heading}>
-        Create from your media
+        Create
       </Text>
       <View style={styles.row}>
         {(['IMAGE', 'VIDEO'] as WorkspaceKind[]).map(kind => (
@@ -28,9 +28,9 @@ export function NewWorkspace() {
             style={[styles.tile, busy && styles.busy]}
           >
             {kind === 'IMAGE' ? (
-              <Photo size={17} color={colors.textSecondary} />
+              <Photo size={21} color={colors.textSecondary} />
             ) : (
-              <Film size={17} color={colors.textSecondary} />
+              <Film size={21} color={colors.textSecondary} />
             )}
             <Text style={styles.label}>
               {kind === 'IMAGE' ? 'Edit photo' : 'Edit video'}
@@ -48,18 +48,23 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12 },
   tile: {
     flex: 1,
-    minHeight: 76,
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     gap: 8,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.surfaceRaised,
     borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
+    borderWidth: 0,
+    borderRadius: 18,
   },
-  heading: { fontSize: 12, color: colors.textTertiary },
-  label: { fontSize: 13, color: colors.textPrimary },
+  heading: {
+    fontSize: 19,
+    fontWeight: '600',
+    letterSpacing: -0.4,
+    color: colors.textPrimary,
+  },
+  label: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
   busy: { opacity: 0.5 },
 });

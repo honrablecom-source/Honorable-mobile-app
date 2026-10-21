@@ -79,48 +79,94 @@ export function AccountPanel() {
   const auth = useMemoryPass();
   return (
     <View style={styles.panel}>
-      <View style={styles.avatar}>
-        <UserRound size={23} color={colors.textPrimary} />
+      <View style={styles.profileRow}>
+        <View style={styles.avatar}>
+          <UserRound size={26} color={colors.textPrimary} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={styles.profileName}>
+            {auth.account?.profile?.name || 'Your account'}
+          </Text>
+          {!!auth.account?.profile?.email && (
+            <Text style={styles.small}>{auth.account.profile.email}</Text>
+          )}
+          <Text style={styles.small}>
+            {auth.status === 'offline'
+              ? 'Offline · previously signed in'
+              : auth.signedIn
+              ? 'Signed in'
+              : 'Sign-in unavailable'}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.privacy}>
-        {auth.account?.profile?.name || 'Your account'}
-      </Text>
-      <Text style={styles.small}>{auth.account?.profile?.email || ''}</Text>
-      <Text style={styles.small}>
-        {auth.status === 'offline'
-          ? 'Offline · previously signed in'
-          : 'Signed in'}
-      </Text>
-      <Text style={styles.privacy}>
-        Free this month: {auth.account?.freeMonthlyRemaining ?? 0} /{' '}
-        {auth.account?.freeMonthlyTotal ?? '—'}
-      </Text>
-      <Text style={styles.privacy}>
-        {auth.account?.balance ?? 0} Purchased Memory Credits
-      </Text>
-      <Text style={styles.small}>
-        Memory Pass ·{' '}
-        {(auth.account?.balance || 0) > 0
-          ? 'credits available'
-          : 'no credits yet'}
-        {'\n'}Studio · {auth.account?.subscription.status || 'NONE'}
-      </Text>
-      <Pressable
-        onPress={auth.signOut}
-        accessibilityRole="button"
-        style={styles.signOut}
-      >
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
+      <View style={styles.balanceRow}>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={styles.balanceValue}>
+            {auth.account?.freeMonthlyRemaining ?? 0}
+            <Text style={styles.balanceUnit}>
+              {' '}
+              / {auth.account?.freeMonthlyTotal ?? '—'}
+            </Text>
+          </Text>
+          <Text style={styles.small}>Monthly free credits</Text>
+        </View>
+        <View style={styles.balanceDivider} />
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={styles.balanceValue}>{auth.account?.balance ?? 0}</Text>
+          <Text style={styles.small}>Purchased credits</Text>
+        </View>
+      </View>
+      <View style={styles.accountFooter}>
+        <Text style={styles.small}>Purchased credits never expire.</Text>
+        <Pressable
+          onPress={auth.signOut}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+          style={styles.signOut}
+        >
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 const styles = StyleSheet.create({
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  profileName: {
+    fontSize: 19,
+    fontWeight: '600',
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    gap: 24,
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+  },
+  balanceValue: {
+    fontSize: 28,
+    fontWeight: '500',
+    letterSpacing: -0.8,
+    color: colors.textPrimary,
+  },
+  balanceUnit: { fontSize: 16, color: colors.textTertiary },
+  balanceDivider: { width: 1, backgroundColor: colors.border },
+  accountFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 12,
+  },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    borderWidth: 1,
+    width: 56,
+    height: 56,
+    backgroundColor: colors.surfaceSelected,
+    borderRadius: 28,
+    borderWidth: 0,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
@@ -131,16 +177,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  signOut: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  signOutText: { color: colors.textPrimary, fontSize: 14 },
+  signOut: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 6 },
+  signOutText: { color: colors.textPrimary, fontSize: 12, fontWeight: '500' },
   safe: { flex: 1, backgroundColor: colors.canvas },
   launch: {
     flex: 1,
@@ -190,9 +228,8 @@ const styles = StyleSheet.create({
   },
   small: { color: colors.textTertiary, fontSize: 12, lineHeight: 18 },
   panel: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 22,
     padding: 20,
   },
 });

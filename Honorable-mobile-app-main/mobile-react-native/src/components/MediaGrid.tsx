@@ -99,7 +99,7 @@ export function MediaGrid({
   leading?: boolean;
 }) {
   const { width } = useWindowDimensions();
-  const inset = 16;
+  const inset = 20;
   const availableWidth = width - inset * 2;
   const size = (availableWidth - grid.gap * 2) / 3;
   return (
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   tile: {
     backgroundColor: colors.surfaceSelected,
     overflow: 'hidden',
-    borderRadius: 4,
+    borderRadius: 10,
   },
   fill: { width: '100%', height: '100%', resizeMode: 'cover' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
