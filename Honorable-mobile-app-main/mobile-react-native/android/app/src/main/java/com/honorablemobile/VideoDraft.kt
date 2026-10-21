@@ -54,13 +54,13 @@ internal data class VideoDraft(
 
 internal object VideoDraftCodec {
     private const val MAGIC = 0x484e5644 // HNVD
-    private const val VERSION = 3
+    private const val VERSION = 4
     private const val MAX_BYTES = 256_000
 
     fun encode(draft: VideoDraft): ByteArray = ByteArrayOutputStream().use { bytes ->
         DataOutputStream(bytes).use { output ->
             output.writeInt(MAGIC)
-            val version = if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
+            val version = if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
             output.writeInt(version)
             output.writeLong(draft.sourceDurationMs)
             output.writeInt(draft.selectedClip)
@@ -72,13 +72,14 @@ internal object VideoDraftCodec {
                 output.writeLong(clip.startMs); output.writeLong(clip.endMs)
                 output.writeFloat(clip.speed); output.writeFloat(clip.volume)
                 if(version >= 2) output.writeInt((listOf("primary") + draft.sources.map { it.id }).indexOf(clip.sourceId))
-                if(version == 3) { writeText(output,clip.title,360); output.writeBoolean(clip.fadeEdges) }
+                if(version >= 3) { writeText(output,clip.title,360); output.writeBoolean(clip.fadeEdges) }
+                if(version >= 4) { output.writeFloat(clip.grade.exposure);output.writeFloat(clip.grade.contrast);output.writeFloat(clip.grade.saturation) }
             }
             if(version >= 2) {
                 output.writeInt(draft.sources.size)
-                draft.sources.forEach { source -> output.writeUTF(source.id); if(version == 3) writeText(output,source.uri,2048) else output.writeUTF(source.uri); output.writeLong(source.durationMs) }
+                draft.sources.forEach { source -> output.writeUTF(source.id); if(version >= 3) writeText(output,source.uri,2048) else output.writeUTF(source.uri); output.writeLong(source.durationMs) }
             }
-            if(version == 3) {
+            if(version >= 3) {
                 output.writeBoolean(draft.soundtrack != null)
                 draft.soundtrack?.let { writeText(output,it.uri,2048);output.writeLong(it.durationMs);output.writeFloat(it.volume) }
             }
@@ -103,15 +104,16 @@ internal object VideoDraftCodec {
             val raw = List(count) {
                 val clip = VideoSegment(input.readLong(), input.readLong(), input.readFloat(), input.readFloat())
                 indices.add(if(version >= 2) input.readInt() else 0)
-                if(version == 3) clip.copy(title = readText(input,360), fadeEdges = input.readBoolean()) else clip
+                val titled=if(version >= 3) clip.copy(title = readText(input,360), fadeEdges = input.readBoolean()) else clip
+                if(version >= 4)titled.copy(grade=VideoGrade(input.readFloat(),input.readFloat(),input.readFloat())) else titled
             }
             val sources = if(version >= 2) {
-                val size = input.readInt(); require(size in (if(version == 3) 0 else 1)..31)
-                List(size) { VideoSource(input.readUTF(), if(version == 3) readText(input,2048) else input.readUTF(), input.readLong()) }
+                val size = input.readInt(); require(size in (if(version >= 3) 0 else 1)..31)
+                List(size) { VideoSource(input.readUTF(), if(version >= 3) readText(input,2048) else input.readUTF(), input.readLong()) }
             } else emptyList()
             val ids = listOf("primary") + sources.map { it.id }
             val segments = raw.mapIndexed { index, clip -> clip.copy(sourceId = ids.getOrNull(indices[index]) ?: error("Unknown clip source")) }
-            val soundtrack = if(version == 3 && input.readBoolean()) VideoSoundtrack(readText(input,2048),input.readLong(),input.readFloat()) else null
+            val soundtrack = if(version >= 3 && input.readBoolean()) VideoSoundtrack(readText(input,2048),input.readLong(),input.readFloat()) else null
             require(input.available() == 0)
             VideoDraft(sourceDurationMs, segments, selected, position, start, end, sources, soundtrack)
         }

@@ -16,6 +16,15 @@ import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.RgbMatrix
 import androidx.media3.effect.StaticOverlaySettings
 
+/** Shared by clip/project preview and export, before titles and timeline fades. */
+@UnstableApi
+internal class VideoColorEffect(private val grade:VideoGrade):RgbMatrix {
+    private val sdr=grade.matrix(false)
+    private val hdr=grade.matrix(true)
+    override fun getMatrix(presentationTimeUs:Long,useHdr:Boolean):FloatArray=if(useHdr)hdr else sdr
+    override fun isNoOp(inputWidth:Int,inputHeight:Int):Boolean=grade.isIdentity
+}
+
 /** Composition-wide fading includes titles and uses final output timestamps. */
 @UnstableApi
 internal class VideoTimelineFade(private val clips: List<VideoSegment>) : RgbMatrix {

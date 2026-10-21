@@ -22,6 +22,8 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Rig/pose manipulation | Incomplete foundation/aspiration | Genuine segmentation/keypoints/deformation; no fake skeleton-only claim |
 | Layers / smart layers / compositing | Web project foundation; native advanced engine unfinished | Canonical persisted state, masks/blending and matching renders |
 | Video Editor V1 | Multi-source trim/split/delete/reorder, speed/volume, titles/fade edges, composition preview and copy export | Actual phone rendering, order/speed/audio/orientation and original integrity |
+| Video color controls | Per-clip exposure/contrast/saturation, rendered preview/export, undo/history, adaptive v4 drafts and recovery | JVM/build/package checks pass; actual SDR/HDR pixel/codec/output and device controls pending |
+| AI-assisted video looks | Up to three local label/pixel samples; Auto/Cinematic/Portrait/Vivid/Mono proposals; review/cancel/stale guard and atomic color edit | Device quality/model/timing acceptance pending; applies one fixed grade to the entire clip; no generated frames |
 | Video drafts | Encrypted account/API/root-source-scoped save/restore; v1/v2 readable and v3 persists titles/fades/soundtrack; restore undoable | Keystore/files/lifecycle/account switching on a phone; no old-session undo-history persistence |
 | Video scene suggestion | Experimental sampled-frame local label analysis | Grounded quality, cancellation and preview/export acceptance |
 | Multiple video sources | Implemented with durable document grants, per-clip routing and compatible drafts | Physical provider/codec/audio/aspect and lifecycle acceptance |

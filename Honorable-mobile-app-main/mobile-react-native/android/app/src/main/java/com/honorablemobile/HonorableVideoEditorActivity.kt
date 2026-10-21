@@ -27,6 +27,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import android.graphics.drawable.GradientDrawable
 import androidx.media3.common.util.UnstableApi
+import app.honorable.editor.PhotoLook
+import app.honorable.editor.PhotoLightStats
 
 @UnstableApi
 class HonorableVideoEditorActivity : Activity() {
@@ -133,8 +135,10 @@ class HonorableVideoEditorActivity : Activity() {
         end = SeekBar(this)
         controls.addView(label("Start")); controls.addView(start)
         controls.addView(label("End")); controls.addView(end)
+        controls.addView(Button(this).apply{text="Color controls";setOnClickListener{editColor()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
         assistTools.addView(Button(this).apply { text = "AI rough cut"; setOnClickListener { roughCutOptions() } })
+        assistTools.addView(Button(this).apply { text = "AI video looks"; setOnClickListener { videoLookOptions() } })
         assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
         assistTools.addView(Button(this).apply { text = "Suggest scene"; setOnClickListener { suggestScene() } })
         assistTools.addView(label("Experimental · on-device sampled-frame labels. Preview every suggestion.", 12f))
@@ -330,7 +334,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun showRange() {
-        status.text = "${start.progress}s - ${end.progress}s; ${(end.progress - start.progress).coerceAtLeast(0)}s selected"
+        status.text = "${start.progress}s - ${end.progress}s; ${(end.progress - start.progress).coerceAtLeast(0)}s selected" + if(project?.segments?.getOrNull(selectedClip)?.grade?.isIdentity==false)" · source view; Preview clip shows color" else ""
     }
 
     private fun showClip() {
@@ -500,6 +504,75 @@ class HonorableVideoEditorActivity : Activity() {
                     end.progress = ((range.second + 999) / 1_000).toInt().coerceAtMost(end.max)
                     status.text = "Suggested scene: ${start.progress}s - ${end.progress}s. Preview and adjust before saving."
                 }.onFailure { status.text = "Scene suggestion unavailable. Set the trim range manually." }
+            }
+        }.start()
+    }
+
+    private fun editColor() {
+        if(saving||analyzing||draftBusy||importing||pendingRange!=null)return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        VideoGradeControls.show(this,clip.grade){grade->
+            if(project!==current||selectedClip!=index||current.segments.getOrNull(index)!=clip||saving||analyzing||draftBusy||importing||pendingRange!=null){status.text="Clip changed. Open color controls again.";return@show}
+            current.setGrade(index,grade);showClip();previewComposition(listOf(current.segments[index]),index)
+        }
+    }
+
+    private fun videoLookOptions() {
+        if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
+        val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
+        android.app.AlertDialog.Builder(this).setTitle("AI video look").setItems(names){_,which->suggestVideoLook(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
+    }
+
+    private fun suggestVideoLook(look:PhotoLook) {
+        if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
+        val current=project?:return
+        val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
+        val clip=selection.clips[selection.selectedIndex];val uri=sourceUri(clip.sourceId)
+        analysisCancellation.set(false);analyzing=true
+        video.pause();stopProjectPreview();status.text="Analyzing video color on this device..."
+        Thread {
+            var samplesRead=0
+            val result=runCatching {
+                val labeler=ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS);val retriever=MediaMetadataRetriever()
+                val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(20)
+                try {
+                    retriever.setDataSource(this,uri)
+                    val samples=mutableListOf<PhotoLightStats>();val subjects=mutableSetOf<String>()
+                    for(time in VideoAutoGrade.sampleTimes(selection.startMs,selection.endMs)) {
+                        check(!analysisCancellation.get()&&System.nanoTime()<deadline){"Cancelled or timed out"}
+                        val frame=if(Build.VERSION.SDK_INT>=27)retriever.getScaledFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST,384,384)
+                            else retriever.getFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST)?.let{original->
+                                android.graphics.Bitmap.createScaledBitmap(original,384,384,true).also{if(it!==original)original.recycle()}}
+                        if(frame==null)continue
+                        val task=try {
+                            val proxy=android.graphics.Bitmap.createScaledBitmap(frame,64,64,true)
+                            try {val pixels=IntArray(4096);proxy.getPixels(pixels,0,64,0,0,64,64);samples.add(PhotoLightStats.measure(pixels))}finally{if(proxy!==frame)proxy.recycle()}
+                            labeler.process(InputImage.fromBitmap(frame,0))
+                        }catch(error:Throwable){frame.recycle();throw error}
+                        try {
+                            val remaining=TimeUnit.NANOSECONDS.toMillis((deadline-System.nanoTime()).coerceAtLeast(1)).coerceIn(1,5000)
+                            subjects.addAll(Tasks.await(task,remaining,TimeUnit.MILLISECONDS).filter{it.confidence>=.65f}.map{it.text})
+                        }finally{if(task.isComplete)frame.recycle()else task.addOnCompleteListener{frame.recycle()}}
+                    }
+                    check(!analysisCancellation.get()&&System.nanoTime()<deadline){"Cancelled or timed out"}
+                    samplesRead=samples.size
+                    VideoAutoGrade.suggest(samples,subjects,look)
+                }finally{labeler.close();retriever.release()}
+            }
+            runOnUiThread {
+                analyzing=false
+                if(isDestroyed||isFinishing)return@runOnUiThread
+                if(analysisCancellation.get()){status.text="Analysis cancelled. Your color is unchanged.";return@runOnUiThread}
+                fun matches()=project===current&&selection.stillMatches(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)
+                if(!matches()){status.text="Your clip changed. Analyze video color again.";return@runOnUiThread}
+                result.onSuccess{grade->
+                    android.app.AlertDialog.Builder(this).setTitle("Video look ready")
+                        .setMessage("Based on $samplesRead sampled frames. Replaces this entire clip's color with exposure ${grade.exposure} EV, contrast ${(grade.contrast*100).toInt()}% and saturation ${(grade.saturation*100).toInt()}%. Preview before exporting.")
+                        .setNegativeButton("Cancel",null).setPositiveButton("Apply look"){_,_->
+                            if(!matches()||saving||analyzing||draftBusy||importing||pendingRange!=null){status.text="Clip changed. Analyze video color again.";return@setPositiveButton}
+                            current.setGrade(selection.selectedIndex,grade);showClip();previewComposition(listOf(current.segments[selectedClip]),selectedClip)
+                        }.show()
+                }.onFailure{status.text="Video look unavailable or timed out. Your color is unchanged."}
             }
         }.start()
     }

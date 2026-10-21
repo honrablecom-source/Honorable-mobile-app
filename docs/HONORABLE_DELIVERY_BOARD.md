@@ -1,6 +1,6 @@
 # Honorable delivery board
 
-October 20, 2026. Latest batch adds **2 features**: AI person-background blur and neutral background replacement. 135 JVM tests pass, bitmap instrumentation compiles, complete ARM64 internal APK built and independently verified. Device/quality/UI acceptance remains open. Prior curves/local light/looks/video rough cuts and app-wide UI are retained. RTK filters local logs. Actual generation remains incomplete: GPU exists, installed PyTorch is CPU-only and disk headroom is insufficient for the isolated engine/model. No billing, hosting or personal-media upload was enabled. See HONORABLE_PERSON_BACKGROUND_CHECKPOINT.md.
+October 20, 2026. Latest batch adds **2 features**: video color controls and reviewed AI-assisted video looks. Shared preview/export and v4 draft recovery retain the clip grade. 145 JVM tests pass, new composition instrumentation compiles, complete ARM64 internal APK built and independently verified. Device/pixel/model/UI acceptance remains open. Existing person-background tools, app UI and video rough cuts are retained. No new dependency, model download, hosting/billing or private-media upload. Actual generation remains unfinished. See HONORABLE_VIDEO_GRADE_CHECKPOINT.md.
 
 ## Current functional batch
 

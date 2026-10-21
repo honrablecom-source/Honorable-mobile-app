@@ -9,6 +9,7 @@ internal data class VideoSegment(
     val sourceId: String = "primary",
     val title: String = "",
     val fadeEdges: Boolean = false,
+    val grade: VideoGrade = VideoGrade(),
 ) {
     init {
         require(title.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == title)
@@ -110,6 +111,7 @@ internal class VideoEditProject(durationMs: Long) {
 
     fun setTitle(index: Int, title: String) = change(segments.toMutableList().apply { set(index, get(index).copy(title = title)) })
     fun setFadeEdges(index: Int, enabled: Boolean) = change(segments.toMutableList().apply { set(index, get(index).copy(fadeEdges = enabled)) })
+    fun setGrade(index: Int, grade: VideoGrade) = change(segments.toMutableList().apply { set(index, get(index).copy(grade = grade)) })
 
     fun duplicate(index: Int) {
         require(segments.size < 1_000) { "A project supports up to 1000 clips" }

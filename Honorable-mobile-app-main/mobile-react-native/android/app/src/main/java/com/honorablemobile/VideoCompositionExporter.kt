@@ -13,6 +13,7 @@ import android.system.Os
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.C
+import androidx.media3.common.Effect
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.common.audio.DefaultGainProvider
 import androidx.media3.common.audio.GainProcessor
@@ -57,7 +58,9 @@ internal class VideoCompositionExporter(private val context: Context) {
                         override fun getNextSpeedChangeTimeUs(timeUs: Long) = C.TIME_UNSET
                     })
                     val audio = if(clip.volume != 1f) listOf(GainProcessor(DefaultGainProvider.Builder(clip.volume).build())) else emptyList()
-                    val visual = if(clip.title.isNotBlank()) listOf(OverlayEffect(listOf(VideoTitleOverlay(clip.title)))) else emptyList()
+                    val visual = mutableListOf<Effect>()
+                    if(!clip.grade.isIdentity)visual.add(VideoColorEffect(clip.grade))
+                    if(clip.title.isNotBlank())visual.add(OverlayEffect(listOf(VideoTitleOverlay(clip.title))))
                     setEffects(Effects(audio, visual))
                 }.build()
             }

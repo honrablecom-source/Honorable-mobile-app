@@ -1,3 +1,11 @@
+# Latest checkpoint — video color and AI video looks, October 20, 2026
+
+Added **2 user-facing features**: per-clip exposure/contrast/saturation controls and reviewed classifier/pixel-assisted video looks. Shared rendered preview/export applies grading before titles/fades; histories/clip operations and compatible draft/recovery v4 retain color. The existing app UI, photo tools and video rough-cut engine are preserved. AI looks use up to three local frame samples; no new dependency/model download, service or upload.
+
+90 shared Android and 55 RN-native JVM tests pass (145 total; 0 failures/errors/skips), including ten new color/matrix/history/codec/AI-policy cases. Three new composition integration cases compile only; no instrumentation execution. Complete ARM64 unshrunk internal APK built and independently verified for package, bundled JS/models/native grading markers, approved signature and ZIP alignment; 464 frozen app-input hashes match. APK: Honorable-1.0.3-video-grade-arm64.apk. SHA-256: 9d673ce1ce8ea5de8e5429b1b4e91b5a2914dc6a5de221f107d303a24462de9d. Public debug key; internal testing only.
+
+Native device/model/SDR-HDR pixels, audio/output/performance and owner UI acceptance remain unverified. The account API, private signing/store, full generative editing/creation and iOS are unfinished. Next prioritize visible editing outcomes such as captions/output formats; actual generation needs disk space/runtime/model installation. See HONORABLE_VIDEO_GRADE_CHECKPOINT.md.
+
 # Latest checkpoint — two AI person-background tools, October 20, 2026
 
 Added **2 user-facing features**: adjustable on-device person-background blur and neutral white/black/gray background replacement. Shared preview/export, crop/rotation-aligned matte, Undo/Redo/Compare and compatible v3 lifecycle state are integrated. These reuse person segmentation; no generative photo/video engine was added. App-wide UI and prior video AI assistance are retained.
