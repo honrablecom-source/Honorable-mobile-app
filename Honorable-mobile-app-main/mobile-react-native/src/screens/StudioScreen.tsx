@@ -9,11 +9,11 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowUpRight,
-  Check,
   ChevronRight,
   Film,
   Image as Photo,
@@ -28,16 +28,13 @@ import {
   Download,
 } from 'lucide-react-native';
 import { colors } from '../design-system/tokens';
-import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
-import {
-  creativeStyles,
-  SectionHeading,
-} from '../design-system/CreativeChrome';
+import { creativeStyles } from '../design-system/CreativeChrome';
 import { useLibrary } from '../library/LibraryContext';
 import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
 
 export function StudioScreen() {
+  const { width } = useWindowDimensions();
   const { items, loading, error } = useLibrary();
   const { busy: importing, open } = useOpenWorkspace();
   const [mode, setMode] = useState<WorkspaceKind>('IMAGE');
@@ -51,15 +48,16 @@ export function StudioScreen() {
     assets.find(item => item.mediaId === selectedId) ?? assets[0];
   const busy = importing || opening;
   const kindName = mode === 'IMAGE' ? 'photo' : 'video';
-  const editSelected = async () => {
-    if (!selected || pending.current || importing) return;
+  const editSelected = async (source = selected) => {
+    if (!source || pending.current || importing) return;
+    setSelectedId(source.mediaId);
     pending.current = true;
     setOpening(true);
     try {
       await editMemory({
-        id: String(selected.mediaId),
-        mediaUri: selected.mediaUri,
-        type: selected.mediaType,
+        id: String(source.mediaId),
+        mediaUri: source.mediaUri,
+        type: source.mediaType,
       });
     } catch (reason) {
       Alert.alert(
@@ -133,70 +131,69 @@ export function StudioScreen() {
         ];
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
-      <WorkspaceHeader
-        title="Studio"
-        section="Your creative space"
-        action={
+      <View style={s.launchHeader}>
+        <Text accessibilityRole="header" style={s.launchTitle}>
+          Studio
+        </Text>
+        <View style={s.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open tools inspector"
+            onPress={() => showInspector('tools')}
+            style={creativeStyles.iconButton}
+          >
+            <SlidersHorizontal size={20} color={colors.textPrimary} />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Import media"
-            accessibilityState={{ disabled: busy, busy }}
             disabled={busy}
             onPress={() => open(mode)}
             style={creativeStyles.iconButton}
           >
             <Plus size={22} color={colors.textPrimary} />
           </Pressable>
-        }
-      />
+        </View>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.content}
       >
-        <View style={s.createRow}>
+        <View style={s.sourceActions}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Create a new video"
             disabled={busy}
             onPress={() => open('VIDEO')}
-            style={[s.createVideo, busy && s.disabled]}
+            style={[s.sourceAction, s.sourcePrimary, busy && s.disabled]}
           >
-            <View style={s.createTop}>
-              <Film size={23} color="#fff" />
-              <ArrowUpRight size={19} color="#fff" />
-            </View>
-            <Text style={s.createTitle}>New video</Text>
-            <Text style={s.createSubtitle}>Start with your clips</Text>
+            <Film size={21} color="#fff" />
+            <Text style={s.sourcePrimaryText}>New video</Text>
+            <ArrowUpRight size={16} color="#fff" />
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Choose a photo to edit"
             disabled={busy}
             onPress={() => open('IMAGE')}
-            style={[s.createPhoto, busy && s.disabled]}
+            style={[s.sourceAction, busy && s.disabled]}
           >
-            <View style={s.createTop}>
-              <Photo size={23} color={colors.textPrimary} />
-              <ArrowUpRight size={19} color={colors.textTertiary} />
-            </View>
-            <Text style={s.photoTitle}>Edit photo</Text>
-            <Text style={s.photoSubtitle}>Make it your own</Text>
+            <Photo size={21} color={colors.textPrimary} />
+            <Text style={s.sourceActionText}>Edit photo</Text>
+            <ArrowUpRight size={16} color={colors.textPrimary} />
           </Pressable>
         </View>
-        <SectionHeading
-          title="Your media"
-          detail="Choose a source. Keep the original."
-          action={
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open tools inspector"
-              onPress={() => showInspector('tools')}
-              style={creativeStyles.iconButton}
-            >
-              <SlidersHorizontal size={20} color={colors.textPrimary} />
-            </Pressable>
-          }
-        />
+        <View style={s.recentHeading}>
+          <Text style={s.recentTitle}>Recent media</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Toggle source details"
+            onPress={() => showInspector('source')}
+            style={creativeStyles.iconButton}
+          >
+            <Info size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
         <View style={s.modeRow}>
           {(['IMAGE', 'VIDEO'] as const).map(kind => (
             <Pressable
@@ -218,171 +215,86 @@ export function StudioScreen() {
             </Pressable>
           ))}
         </View>
-        {selected ? (
-          <View style={s.selection}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open selected media in editor"
-              disabled={busy}
-              onPress={editSelected}
-              style={s.cover}
-            >
-              {selected.thumbnailUri || mode === 'IMAGE' ? (
-                <Image
-                  accessibilityLabel={selected.displayName}
-                  source={{ uri: selected.thumbnailUri ?? selected.mediaUri }}
-                  resizeMode="cover"
-                  style={s.coverImage}
-                />
-              ) : (
-                <Film
-                  size={40}
-                  strokeWidth={1.2}
-                  color={colors.textSecondary}
-                />
-              )}
-              <View style={s.coverBadge}>
-                <Text style={s.coverBadgeText}>
-                  {mode === 'IMAGE' ? 'PHOTO' : 'VIDEO'}
-                </Text>
-                <ArrowUpRight size={14} color="#fff" />
-              </View>
-            </Pressable>
-            <View style={s.selectedCaption}>
-              <View style={s.captionCopy}>
-                <Text numberOfLines={1} style={s.filename}>
-                  {selected.displayName}
-                </Text>
-                <Text style={s.caption}>
-                  Ready to edit · original preserved
-                </Text>
-              </View>
+        {loading ? (
+          <ActivityIndicator color={colors.textPrimary} />
+        ) : assets.length ? (
+          <View style={s.sourceGrid}>
+            {assets.map(item => (
               <Pressable
+                key={item.mediaId}
                 accessibilityRole="button"
-                accessibilityLabel="Toggle source details"
-                onPress={() => showInspector('source')}
-                style={creativeStyles.iconButton}
+                accessibilityLabel={`Edit ${item.displayName}`}
+                accessibilityHint="Opens the native editor. Touch and hold for source details."
+                disabled={busy}
+                onPress={() => editSelected(item)}
+                onLongPress={() => {
+                  setSelectedId(item.mediaId);
+                  showInspector('source');
+                }}
+                style={[s.sourceCell, { width: Math.max(1, (width - 60) / 3) }]}
               >
-                <Info size={19} color={colors.textSecondary} />
+                <View style={s.sourceImage}>
+                  {item.thumbnailUri || item.mediaType === 'IMAGE' ? (
+                    <Image
+                      source={{ uri: item.thumbnailUri ?? item.mediaUri }}
+                      resizeMode="cover"
+                      style={s.fill}
+                    />
+                  ) : (
+                    <Film size={24} color={colors.textSecondary} />
+                  )}
+                  {item.mediaType === 'VIDEO' && (
+                    <View style={s.mediaBadge}>
+                      <Film size={11} color="#fff" />
+                      <Text style={s.mediaBadgeText}>
+                        {item.durationMs
+                          ? `${Math.floor(item.durationMs / 60000)}:${String(
+                              Math.floor(item.durationMs / 1000) % 60,
+                            ).padStart(2, '0')}`
+                          : 'Video'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text numberOfLines={1} style={s.mediaFilename}>
+                  {item.displayName}
+                </Text>
               </Pressable>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open selected editor"
-              disabled={busy}
-              onPress={editSelected}
-              style={[s.editButton, busy && s.disabled]}
-            >
-              {opening ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Text style={s.editLabel}>Edit {kindName}</Text>
-                  <ArrowUpRight size={18} color="#fff" />
-                </>
-              )}
-            </Pressable>
+            ))}
           </View>
         ) : (
           <View style={s.empty}>
-            {loading ? (
-              <ActivityIndicator color={colors.textPrimary} />
-            ) : (
-              <>
-                <View style={s.emptySymbol}>
-                  {mode === 'IMAGE' ? (
-                    <Photo
-                      size={28}
-                      strokeWidth={1.3}
-                      color={colors.textPrimary}
-                    />
-                  ) : (
-                    <Film
-                      size={28}
-                      strokeWidth={1.3}
-                      color={colors.textPrimary}
-                    />
-                  )}
-                </View>
-                <Text style={s.emptyTitle}>Start with a {kindName}</Text>
-                <Text style={s.emptyText}>
-                  Choose from your device. Your original stays untouched.
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Import another source"
-                  disabled={busy}
-                  onPress={() => open(mode)}
-                  style={s.emptyButton}
-                >
-                  <Plus size={17} color={colors.textPrimary} />
-                  <Text style={s.emptyButtonText}>Choose {kindName}</Text>
-                </Pressable>
-              </>
-            )}
+            <Photo size={26} color={colors.textSecondary} />
+            <Text style={s.emptyTitle}>Choose a {kindName} to begin</Text>
+            <Text style={s.emptyText}>
+              Import from your device or allow access to your library.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Import another source"
+              disabled={busy}
+              onPress={() => open(mode)}
+              style={s.emptyButton}
+            >
+              <Plus size={17} color={colors.textPrimary} />
+              <Text style={s.emptyButtonText}>Choose {kindName}</Text>
+            </Pressable>
           </View>
         )}
-        {assets.length > 0 && (
-          <View style={s.assetSection}>
-            <Text style={s.recentLabel}>RECENT SOURCES</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.assetStrip}
-            >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Import another source"
-                disabled={busy}
-                onPress={() => open(mode)}
-                style={s.addAsset}
-              >
-                <Plus size={23} color={colors.textPrimary} />
-                <Text style={s.addLabel}>Import</Text>
-              </Pressable>
-              {assets.map(item => (
-                <Pressable
-                  key={item.mediaId}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select ${item.displayName}`}
-                  accessibilityState={{
-                    selected: item.mediaId === selected?.mediaId,
-                  }}
-                  onPress={() => setSelectedId(item.mediaId)}
-                  style={s.asset}
-                >
-                  <View style={s.assetPicture}>
-                    {item.thumbnailUri || item.mediaType === 'IMAGE' ? (
-                      <Image
-                        source={{ uri: item.thumbnailUri ?? item.mediaUri }}
-                        style={s.assetImage}
-                      />
-                    ) : (
-                      <Film size={24} color={colors.textSecondary} />
-                    )}
-                    {item.mediaId === selected?.mediaId && (
-                      <View style={s.check}>
-                        <Check size={12} color="#fff" />
-                      </View>
-                    )}
-                  </View>
-                  <Text numberOfLines={1} style={s.assetName}>
-                    {item.displayName}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
+        {opening && (
+          <ActivityIndicator
+            accessibilityLabel="Opening editor"
+            color={colors.textPrimary}
+          />
         )}
         {!!error && (
           <Text accessibilityRole="alert" style={s.error}>
             {error}
           </Text>
         )}
-        <View style={s.footer}>
-          <Text style={s.footerText}>Made from your memories.</Text>
-          <Text style={s.footerText}>Saved as something new.</Text>
-        </View>
+        <Text style={s.sourceFootnote}>
+          Tap media to edit. Exports create a new copy.
+        </Text>
       </ScrollView>
       <Modal
         visible={details}
@@ -491,49 +403,103 @@ export function StudioScreen() {
   );
 }
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { paddingBottom: 24 },
-  createRow: {
-    flexDirection: 'row',
-    gap: 12,
+  launchHeader: {
+    minHeight: 64,
     paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  createVideo: {
-    flex: 1,
-    backgroundColor: '#151515',
-    borderRadius: 20,
-    padding: 18,
-    minHeight: 152,
-    justifyContent: 'space-between',
-  },
-  createPhoto: {
-    flex: 1,
-    backgroundColor: colors.surfaceSelected,
-    borderRadius: 20,
-    padding: 18,
-    minHeight: 152,
-    justifyContent: 'space-between',
-  },
-  createTop: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
   },
-  createTitle: {
-    fontSize: 20,
+  launchTitle: {
+    fontSize: 24,
     fontWeight: '600',
-    letterSpacing: -0.5,
-    color: '#fff',
-  },
-  createSubtitle: { fontSize: 11, color: '#ccc', marginTop: 5 },
-  photoTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     color: colors.textPrimary,
   },
-  photoSubtitle: { fontSize: 11, color: colors.textSecondary, marginTop: 5 },
+  headerActions: { flexDirection: 'row', gap: 4 },
+  sourceActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  sourceAction: {
+    flex: 1,
+    minHeight: 56,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  sourcePrimary: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  sourcePrimaryText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#fff',
+  },
+  sourceActionText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  recentHeading: {
+    paddingHorizontal: 20,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  recentTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  sourceGrid: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    columnGap: 10,
+    rowGap: 16,
+  },
+  sourceCell: { gap: 6 },
+  sourceImage: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSelected,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fill: { width: '100%', height: '100%' },
+  mediaFilename: { fontSize: 10, lineHeight: 15, color: colors.textSecondary },
+  mediaBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,.7)',
+    borderRadius: 4,
+    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  mediaBadgeText: { fontSize: 9, color: '#fff' },
+  sourceFootnote: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    fontSize: 11,
+    lineHeight: 17,
+    color: colors.textTertiary,
+  },
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  content: { paddingBottom: 24 },
   modeRow: {
     flexDirection: 'row',
     gap: 26,
@@ -552,42 +518,7 @@ const s = StyleSheet.create({
   modeActive: { borderBottomColor: colors.textPrimary },
   modeText: { fontSize: 14, color: colors.textTertiary },
   modeSelected: { fontWeight: '600', color: colors.textPrimary },
-  selection: { marginHorizontal: 20 },
-  cover: {
-    height: 220,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSelected,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverImage: { width: '100%', height: '100%' },
-  coverBadge: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,.68)',
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  coverBadgeText: {
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 1,
-    color: '#fff',
-  },
-  selectedCaption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-  },
   captionCopy: { flex: 1, gap: 4 },
-  filename: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   caption: { fontSize: 11, lineHeight: 17, color: colors.textTertiary },
   editButton: {
     minHeight: 52,
@@ -607,15 +538,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
     borderRadius: 20,
-  },
-  emptySymbol: {
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: colors.surfaceSelected,
-    marginBottom: 18,
   },
   emptyTitle: {
     fontSize: 19,
@@ -647,53 +569,6 @@ const s = StyleSheet.create({
     fontWeight: '500',
     color: colors.textPrimary,
   },
-  assetSection: { marginTop: 24 },
-  recentLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    color: colors.textTertiary,
-    marginHorizontal: 20,
-    marginBottom: 12,
-  },
-  assetStrip: { gap: 10, paddingHorizontal: 20 },
-  addAsset: {
-    width: 82,
-    height: 82,
-    backgroundColor: colors.surfaceSelected,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  addLabel: { fontSize: 10, color: colors.textSecondary },
-  asset: { width: 100, gap: 7 },
-  assetPicture: {
-    width: 100,
-    height: 82,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceSelected,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  assetImage: { width: '100%', height: '100%' },
-  assetName: { fontSize: 10, color: colors.textSecondary },
-  check: {
-    position: 'absolute',
-    right: 6,
-    bottom: 6,
-    backgroundColor: colors.textPrimary,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.canvas,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footer: { alignItems: 'center', gap: 4, marginTop: 30 },
-  footerText: { fontSize: 11, lineHeight: 16, color: colors.textTertiary },
   error: { margin: 20, color: colors.danger, fontSize: 13 },
   overlay: {
     flex: 1,

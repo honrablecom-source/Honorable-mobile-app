@@ -57,7 +57,13 @@ class HonorableVideoEditorActivity : Activity() {
     private var pendingSegments: List<VideoSegment>? = null
     private var project: VideoEditProject? = null
     private var selectedClip = 0
-    private lateinit var timeline: LinearLayout
+    private lateinit var timeline: VideoFilmstripView
+    private lateinit var timelineScroll: HorizontalScrollView
+    private lateinit var timecode: TextView
+    private lateinit var playControl: ImageButton
+    private var playheadUs=0L
+    private var workspaceActive=false
+    private val workspaceTick=object:Runnable{override fun run(){if(!workspaceActive)return;updateWorkspace();previewHandler.postDelayed(this,100)}}
     private lateinit var clipStatus: TextView
     private var exporter: VideoCompositionExporter? = null
     private val exportCancellation = CancellationSignal()
@@ -90,7 +96,12 @@ class HonorableVideoEditorActivity : Activity() {
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(Button(this).apply { text = "‹"; contentDescription = "Close video editor"; setOnClickListener { finish() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
         header.addView(label("Video editor", 16f).apply{typeface=android.graphics.Typeface.create("sans-serif-medium",0)}, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(Button(this).apply {text="Tools";contentDescription="Open video inspector";setOnClickListener{openInspector()}},LinearLayout.LayoutParams(dp(60),dp(48)))
+        fun icon(parent:LinearLayout,label:String,kind:String,action:()->Unit):ImageButton {
+            val b=ImageButton(this).apply{contentDescription=label;setImageDrawable(app.honorable.editor.EditorChrome.ToolIcon(kind));setPadding(dp(12),dp(12),dp(12),dp(12));setBackgroundColor(Color.WHITE);setOnClickListener{action()}}
+            parent.addView(b,LinearLayout.LayoutParams(dp(44),dp(48)));return b
+        }
+        icon(header,"Undo video edit","Undo"){if(editorIdle()&&project?.undo()==true){selectedClip=selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex);showClip()}}
+        icon(header,"Redo video edit","Redo"){if(editorIdle()&&project?.redo()==true){selectedClip=selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex);showClip()}}
         val exportButton = Button(this).apply { text = "Export"; contentDescription = "Export video as a new copy"; setOnClickListener { saveCopy() } }
         header.addView(exportButton, LinearLayout.LayoutParams(dp(88), dp(48)))
         root.addView(header)
@@ -103,21 +114,25 @@ class HonorableVideoEditorActivity : Activity() {
         projectPreviewView = PlayerView(this).apply { visibility = View.GONE; useController = true }
         previewFrame.addView(projectPreviewView, FrameLayout.LayoutParams(-1, -1))
         root.addView(previewFrame, LinearLayout.LayoutParams(-1, 0, 1f))
-        video.setMediaController(MediaController(this).apply { setAnchorView(video) })
         // Preview and timeline stay visible; only the chosen tool group occupies the tray.
         val transport = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        timecode=label("00:00 / 00:00",11f).apply{typeface=android.graphics.Typeface.MONOSPACE}
+        transport.addView(timecode,LinearLayout.LayoutParams(0,dp(48),1f))
+        icon(transport,"Back one second","Previous"){seekTimeline((playheadUs-1_000_000).coerceAtLeast(0))}
+        playControl=icon(transport,"Play project","Play"){toggleProjectPlayback()}
+        icon(transport,"Forward one second","Next"){seekTimeline(playheadUs+1_000_000)}
         root.addView(transport)
-        clipStatus = label("Clip 1", 11f).apply { maxLines = 2 }
-        root.addView(clipStatus)
-        timeline = LinearLayout(this)
-        root.addView(HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false; contentDescription = "Video clip timeline"; addView(timeline)
-        }, LinearLayout.LayoutParams(-1, dp(72)))
-        status = label("Loading video...", 12f).apply { maxLines = 2; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+        clipStatus=label("Clip 1",11f).apply{maxLines=1}
+        val compactWorkspace=resources.configuration.screenHeightDp<760
+        val timelineHeight=if(compactWorkspace)104 else 138
+        timeline=VideoFilmstripView(this).apply{onSeek={seekTimeline(it)}}
+        timelineScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;contentDescription="Video clip timeline";addView(timeline,FrameLayout.LayoutParams(-2,dp(timelineHeight)))}
+        root.addView(timelineScroll,LinearLayout.LayoutParams(-1,dp(timelineHeight)))
+        status = label("Loading video...", 11f).apply { maxLines = 1; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
         root.addView(status)
         root.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)))
         val tray = FrameLayout(this)
-        root.addView(tray, LinearLayout.LayoutParams(-1, dp(140)))
+        root.addView(tray, LinearLayout.LayoutParams(-1, dp(if(compactWorkspace)96 else 160)))
         val groups = linkedMapOf<String, LinearLayout>()
         fun group(name: String): LinearLayout {
             val tools = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -128,18 +143,23 @@ class HonorableVideoEditorActivity : Activity() {
             return tools
         }
         val controls = group("Edit")
+        val pictureTools=group("Picture")
+        val speedTools=group("Speed")
+        speedTools.addView(label("Playback speed",14f))
+        val speeds=LinearLayout(this)
+        listOf(.5f,1f,1.5f,2f).forEach{rate->speeds.addView(Button(this).apply{text="${rate}x";setOnClickListener{if(editorIdle()){project?.setSpeed(selectedClip,rate);showClip();status.text="Playback speed ${rate}x"}}},LinearLayout.LayoutParams(0,dp(48),1f))};speedTools.addView(speeds)
         val audioTools = group("Audio")
         val creativeTools = group("Titles")
         val projectTools = group("Project")
         val assistTools = group("Assist")
         start = SeekBar(this)
         end = SeekBar(this)
-        controls.addView(label("Start")); controls.addView(start)
-        controls.addView(label("End")); controls.addView(end)
-        controls.addView(Button(this).apply{text="Open inspector";setOnClickListener{openInspector()}})
-        controls.addView(Button(this).apply{text="Color controls";setOnClickListener{editColor()}})
-        controls.addView(Button(this).apply{text="White balance";setOnClickListener{editColor(true)}})
-        controls.addView(Button(this).apply{text="Rotate / mirror";setOnClickListener{transformVideo()}})
+        controls.addView(label("In point · source seconds",11f)); controls.addView(start,LinearLayout.LayoutParams(-1,dp(36)))
+        controls.addView(label("Out point · source seconds",11f)); controls.addView(end,LinearLayout.LayoutParams(-1,dp(36)))
+        pictureTools.addView(Button(this).apply{text="Open inspector";setOnClickListener{openInspector()}})
+        pictureTools.addView(Button(this).apply{text="Color controls";setOnClickListener{editColor()}})
+        pictureTools.addView(Button(this).apply{text="White balance";setOnClickListener{editColor(true)}})
+        pictureTools.addView(Button(this).apply{text="Rotate / mirror";setOnClickListener{transformVideo()}})
         projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
         projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
@@ -165,7 +185,7 @@ class HonorableVideoEditorActivity : Activity() {
             setOnClickListener { previewProject() }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
-        transport.addView(actions, LinearLayout.LayoutParams(-1, -2))
+        projectTools.addView(actions, LinearLayout.LayoutParams(-1, -2))
         val clipActions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         fun clipButton(title: String, action: () -> Unit) {
             clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
@@ -182,7 +202,6 @@ class HonorableVideoEditorActivity : Activity() {
                 .onSuccess { selectedClip = selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex); showClip() }
                 .onFailure { status.text = "Keep at least one clip." }
         }
-        controls.addView(clipActions)
         val extraActions = LinearLayout(this)
         extraActions.addView(Button(this).apply { text = "Apply trim"; setOnClickListener {
             if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
@@ -200,6 +219,7 @@ class HonorableVideoEditorActivity : Activity() {
             project?.setVolume(selectedClip, 0f); showClip()
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(extraActions)
+        controls.addView(clipActions)
         val historyActions = LinearLayout(this)
         fun historyButton(title: String, action: () -> Unit) {
             historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
@@ -281,17 +301,18 @@ class HonorableVideoEditorActivity : Activity() {
                 }
             }
         }
-        groups.keys.forEach { name ->
-            val tab = Button(this).apply { text = name; contentDescription = "$name tools"; setOnClickListener { selectTools(name) } }
-            tabButtons.add(tab)
-            tabs.addView(tab, LinearLayout.LayoutParams(0, dp(72), 1f).apply { setMargins(dp(2),dp(4),dp(2),0) })
-        }
-        root.addView(tabs)
+        fun findAction(parent:View,label:String):Button?{if(parent is Button&&parent.text.toString()==label)return parent;if(parent is ViewGroup)for(i in 0 until parent.childCount)findAction(parent.getChildAt(i),label)?.let{return it};return null}
+        val split=findAction(controls,"Split")
+        val titles=findAction(creativeTools,"Title")
+        val options=listOf("Trim" to "Edit","Split" to "Edit","Speed" to "Speed","Color" to "Picture","Title" to "Titles","Music" to "Audio","AI" to "Assist","More" to "Project")
+        options.forEach{(name,group)->val tab=Button(this).apply{text=name;contentDescription="$name tools";setOnClickListener{val collapse=isSelected&&tray.visibility==View.VISIBLE;selectTools(group);tray.visibility=if(collapse)View.GONE else View.VISIBLE;tabButtons.forEach{it.isSelected=!collapse&&it===this;it.setBackgroundColor(if(it.isSelected)Color.rgb(241,241,241)else Color.WHITE)};when(name){"Split"->split?.performClick();"Title"->titles?.performClick();"Color"->editColor()}}};tabButtons.add(tab);tabs.addView(tab,LinearLayout.LayoutParams(dp(68),dp(if(compactWorkspace)64 else 72)))}
+        root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)},root.indexOfChild(tray))
         styleEditorControls(root, previewFrame)
         tabButtons.forEach { app.honorable.editor.EditorChrome.style(it,true) }
         exportButton.setTextColor(Color.WHITE)
         exportButton.background = GradientDrawable().apply { setColor(Color.BLACK); cornerRadius = dp(8).toFloat() }
         selectTools("Edit")
+        tray.visibility=View.GONE
         setContentView(root)
         app.honorable.editor.NativeWorkspaceInsets.install(this,root)
         video.setOnErrorListener { _, _, _ -> status.text = "Video unavailable. Check access to the selected source."; true }
@@ -330,6 +351,7 @@ class HonorableVideoEditorActivity : Activity() {
                 showClip()
                 pendingSeekMs = savedInstanceState?.getLong("previewPositionMs") ?: intent.getLongExtra("timestampMs", 0L)
                 video.seekTo(pendingSeekMs.coerceIn(0L, primaryDurationMs-1).toInt())
+                syncSourcePlayhead()
             }
         }
         val listener = object : SeekBar.OnSeekBarChangeListener {
@@ -350,12 +372,7 @@ class HonorableVideoEditorActivity : Activity() {
         stopProjectPreview()
         val clips = project?.segments ?: return
         val clip = clips[selectedClip]
-        durationMs = sourceDuration(clip.sourceId).toInt()
-        val seconds = ((durationMs + 999L) / 1000).toInt().coerceAtLeast(1)
-        start.max = seconds; end.max = seconds
-        start.progress = (clip.startMs / 1000).toInt()
-        end.progress = ((clip.endMs + 999) / 1000).toInt().coerceAtMost(end.max)
-        clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · source ${sourceNumber(clip.sourceId)} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project${if(clip.title.isNotBlank()) " · title" else ""}${if(clip.fadeEdges) " · fade" else ""}"
+        syncClipControls(clips, clip)
         pendingSeekMs = clip.startMs
         if(videoSourceId != clip.sourceId) {
             video.pause(); previewHandler.removeCallbacks(stopPreview)
@@ -364,7 +381,19 @@ class HonorableVideoEditorActivity : Activity() {
             video.setVideoURI(sourceUri(clip.sourceId))
         } else video.seekTo(clip.startMs.toInt())
         showRange()
+        playheadUs=VideoFilmstripScale.outputTime(clips,selectedClip,clip.startMs)
         renderTimeline()
+        updateWorkspace()
+    }
+
+    private fun syncClipControls(clips: List<VideoSegment>, clip: VideoSegment) {
+        durationMs = sourceDuration(clip.sourceId).toInt()
+        val seconds = ((durationMs + 999L) / 1000).toInt().coerceAtLeast(1)
+        start.max = seconds; end.max = seconds
+        start.progress = (clip.startMs / 1000).toInt()
+        end.progress = ((clip.endMs + 999) / 1000).toInt().coerceAtMost(end.max)
+        clipStatus.text = "Clip ${selectedClip + 1}/${clips.size} · source ${sourceNumber(clip.sourceId)} · ${clip.speed}x · volume ${(clip.volume * 100).toInt()}% · ${project?.totalDurationMs?.div(1000)}s project${if(clip.title.isNotBlank()) " · title" else ""}${if(clip.fadeEdges) " · fade" else ""}"
+        showRange()
     }
 
     private fun previewProject() {
@@ -434,19 +463,51 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun renderTimeline() {
-        timeline.removeAllViews()
-        project?.segments?.forEachIndexed { index, clip ->
-            timeline.addView(Button(this).apply {
-                text = "${index + 1} · S${sourceNumber(clip.sourceId)} · ${clip.durationMs / 1_000f}s\n${clip.startMs / 1_000f}–${clip.endMs / 1_000f}s"
-                contentDescription = "Select clip ${index + 1}"
-                setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) { selectedClip = index; showClip() } }
-                styleEditorControls(this, projectPreviewView)
-                if (index == selectedClip) background = GradientDrawable().apply {
-                    setColor(Color.rgb(240,240,240)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.BLACK)
-                    cornerRadius = 12 * resources.displayMetrics.density
-                }
-            }, LinearLayout.LayoutParams(dp(132), dp(64)).apply { setMargins(dp(2),dp(4),dp(2),dp(4)) })
+        val clips=project?.segments?:return
+        val viewport=(resources.displayMetrics.widthPixels-dp(32)).toFloat().coerceAtLeast(1f)
+        timeline.submit(clips,selectedClip,viewport,sourceUris());timeline.playhead(playheadUs)
+    }
+    private fun seekTimeline(timeUs:Long){
+        if(!editorIdle())return
+        val clips=project?.segments?:return
+        val bounded=timeUs.coerceIn(0,clips.sumOf{it.durationUs}-1)
+        val position=VideoTimeline.locate(clips,bounded)
+        val player=previewPlayer
+        if(player!=null&&previewSelectedIndex==null&&previewSegments==clips){player.seekTo(bounded/1000);selectedClip=position.clipIndex;syncClipControls(clips,clips[selectedClip]);renderTimeline()}
+        else{selectedClip=position.clipIndex;showClip();pendingSeekMs=position.sourceTimeMs;if(sourceReady)video.seekTo(position.sourceTimeMs.toInt())}
+        playheadUs=bounded;timeline.playhead(bounded);updateTimecode()
+    }
+    private fun toggleProjectPlayback(){
+        if(!editorIdle())return
+        previewPlayer?.let{if(it.isPlaying)it.pause()else it.play();updateWorkspace();return}
+        val position=playheadUs;previewProject();previewPlayer?.seekTo(position/1000);updateWorkspace()
+    }
+    private fun syncSourcePlayhead() {
+        val clips=project?.segments?:return
+        playheadUs=VideoFilmstripScale.outputTime(clips,selectedClip,pendingSeekMs)
+        timeline.playhead(playheadUs)
+        updateTimecode()
+    }
+    private fun updateTimecode(){
+        if(!::timecode.isInitialized)return
+        fun stamp(us:Long):String {val seconds=us.coerceAtLeast(0)/1_000_000;return "${seconds/60}:${(seconds%60).toString().padStart(2,'0')}.${us.coerceAtLeast(0)%1_000_000/100_000}"}
+        val text="${stamp(playheadUs)} / ${stamp(project?.segments?.sumOf{it.durationUs}?:0)}"
+        if(timecode.text.toString()!=text)timecode.text=text
+    }
+    private fun updateWorkspace(){
+        val clips=project?.segments?:return
+        val player=previewPlayer
+        val playing=player?.isPlaying==true
+        if(player!=null){
+            val preview=previewSegments?:return
+            val pos=VideoTimeline.locate(preview,player.currentPosition.coerceAtLeast(0)*1000)
+            val index=(previewSelectedIndex?:pos.clipIndex).coerceIn(clips.indices)
+            playheadUs=VideoFilmstripScale.outputTime(clips,index,pos.sourceTimeMs)
         }
+        timeline.playhead(playheadUs);updateTimecode()
+        playControl.contentDescription=if(playing)"Pause project"else "Play project"
+        if(playControl.tag!=playing){playControl.tag=playing;playControl.setImageDrawable(app.honorable.editor.EditorChrome.ToolIcon(if(playing)"Pause"else "Play"))}
+        if(playing)timelineScroll.smoothScrollTo((timeline.positionX()-timelineScroll.width/2).toInt().coerceAtLeast(0),0)
     }
 
     private fun suggestScene() {
@@ -829,7 +890,7 @@ class HonorableVideoEditorActivity : Activity() {
         val clips = requireNotNull(project).segments
         val clip = clips[selectedClip]
         return VideoDraft(primaryDurationMs, clips.toList(), selectedClip,
-            (if(sourceReady) video.currentPosition.toLong() else pendingSeekMs).coerceIn(0L, sourceDuration(clip.sourceId)-1),
+            (if(previewPlayer != null) runCatching { splitPosition() }.getOrDefault(clip.startMs) else if(sourceReady) video.currentPosition.toLong() else pendingSeekMs).coerceIn(0L, sourceDuration(clip.sourceId)-1),
             maxOf(start.progress*1000L, clip.startMs), minOf(end.progress*1000L, clip.endMs), importedSources.values.toList(), project?.soundtrack)
     }
     private fun inspectSource(uri: Uri): Long {
@@ -907,6 +968,7 @@ class HonorableVideoEditorActivity : Activity() {
         end.progress = ((saved.trimEndMs+999)/1000).toInt().coerceAtMost(end.max)
         pendingSeekMs = saved.previewPositionMs
         video.seekTo(saved.previewPositionMs.toInt())
+        syncSourcePlayhead()
     }
     private fun importVideo() {
         if(project == null || saving || analyzing || draftBusy || importing || pendingRange != null) return
@@ -974,9 +1036,12 @@ class HonorableVideoEditorActivity : Activity() {
         }.getOrNull()
     }
 
-    override fun onPause() { if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick)}
+    override fun onPause() { workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
         previewHandler.removeCallbacks(stopPreview)
+        previewHandler.removeCallbacks(workspaceTick)
+        if(::timeline.isInitialized)timeline.close()
         stopProjectPreview()
         analysisCancellation.set(true)
         draftWorker.shutdownNow()

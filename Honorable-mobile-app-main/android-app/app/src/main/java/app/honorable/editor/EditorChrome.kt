@@ -24,7 +24,7 @@ object EditorChrome {
         private val key=label.lowercase()
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;style=Paint.Style.STROKE;strokeWidth=1.65f;strokeCap=Paint.Cap.ROUND;strokeJoin=Paint.Join.ROUND}
         override fun draw(c:Canvas){
-            val save=c.save();c.translate(bounds.left.toFloat(),bounds.top.toFloat());c.scale(bounds.width()/24f,bounds.height()/24f)
+            val save=c.save();c.translate(bounds.left.toFloat(),bounds.top.toFloat());c.scale(bounds.width()/24f,bounds.height()/24f);if(key.contains("redo")){c.translate(24f,0f);c.scale(-1f,1f)}
             fun line(x:Float,y:Float,a:Float,b:Float)=c.drawLine(x,y,a,b,paint)
             when{
                 key.contains("undo")||key.contains("redo")-> {c.drawArc(5f,6f,20f,20f,210f,260f,false,paint);line(4f,5f,4f,11f);line(4f,11f,10f,11f)}
@@ -35,7 +35,9 @@ object EditorChrome {
                 key.contains("light")||key.contains("exposure")||key.contains("brightness")-> {c.drawCircle(12f,12f,4f,paint);for(i in 0..7){val a=i*Math.PI/4;line((12+7*Math.cos(a)).toFloat(),(12+7*Math.sin(a)).toFloat(),(12+9*Math.cos(a)).toFloat(),(12+9*Math.sin(a)).toFloat())}}
                 key.contains("curve")-> {line(4f,4f,4f,20f);line(4f,20f,20f,20f);val p=Path();p.moveTo(5f,18f);p.cubicTo(16f,18f,8f,6f,20f,4f);c.drawPath(p,paint)}
                 key.contains("split")-> {c.drawCircle(6f,6f,3f,paint);c.drawCircle(6f,18f,3f,paint);line(8f,8f,20f,20f);line(8f,16f,20f,4f)}
-                key.contains("preview")-> {val p=Path();p.moveTo(8f,4f);p.lineTo(20f,12f);p.lineTo(8f,20f);p.close();c.drawPath(p,paint)}
+                key.contains("pause")-> {line(9f,5f,9f,19f);line(15f,5f,15f,19f)}
+                key.contains("previous")||key.contains("next")-> {val p=Path();if(key.contains("previous")){p.moveTo(17f,5f);p.lineTo(7f,12f);p.lineTo(17f,19f)}else{p.moveTo(7f,5f);p.lineTo(17f,12f);p.lineTo(7f,19f)};c.drawPath(p,paint)}
+                key.contains("preview")||key.contains("play")-> {val p=Path();p.moveTo(8f,4f);p.lineTo(20f,12f);p.lineTo(8f,20f);p.close();c.drawPath(p,paint)}
                 else->{line(5f,7f,19f,7f);line(5f,17f,19f,17f);c.drawCircle(9f,7f,2f,paint);c.drawCircle(15f,17f,2f,paint)}
             };c.restoreToCount(save)
         }

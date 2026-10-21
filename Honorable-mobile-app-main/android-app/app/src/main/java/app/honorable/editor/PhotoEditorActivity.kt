@@ -146,7 +146,15 @@ class PhotoEditorActivity:Activity(){
   categories.forEach{(key,content)->(content.parent as View).visibility=if(key==name)View.VISIBLE else View.GONE}
   tabButtons.forEach{control->val selected=control.text.toString()==name;control.isSelected=selected;control.setTextColor(Color.BLACK);control.background=GradientDrawable().apply{setColor(if(selected)0xFFF1F1F1.toInt() else Color.WHITE);cornerRadius=14.dp().toFloat()}}
  }
- categories.keys.forEach{name->tabButtons.add(button(tabs,name){selectCategory(name)}.apply{EditorChrome.style(this,true);layoutParams=LinearLayout.LayoutParams(0,72.dp(),1f)})}
+ val directTools=listOf<Pair<String,()->Unit>>(
+  "Light" to {selectCategory("Adjust");toolButtons.first().performClick()},
+  "Crop" to {chooseRatio()}, "Rotate" to {tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))},
+  "Mirror" to {chooseMirror()}, "Color" to {finishAdjust("White balance",0)},
+  "Curves" to {showCurve()}, "People" to {chooseBackground()}, "Text" to {editCaption()},
+  "Framing" to {selectCategory("Transform")}, "AI" to {selectCategory("Assist")}, "More" to {openInspector()})
+ directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);setOnClickListener{action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
+ root.removeView(tabs)
+ root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)})
  selectCategory("Adjust");toolButtons.first().performClick()
 
  setContentView(root)

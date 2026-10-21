@@ -42,7 +42,14 @@ jest.mock('lucide-react-native', () => {
     Plus: View,
     Info: View,
     X: View,
-    Check: View, ChevronRight: View, SlidersHorizontal: View, Crop: View, Type: View, WandSparkles: View, Music2: View, Download: View,
+    Check: View,
+    ChevronRight: View,
+    SlidersHorizontal: View,
+    Crop: View,
+    Type: View,
+    WandSparkles: View,
+    Music2: View,
+    Download: View,
   };
 });
 jest.mock('react-native-safe-area-context', () => ({
@@ -67,10 +74,7 @@ afterEach(async () => {
 });
 
 test('opening a selected photo passes that source, not the first library item', async () => {
-  await act(async () => button('Select Second.jpg').props.onPress());
-  await act(async () =>
-    button('Open selected media in editor').props.onPress(),
-  );
+  await act(async () => button('Edit Second.jpg').props.onPress());
   expect(mockEdit).toHaveBeenCalledWith({
     id: '2',
     mediaUri: 'content://fixture/photo2',
@@ -79,13 +83,11 @@ test('opening a selected photo passes that source, not the first library item', 
 });
 test('video workspace selects a video source and imports only the chosen type', async () => {
   await act(async () => button('Video workspace').props.onPress());
-  expect(button('Select Clip.mp4')).toBeDefined();
-  expect(button('Select First.jpg')).toBeUndefined();
+  expect(button('Edit Clip.mp4')).toBeDefined();
+  expect(button('Edit First.jpg')).toBeUndefined();
   await act(async () => button('Import media').props.onPress());
   expect(mockOpen).toHaveBeenCalledWith('VIDEO');
-  await act(async () =>
-    button('Open selected media in editor').props.onPress(),
-  );
+  await act(async () => button('Edit Clip.mp4').props.onPress());
   expect(mockEdit).toHaveBeenCalledWith({
     id: '3',
     mediaUri: 'content://fixture/video',
@@ -95,9 +97,7 @@ test('video workspace selects a video source and imports only the chosen type', 
 test('switching back to photo never sends the old video to the photo editor', async () => {
   await act(async () => button('Video workspace').props.onPress());
   await act(async () => button('Photo workspace').props.onPress());
-  await act(async () =>
-    button('Open selected media in editor').props.onPress(),
-  );
+  await act(async () => button('Edit First.jpg').props.onPress());
   expect(mockEdit).toHaveBeenCalledWith({
     id: '1',
     mediaUri: 'content://fixture/photo1',
@@ -106,7 +106,7 @@ test('switching back to photo never sends the old video to the photo editor', as
 });
 
 test('tools inspector opens the selected source through the real editor callback', async () => {
-  await act(async () => button('Select Second.jpg').props.onPress());
+  await act(async () => button('Edit Second.jpg').props.onPress());
   await act(async () => button('Open tools inspector').props.onPress());
   await act(async () => button('Open editor from inspector').props.onPress());
   expect(mockEdit).toHaveBeenCalledWith({
@@ -140,6 +140,10 @@ test('Studio launch imports the requested media kind without changing an existin
   expect(mockOpen).toHaveBeenLastCalledWith('VIDEO');
   await act(async () => button('Choose a photo to edit').props.onPress());
   expect(mockOpen).toHaveBeenLastCalledWith('IMAGE');
-  await act(async () => button('Open selected media in editor').props.onPress());
-  expect(mockEdit).toHaveBeenLastCalledWith({id:'1',mediaUri:'content://fixture/photo1',type:'IMAGE'});
+  await act(async () => button('Edit First.jpg').props.onPress());
+  expect(mockEdit).toHaveBeenLastCalledWith({
+    id: '1',
+    mediaUri: 'content://fixture/photo1',
+    type: 'IMAGE',
+  });
 });

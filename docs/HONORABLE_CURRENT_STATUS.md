@@ -1,3 +1,9 @@
+# Latest checkpoint — editor workspace refinement, October 21, 2026
+
+**2 new user-facing workflows:** duration-proportional local video filmstrip/tap seeking, and direct Studio media-to-native-editor opening. **0 new generative AI capabilities.** Four surfaces refined: Studio, Home creation entries, native video transport/tool rail and native photo tool rail. The authorized ChatGPT website critique was based on descriptions; screenshot upload was blocked. Studio preview uses actual RN component trees/styles with sample data, not an Android runtime.
+
+167 Android JVM + 32 RN tests pass; TypeScript passes; lint 0 errors / 36 warnings. Integration tests compile only. Full ARM64 internal APK independently verified against 478 frozen app inputs, package, bundled code/models, approved certificate and ZIP alignment: Honorable-1.0.3-editor-workspace-arm64.apk, SHA-256 eb70f7e1dc93edf3acab1e630ab7c93b9a490de5c95bf9e27852761e6c3b7dff. Build used process-local low-memory settings while leaving the owner's apps open. Public debug signing; signInConfigured remains false. Device/native visual tests, owner acceptance, live account API, private signing/store, iOS and full generative creation remain open. See HONORABLE_EDITOR_WORKSPACE_CHECKPOINT.md for actual scope and next work.
+
 # Latest checkpoint — mobile workspace redesign, October 21, 2026
 
 Redesigned the four main routes (Home, Library, Studio and Account), shared navigation/theme and native photo/video controls/inspector. Studio uses actual source selection instead of a blank editing canvas. Existing engines, routes, Seran and account/credit protections remain. **0 new editing/AI capabilities**; this is UI work. The owner-authorized ChatGPT design consultation completed and public mobile editor references informed the hierarchy.
