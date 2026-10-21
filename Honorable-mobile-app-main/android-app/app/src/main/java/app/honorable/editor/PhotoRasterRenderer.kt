@@ -6,6 +6,7 @@ import kotlin.math.pow
 /** Preview and PNG export share this path, including crop/rotation of the source-aligned matte. */
 object PhotoRasterRenderer {
     fun render(input: Bitmap, edit: PhotoEdit, personMask: Bitmap?): Bitmap {
+        if(edit.needsPersonMask)requireNotNull(personMask) { "Person cutout is unavailable" }
         val mask = if (edit.personCutout) requireNotNull(personMask) { "Person cutout is unavailable" } else null
         val width = (input.width * edit.crop).toInt().coerceAtLeast(1)
         val height = (input.height * edit.crop).toInt().coerceAtLeast(1)
@@ -46,6 +47,7 @@ object PhotoRasterRenderer {
                     output.setPixels(row,0,output.width,0,y,output.width,1)
                 }
             }
+            if(edit.background!=null)PhotoBackgroundRenderer.apply(output,requireNotNull(personMask),edit,input.width,input.height)
             return output
         } catch (error: Throwable) { output.recycle(); throw error }
     }

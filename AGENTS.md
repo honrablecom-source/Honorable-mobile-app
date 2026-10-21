@@ -9,3 +9,4 @@
 - Preserve uncommitted work. Do not reset or merge different project copies blindly.
 - Validation: Node tests in dev-server/test/*.test.js, product/studio/project.test.js, scripts/android-sdk-config.test.cjs and scripts/release-manifest.test.cjs. Run npm ci, typecheck, lint and Jest in mobile-react-native/ when dependencies are available. Android CI builds the full React Native app and checks the standalone Compose compilation.
 - Full build success, artifact presence, real-device behavior and store readiness are separate claims. Record actual evidence; never promote readiness based on previews or an isolated compile.
+- In every completion update, give the number of newly added user-facing features. Count fixes, scaffolding and unfinished work separately; state whether a feature is built, device-tested or still experimental.

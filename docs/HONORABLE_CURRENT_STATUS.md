@@ -1,3 +1,11 @@
+# Latest checkpoint — two AI person-background tools, October 20, 2026
+
+Added **2 user-facing features**: adjustable on-device person-background blur and neutral white/black/gray background replacement. Shared preview/export, crop/rotation-aligned matte, Undo/Redo/Compare and compatible v3 lifecycle state are integrated. These reuse person segmentation; no generative photo/video engine was added. App-wide UI and prior video AI assistance are retained.
+
+90 shared Android JVM and 45 RN-native JVM tests pass (135 total; 0 failures/errors/skips), including nine new shared regression cases. Three new Android bitmap integration cases compile only; no instrumentation execution. Complete ARM64 internal APK built and independently verified for package, bundled JS/models/native background markers, approved certificate and ZIP alignment; 460 frozen build-input hashes match. Artifact: Honorable-1.0.3-person-background-arm64.apk. SHA-256: b61b0a961c0301a44a6bbb57032cb992fa9bbc7981eb7d9709b13c2878202776. Opt-in unshrunk internal mode and public debug key; no store-readiness claim.
+
+Generation feasibility found CPU-only PyTorch and about 3.5 GiB free disk at preflight, insufficient for an isolated GPU runtime/model plus build headroom; no large download or paid service was started. Real-device/model/edge/UI acceptance, hosted account API, private store signing and iOS remain open. Every completion update must give a feature count separately from fixes/scaffolding. See HONORABLE_PERSON_BACKGROUND_CHECKPOINT.md.
+
 # Latest checkpoint — local photo/video creative assistance, October 20, 2026
 
 Owner resumed work on AI editing/creation. Added photo RGB curves/local exposure with source-aligned placement, on-device label/pixel-guided looks, and sampled-label video rough-cut draft creation with cancellation, stale-result protection and atomic undo. The previously paused tone drafts are now integrated and tested; do not reapply their old backup. App-wide UI retained. Full generative creation remains unfinished.

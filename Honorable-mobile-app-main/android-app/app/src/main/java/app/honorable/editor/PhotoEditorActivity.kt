@@ -125,6 +125,7 @@ class PhotoEditorActivity:Activity(){
  button(row(assist),"AI scene enhance"){enhanceScene()}
  button(row(assist),"AI photo looks"){chooseLook()}
  button(row(assist),"Cut out person (beta)"){cutOutPerson()}
+ button(row(assist),"AI person background"){chooseBackground()}
  button(row(assist),"Read text"){readText()}
  val tabs=row();val tabButtons=mutableListOf<Button>()
  fun selectCategory(name:String){
@@ -153,7 +154,7 @@ class PhotoEditorActivity:Activity(){
   listOf((edit.brightness/1.28f+100).toInt(),(edit.contrast*100).toInt(),(edit.saturation*100).toInt(),(edit.exposure*100+200).toInt()).forEachIndexed{i,v->sliders.getOrNull(i)?.progress=v}
   val input=bitmap?:return
   val state=if(before)PhotoEdit()else edit
-  if(state.personCutout&&personMask==null){note.text="Restoring person cutout on this device…";cutOutPerson(true);return}
+  if(state.needsPersonMask&&personMask==null){note.text="Restoring person cutout on this device…";cutOutPerson(true);return}
   image.background=if(state.personCutout)TransparencyGridDrawable(12.dp())else null
   val request=++revision
   val started=System.currentTimeMillis()
@@ -166,7 +167,7 @@ class PhotoEditorActivity:Activity(){
       val old=rendered;rendered=result
       SafeBetaTelemetry.duration(this,"EDITOR_RESPONSE",started)
       image.setImageBitmap(result);renderedEdit=state;old?.recycle()
-      if(!readingText&&!cuttingOut&&exportEdit==null)note.text=if(before)"Original preview" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
+      if(!readingText&&!cuttingOut&&exportEdit==null)note.text=if(before)"Original preview" else if(state.background!=null)"Person background · check hair and edges before saving a copy" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
      }else result.recycle()
     }
    }catch(e:OutOfMemoryError){
@@ -174,10 +175,36 @@ class PhotoEditorActivity:Activity(){
    }
   }
  }
- private fun cutOutPerson(recover:Boolean=false) {
+ private fun chooseBackground(){
+  if(bitmap==null||exportEdit!=null||cuttingOut||enhancing||readingText)return
+  val base=edit;val request=revision
+  fun commit(background:PhotoBackground?){
+   if(edit!=base||request!=revision||exportEdit!=null){note.text="Photo changed. Open person background again.";return}
+   if(background==null){tool("person_background");change(edit.copy(personCutout=false,background=null))}else cutOutPerson(background=background)
+  }
+  val names=arrayOf("Blur background","White background","Black background","Gray background","Restore original background")
+  android.app.AlertDialog.Builder(this).setTitle("AI person background · beta").setItems(names){_,which->
+   when(which){
+    0->{var strength=edit.background?.strength?:45
+     val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(20.dp(),12.dp(),20.dp(),12.dp())}
+     val label=TextView(this).apply{text="Blur strength: $strength%";setTextColor(Color.BLACK)};panel.addView(label)
+     panel.addView(TextView(this).apply{text="People only · processed on this device. Check hair and edges before exporting.";setTextColor(Color.DKGRAY)})
+     panel.addView(SeekBar(this).apply{max=99;progress=strength-1;contentDescription="Background blur strength";progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK)
+      setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onStopTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){strength=v+1;label.text="Blur strength: $strength%"}})},LinearLayout.LayoutParams(-1,48.dp()))
+     android.app.AlertDialog.Builder(this).setTitle("Blur person background").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->commit(PhotoBackground(strength=strength))}.show()
+    }
+    1->commit(PhotoBackground(PhotoBackgroundMode.SOLID,color=Color.WHITE))
+    2->commit(PhotoBackground(PhotoBackgroundMode.SOLID,color=Color.BLACK))
+    3->commit(PhotoBackground(PhotoBackgroundMode.SOLID,color=0xFF808080.toInt()))
+    else->commit(null)
+   }
+  }.setNegativeButton("Cancel",null).show()
+ }
+ private fun cutOutPerson(recover:Boolean=false,background:PhotoBackground?=null) {
   val input=bitmap?:return
   if(cuttingOut||readingText||enhancing||(!recover&&exportEdit!=null)||isFinishing)return
-  if(personMask!=null){if(recover){preview();resumePendingExport()}else{tool("person_cutout");change(edit.copy(personCutout=true))};return}
+  fun applyPersonEdit(){tool(if(background==null)"person_cutout" else "person_background");change(edit.copy(personCutout=background==null,background=background))}
+  if(personMask!=null){if(recover){preview();resumePendingExport()}else applyPersonEdit();return}
   cuttingOut=true
   val request=++revision
   note.text="Separating the person on this device…"
@@ -196,8 +223,8 @@ class PhotoEditorActivity:Activity(){
        if(mask==null){if(recover){exportEdit=null;pendingDestination=null};note.text=if(result.exceptionOrNull() is PersonMaskAlpha.NoClearPerson)"No clear person boundary found. Try a photo with a person." else "Person cutout unavailable. Try again.";return@start}
        personMask=mask
        if(recover){preview();resumePendingExport()}
-       else if(request==revision){tool("person_cutout");change(edit.copy(personCutout=true))}
-       else note.text="Cutout ready. Tap Cut out person to apply it to your current edit."
+       else if(request==revision)applyPersonEdit()
+       else note.text="Person mask ready. Open the person tools to apply it to your current edit."
       }
      }.onFailure{owned.recycle();cuttingOut=false;if(recover){exportEdit=null;pendingDestination=null};note.text="Person cutout unavailable. Try again."}
     }
@@ -278,7 +305,7 @@ class PhotoEditorActivity:Activity(){
   if(bitmap==null||exportInProgress||isDestroyed)return
   if(loadedScope!=null&&currentScope()!=loadedScope){pendingDestination=null;exportEdit=null;note.text="Account changed. Reopen this photo before saving.";return}
   val state=exportEdit?:run{pendingDestination=null;return}
-  if(state.personCutout&&personMask==null){cutOutPerson(true);return}
+  if(state.needsPersonMask&&personMask==null){cutOutPerson(true);return}
   pendingDestination=null;exportInProgress=true
   note.text="Exporting copy…"
   worker.execute {

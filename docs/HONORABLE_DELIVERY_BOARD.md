@@ -1,6 +1,6 @@
 # Honorable delivery board
 
-October 20, 2026. Owner resumed development and prioritized photo/video AI editing and creation. Current native creative-assist batch is implemented, locally tested and built: RGB curves/local light, classifier-guided photo looks and sampled-label rough-cut video creation. App UI retained; visual/device acceptance is still open. RTK is used for compact output. Next: a real local generative worker and secure jobs; no paid hosting or personal-media upload was enabled. See HONORABLE_CREATIVE_ASSIST_CHECKPOINT.md.
+October 20, 2026. Latest batch adds **2 features**: AI person-background blur and neutral background replacement. 135 JVM tests pass, bitmap instrumentation compiles, complete ARM64 internal APK built and independently verified. Device/quality/UI acceptance remains open. Prior curves/local light/looks/video rough cuts and app-wide UI are retained. RTK filters local logs. Actual generation remains incomplete: GPU exists, installed PyTorch is CPU-only and disk headroom is insufficient for the isolated engine/model. No billing, hosting or personal-media upload was enabled. See HONORABLE_PERSON_BACKGROUND_CHECKPOINT.md.
 
 ## Current functional batch
 
@@ -29,7 +29,7 @@ Clip titles, edge fades through black, project soundtrack gain/removal, shared p
 | Owner requirement | Existing foundation | Not complete / next |
 | --- | --- | --- |
 | Find described photos/videos through Seran | Native/shared search, index, OCR/semantic signals, results and video moment handoff | Measured current retrieval quality, especially V2; real device flow. V3 remains locked |
-| Simple and professional photo editing | Basic color/crop/rotate/undo/compare; OCR; scene adjustments; person cutout beta | Lifecycle recovery implemented; physical validation pending. Persistent photo projects, mask refinement, layers/RAW/curves, advanced pixel engines |
+| Simple and professional photo editing | Basic color/crop/rotate/undo/compare; OCR; scene adjustments; person cutout beta | Lifecycle recovery implemented; physical validation pending. Persistent photo projects, mask refinement, layers/RAW, advanced pixel engines |
 | Real video editing | Media3 multi-source clip project, trim/split/delete/reorder/speed/volume, composition/export and encrypted drafts | Multi-source import/preview/export/drafts implemented with JVM/build evidence; physical validation pending. Basic titles, visual fades and one project soundtrack are implemented with JVM/build evidence. General tracks, overlapping transitions, grading/keyframes/compositing remain incomplete |
 | Generate photos | Full scope recorded: prompts, references, sketches, transformations | No generation engine integrated; first needs accepted privacy and operating-cost model |
 | Generate videos | Scope recorded: text/photos/video/storyboards/characters/first-last frames/camera/extension | No generation engine integrated; actual adapter/job/cancel/output validation required |

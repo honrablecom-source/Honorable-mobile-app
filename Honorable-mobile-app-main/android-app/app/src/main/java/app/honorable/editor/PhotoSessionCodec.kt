@@ -30,7 +30,7 @@ object PhotoSessionCodec {
         val bytes=ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
             val all=listOf(s.edit)+s.undo+s.redo+listOfNotNull(s.pendingExport)
-            val version=if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
+            val version=if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
             out.writeInt(MAGIC);out.writeInt(version);out.writeUTF(s.scope);writeEdit(out,s.edit,version)
             for(history in listOf(s.undo,s.redo)){out.writeInt(history.size);history.forEach{writeEdit(out,it,version)}}
             out.writeBoolean(s.compareOriginal);out.writeInt(s.activeTool)
@@ -41,7 +41,7 @@ object PhotoSessionCodec {
     fun decode(bytes:ByteArray,expectedScope:String):PhotoSessionSnapshot {
         require(bytes.size in 1..MAX_BYTES)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..2)
+            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..3)
             val scope=input.readUTF();require(scope==expectedScope && scope.matches(Regex("[0-9a-f]{64}")))
             val edit=readEdit(input,version)
             fun history():List<PhotoEdit>{val count=input.readInt();require(count in 0..50);return List(count){readEdit(input,version)}}
@@ -54,17 +54,22 @@ object PhotoSessionCodec {
     private fun writeEdit(out:DataOutputStream,e:PhotoEdit,version:Int){
         out.writeInt(e.rotation);out.writeFloat(e.crop);out.writeFloat(e.brightness);out.writeFloat(e.contrast)
         out.writeFloat(e.saturation);out.writeFloat(e.exposure);out.writeBoolean(e.personCutout)
-        if(version==2) {
+        if(version>=2) {
             out.writeFloat(e.curve.shadows);out.writeFloat(e.curve.midtones);out.writeFloat(e.curve.highlights)
             out.writeBoolean(e.radialLight!=null)
             e.radialLight?.let { out.writeFloat(it.centerX);out.writeFloat(it.centerY);out.writeFloat(it.radius);out.writeFloat(it.feather);out.writeFloat(it.exposure) }
         }
+        if(version>=3){out.writeBoolean(e.background!=null);e.background?.let{out.writeInt(it.mode.ordinal);out.writeInt(it.strength);out.writeInt(it.color)}}
     }
     private fun readEdit(input:DataInputStream,version:Int):PhotoEdit {
         val base=PhotoEdit(input.readInt(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean())
         if(version==1)return base
         val curve=PhotoToneCurve(input.readFloat(),input.readFloat(),input.readFloat())
         val radial=if(input.readBoolean())PhotoRadialLight(input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat())else null
-        return base.copy(curve=curve,radialLight=radial)
+        val background=if(version>=3 && input.readBoolean()){
+            val mode=input.readInt();require(mode in PhotoBackgroundMode.values().indices)
+            PhotoBackground(PhotoBackgroundMode.values()[mode],input.readInt(),input.readInt())
+        }else null
+        return base.copy(curve=curve,radialLight=radial,background=background)
     }
 }

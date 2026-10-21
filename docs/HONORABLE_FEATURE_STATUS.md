@@ -12,6 +12,7 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Photo text recognition | Bundled on-device OCR, review and explicit copy | Real recognition/error/offline acceptance |
 | Scene-aware photo enhancement / looks | On-device labels plus sampled luminance, RGB curves, bounded exposure/color; Auto/Cinematic/Portrait/Vivid/Mono; stale results rejected | Physical model/quality/performance acceptance |
 | Person cutout | Local person segmentation, source-aligned soft matte, transparent PNG path and undo/compare; combined ARM64 build verified; no device inference proof | Real person/no-person/edge quality, transforms and saved-alpha validation on a phone |
+| AI person-background blur / replacement | Adjustable bounded local blur excludes person color; white/black/gray replacement; common render/export, crop/rotation matte, undo/compare/recovery v3; JVM/build/package checks pass | Beta people-only model; phone inference, hair/edges, alpha/output, memory and lifecycle acceptance pending; no generated backgrounds |
 | Photo export safety | New URI/inode refusal before truncation, private PNG encoding and saved-copy hash/dimension checks | Real providers, aliases, cancellation/failure and original-byte integrity |
 | Generic subject selection/masks | Not implemented beyond person cutout | Object-aware selection, refinement and reliable output |
 | Generative fill / expansion | Planned | Actual generation engine, accepted hardware/privacy/cost model and output validation |
