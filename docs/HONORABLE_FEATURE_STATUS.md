@@ -5,9 +5,11 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Capability | Current implementation | Remaining acceptance/work |
 | --- | --- | --- |
 | App-wide mobile UI | Shared workspace chrome across routed RN screens and native photo/video/playback; white/light dialog theme and native insets; local checks and internal APK pass | Owner visual approval, native screenshots and device/touch/large-text validation; iOS build proof remains open |
+| Editor/Studio inspector panels | Native actionable photo/video inspectors plus Studio Tools/Source bottom sheet and selected-source editor routing; shared app chrome refinement | 31 RN tests/typecheck/lint and internal APK pass; no native screenshot/phone/owner visual acceptance |
 | Home/library/search/results/viewer | Existing RN presentation and native Seran integration | Physical permissions, usability/accessibility, grounded retrieval and performance |
 | Workspace selection | Typed local Photo/Video pickers and existing editors | Physical cancel/denial/provider behavior |
 | Basic photo editing | Crop/rotate, brightness/contrast/saturation/exposure, monochrome, undo/redo/reset/compare | Phone pixels/export/orientation, lifecycle and memory checks |
+| Photo framing/finishing/text/JPEG | 8 new tools: ratio crop, mirrors, white balance, shadows/highlights, vignette, sharpen, text overlay and JPEG quality; shared renderer, v4 bounded recovery and protected export | JVM/RN/build/package checks pass; device raster/alpha/text/quality/provider/memory and UI acceptance pending |
 | Photo lifecycle recovery | Bounded scalar edits, undo/redo, compare/tool and pending-picker settings; account/API/source isolation; masks recomputed locally | JVM coverage and combined internal APK pass; physical rotation/process/picker validation pending; not persistent photo projects |
 | Photo text recognition | Bundled on-device OCR, review and explicit copy | Real recognition/error/offline acceptance |
 | Scene-aware photo enhancement / looks | On-device labels plus sampled luminance, RGB curves, bounded exposure/color; Auto/Cinematic/Portrait/Vivid/Mono; stale results rejected | Physical model/quality/performance acceptance |
@@ -22,6 +24,7 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Rig/pose manipulation | Incomplete foundation/aspiration | Genuine segmentation/keypoints/deformation; no fake skeleton-only claim |
 | Layers / smart layers / compositing | Web project foundation; native advanced engine unfinished | Canonical persisted state, masks/blending and matching renders |
 | Video Editor V1 | Multi-source trim/split/delete/reorder, speed/volume, titles/fade edges, composition preview and copy export | Actual phone rendering, order/speed/audio/orientation and original integrity |
+| Video format/finishing | 7 new workflows: canvas fit/crop, rotation, mirrors, white balance, title style, mixed-output audio fades and atomic apply-color-to-all; compact v5 drafts | JVM/build checks pass, integration compiles only; physical codec/pixels/audio/output/UX acceptance pending |
 | Video color controls | Per-clip exposure/contrast/saturation, rendered preview/export, undo/history, adaptive v4 drafts and recovery | JVM/build/package checks pass; actual SDR/HDR pixel/codec/output and device controls pending |
 | AI-assisted video looks | Up to three local label/pixel samples; Auto/Cinematic/Portrait/Vivid/Mono proposals; review/cancel/stale guard and atomic color edit | Device quality/model/timing acceptance pending; applies one fixed grade to the entire clip; no generated frames |
 | Video drafts | Encrypted account/API/root-source-scoped save/restore; v1/v2 readable and v3 persists titles/fades/soundtrack; restore undoable | Keystore/files/lifecycle/account switching on a phone; no old-session undo-history persistence |

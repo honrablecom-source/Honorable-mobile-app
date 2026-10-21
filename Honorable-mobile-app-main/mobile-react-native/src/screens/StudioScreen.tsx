@@ -31,6 +31,7 @@ export function StudioScreen() {
   const [mode, setMode] = useState<WorkspaceKind>('IMAGE');
   const [selectedId, setSelectedId] = useState<number>();
   const [details, setDetails] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<'tools' | 'source'>('tools');
   const [opening, setOpening] = useState(false);
   const pending = useRef(false);
   const showDetails = details;
@@ -58,46 +59,121 @@ export function StudioScreen() {
       setOpening(false);
     }
   };
+  const toolGroups =
+    mode === 'IMAGE'
+      ? [
+          ['Framing', 'Aspect ratios · rotate · mirror'],
+          [
+            'Light & color',
+            'Exposure · curves · white balance · shadows / highlights',
+          ],
+          ['Finish', 'Vignette · sharpen · text overlay'],
+          [
+            'On-device AI',
+            'Scene looks · person background · cutout · read text',
+          ],
+          ['Output', 'PNG transparency · JPEG quality'],
+        ]
+      : [
+          ['Timeline', 'Trim · split · reorder · speed'],
+          [
+            'Picture',
+            'Color · white balance · rotate · mirror · copy color to all',
+          ],
+          ['Titles & sound', 'Title style · soundtrack · project audio fades'],
+          ['On-device AI', 'Video looks · scene suggestion · rough cut'],
+          ['Output', 'Square · vertical · wide · portrait · fit / crop'],
+        ];
   const inspector = (
     <View style={st.inspector}>
       <View style={st.sectionHeading}>
-        <Text style={st.detailsTitle}>
-          About this {mode === 'IMAGE' ? 'photo' : 'video'}
-        </Text>
+        <View style={st.inspectorCopy}>
+          <Text style={st.sectionLabel}>WORKSPACE INSPECTOR</Text>
+          <Text style={st.detailsTitle}>
+            {mode === 'IMAGE' ? 'Photo' : 'Video'}
+          </Text>
+        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close source details"
           onPress={() => setDetails(false)}
           style={st.detailsButton}
         >
-          <X size={20} color={colors.textSecondary} />
+          <X size={20} color={colors.textPrimary} />
         </Pressable>
       </View>
-      <Text style={st.sourceName} numberOfLines={2}>
-        {selected?.displayName ?? 'No media selected'}
-      </Text>
-      <View style={st.property}>
-        <Text style={st.muted}>Type</Text>
-        <Text style={st.value}>{mode === 'IMAGE' ? 'Photo' : 'Video'}</Text>
+      <View style={st.inspectorTabs}>
+        {(['tools', 'source'] as const).map(tab => (
+          <Pressable
+            key={tab}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: inspectorTab === tab }}
+            accessibilityLabel={`${tab} inspector tab`}
+            onPress={() => setInspectorTab(tab)}
+            style={[
+              st.inspectorTab,
+              inspectorTab === tab && st.inspectorTabActive,
+            ]}
+          >
+            <Text style={st.value}>{tab === 'tools' ? 'Tools' : 'Source'}</Text>
+          </Pressable>
+        ))}
       </View>
-      <View style={st.property}>
-        <Text style={st.muted}>Workflow</Text>
-        <Text style={st.value}>Save a copy</Text>
-      </View>
-      <View style={st.divider} />
-      <Text style={st.sectionLabel}>IN THE EDITOR</Text>
-      <Text style={st.help}>
-        {mode === 'IMAGE'
-          ? 'Crop, rotate, adjust and compare. Your original stays intact.'
-          : 'Trim, split, reorder, set speed and adjust sound. Export a new copy.'}
-      </Text>
+      <ScrollView
+        style={st.inspectorScroll}
+        contentContainerStyle={st.inspectorBody}
+      >
+        {inspectorTab === 'tools' ? (
+          toolGroups.map(([title, description]) => (
+            <View key={title} style={st.toolGroup}>
+              <Text style={st.toolGroupTitle}>{title}</Text>
+              <Text style={st.help}>{description}</Text>
+            </View>
+          ))
+        ) : (
+          <>
+            <Text style={st.sourceName}>
+              {selected?.displayName ?? 'No media selected'}
+            </Text>
+            <View style={st.property}>
+              <Text style={st.muted}>Type</Text>
+              <Text style={st.value}>
+                {mode === 'IMAGE' ? 'Photo' : 'Video'}
+              </Text>
+            </View>
+            <View style={st.property}>
+              <Text style={st.muted}>Saving</Text>
+              <Text style={st.value}>New copy</Text>
+            </View>
+            <Text style={st.help}>
+              Your original remains unchanged. Tools open in the full editor for
+              this source.
+            </Text>
+          </>
+        )}
+      </ScrollView>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open editor from inspector"
+        disabled={!selected || busy}
+        onPress={() => {
+          setDetails(false);
+          editSelected();
+        }}
+        style={[st.primary, (!selected || busy) && st.disabled]}
+      >
+        <Text style={st.primaryLabel}>
+          Open {mode === 'IMAGE' ? 'photo' : 'video'} editor
+        </Text>
+        <ArrowUpRight size={18} color={colors.canvas} />
+      </Pressable>
     </View>
   );
   return (
     <SafeAreaView edges={['top']} style={st.safe}>
       <WorkspaceHeader
         title="Studio"
-        section="honorable / create"
+        section="honorable / studio"
         action={
           <Pressable
             accessibilityRole="button"
@@ -216,13 +292,45 @@ export function StudioScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Toggle source details"
                 accessibilityState={{ expanded: showDetails }}
-                onPress={() => setDetails(!showDetails)}
+                onPress={() => {
+                  setInspectorTab('source');
+                  setDetails(!showDetails);
+                }}
                 style={st.detailsButton}
               >
                 <Info size={19} color={colors.textSecondary} />
               </Pressable>
             </View>
           </View>
+        </View>
+        <View style={st.workspaceRail}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open tools inspector"
+            onPress={() => {
+              setInspectorTab('tools');
+              setDetails(true);
+            }}
+            style={st.railAction}
+          >
+            <Text style={st.value}>Tools</Text>
+            <Info size={16} color={colors.textPrimary} />
+          </Pressable>
+          <View style={st.railDivider} />
+          <Text style={st.railHint}>
+            {mode === 'IMAGE' ? 'Photo workspace' : 'Video workspace'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open source inspector"
+            onPress={() => {
+              setInspectorTab('source');
+              setDetails(true);
+            }}
+            style={st.railAction}
+          >
+            <Text style={st.value}>Source</Text>
+          </Pressable>
         </View>
         <View style={st.assetHeader}>
           <View style={st.sectionHeading}>
@@ -322,6 +430,55 @@ export function StudioScreen() {
   );
 }
 const st = StyleSheet.create({
+  inspectorCopy: { flex: 1, gap: 4 },
+  inspectorTabs: {
+    flexDirection: 'row',
+    gap: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceSelected,
+  },
+  inspectorTab: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  inspectorTabActive: { borderBottomColor: colors.textPrimary },
+  inspectorScroll: { flexShrink: 1 },
+  inspectorBody: { paddingVertical: 8, gap: 4 },
+  toolGroup: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceSelected,
+    gap: 4,
+  },
+  toolGroupTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  workspaceRail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceSelected,
+    marginBottom: 4,
+  },
+  railAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    minHeight: 52,
+    paddingHorizontal: 4,
+  },
+  railDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: colors.surfaceSelected,
+  },
+  railHint: { flex: 1, fontSize: 11, color: colors.textTertiary },
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
     padding: 16,
@@ -362,9 +519,9 @@ const st = StyleSheet.create({
     padding: 4,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 6,
     backgroundColor: colors.surfaceRaised,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   modes: { flexDirection: 'row', gap: 4, flex: 1 },
   mode: {
@@ -375,7 +532,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     minHeight: 48,
-    borderRadius: 10,
+    borderRadius: 6,
   },
   activeMode: {
     backgroundColor: colors.canvas,
@@ -391,7 +548,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
   },
   workspace: {
-    borderRadius: 10,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -415,8 +572,8 @@ const st = StyleSheet.create({
   },
   fitLabel: { fontSize: 10, color: colors.textTertiary },
   stage: {
-    minHeight: 200,
-    aspectRatio: 1.2,
+    minHeight: 240,
+    aspectRatio: 1,
     backgroundColor: colors.surfaceRaised,
     justifyContent: 'center',
     alignItems: 'center',
@@ -458,14 +615,15 @@ const st = StyleSheet.create({
   },
   filename: { fontSize: 11, color: colors.textSecondary, flex: 1 },
   inspector: {
-    padding: 24,
-    paddingBottom: 40,
-    gap: 18,
+    maxHeight: '85%',
+    padding: 20,
+    paddingBottom: 24,
+    gap: 12,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   sectionHeading: {
     flexDirection: 'row',
@@ -486,7 +644,7 @@ const st = StyleSheet.create({
     backgroundColor: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 6,
     minHeight: 54,
     paddingHorizontal: 18,
   },
@@ -537,8 +695,7 @@ const st = StyleSheet.create({
   detailsTitle: {
     fontSize: 18,
     color: colors.textPrimary,
-    fontWeight: '500',
-    flex: 1,
+    fontWeight: '600',
   },
   sheetOverlay: {
     flex: 1,

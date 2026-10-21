@@ -54,13 +54,13 @@ internal data class VideoDraft(
 
 internal object VideoDraftCodec {
     private const val MAGIC = 0x484e5644 // HNVD
-    private const val VERSION = 4
+    private const val VERSION = 5
     private const val MAX_BYTES = 256_000
 
     fun encode(draft: VideoDraft): ByteArray = ByteArrayOutputStream().use { bytes ->
         DataOutputStream(bytes).use { output ->
             output.writeInt(MAGIC)
-            val version = if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
+            val version = if(draft.segments.any{!it.layout.isIdentity||!it.titleStyle.isIdentity||it.audioFade||it.grade.warmth!=0f||it.grade.tint!=0f})5 else if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
             output.writeInt(version)
             output.writeLong(draft.sourceDurationMs)
             output.writeInt(draft.selectedClip)
@@ -74,6 +74,11 @@ internal object VideoDraftCodec {
                 if(version >= 2) output.writeInt((listOf("primary") + draft.sources.map { it.id }).indexOf(clip.sourceId))
                 if(version >= 3) { writeText(output,clip.title,360); output.writeBoolean(clip.fadeEdges) }
                 if(version >= 4) { output.writeFloat(clip.grade.exposure);output.writeFloat(clip.grade.contrast);output.writeFloat(clip.grade.saturation) }
+                if(version>=5){
+                    output.writeFloat(clip.grade.warmth);output.writeFloat(clip.grade.tint)
+                    output.writeByte(clip.layout.ratio);output.writeBoolean(clip.layout.crop);output.writeByte(clip.layout.rotation/90);output.writeBoolean(clip.layout.mirrorX);output.writeBoolean(clip.layout.mirrorY)
+                    output.writeByte(clip.titleStyle.position);output.writeFloat(clip.titleStyle.size);output.writeBoolean(clip.titleStyle.light);output.writeBoolean(clip.titleStyle.plate);output.writeBoolean(clip.audioFade)
+                }
             }
             if(version >= 2) {
                 output.writeInt(draft.sources.size)
@@ -105,7 +110,8 @@ internal object VideoDraftCodec {
                 val clip = VideoSegment(input.readLong(), input.readLong(), input.readFloat(), input.readFloat())
                 indices.add(if(version >= 2) input.readInt() else 0)
                 val titled=if(version >= 3) clip.copy(title = readText(input,360), fadeEdges = input.readBoolean()) else clip
-                if(version >= 4)titled.copy(grade=VideoGrade(input.readFloat(),input.readFloat(),input.readFloat())) else titled
+                val graded=if(version >= 4)titled.copy(grade=VideoGrade(input.readFloat(),input.readFloat(),input.readFloat())) else titled
+                if(version>=5)graded.copy(grade=graded.grade.copy(warmth=input.readFloat(),tint=input.readFloat()),layout=VideoLayout(input.readUnsignedByte(),input.readBoolean(),input.readUnsignedByte()*90,input.readBoolean(),input.readBoolean()),titleStyle=VideoTitleStyle(input.readUnsignedByte(),input.readFloat(),input.readBoolean(),input.readBoolean()),audioFade=input.readBoolean())else graded
             }
             val sources = if(version >= 2) {
                 val size = input.readInt(); require(size in (if(version >= 3) 0 else 1)..31)

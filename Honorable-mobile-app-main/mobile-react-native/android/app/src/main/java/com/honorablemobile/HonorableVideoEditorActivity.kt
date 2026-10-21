@@ -135,7 +135,12 @@ class HonorableVideoEditorActivity : Activity() {
         end = SeekBar(this)
         controls.addView(label("Start")); controls.addView(start)
         controls.addView(label("End")); controls.addView(end)
+        controls.addView(Button(this).apply{text="Open inspector";setOnClickListener{openInspector()}})
         controls.addView(Button(this).apply{text="Color controls";setOnClickListener{editColor()}})
+        controls.addView(Button(this).apply{text="White balance";setOnClickListener{editColor(true)}})
+        controls.addView(Button(this).apply{text="Rotate / mirror";setOnClickListener{transformVideo()}})
+        projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
+        projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
         assistTools.addView(Button(this).apply { text = "AI rough cut"; setOnClickListener { roughCutOptions() } })
         assistTools.addView(Button(this).apply { text = "AI video looks"; setOnClickListener { videoLookOptions() } })
@@ -224,6 +229,7 @@ class HonorableVideoEditorActivity : Activity() {
             showClip()
         }
         audioTools.addView(audioActions)
+        audioTools.addView(Button(this).apply{text="Project audio fade";setOnClickListener{toggleAudioFade()}})
         val creative = LinearLayout(this)
         creative.addView(Button(this).apply { text = "Title"; setOnClickListener { editTitle() } },LinearLayout.LayoutParams(0,-2,1f))
         creative.addView(Button(this).apply { text = "Video fade"; setOnClickListener {
@@ -234,6 +240,7 @@ class HonorableVideoEditorActivity : Activity() {
             status.text = if(clip.fadeEdges) "Video fade removed." else "Fade through black added. Preview the project to check it."
         } },LinearLayout.LayoutParams(0,-2,1f))
         creativeTools.addView(creative)
+        creativeTools.addView(Button(this).apply{text="Title style";setOnClickListener{titleStyle()}})
         val music = LinearLayout(this)
         fun musicButton(title: String, action: () -> Unit) {
             music.addView(Button(this).apply { text = title; setOnClickListener {
@@ -508,10 +515,45 @@ class HonorableVideoEditorActivity : Activity() {
         }.start()
     }
 
-    private fun editColor() {
+    private fun toggleAudioFade(){if(editorIdle()){val current=project?:return;current.setProjectAudioFade(!current.segments.first().audioFade);showClip();status.text="Project audio fade ${if(current.segments.first().audioFade)"on" else "off"}. Preview project to check the mix."}}
+    private fun openInspector(){
+        if(!editorIdle())return;val current=project?:return
+        fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
+        app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
+            "Picture" to listOf(t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Project audio fade"){toggleAudioFade()}),
+            "Project" to listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}),
+            "On-device AI" to listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})
+        ))
+    }
+    private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
+    private fun outputFormat(){
+        if(!editorIdle())return;val current=project?:return;val snapshot=current.segments
+        VideoInspectorControls.format(this,snapshot.first().layout){ratio,crop->if(editorIdle()&&project===current&&current.segments==snapshot){current.setFormat(ratio,crop);showClip();previewProject()}}
+    }
+    private fun transformVideo(){
+        if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
+        android.app.AlertDialog.Builder(this).setTitle("Video transform").setItems(arrayOf("Rotate 90° clockwise","Flip horizontally","Flip vertically","Reset transform")){_,i->
+            if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){
+                val l=clip.layout;current.setLayout(index,when(i){0->l.copy(rotation=(l.rotation+90)%360);1->l.copy(mirrorX=!l.mirrorX);2->l.copy(mirrorY=!l.mirrorY);else->l.copy(rotation=0,mirrorX=false,mirrorY=false)})
+                showClip();previewComposition(listOf(current.segments[index]),index)
+            }
+        }.setNegativeButton("Cancel",null).show()
+    }
+    private fun titleStyle(){
+        if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
+        VideoInspectorControls.title(this,clip.titleStyle){style->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setTitleStyle(index,style);showClip();previewComposition(listOf(current.segments[index]),index)}}
+    }
+    private fun copyGradeToAll(){
+        if(!editorIdle())return;val current=project?:return;val snapshot=current.segments;val index=selectedClip
+        android.app.AlertDialog.Builder(this).setTitle("Apply color to all clips?").setMessage("Copies this clip's exposure, contrast, saturation and white balance to ${snapshot.size} clips as one undoable edit.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->if(editorIdle()&&project===current&&current.segments==snapshot&&selectedClip==index){current.applyGradeToAll(index);showClip();previewProject()}}.show()
+    }
+
+    private fun editColor(balanceOnly:Boolean=false) {
         if(saving||analyzing||draftBusy||importing||pendingRange!=null)return
         val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
-        VideoGradeControls.show(this,clip.grade){grade->
+        VideoGradeControls.show(this,clip.grade,balanceOnly){grade->
             if(project!==current||selectedClip!=index||current.segments.getOrNull(index)!=clip||saving||analyzing||draftBusy||importing||pendingRange!=null){status.text="Clip changed. Open color controls again.";return@show}
             current.setGrade(index,grade);showClip();previewComposition(listOf(current.segments[index]),index)
         }

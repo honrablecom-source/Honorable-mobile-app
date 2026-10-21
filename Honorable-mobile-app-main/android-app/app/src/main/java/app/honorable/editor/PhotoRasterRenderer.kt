@@ -8,14 +8,15 @@ object PhotoRasterRenderer {
     fun render(input: Bitmap, edit: PhotoEdit, personMask: Bitmap?): Bitmap {
         if(edit.needsPersonMask)requireNotNull(personMask) { "Person cutout is unavailable" }
         val mask = if (edit.personCutout) requireNotNull(personMask) { "Person cutout is unavailable" } else null
-        val width = (input.width * edit.crop).toInt().coerceAtLeast(1)
-        val height = (input.height * edit.crop).toInt().coerceAtLeast(1)
+        val geometry=PhotoToneGeometry(input.width,input.height,edit)
+        val width=geometry.cropWidth;val height=geometry.cropHeight
         val rotated = edit.rotation % 180 != 0
         val output = Bitmap.createBitmap(if (rotated) height else width, if (rotated) width else height, Bitmap.Config.ARGB_8888)
         try {
             val canvas = Canvas(output)
             canvas.translate(output.width / 2f, output.height / 2f)
             canvas.rotate(edit.rotation.toFloat())
+            canvas.scale(if(edit.finish.mirrorX)-1f else 1f,if(edit.finish.mirrorY)-1f else 1f)
             val gain = 2f.pow(edit.exposure) * edit.contrast
             val offset = edit.brightness + 128 * (1 - edit.contrast)
             val color = ColorMatrix().apply {
@@ -47,7 +48,9 @@ object PhotoRasterRenderer {
                     output.setPixels(row,0,output.width,0,y,output.width,1)
                 }
             }
+            PhotoFinishRenderer.pixels(output,edit.finish)
             if(edit.background!=null)PhotoBackgroundRenderer.apply(output,requireNotNull(personMask),edit,input.width,input.height)
+            PhotoFinishRenderer.caption(output,edit.finish.caption)
             return output
         } catch (error: Throwable) { output.recycle(); throw error }
     }

@@ -9,17 +9,7 @@ object PhotoBackgroundRenderer {
         val geometry=PhotoToneGeometry(inputWidth,inputHeight,edit)
         val maskPixels=IntArray(mask.width*mask.height)
         mask.getPixels(maskPixels,0,mask.width,0,0,mask.width,mask.height)
-        val left=(inputWidth-geometry.cropWidth)/2;val top=(inputHeight-geometry.cropHeight)/2
-        fun alpha(x:Float,y:Float):Int {
-            val sx:Float;val sy:Float
-            when(edit.rotation) {
-                0 -> {sx=left+x;sy=top+y}
-                90 -> {sx=left+y;sy=top+geometry.cropHeight-x}
-                180 -> {sx=left+geometry.cropWidth-x;sy=top+geometry.cropHeight-y}
-                else -> {sx=left+geometry.cropWidth-y;sy=top+x}
-            }
-            return PhotoBackgroundMath.sample(maskPixels,mask.width,mask.height,sx/inputWidth*mask.width,sy/inputHeight*mask.height) ushr 24
-        }
+        fun alpha(x:Float,y:Float):Int = PhotoBackgroundMath.sample(maskPixels,mask.width,mask.height,geometry.sourceX(x,y)/inputWidth*mask.width,geometry.sourceY(x,y)/inputHeight*mask.height) ushr 24
         var blur:IntArray?=null;var proxyWidth=1;var proxyHeight=1
         if(settings.mode==PhotoBackgroundMode.BLUR) {
             val scale=minOf(1f,384f/maxOf(output.width,output.height))

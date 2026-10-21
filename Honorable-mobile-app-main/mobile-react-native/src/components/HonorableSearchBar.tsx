@@ -78,8 +78,8 @@ export function HonorableSearchBar({
 const styles = StyleSheet.create({
   shell: {
     marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 14,
+    padding: 12,
+    borderRadius: 10,
     backgroundColor: colors.canvas,
     borderWidth: 1,
     borderColor: colors.border,

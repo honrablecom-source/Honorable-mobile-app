@@ -1,6 +1,6 @@
 # Honorable delivery board
 
-October 20, 2026. Latest batch adds **2 features**: video color controls and reviewed AI-assisted video looks. Shared preview/export and v4 draft recovery retain the clip grade. 145 JVM tests pass, new composition instrumentation compiles, complete ARM64 internal APK built and independently verified. Device/pixel/model/UI acceptance remains open. Existing person-background tools, app UI and video rough cuts are retained. No new dependency, model download, hosting/billing or private-media upload. Actual generation remains unfinished. See HONORABLE_VIDEO_GRADE_CHECKPOINT.md.
+October 20, 2026. Latest batch adds **15 editing features** (8 photo / 7 video), then native tool/inspector panels, Studio Tools/Source sheet and shared app UI refinements. 161 Android JVM + 31 RN tests pass, TypeScript/lint pass (0 errors / 31 warnings), new instrumentation compiles only, full ARM64 internal APK built and independently verified. Physical output/quality/UX and owner acceptance remain open. No extra model/dependency/paid service or private-media upload. See HONORABLE_CREATIVE15_CHECKPOINT.md for the 15-item register and next scope.
 
 ## Current functional batch
 

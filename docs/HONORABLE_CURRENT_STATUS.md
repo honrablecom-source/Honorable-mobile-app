@@ -1,3 +1,11 @@
+# Latest checkpoint — 15 editing tools, inspectors and Studio/app UI, October 20, 2026
+
+Added **15 editing tools/workflows** (8 photo + 7 video), listed individually in HONORABLE_CREATIVE15_CHECKPOINT.md. Separate UI work adds real phone tool/inspector panels to both editors, a Tools/Source Studio inspector, and shared header/navigation/search/media refinements. White-majority/black-outline direction retained. These are editing additions, not 15 generative AI capabilities. Existing local AI, Seran, architecture, credits and copy protections remain.
+
+98 shared Android and 63 RN-native JVM tests pass (161 total, 0 failures/errors/skips); 31 React Native tests and TypeScript pass. Full lint: 0 errors / 31 warnings. Sixteen new JVM and three new RN regressions cover geometry/alpha, tone/sharpening, caption validation, bounded recovery, video formatting/history/grade copy/audio envelope and inspector source routing. Three new Android integration cases compile only; no instrumentation/device execution. Complete ARM64 internal APK built and independently verified for package, JS/native inspector and tool markers, bundled models, approved certificate and ZIP alignment; 473 frozen app-input hashes match. APK: Honorable-1.0.3-creative15-arm64.apk. SHA-256: 1eb6bc49deb89071838889ad7542af3098e5660549e40c7bed7f9ccb2d49e3ea. Opt-in unshrunk internal build, public debug key; no store-readiness claim.
+
+Phone/model/output/SDR-HDR/quality/touch and owner visual acceptance remain open. Hosted account API, private store signing, full generative editing/creation and iOS are unfinished; no billing, model download or personal-media upload. Next prioritize captions/transcripts and real project/output workflows, with generation still requiring disk/runtime/model setup.
+
 # Latest checkpoint — video color and AI video looks, October 20, 2026
 
 Added **2 user-facing features**: per-clip exposure/contrast/saturation controls and reviewed classifier/pixel-assisted video looks. Shared rendered preview/export applies grading before titles/fades; histories/clip operations and compatible draft/recovery v4 retain color. The existing app UI, photo tools and video rough-cut engine are preserved. AI looks use up to three local frame samples; no new dependency/model download, service or upload.

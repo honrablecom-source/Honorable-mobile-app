@@ -103,3 +103,33 @@ test('switching back to photo never sends the old video to the photo editor', as
     type: 'IMAGE',
   });
 });
+
+test('tools inspector opens the selected source through the real editor callback', async () => {
+  await act(async () => button('Select Second.jpg').props.onPress());
+  await act(async () => button('Open tools inspector').props.onPress());
+  await act(async () => button('Open editor from inspector').props.onPress());
+  expect(mockEdit).toHaveBeenCalledWith({
+    id: '2',
+    mediaUri: 'content://fixture/photo2',
+    type: 'IMAGE',
+  });
+});
+
+test('source inspector can switch to tools without changing the selected media', async () => {
+  await act(async () => button('Video workspace').props.onPress());
+  await act(async () => button('Open source inspector').props.onPress());
+  await act(async () => button('tools inspector tab').props.onPress());
+  await act(async () => button('Open editor from inspector').props.onPress());
+  expect(mockEdit).toHaveBeenCalledWith({
+    id: '3',
+    mediaUri: 'content://fixture/video',
+    type: 'VIDEO',
+  });
+});
+
+test('source detail icon opens the source inspector rather than the tools tab', async () => {
+  await act(async () => button('Toggle source details').props.onPress());
+  expect(button('source inspector tab').props.accessibilityState.selected).toBe(
+    true,
+  );
+});

@@ -13,7 +13,7 @@ data class PhotoSessionSnapshot(val scope:String,val edit:PhotoEdit,
 /** Small, validated lifecycle state. A mask must be recomputed, never serialized into a Bundle. */
 object PhotoSessionCodec {
     private const val MAGIC=0x48504831
-    const val MAX_BYTES=8_192
+    const val MAX_BYTES=65_536
     fun scope(account:String,api:String,source:String):String {
         val bytes=ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
@@ -30,7 +30,7 @@ object PhotoSessionCodec {
         val bytes=ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
             val all=listOf(s.edit)+s.undo+s.redo+listOfNotNull(s.pendingExport)
-            val version=if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
+            val version=if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
             out.writeInt(MAGIC);out.writeInt(version);out.writeUTF(s.scope);writeEdit(out,s.edit,version)
             for(history in listOf(s.undo,s.redo)){out.writeInt(history.size);history.forEach{writeEdit(out,it,version)}}
             out.writeBoolean(s.compareOriginal);out.writeInt(s.activeTool)
@@ -41,7 +41,7 @@ object PhotoSessionCodec {
     fun decode(bytes:ByteArray,expectedScope:String):PhotoSessionSnapshot {
         require(bytes.size in 1..MAX_BYTES)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..3)
+            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..4)
             val scope=input.readUTF();require(scope==expectedScope && scope.matches(Regex("[0-9a-f]{64}")))
             val edit=readEdit(input,version)
             fun history():List<PhotoEdit>{val count=input.readInt();require(count in 0..50);return List(count){readEdit(input,version)}}
@@ -60,6 +60,10 @@ object PhotoSessionCodec {
             e.radialLight?.let { out.writeFloat(it.centerX);out.writeFloat(it.centerY);out.writeFloat(it.radius);out.writeFloat(it.feather);out.writeFloat(it.exposure) }
         }
         if(version>=3){out.writeBoolean(e.background!=null);e.background?.let{out.writeInt(it.mode.ordinal);out.writeInt(it.strength);out.writeInt(it.color)}}
+        if(version>=4){val f=e.finish;out.writeFloat(f.ratio);out.writeBoolean(f.mirrorX);out.writeBoolean(f.mirrorY)
+            for(v in listOf(f.warmth,f.tint,f.shadows,f.highlights,f.vignette,f.sharpen))out.writeFloat(v)
+            out.writeBoolean(f.caption!=null);f.caption?.let{val text=it.text.toByteArray(Charsets.UTF_8);out.writeInt(text.size);out.write(text);out.writeFloat(it.x);out.writeFloat(it.y);out.writeFloat(it.size);out.writeBoolean(it.light);out.writeBoolean(it.plate)}
+        }
     }
     private fun readEdit(input:DataInputStream,version:Int):PhotoEdit {
         val base=PhotoEdit(input.readInt(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean())
@@ -70,6 +74,12 @@ object PhotoSessionCodec {
             val mode=input.readInt();require(mode in PhotoBackgroundMode.values().indices)
             PhotoBackground(PhotoBackgroundMode.values()[mode],input.readInt(),input.readInt())
         }else null
-        return base.copy(curve=curve,radialLight=radial,background=background)
+        val finish=if(version>=4){
+            val ratio=input.readFloat();val mx=input.readBoolean();val my=input.readBoolean()
+            val warmth=input.readFloat();val tint=input.readFloat();val shadows=input.readFloat();val highlights=input.readFloat();val vignette=input.readFloat();val sharp=input.readFloat()
+            val caption=if(input.readBoolean()){val n=input.readInt();require(n in 1..360);val bytes=ByteArray(n);input.readFully(bytes);PhotoCaption(Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean(),input.readBoolean())}else null
+            PhotoFinish(ratio,mx,my,warmth,tint,shadows,highlights,vignette,sharp,caption)
+        }else PhotoFinish()
+        return base.copy(curve=curve,radialLight=radial,background=background,finish=finish)
     }
 }

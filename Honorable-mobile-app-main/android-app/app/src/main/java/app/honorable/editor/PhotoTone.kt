@@ -28,26 +28,29 @@ data class PhotoPoint(val x:Float,val y:Float)
 /** Crop geometry matches the raster canvas; positions are continuous pixel coordinates. */
 class PhotoToneGeometry(val width:Int,val height:Int,val edit:PhotoEdit) {
     init { require(width>0 && height>0) }
-    val cropWidth=(width*edit.crop).toInt().coerceAtLeast(1)
-    val cropHeight=(height*edit.crop).toInt().coerceAtLeast(1)
-    private val left=((width-cropWidth)/2).toFloat() // integer crop origin, same as Rect
-    private val top=((height-cropHeight)/2).toFloat()
+    private val wanted=edit.finish.ratio.let{if(it==0f)0f else if(edit.rotation%180==0)it else 1/it}
+    private val baseWidth=(width*edit.crop).toInt().coerceAtLeast(1)
+    private val baseHeight=(height*edit.crop).toInt().coerceAtLeast(1)
+    val cropWidth=if(wanted>0 && baseWidth.toFloat()/baseHeight>wanted)(baseHeight*wanted).toInt().coerceAtLeast(1)else baseWidth
+    val cropHeight=if(wanted>0 && baseWidth.toFloat()/baseHeight<wanted)(baseWidth/wanted).toInt().coerceAtLeast(1)else baseHeight
+    val left=(width-cropWidth)/2
+    val top=(height-cropHeight)/2
     val outputWidth=if(edit.rotation%180==0)cropWidth else cropHeight
     val outputHeight=if(edit.rotation%180==0)cropHeight else cropWidth
-    fun sourcePoint(x:Float,y:Float):PhotoPoint = when(edit.rotation) {
-        0 -> PhotoPoint(left+x,top+y)
-        90 -> PhotoPoint(left+y,top+cropHeight-x)
-        180 -> PhotoPoint(left+cropWidth-x,top+cropHeight-y)
-        else -> PhotoPoint(left+cropWidth-y,top+x)
+    fun sourceX(x:Float,y:Float):Float {
+        val local=when(edit.rotation){0->x;90->y;180->cropWidth-x;else->cropWidth-y}
+        return left+if(edit.finish.mirrorX)cropWidth-local else local
     }
+    fun sourceY(x:Float,y:Float):Float {
+        val local=when(edit.rotation){0->y;90->cropHeight-x;180->cropHeight-y;else->x}
+        return top+if(edit.finish.mirrorY)cropHeight-local else local
+    }
+    fun sourcePoint(x:Float,y:Float)=PhotoPoint(sourceX(x,y),sourceY(x,y))
     fun outputPoint(sourceX:Float,sourceY:Float):PhotoPoint {
-        val x=sourceX-left;val y=sourceY-top
-        return when(edit.rotation) {
-            0 -> PhotoPoint(x,y)
-            90 -> PhotoPoint(cropHeight-y,x)
-            180 -> PhotoPoint(cropWidth-x,cropHeight-y)
-            else -> PhotoPoint(y,cropWidth-x)
-        }
+        val localX=sourceX-left;val localY=sourceY-top
+        val x=if(edit.finish.mirrorX)cropWidth-localX else localX
+        val y=if(edit.finish.mirrorY)cropHeight-localY else localY
+        return when(edit.rotation){0->PhotoPoint(x,y);90->PhotoPoint(cropHeight-y,x);180->PhotoPoint(cropWidth-x,cropHeight-y);else->PhotoPoint(y,cropWidth-x)}
     }
     fun normalizedSourcePoint(x:Float,y:Float):PhotoPoint = sourcePoint(x,y).let { PhotoPoint((it.x/width).coerceIn(0f,1f),(it.y/height).coerceIn(0f,1f)) }
 }
@@ -67,17 +70,8 @@ class PhotoToneKernel(private val edit:PhotoEdit,width:Int,height:Int) {
     fun apply(pixel:Int,x:Int,y:Int):Int {
         var gain=1f
         if(light!=null) {
-            // Avoid allocating a point object for every pixel.
-            val ox=x+.5f;val oy=y+.5f
-            val localX:Float;val localY:Float
-            when(edit.rotation) {
-                0 -> { localX=ox;localY=oy }
-                90 -> { localX=oy;localY=geometry.cropHeight-ox }
-                180 -> { localX=geometry.cropWidth-ox;localY=geometry.cropHeight-oy }
-                else -> { localX=geometry.cropWidth-oy;localY=ox }
-            }
-            val dx=localX+(geometry.width-geometry.cropWidth)/2-centerX
-            val dy=localY+(geometry.height-geometry.cropHeight)/2-centerY
+            val dx=geometry.sourceX(x+.5f,y+.5f)-centerX
+            val dy=geometry.sourceY(x+.5f,y+.5f)-centerY
             val distance=dx*dx+dy*dy
             val weight=if(distance>=outer)0f else if(distance<=inner || outer==inner)1f else {
                 val t=((distance-inner)/(outer-inner)).coerceIn(0f,1f);1-t*t*(3-2*t)

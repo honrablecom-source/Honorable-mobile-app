@@ -10,6 +10,9 @@ internal data class VideoSegment(
     val title: String = "",
     val fadeEdges: Boolean = false,
     val grade: VideoGrade = VideoGrade(),
+    val layout:VideoLayout=VideoLayout(),
+    val titleStyle:VideoTitleStyle=VideoTitleStyle(),
+    val audioFade:Boolean=false,
 ) {
     init {
         require(title.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == title)
@@ -48,7 +51,8 @@ internal class VideoEditProject(durationMs: Long) {
     }
     fun appendSource(id: String, duration: Long) {
         val catalog = mergedSources(mapOf(id to duration))
-        val next = segments + VideoSegment(0, duration, sourceId = id)
+        val template=segments.first()
+        val next = segments + VideoSegment(0, duration, sourceId = id,layout=VideoLayout(template.layout.ratio,template.layout.crop),audioFade=template.audioFade)
         validate(next, catalog)
         sourceDurations.putAll(catalog)
         change(next)
@@ -112,6 +116,11 @@ internal class VideoEditProject(durationMs: Long) {
     fun setTitle(index: Int, title: String) = change(segments.toMutableList().apply { set(index, get(index).copy(title = title)) })
     fun setFadeEdges(index: Int, enabled: Boolean) = change(segments.toMutableList().apply { set(index, get(index).copy(fadeEdges = enabled)) })
     fun setGrade(index: Int, grade: VideoGrade) = change(segments.toMutableList().apply { set(index, get(index).copy(grade = grade)) })
+    fun setLayout(index:Int,layout:VideoLayout)=change(segments.toMutableList().apply{set(index,get(index).copy(layout=layout))})
+    fun setTitleStyle(index:Int,style:VideoTitleStyle)=change(segments.toMutableList().apply{set(index,get(index).copy(titleStyle=style))})
+    fun setFormat(ratio:Int,crop:Boolean)=change(segments.map{it.copy(layout=it.layout.copy(ratio=ratio,crop=crop))})
+    fun setProjectAudioFade(enabled:Boolean)=change(segments.map{it.copy(audioFade=enabled)})
+    fun applyGradeToAll(index:Int)=change(segments.map{it.copy(grade=segments[index].grade)})
 
     fun duplicate(index: Int) {
         require(segments.size < 1_000) { "A project supports up to 1000 clips" }

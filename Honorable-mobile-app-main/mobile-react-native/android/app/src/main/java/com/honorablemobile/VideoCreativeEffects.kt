@@ -36,7 +36,7 @@ internal class VideoTimelineFade(private val clips: List<VideoSegment>) : RgbMat
 
 /** Bounded, wrapped lower-third title. Texture allocation is lazy and owned by this overlay. */
 @UnstableApi
-internal class VideoTitleOverlay(private val title: String) : BitmapOverlay() {
+internal class VideoTitleOverlay(private val title: String,private val titleStyle:VideoTitleStyle=VideoTitleStyle()) : BitmapOverlay() {
     private var frame = Size(720,1280)
     private var owned: Bitmap? = null
     private val width: Int get() = (frame.width*.84f).toInt().coerceIn(64,1024)
@@ -48,21 +48,31 @@ internal class VideoTitleOverlay(private val title: String) : BitmapOverlay() {
         owned?.let { return it }
         val padding = (width*.035f).toInt().coerceAtLeast(4)
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = (minOf(frame.width*.055f, frame.height*.09f)/scale).coerceIn(12f,72f)
+            color = if(titleStyle.light)Color.WHITE else Color.BLACK
+            textSize = (minOf(frame.width*titleStyle.size, frame.height*.09f)/scale).coerceIn(12f,72f)
         }
         val layout = StaticLayout.Builder.obtain(title,0,title.length,paint,width-padding*2)
             .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false)
             .setMaxLines(3).setEllipsize(TextUtils.TruncateAt.END).build()
         return Bitmap.createBitmap(width,layout.height+padding*2,Bitmap.Config.ARGB_8888).also {
             val canvas = Canvas(it)
-            canvas.drawRoundRect(RectF(0f,0f,it.width.toFloat(),it.height.toFloat()),8f,8f,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(205,0,0,0) })
+            if(titleStyle.plate)canvas.drawRoundRect(RectF(0f,0f,it.width.toFloat(),it.height.toFloat()),8f,8f,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if(titleStyle.light)Color.argb(205,0,0,0)else Color.argb(220,255,255,255) })
             canvas.translate(padding.toFloat(),padding.toFloat());layout.draw(canvas)
             owned = it
         }
     }
     override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings = StaticOverlaySettings.Builder()
-        .setBackgroundFrameAnchor(0f,-.78f).setOverlayFrameAnchor(0f,-1f).setScale(scale,scale).build()
+        .setBackgroundFrameAnchor(0f,when(titleStyle.position){0->.78f;1->0f;else->-.78f}).setOverlayFrameAnchor(0f,when(titleStyle.position){0->1f;1->0f;else->-1f}).setScale(scale,scale).build()
     override fun release() { try { super.release() } finally { owned?.recycle(); owned = null } }
+}
+
+@UnstableApi
+internal class VideoProjectAudioFade(private val durationUs:Long):androidx.media3.common.audio.GainProcessor.GainProvider {
+    override fun getGainFactorAtSamplePosition(samplePosition:Long,sampleRate:Int):Float=VideoFinishing.audioGain(durationUs,(samplePosition*1_000_000.0/sampleRate).toLong())
+    override fun isUnityUntil(samplePosition:Long,sampleRate:Int):Long {
+        if(getGainFactorAtSamplePosition(samplePosition,sampleRate)!=1f)return androidx.media3.common.C.TIME_UNSET
+        val edge=minOf(500_000L,durationUs/2).coerceAtLeast(1)
+        return maxOf(samplePosition+1,kotlin.math.ceil((durationUs-edge)*sampleRate/1_000_000.0).toLong())
+    }
 }

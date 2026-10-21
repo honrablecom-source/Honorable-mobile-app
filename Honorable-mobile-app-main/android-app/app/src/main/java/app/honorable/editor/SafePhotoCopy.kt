@@ -14,12 +14,18 @@ import java.security.MessageDigest
 
 /** Encode privately, refuse aliased destinations before truncation, then verify the saved PNG. */
 object SafePhotoCopy {
-    fun save(context: Context, source: Uri, destination: Uri, bitmap: Bitmap) {
+    enum class Encoding(val mime:String,val extension:String){PNG("image/png","png"),JPEG("image/jpeg","jpg")}
+    fun save(context: Context, source: Uri, destination: Uri, bitmap: Bitmap,encoding:Encoding=Encoding.PNG,quality:Int=95) {
+        require(quality in 1..100)
         require(source != destination) { "Choose a new copy destination" }
-        val temp = File.createTempFile("honorable-photo-", ".png", context.cacheDir)
+        val temp = File.createTempFile("honorable-photo-", ".${encoding.extension}", context.cacheDir)
         try {
             FileOutputStream(temp).use { output ->
-                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "PNG encoding failed" }
+                var flat:Bitmap?=null
+                try {
+                    val encoded=if(encoding==Encoding.JPEG){Bitmap.createBitmap(bitmap.width,bitmap.height,Bitmap.Config.ARGB_8888).also{flat=it;val c=android.graphics.Canvas(it);c.drawColor(android.graphics.Color.WHITE);c.drawBitmap(bitmap,0f,0f,null)}}else bitmap
+                    check(encoded.compress(if(encoding==Encoding.PNG)Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,if(encoding==Encoding.PNG)100 else quality,output)){"Photo encoding failed"}
+                }finally{flat?.recycle()}
                 output.fd.sync()
             }
             val expected = temp.inputStream().use(::digest)
@@ -37,11 +43,11 @@ object SafePhotoCopy {
                 }
             }
             val actual = requireNotNull(context.contentResolver.openInputStream(destination)).use(::digest)
-            check(expected.contentEquals(actual)) { "Saved PNG differs from rendered copy" }
+            check(expected.contentEquals(actual)) { if(encoding==Encoding.PNG)"Saved PNG differs from rendered copy" else "Saved JPEG differs from encoded copy" }
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             context.contentResolver.openInputStream(destination).use { BitmapFactory.decodeStream(it, null, bounds) }
-            check(bounds.outWidth == bitmap.width && bounds.outHeight == bitmap.height && bounds.outMimeType == "image/png") {
-                "Saved PNG could not be validated"
+            check(bounds.outWidth == bitmap.width && bounds.outHeight == bitmap.height && bounds.outMimeType == encoding.mime) {
+                if(encoding==Encoding.PNG)"Saved PNG could not be validated" else "Saved JPEG could not be validated"
             }
         } finally { temp.delete() }
     }

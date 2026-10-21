@@ -81,7 +81,7 @@ function MainTabs() {
           { height: 62 + insets.bottom, paddingBottom: insets.bottom + 4 },
         ],
         tabBarLabelStyle: styles.label,
-        tabBarActiveBackgroundColor: colors.surfaceSelected,
+        tabBarActiveBackgroundColor: colors.canvas,
         tabBarIcon: ({ color }) => <TabIcon color={color} name={route.name} />,
       })}
     >
@@ -131,5 +131,5 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: 6,
   },
-  label: { fontSize: 10, fontWeight: '500' },
+  label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.1 },
 });

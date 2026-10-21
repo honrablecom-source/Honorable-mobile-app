@@ -43,9 +43,9 @@ export const workspaceStyles = StyleSheet.create({
 });
 const s = StyleSheet.create({
   header: {
-    minHeight: 84,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    minHeight: 76,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -58,12 +58,12 @@ const s = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     color: colors.textSecondary,
-    letterSpacing: 0.8,
+    letterSpacing: 1.1,
   },
   title: {
-    fontSize: 23,
+    fontSize: 22,
     lineHeight: 29,
-    fontWeight: '500',
+    fontWeight: '600',
     letterSpacing: -0.6,
     color: colors.textPrimary,
   },

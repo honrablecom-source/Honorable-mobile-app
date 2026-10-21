@@ -30,3 +30,12 @@ Feature count: **2** — video exposure/contrast/saturation controls and reviewe
 90 shared Android and 55 RN-native JVM tests pass (145 total; 0 failures/errors/skips), including ten new color/matrix/history/codec/AI-policy cases. Three new composition integration cases compile only; no instrumentation execution. Complete ARM64 unshrunk internal APK built and independently verified for package, bundled JS/models/native grading markers, approved signature and ZIP alignment; 464 frozen app-input hashes match. APK: Honorable-1.0.3-video-grade-arm64.apk. SHA-256: 9d673ce1ce8ea5de8e5429b1b4e91b5a2914dc6a5de221f107d303a24462de9d. Public debug key; internal testing only.
 
 RTK filters log/Git output; no total-token saving is claimed. Physical phone, model/SDR-HDR quality, owner visual acceptance, hosted account API, store signing, full generative creation and iOS remain open. See HONORABLE_VIDEO_GRADE_CHECKPOINT.md for completed/next scope.
+
+
+## Fifteen editing additions, then panel/Studio/app refinement
+
+Feature count: **15** — 8 photo and 7 video tools, individually enumerated in HONORABLE_CREATIVE15_CHECKPOINT.md. Editor/Studio inspectors and shared app UI refinements are tracked separately. The owner clarified panel = editor tools/inspector. Existing architecture/models/privacy/credit policies are retained.
+
+98 shared Android and 63 RN-native JVM tests pass (161 total, 0 failures/errors/skips); 31 React Native tests and TypeScript pass. Full lint: 0 errors / 31 warnings. Sixteen new JVM and three new RN regressions cover geometry/alpha, tone/sharpening, caption validation, bounded recovery, video formatting/history/grade copy/audio envelope and inspector source routing. Three new Android integration cases compile only; no instrumentation/device execution. Complete ARM64 internal APK built and independently verified for package, JS/native inspector and tool markers, bundled models, approved certificate and ZIP alignment; 473 frozen app-input hashes match. APK: Honorable-1.0.3-creative15-arm64.apk. SHA-256: 1eb6bc49deb89071838889ad7542af3098e5660549e40c7bed7f9ccb2d49e3ea. Opt-in unshrunk internal build, public debug key; no store-readiness claim.
+
+Initial native compilation found a title-style naming collision; corrected before final frozen-input checks/build. RTK used for compact Git/log output; no total-token/credit percentage claimed. Device/owner UI/account API/private signing/store/generative engine/iOS gates remain open. No protected benchmark/holdout inspected or run.

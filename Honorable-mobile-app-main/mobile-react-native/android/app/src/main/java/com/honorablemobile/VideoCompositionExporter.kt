@@ -15,6 +15,8 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.C
 import androidx.media3.common.Effect
 import androidx.media3.effect.OverlayEffect
+import androidx.media3.effect.Presentation
+import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.common.audio.DefaultGainProvider
 import androidx.media3.common.audio.GainProcessor
 import androidx.media3.common.audio.SpeedProvider
@@ -59,8 +61,10 @@ internal class VideoCompositionExporter(private val context: Context) {
                     })
                     val audio = if(clip.volume != 1f) listOf(GainProcessor(DefaultGainProvider.Builder(clip.volume).build())) else emptyList()
                     val visual = mutableListOf<Effect>()
+                    if(clip.layout.rotation!=0||clip.layout.mirrorX||clip.layout.mirrorY)visual.add(ScaleAndRotateTransformation.Builder().setRotationDegrees(-clip.layout.rotation.toFloat()).setScale(if(clip.layout.mirrorX)-1f else 1f,if(clip.layout.mirrorY)-1f else 1f).build())
+                    if(clip.layout.ratio!=0)visual.add(Presentation.createForAspectRatio(clip.layout.aspect,if(clip.layout.crop)Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
                     if(!clip.grade.isIdentity)visual.add(VideoColorEffect(clip.grade))
-                    if(clip.title.isNotBlank())visual.add(OverlayEffect(listOf(VideoTitleOverlay(clip.title))))
+                    if(clip.title.isNotBlank())visual.add(OverlayEffect(listOf(VideoTitleOverlay(clip.title,clip.titleStyle))))
                     setEffects(Effects(audio, visual))
                 }.build()
             }
@@ -72,7 +76,9 @@ internal class VideoCompositionExporter(private val context: Context) {
                 sequences.add(EditedMediaItemSequence.withAudioFrom(listOf(audio)).buildUpon().setIsLooping(true).build())
             }
             return Composition.Builder(sequences).apply {
-                if(clips.any { it.fadeEdges }) setEffects(Effects(emptyList(),listOf(VideoTimelineFade(clips.toList()))))
+                val audio=if(clips.first().audioFade)listOf(GainProcessor(VideoProjectAudioFade(clips.sumOf{it.durationUs})))else emptyList()
+                val visual=if(clips.any{it.fadeEdges})listOf(VideoTimelineFade(clips.toList()))else emptyList()
+                if(audio.isNotEmpty()||visual.isNotEmpty())setEffects(Effects(audio,visual))
             }.build()
         }
 
@@ -186,16 +192,22 @@ internal class VideoCompositionExporter(private val context: Context) {
                 require(actualDurationMs > 0 && kotlin.math.abs(actualDurationMs - expectedDurationMs) <= toleranceMs) {
                     "Saved copy has unexpected duration"
                 }
-                fun portrait(retriever: MediaMetadataRetriever): Boolean {
+                fun portrait(retriever: MediaMetadataRetriever,extraRotation:Int=0): Boolean {
                     val width = metadata(retriever, MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
                     val height = metadata(retriever, MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-                    val rotation = metadata(retriever, MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION).toInt()
+                    val rotation = (metadata(retriever, MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION).toInt()+extraRotation)%360
                     require(width > 0 && height > 0 && rotation in setOf(0, 90, 180, 270)) {
                         "Saved copy has invalid video dimensions or rotation"
                     }
                     return if (rotation == 90 || rotation == 270) width > height else height > width
                 }
-                require(portrait(sourceMetadata) == portrait(outputMetadata)) { "Saved copy has incorrect orientation" }
+                val first=clips.first();val actualPortrait=portrait(outputMetadata)
+                if(first.layout.ratio!=0){
+                    val w=metadata(outputMetadata,MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);val h=metadata(outputMetadata,MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    val r=metadata(outputMetadata,MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+                    val actualRatio=if(r==90L||r==270L)h.toDouble()/w else w.toDouble()/h
+                    require(kotlin.math.abs(actualRatio-first.layout.aspect)<.04){"Saved copy has incorrect output format"}
+                }else require(portrait(sourceMetadata,first.layout.rotation)==actualPortrait){"Saved copy has incorrect orientation"}
             } finally {
                 outputMetadata.release()
                 sourceMetadata.release()

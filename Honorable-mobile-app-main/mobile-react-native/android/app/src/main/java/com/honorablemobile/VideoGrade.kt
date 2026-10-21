@@ -7,11 +7,12 @@ import app.honorable.editor.PhotoLook
 import kotlin.math.pow
 
 /** Clip-owned, bounded color settings. Matrix inputs are linear RGB, matching Media3. */
-internal data class VideoGrade(val exposure:Float=0f,val contrast:Float=1f,val saturation:Float=1f) {
+internal data class VideoGrade(val exposure:Float=0f,val contrast:Float=1f,val saturation:Float=1f,val warmth:Float=0f,val tint:Float=0f) {
     init {
         require(exposure.isFinite() && exposure in -2f..2f)
         require(contrast.isFinite() && contrast in 0f..2f)
         require(saturation.isFinite() && saturation in 0f..2f)
+        require(warmth.isFinite()&&warmth in -1f..1f&&tint.isFinite()&&tint in -1f..1f)
     }
     val isIdentity:Boolean get()=this==VideoGrade()
     fun matrix(hdr:Boolean=false):FloatArray {
@@ -19,8 +20,9 @@ internal data class VideoGrade(val exposure:Float=0f,val contrast:Float=1f,val s
         val gain=2f.pow(exposure)*contrast
         return FloatArray(16).apply {
             // Column-major RGB transform. Contrast pivots around 18% linear gray; alpha is unchanged.
-            for(column in 0..2)for(row in 0..2)this[column*4+row]=gain*((if(column==row)saturation else 0f)+(1-saturation)*luma[column])
-            for(row in 0..2)this[12+row]=.18f*(1-contrast)
+            val balance=floatArrayOf(1+.18f*warmth-.08f*tint,1+.12f*tint,1-.18f*warmth-.08f*tint)
+            for(column in 0..2)for(row in 0..2)this[column*4+row]=balance[row]*gain*((if(column==row)saturation else 0f)+(1-saturation)*luma[column])
+            for(row in 0..2)this[12+row]=balance[row]*.18f*(1-contrast)
             this[15]=1f
         }
     }

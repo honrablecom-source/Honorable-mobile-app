@@ -26,6 +26,8 @@ class PhotoEditorActivity:Activity(){
  private var activeTool=-1
  private var restoredSession:PhotoSessionSnapshot?=null
  private var pendingDestination:Uri?=null
+ private var exportEncoding=SafePhotoCopy.Encoding.PNG
+ private var exportQuality=95
  private var exportInProgress=false
  private var waitingForPicker=false
  private var loadedScope:String?=null
@@ -49,6 +51,7 @@ class PhotoEditorActivity:Activity(){
  restoredSession=runCatching{val bytes=savedInstanceState?.getByteArray("photoSession")?:return@runCatching null
   PhotoSessionCodec.decode(bytes,currentScope()?:return@runCatching null)}.getOrNull()
  exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
+ if(restoredSession!=null){exportEncoding=SafePhotoCopy.Encoding.values().getOrNull(savedInstanceState?.getInt("photoEncoding",0)?:0)?:SafePhotoCopy.Encoding.PNG;exportQuality=(savedInstanceState?.getInt("photoQuality",95)?:95).coerceIn(1,100)}
  window.statusBarColor=Color.WHITE;window.navigationBarColor=if(android.os.Build.VERSION.SDK_INT>=26)Color.WHITE else Color.BLACK
  window.decorView.systemUiVisibility=window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if(android.os.Build.VERSION.SDK_INT>=26)View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(12.dp(),4.dp(),12.dp(),8.dp())}
@@ -61,7 +64,8 @@ class PhotoEditorActivity:Activity(){
  val top=row()
  button(top,"‹"){finish()}.apply{contentDescription="Close photo editor";layoutParams=LinearLayout.LayoutParams(48.dp(),48.dp())}
  top.addView(TextView(this).apply{text="Honorable / Photo";textSize=17f;setTextColor(Color.BLACK);gravity=android.view.Gravity.CENTER_VERTICAL},LinearLayout.LayoutParams(0,48.dp(),1f))
- val export=button(top,"Export"){if(bitmap!=null&&exportEdit==null&&!cuttingOut){exportEdit=edit;waitingForPicker=true;try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/png";putExtra(Intent.EXTRA_TITLE,"Honorable-copy.png")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}}}
+ button(top,"Tools"){openInspector()}.apply{layoutParams=LinearLayout.LayoutParams(64.dp(),48.dp())}
+ val export=button(top,"Export"){chooseExport()}
  export.apply{contentDescription="Save copy of photo";layoutParams=LinearLayout.LayoutParams(88.dp(),48.dp());setTextColor(Color.WHITE);background=GradientDrawable().apply{setColor(Color.BLACK);cornerRadius=8.dp().toFloat()}}
  image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setPadding(4.dp(),8.dp(),4.dp(),8.dp())}
  root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
@@ -116,12 +120,22 @@ class PhotoEditorActivity:Activity(){
  val transformRow=row(transforms)
  button(transformRow,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))}
  button(transformRow,"Crop center"){tool("crop");change(edit.copy(crop=if(edit.crop>.51f)edit.crop-.1f else 1f))}
+ val framing=row(transforms)
+ button(framing,"Aspect ratio"){chooseRatio()}
+ button(framing,"Mirror"){chooseMirror()}
  val finishRow=row(transforms)
  button(finishRow,"Monochrome"){tool("monochrome");change(edit.copy(saturation=0f))}
  button(finishRow,"Reset"){tool("reset");change(PhotoEdit())}
  val toneRow=row(adjustments)
  button(toneRow,"Tone curve"){showCurve()}
  button(toneRow,"Local light"){showLocalLight()}
+ val finishTools=row(adjustments)
+ button(finishTools,"White balance"){finishAdjust("White balance",0)}
+ button(finishTools,"Shadows / highlights"){finishAdjust("Shadows / highlights",1)}
+ val detailTools=row(adjustments)
+ button(detailTools,"Vignette"){finishAdjust("Vignette",2)}
+ button(detailTools,"Sharpen"){finishAdjust("Sharpen",3)}
+ button(row(transforms),"Add text"){editCaption()}
  button(row(assist),"AI scene enhance"){enhanceScene()}
  button(row(assist),"AI photo looks"){chooseLook()}
  button(row(assist),"Cut out person (beta)"){cutOutPerson()}
@@ -174,6 +188,38 @@ class PhotoEditorActivity:Activity(){
     runOnUiThread{if(request==revision&&!isDestroyed)note.text="Not enough memory for this preview. Try again."}
    }
   }
+ }
+ private fun openInspector(){
+  if(!canFinish())return
+  fun t(label:String,run:()->Unit)=NativeInspectorPanel.Tool(label,run)
+  NativeInspectorPanel.show(this,"Photo inspector","${bitmap?.width} × ${bitmap?.height} px · ${edit.rotation}° · edits save as a new copy",listOf(
+   "Framing" to listOf(t("Aspect ratio"){chooseRatio()},t("Mirror"){chooseMirror()}),
+   "Color & light" to listOf(t("White balance"){finishAdjust("White balance",0)},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
+   "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
+   "On-device AI" to listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()}),
+   "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
+  ))
+ }
+ private fun canFinish()=bitmap!=null&&exportEdit==null&&!enhancing&&!cuttingOut&&!isFinishing
+ private fun chooseRatio(){if(!canFinish())return;val base=edit
+  android.app.AlertDialog.Builder(this).setTitle("Photo aspect ratio").setItems(arrayOf("Original","Square 1:1","Portrait 4:5","Wide 16:9","Vertical 9:16")){_,i->if(edit==base&&canFinish())change(edit.copy(finish=edit.finish.copy(ratio=listOf(0f,1f,.8f,16f/9,9f/16)[i])))}.setNegativeButton("Cancel",null).show()
+ }
+ private fun chooseMirror(){if(!canFinish())return;val base=edit
+  android.app.AlertDialog.Builder(this).setTitle("Mirror photo").setItems(arrayOf("Flip horizontally","Flip vertically","Reset mirrors")){_,i->if(edit==base&&canFinish())change(edit.copy(finish=when(i){0->edit.finish.copy(mirrorX=!edit.finish.mirrorX);1->edit.finish.copy(mirrorY=!edit.finish.mirrorY);else->edit.finish.copy(mirrorX=false,mirrorY=false)}))}.setNegativeButton("Cancel",null).show()
+ }
+ private fun finishAdjust(title:String,kind:Int){if(!canFinish())return;val base=edit
+  PhotoFinishControls.adjust(this,title,base.finish,kind){f->if(edit==base&&canFinish())change(edit.copy(finish=f))else note.text="Photo changed. Open the tool again."}
+ }
+ private fun editCaption(){if(!canFinish())return;val base=edit
+  PhotoFinishControls.caption(this,base.finish.caption){caption->if(edit==base&&canFinish())change(edit.copy(finish=edit.finish.copy(caption=caption)))else note.text="Photo changed. Open text again."}
+ }
+ private fun chooseExport(){if(!canFinish())return
+  android.app.AlertDialog.Builder(this).setTitle("Export photo").setItems(arrayOf("PNG · transparency","JPEG · compact (70%)","JPEG · balanced (85%)","JPEG · high quality (95%)")){_,i->
+   if(!canFinish())return@setItems
+   exportEncoding=if(i==0)SafePhotoCopy.Encoding.PNG else SafePhotoCopy.Encoding.JPEG;exportQuality=listOf(100,70,85,95)[i]
+   exportEdit=edit;waitingForPicker=true
+   try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=exportEncoding.mime;putExtra(Intent.EXTRA_TITLE,"Honorable-copy.${exportEncoding.extension}")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}
+  }.setNegativeButton("Cancel",null).show()
  }
  private fun chooseBackground(){
   if(bitmap==null||exportEdit!=null||cuttingOut||enhancing||readingText)return
@@ -317,7 +363,7 @@ class PhotoEditorActivity:Activity(){
     input=decoded
     val result=render(decoded,state)
     output=result
-    SafePhotoCopy.save(this,source,destination,result)
+    SafePhotoCopy.save(this,source,destination,result,exportEncoding,exportQuality)
     val dimensions="${result.width} × ${result.height}"
     SafeBetaTelemetry.emit(this,"edit_saved",JSONObject().put("mediaType","IMAGE"))
     runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."}
@@ -331,6 +377,7 @@ class PhotoEditorActivity:Activity(){
  }
  override fun onSaveInstanceState(outState:Bundle){
   super.onSaveInstanceState(outState)
+  outState.putInt("photoEncoding",exportEncoding.ordinal);outState.putInt("photoQuality",exportQuality)
   runCatching {
    val scope=currentScope()?:return@runCatching
    val pending=restoredSession?.takeIf{it.scope==scope}

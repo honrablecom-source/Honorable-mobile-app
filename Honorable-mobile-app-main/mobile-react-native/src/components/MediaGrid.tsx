@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     bottom: 7,
     paddingHorizontal: 7,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 4,
     backgroundColor: 'rgba(0,0,0,.68)',
   },
   videoText: { color: '#fff', fontSize: 10, fontWeight: '700' },
