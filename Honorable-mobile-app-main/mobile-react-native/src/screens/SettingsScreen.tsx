@@ -61,71 +61,85 @@ export function SettingsScreen() {
     <SafeAreaView edges={['top']} style={s.safe}>
       <WorkspaceHeader
         title="Account"
-        section="Your space, your settings"
+        section="Library, privacy and membership"
         onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       />
       <ScrollView contentContainerStyle={s.content}>
         <AccountPanel />
         <Text style={s.section}>Your library</Text>
-        {row('Photo & video access', 'Choose what Honorable can access', () =>
-          Linking.openSettings(),
-        )}
-        {row('Storage & indexing', 'Manage your local library', () =>
-          navigation.navigate('Activity'),
-        )}
-        {row('Privacy & Data', 'Your choices and participation', () =>
-          navigation.navigate('PrivacyData'),
-        )}
+        <View style={s.group}>
+          {row('Photo & video access', 'Choose what Honorable can access', () =>
+            Linking.openSettings(),
+          )}
+          {row('Storage & indexing', 'Manage your local library', () =>
+            navigation.navigate('Activity'),
+          )}
+          {row('Privacy & Data', 'Your choices and participation', () =>
+            navigation.navigate('PrivacyData'),
+          )}
+        </View>
         <Text style={s.section}>Membership & support</Text>
-        {row('Memory Passes', 'Purchased credits never expire', () =>
-          navigation.navigate('Pass'),
-        )}
-        {row('Usage', 'Credits and recent searches', () =>
-          navigation.navigate('Usage'),
-        )}
-        {row('Studio', 'Creative workspace membership', () =>
-          navigation.navigate('Studio'),
-        )}
-        {row('Beta feedback', 'Report a problem or check release status', () =>
-          navigation.navigate('BetaFeedback'),
-        )}
+        <View style={s.group}>
+          {row('Memory Passes', 'Purchased credits never expire', () =>
+            navigation.navigate('Pass'),
+          )}
+          {row('Usage', 'Credits and recent searches', () =>
+            navigation.navigate('Usage'),
+          )}
+          {row('Studio', 'Creative workspace membership', () =>
+            navigation.navigate('Studio'),
+          )}
+          {row(
+            'Beta feedback',
+            'Report a problem or check release status',
+            () => navigation.navigate('BetaFeedback'),
+          )}
+        </View>
         <Text style={s.section}>About Honorable</Text>
-        {row('Terms of Service', 'Product disclosure', () =>
-          navigation.navigate('TermsOfService'),
-        )}
-        {row('Privacy Policy', 'How your information is handled', () =>
-          navigation.navigate('PrivacyPolicy'),
-        )}
-        {row('Improvement program', 'Optional and off by default', () =>
-          navigation.navigate('SeranImprovement'),
-        )}
+        <View style={s.group}>
+          {row('Terms of Service', 'Product disclosure', () =>
+            navigation.navigate('TermsOfService'),
+          )}
+          {row('Privacy Policy', 'How your information is handled', () =>
+            navigation.navigate('PrivacyPolicy'),
+          )}
+          {row('Improvement program', 'Optional and off by default', () =>
+            navigation.navigate('SeranImprovement'),
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: 20, paddingBottom: 32 },
+  content: { padding: 16, paddingBottom: 32 },
+  group: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surfaceRaised,
+    overflow: 'hidden',
+  },
   back: { minHeight: 44, width: 44, justifyContent: 'center' },
   rowIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 13,
+    width: 30,
+    height: 30,
+    backgroundColor: colors.canvas,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   section: {
     color: colors.textSecondary,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontSize: 13,
+    letterSpacing: 0,
     marginTop: 30,
     marginBottom: 8,
   },
   row: {
-    minHeight: 76,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
+    minHeight: 68,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.surfaceSelected,
     flexDirection: 'row',
     alignItems: 'center',

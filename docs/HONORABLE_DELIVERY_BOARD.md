@@ -1,3 +1,9 @@
+# Latest checkpoint — Apple Photos / iOS revision, October 21, 2026
+
+Owner-selected reference: Apple Photos / iOS, calm and media-focused. Replaced the rejected editorial direction with restrained Home, Studio, Library and Account screens, shared controls and real media. **0 new editing/AI features; 4 core-screen visual refinements.** The deleted source tree was recovered from the same repository's committed 3937d58 version at the owner's request; the uncommitted rejected draft was not recovered from Git.
+
+32 RN tests / 9 suites and TypeScript pass; final lint 0 errors / 36 warnings. Browser review uses captured current RN component trees/styles at 390×844 with sample data; it is not native device evidence. Native Git contents match the preceding tested APK source. Full ARM64 internal APK built and independently verified against 479 frozen app inputs, package, bundled code/models, signature and ZIP alignment: Honorable-1.0.3-photos-arm64.apk, SHA-256 27819a897cb20cdb70cf21841b1c6f0011f40b16d348b1c8584aa4ee71b8a43b. Internal public-debug signing; signInConfigured remains false. Owner acceptance/device/live API/private signing/store/generative creation/iOS gates remain open. See HONORABLE_PHOTOS_UI_CHECKPOINT.md.
+
 # Latest checkpoint — editor workspace refinement, October 21, 2026
 
 **2 new user-facing workflows:** duration-proportional local video filmstrip/tap seeking, and direct Studio media-to-native-editor opening. **0 new generative AI capabilities.** Four surfaces refined: Studio, Home creation entries, native video transport/tool rail and native photo tool rail. The authorized ChatGPT website critique was based on descriptions; screenshot upload was blocked. Studio preview uses actual RN component trees/styles with sample data, not an Android runtime.

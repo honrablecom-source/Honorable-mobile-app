@@ -46,7 +46,7 @@ export const workspaceStyles = StyleSheet.create({
 const s = StyleSheet.create({
   header: {
     minHeight: 84,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 10,
     flexDirection: 'row',
@@ -63,10 +63,10 @@ const s = StyleSheet.create({
     letterSpacing: 0,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: '600',
-    letterSpacing: -0.9,
+    letterSpacing: -0.7,
     color: colors.textPrimary,
   },
   back: {

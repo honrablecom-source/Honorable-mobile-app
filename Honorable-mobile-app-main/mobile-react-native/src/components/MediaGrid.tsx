@@ -46,9 +46,11 @@ function Tile({
   item,
   size,
   onPress,
+  squareEdges = false,
 }: {
   item: MediaItem;
   size: number;
+  squareEdges?: boolean;
   onPress: (item: MediaItem) => void;
 }) {
   const crop = item.cropIndex;
@@ -59,7 +61,11 @@ function Tile({
         item.displayName ?? 'media'
       }`}
       onPress={() => onPress(item)}
-      style={[styles.tile, { width: size, height: size }]}
+      style={[
+        styles.tile,
+        { width: size, height: size },
+        squareEdges && styles.squareTile,
+      ]}
     >
       {crop === undefined && item.uri ? (
         <Image source={item.source ?? { uri: item.uri }} style={styles.fill} />
@@ -93,15 +99,18 @@ export function MediaGrid({
   items,
   onPress,
   leading = false,
+  edgeToEdge = false,
 }: {
   items: MediaItem[];
   onPress: (item: MediaItem) => void;
   leading?: boolean;
+  edgeToEdge?: boolean;
 }) {
   const { width } = useWindowDimensions();
-  const inset = 20;
+  const inset = edgeToEdge ? 2 : 16;
+  const gap = edgeToEdge ? 2 : grid.gap;
   const availableWidth = width - inset * 2;
-  const size = (availableWidth - grid.gap * 2) / 3;
+  const size = (availableWidth - gap * 2) / 3;
   return (
     <View style={{ paddingHorizontal: inset }}>
       {leading && items[0] && (
@@ -113,15 +122,21 @@ export function MediaGrid({
         keyExtractor={item => item.id}
         numColumns={3}
         scrollEnabled={false}
-        columnWrapperStyle={styles.row}
+        columnWrapperStyle={[styles.row, { gap, marginBottom: gap }]}
         renderItem={({ item }) => (
-          <Tile item={item} size={size} onPress={onPress} />
+          <Tile
+            item={item}
+            size={size}
+            onPress={onPress}
+            squareEdges={edgeToEdge}
+          />
         )}
       />
     </View>
   );
 }
 const styles = StyleSheet.create({
+  squareTile: { borderRadius: 2 },
   row: { gap: grid.gap, marginBottom: grid.gap },
   tile: {
     backgroundColor: colors.surfaceSelected,

@@ -129,12 +129,60 @@ export function StudioScreen() {
             Icon: Download,
           },
         ];
+  const renderSource = (item: (typeof assets)[number], featured = false) => (
+    <Pressable
+      key={item.mediaId}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${item.displayName}`}
+      accessibilityHint="Opens the native editor. Touch and hold for source details."
+      disabled={busy}
+      onPress={() => editSelected(item)}
+      onLongPress={() => {
+        setSelectedId(item.mediaId);
+        showInspector('source');
+      }}
+      style={[
+        s.sourceCell,
+        { width: featured ? Math.max(1, width - 32) : 146 },
+      ]}
+    >
+      <View style={[s.sourceImage, { height: featured ? 196 : 112 }]}>
+        {item.thumbnailUri || item.mediaType === 'IMAGE' ? (
+          <Image
+            source={{ uri: item.thumbnailUri ?? item.mediaUri }}
+            resizeMode="cover"
+            style={s.fill}
+          />
+        ) : (
+          <Film size={24} color={colors.textSecondary} />
+        )}
+        {item.mediaType === 'VIDEO' && (
+          <View style={s.mediaBadge}>
+            <Film size={11} color="#fff" />
+            <Text style={s.mediaBadgeText}>
+              {item.durationMs
+                ? `${Math.floor(item.durationMs / 60000)}:${String(
+                    Math.floor(item.durationMs / 1000) % 60,
+                  ).padStart(2, '0')}`
+                : 'Video'}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text numberOfLines={1} style={s.mediaFilename}>
+        {item.displayName}
+      </Text>
+    </Pressable>
+  );
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
       <View style={s.launchHeader}>
-        <Text accessibilityRole="header" style={s.launchTitle}>
-          Studio
-        </Text>
+        <View style={s.titleCopy}>
+          <Text accessibilityRole="header" style={s.launchTitle}>
+            Studio
+          </Text>
+          <Text style={s.subtitle}>Photo & video editing</Text>
+        </View>
         <View style={s.headerActions}>
           <Pressable
             accessibilityRole="button"
@@ -167,9 +215,9 @@ export function StudioScreen() {
             onPress={() => open('VIDEO')}
             style={[s.sourceAction, s.sourcePrimary, busy && s.disabled]}
           >
-            <Film size={21} color="#fff" />
+            <Film size={22} strokeWidth={1.8} color={colors.textPrimary} />
             <Text style={s.sourcePrimaryText}>New video</Text>
-            <ArrowUpRight size={16} color="#fff" />
+            <ArrowUpRight size={16} color={colors.textSecondary} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -184,7 +232,7 @@ export function StudioScreen() {
           </Pressable>
         </View>
         <View style={s.recentHeading}>
-          <Text style={s.recentTitle}>Recent media</Text>
+          <Text style={s.recentTitle}>Your media</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Toggle source details"
@@ -218,49 +266,19 @@ export function StudioScreen() {
         {loading ? (
           <ActivityIndicator color={colors.textPrimary} />
         ) : assets.length ? (
-          <View style={s.sourceGrid}>
-            {assets.map(item => (
-              <Pressable
-                key={item.mediaId}
-                accessibilityRole="button"
-                accessibilityLabel={`Edit ${item.displayName}`}
-                accessibilityHint="Opens the native editor. Touch and hold for source details."
-                disabled={busy}
-                onPress={() => editSelected(item)}
-                onLongPress={() => {
-                  setSelectedId(item.mediaId);
-                  showInspector('source');
-                }}
-                style={[s.sourceCell, { width: Math.max(1, (width - 60) / 3) }]}
+          <View style={s.sourceCollection}>
+            <View style={s.featuredSource}>
+              {renderSource(assets[0], true)}
+            </View>
+            {assets.length > 1 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={s.sourceStrip}
               >
-                <View style={s.sourceImage}>
-                  {item.thumbnailUri || item.mediaType === 'IMAGE' ? (
-                    <Image
-                      source={{ uri: item.thumbnailUri ?? item.mediaUri }}
-                      resizeMode="cover"
-                      style={s.fill}
-                    />
-                  ) : (
-                    <Film size={24} color={colors.textSecondary} />
-                  )}
-                  {item.mediaType === 'VIDEO' && (
-                    <View style={s.mediaBadge}>
-                      <Film size={11} color="#fff" />
-                      <Text style={s.mediaBadgeText}>
-                        {item.durationMs
-                          ? `${Math.floor(item.durationMs / 60000)}:${String(
-                              Math.floor(item.durationMs / 1000) % 60,
-                            ).padStart(2, '0')}`
-                          : 'Video'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text numberOfLines={1} style={s.mediaFilename}>
-                  {item.displayName}
-                </Text>
-              </Pressable>
-            ))}
+                {assets.slice(1).map(item => renderSource(item))}
+              </ScrollView>
+            )}
           </View>
         ) : (
           <View style={s.empty}>
@@ -404,46 +422,51 @@ export function StudioScreen() {
 }
 const s = StyleSheet.create({
   launchHeader: {
-    minHeight: 64,
-    paddingHorizontal: 20,
+    minHeight: 100,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   launchTitle: {
-    fontSize: 24,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: '600',
-    letterSpacing: -0.6,
+    letterSpacing: -0.7,
     color: colors.textPrimary,
   },
-  headerActions: { flexDirection: 'row', gap: 4 },
+  titleCopy: { flex: 1, gap: 3 },
+  subtitle: { fontSize: 13, lineHeight: 19, color: colors.textSecondary },
+  headerActions: { flexDirection: 'row', gap: 6 },
   sourceActions: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 16,
   },
   sourceAction: {
     flex: 1,
-    minHeight: 56,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    minHeight: 64,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.surfaceSelected,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 14,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
   },
   sourcePrimary: {
-    backgroundColor: colors.textPrimary,
-    borderColor: colors.textPrimary,
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.surfaceSelected,
   },
   sourcePrimaryText: {
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: '#fff',
+    color: colors.textPrimary,
   },
   sourceActionText: {
     flex: 1,
@@ -452,33 +475,35 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
   },
   recentHeading: {
-    paddingHorizontal: 20,
-    marginTop: 12,
+    paddingHorizontal: 16,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  recentTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  recentTitle: { fontSize: 20, fontWeight: '600', color: colors.textPrimary },
+  sourceCollection: { gap: 18 },
+  featuredSource: { paddingHorizontal: 16 },
+  sourceStrip: { paddingHorizontal: 16, gap: 10, paddingBottom: 4 },
   sourceGrid: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     columnGap: 10,
-    rowGap: 16,
+    rowGap: 18,
   },
-  sourceCell: { gap: 6 },
+  sourceCell: { gap: 8 },
   sourceImage: {
     width: '100%',
-    aspectRatio: 1,
-    borderRadius: 6,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.surfaceSelected,
     alignItems: 'center',
     justifyContent: 'center',
   },
   fill: { width: '100%', height: '100%' },
-  mediaFilename: { fontSize: 10, lineHeight: 15, color: colors.textSecondary },
+  mediaFilename: { fontSize: 12, lineHeight: 18, color: colors.textSecondary },
   mediaBadge: {
     position: 'absolute',
     bottom: 5,
@@ -492,7 +517,7 @@ const s = StyleSheet.create({
   },
   mediaBadgeText: { fontSize: 9, color: '#fff' },
   sourceFootnote: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginTop: 24,
     fontSize: 11,
     lineHeight: 17,
@@ -502,20 +527,29 @@ const s = StyleSheet.create({
   content: { paddingBottom: 24 },
   modeRow: {
     flexDirection: 'row',
-    gap: 26,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderColor: colors.surfaceSelected,
+    gap: 4,
+    marginHorizontal: 16,
+    marginBottom: 18,
+    padding: 3,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceRaised,
   },
   modeTab: {
-    minHeight: 48,
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    paddingHorizontal: 2,
+    borderRadius: 10,
+    paddingHorizontal: 8,
   },
-  modeActive: { borderBottomColor: colors.textPrimary },
+  modeActive: {
+    backgroundColor: colors.canvas,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
   modeText: { fontSize: 14, color: colors.textTertiary },
   modeSelected: { fontWeight: '600', color: colors.textPrimary },
   captionCopy: { flex: 1, gap: 4 },
@@ -533,7 +567,7 @@ const s = StyleSheet.create({
   editLabel: { fontSize: 14, fontWeight: '600', color: '#fff' },
   disabled: { opacity: 0.4 },
   empty: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     padding: 24,
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
@@ -601,10 +635,11 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
   },
   sheetTabs: {
+    padding: 3,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceRaised,
     flexDirection: 'row',
-    gap: 24,
-    borderBottomWidth: 1,
-    borderColor: colors.surfaceSelected,
+    gap: 4,
   },
   sheetScroll: { flexShrink: 1 },
   sheetBody: { gap: 4, paddingBottom: 8 },
@@ -612,8 +647,10 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    minHeight: 70,
+    minHeight: 68,
     paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.surfaceSelected,
   },
   toolIcon: {
     width: 44,

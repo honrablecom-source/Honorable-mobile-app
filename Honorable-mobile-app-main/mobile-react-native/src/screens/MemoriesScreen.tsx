@@ -50,7 +50,9 @@ export function MemoriesScreen() {
       const label = monthLabel(item.capturedAt);
       const media: MediaItem = {
         id: String(item.mediaId),
-        uri: item.thumbnailUri ?? item.mediaUri,
+        uri:
+          item.thumbnailUri ??
+          (item.mediaType === 'IMAGE' ? item.mediaUri : undefined),
         mediaUri: item.mediaUri,
         type: item.mediaType,
         duration: duration(item.durationMs),
@@ -70,12 +72,7 @@ export function MemoriesScreen() {
       >
         <WorkspaceHeader
           title="Library"
-          section="All the moments you keep"
-          action={
-            <Text variant="muted" className="text-[12px]">
-              {total.toLocaleString()} items
-            </Text>
-          }
+          section={`${total.toLocaleString()} items on your device`}
         />
 
         <HonorableSearchBar
@@ -97,10 +94,10 @@ export function MemoriesScreen() {
         ) : (
           sections.map(([label, media]) => (
             <View key={label} style={styles.section}>
-              <Text className="mb-4 px-5 text-[17px] font-semibold">
+              <Text className="mb-4 px-4 text-[13px] font-semibold">
                 {label}
               </Text>
-              <MediaGrid items={media} onPress={setSelected} />
+              <MediaGrid edgeToEdge items={media} onPress={setSelected} />
             </View>
           ))
         )}

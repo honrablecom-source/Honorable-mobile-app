@@ -141,13 +141,13 @@ const styles = StyleSheet.create({
   balanceRow: {
     flexDirection: 'row',
     gap: 24,
-    marginTop: 24,
-    paddingTop: 20,
+    marginTop: 16,
+    paddingTop: 14,
     borderTopWidth: 1,
     borderColor: colors.border,
   },
   balanceValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '500',
     letterSpacing: -0.8,
     color: colors.textPrimary,
@@ -162,10 +162,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   avatar: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
     backgroundColor: colors.surfaceSelected,
-    borderRadius: 28,
+    borderRadius: 22,
     borderWidth: 0,
     borderColor: colors.border,
     alignItems: 'center',
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   small: { color: colors.textTertiary, fontSize: 12, lineHeight: 18 },
   panel: {
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 22,
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
   },
 });

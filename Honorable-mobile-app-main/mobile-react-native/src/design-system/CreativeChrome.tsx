@@ -73,20 +73,21 @@ export const creativeStyles = StyleSheet.create({
   separator: { height: 1, backgroundColor: colors.surfaceSelected },
 });
 const s = StyleSheet.create({
-  tabs: { paddingHorizontal: 20, gap: 24, paddingBottom: 4 },
+  tabs: { paddingHorizontal: 16, gap: 8, paddingBottom: 4 },
   tab: {
-    minHeight: 48,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceRaised,
     justifyContent: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: colors.textPrimary },
+  tabActive: { backgroundColor: colors.surfaceSelected },
   tabText: { fontSize: 14, color: colors.textTertiary, fontWeight: '500' },
   tabTextActive: { color: colors.textPrimary, fontWeight: '600' },
   headingRow: {
-    paddingHorizontal: 20,
-    marginTop: 26,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -94,7 +95,7 @@ const s = StyleSheet.create({
   },
   headingCopy: { flex: 1, gap: 4 },
   heading: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '600',
     letterSpacing: -0.4,
     color: colors.textPrimary,

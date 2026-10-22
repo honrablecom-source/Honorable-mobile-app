@@ -1,6 +1,6 @@
 import React from 'react';
 import { BetaFeedbackScreen } from '../screens/BetaFeedbackScreen';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
@@ -45,12 +45,18 @@ const icons = {
 function TabIcon({
   name,
   color,
+  focused,
 }: {
   name: keyof MainTabParamList;
   color: string;
+  focused: boolean;
 }) {
   const Icon = icons[name];
-  return <Icon color={color} size={22} strokeWidth={1.8} />;
+  return (
+    <View style={[styles.icon, focused && styles.iconSelected]}>
+      <Icon color={color} size={22} strokeWidth={focused ? 2 : 1.7} />
+    </View>
+  );
 }
 const HomeTab = () => (
   <TabTransition>
@@ -82,7 +88,9 @@ function MainTabs() {
         ],
         tabBarLabelStyle: styles.label,
         tabBarActiveBackgroundColor: colors.canvas,
-        tabBarIcon: ({ color }) => <TabIcon color={color} name={route.name} />,
+        tabBarIcon: ({ color, focused }) => (
+          <TabIcon color={color} focused={focused} name={route.name} />
+        ),
       })}
     >
       <Tabs.Screen name="Home" component={HomeTab} />
@@ -131,5 +139,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.surfaceSelected,
     paddingTop: 8,
   },
-  label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.1 },
+  icon: {
+    width: 48,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconSelected: { backgroundColor: colors.surfaceSelected },
+  label: { fontSize: 11, fontWeight: '500', letterSpacing: 0 },
 });

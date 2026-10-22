@@ -15,6 +15,7 @@ import {
   UserRound,
   ChevronDown,
   ShieldCheck,
+  ArrowUpRight,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -23,7 +24,7 @@ import { Text } from '@/components/ui/text';
 import { HonorableSearchBar } from '../components/HonorableSearchBar';
 import { MediaGrid, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
-import { NewWorkspace } from '../components/NewWorkspace';
+import { MediaShelf } from '../components/MediaShelf';
 import { colors } from '../design-system/tokens';
 import { FilterTabs, SectionHeading } from '../design-system/CreativeChrome';
 import { honorableNative, SearchResponse } from '../native/HonorableNative';
@@ -40,7 +41,11 @@ function duration(ms?: number) {
 }
 export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const { items: library } = useLibrary();
+  const {
+    items: library,
+    loading: libraryLoading,
+    error: libraryError,
+  } = useLibrary();
   const {
     connected: passConnected,
     startSearch,
@@ -71,7 +76,9 @@ export function HomeScreen() {
         item =>
           ({
             id: String(item.mediaId),
-            uri: item.thumbnailUri ?? item.mediaUri,
+            uri:
+              item.thumbnailUri ??
+              (item.mediaType === 'IMAGE' ? item.mediaUri : undefined),
             mediaUri: item.mediaUri,
             type: item.mediaType,
             duration: duration(item.durationMs),
@@ -87,7 +94,9 @@ export function HomeScreen() {
         const source = library.find(item => item.mediaId === result.mediaId);
         return {
           id: `${result.mediaId}-${result.rank}`,
-          uri: source?.thumbnailUri ?? result.mediaUri,
+          uri:
+            source?.thumbnailUri ??
+            (result.mediaType === 'IMAGE' ? result.mediaUri : undefined),
           mediaUri: result.mediaUri,
           type: result.mediaType,
           duration: duration(source?.durationMs),
@@ -101,6 +110,7 @@ export function HomeScreen() {
   const base = response ? nativeItems : libraryItems.slice(0, 18);
   const visible = base.filter(
     item =>
+      !response ||
       filter === 'All' ||
       (filter === 'Photos' && item.type === 'IMAGE') ||
       (filter === 'Videos' && item.type === 'VIDEO') ||
@@ -150,7 +160,9 @@ export function HomeScreen() {
       >
         <View style={styles.utility}>
           <View style={styles.wordmarkRow}>
-            <Text style={styles.wordmark}>honorable</Text>
+            <Text accessibilityRole="header" style={styles.wordmark}>
+              Seran
+            </Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -162,9 +174,6 @@ export function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.hero}>
-          <Text accessibilityRole="header" style={styles.heroTitle}>
-            What do you remember?
-          </Text>
           <Text style={styles.heroDetail}>
             Describe a photo or a moment in a video.
           </Text>
@@ -251,7 +260,6 @@ export function HomeScreen() {
             </View>
           </View>
         </Modal>
-        <NewWorkspace />
         {history.length > 0 && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>
@@ -334,21 +342,60 @@ export function HomeScreen() {
           <>
             <SectionHeading
               title={
-                response ? `${nativeItems.length} matches` : 'Your memories'
+                response ? `${nativeItems.length} matches` : 'From your library'
               }
-              detail={
-                response
-                  ? 'Best matches first'
-                  : 'Recently added to your library'
-              }
+              detail={response ? 'Best matches first' : undefined}
             />
-            <FilterTabs items={filters} value={filter} onChange={setFilter} />
-            <MediaGrid
-              leading={!!response}
-              items={visible}
-              onPress={setSelected}
-            />
+            {response ? (
+              <>
+                <FilterTabs
+                  items={filters}
+                  value={filter}
+                  onChange={setFilter}
+                />
+                <MediaGrid leading items={visible} onPress={setSelected} />
+              </>
+            ) : (
+              <MediaShelf items={visible.slice(0, 8)} onPress={setSelected} />
+            )}
           </>
+        )}
+        {!response && libraryLoading && (
+          <View style={styles.message}>
+            <ActivityIndicator
+              color={colors.textPrimary}
+              accessibilityLabel="Loading your library"
+            />
+          </View>
+        )}
+        {!response && !libraryLoading && !library.length && (
+          <View style={styles.message}>
+            <Text style={styles.emptyTitle}>Your memories belong here</Text>
+            <Text style={styles.emptyDetail}>
+              Allow photo and video access in Account to search your library.
+            </Text>
+          </View>
+        )}
+        {!response && !!libraryError && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {libraryError}
+          </Text>
+        )}
+        {!response && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Studio"
+            onPress={() => navigation.navigate('Studio')}
+            style={styles.studioLink}
+          >
+            <View style={styles.studioCopy}>
+              <Text style={styles.studioLabel}>Open Studio</Text>
+              <Text style={styles.studioDetail}>
+                Edit a photo or start a video.
+              </Text>
+            </View>
+            <ArrowUpRight size={20} color={colors.textPrimary} />
+          </Pressable>
         )}
       </ScrollView>
       <MediaViewer item={selected} onClose={() => setSelected(undefined)} />
@@ -356,13 +403,14 @@ export function HomeScreen() {
   );
 }
 const styles = StyleSheet.create({
+  studioCopy: { flex: 1, gap: 4 },
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 48 },
   utility: {
-    minHeight: 64,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    minHeight: 76,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 6,
     borderBottomWidth: 0,
     borderBottomColor: colors.border,
     alignItems: 'center',
@@ -385,7 +433,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  wordmark: { fontSize: 24, fontWeight: '600', letterSpacing: -0.7 },
+  wordmark: {
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '600',
+    letterSpacing: -0.7,
+  },
   accountButton: {
     width: 44,
     height: 44,
@@ -396,7 +449,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hero: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
+  hero: { paddingHorizontal: 16, paddingBottom: 20 },
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -418,9 +471,9 @@ const styles = StyleSheet.create({
   },
   heroDetail: {
     fontSize: 14,
-    lineHeight: 22,
+    lineHeight: 21,
     color: colors.textSecondary,
-    marginTop: 10,
+    marginTop: 0,
   },
   modelButton: {
     minHeight: 44,
@@ -434,10 +487,10 @@ const styles = StyleSheet.create({
   privacyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
+    marginHorizontal: 16,
     marginTop: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   privacyText: { fontSize: 11, color: colors.textTertiary },
   history: { marginTop: 12 },
@@ -475,6 +528,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.surface,
   },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  emptyDetail: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  studioLink: {
+    marginHorizontal: 16,
+    marginTop: 26,
+    paddingVertical: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 72,
+  },
+  studioLabel: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  studioDetail: { fontSize: 13, color: colors.textSecondary },
   resultsHeader: {
     marginTop: 20,
     marginBottom: 10,

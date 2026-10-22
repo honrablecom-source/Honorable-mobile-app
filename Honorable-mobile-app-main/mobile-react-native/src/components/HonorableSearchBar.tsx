@@ -28,7 +28,7 @@ export function HonorableSearchBar({
   return (
     <View style={[styles.shell, compact && styles.compact]}>
       <View style={styles.inputRow}>
-        {compact && <Search color={colors.iconMuted} size={18} />}
+        <Search color={colors.iconMuted} size={18} strokeWidth={1.8} />
         <TextInput
           accessibilityLabel={
             compact
@@ -82,11 +82,11 @@ export function HonorableSearchBar({
 }
 const styles = StyleSheet.create({
   shell: {
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
+    marginHorizontal: 16,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: colors.canvas,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   inputRow: {
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
   compact: {
     paddingVertical: 0,
     borderRadius: radii.md,
+    paddingHorizontal: 12,
     borderWidth: 0,
     backgroundColor: colors.surfaceSelected,
   },
