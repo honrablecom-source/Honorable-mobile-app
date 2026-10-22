@@ -1,6 +1,6 @@
 # Honorable feature completion register
 
-Updated October 20, 2026. Continue the existing application and design. No feature is considered fully ready until its real user flow and output pass acceptance. Compilation, JVM tests and attractive previews are separate evidence.
+Updated October 21, 2026. Continue the existing application and design. No feature is considered fully ready until its real user flow and output pass acceptance. Compilation, JVM tests and attractive previews are separate evidence.
 
 | Capability | Current implementation | Remaining acceptance/work |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Video format/finishing | 7 new workflows: canvas fit/crop, rotation, mirrors, white balance, title style, mixed-output audio fades and atomic apply-color-to-all; compact v5 drafts | JVM/build checks pass, integration compiles only; physical codec/pixels/audio/output/UX acceptance pending |
 | Video color controls | Per-clip exposure/contrast/saturation, rendered preview/export, undo/history, adaptive v4 drafts and recovery | JVM/build/package checks pass; actual SDR/HDR pixel/codec/output and device controls pending |
 | AI-assisted video looks | Up to three local label/pixel samples; Auto/Cinematic/Portrait/Vivid/Mono proposals; review/cancel/stale guard and atomic color edit | Device quality/model/timing acceptance pending; applies one fixed grade to the entire clip; no generated frames |
-| Video drafts | Encrypted account/API/root-source-scoped save/restore; v1/v2 readable and v3 persists titles/fades/soundtrack; restore undoable | Keystore/files/lifecycle/account switching on a phone; no old-session undo-history persistence |
+| Video drafts | Encrypted account/API/root-source-scoped save/restore; versions 1–5 readable; v6 adds captions and deduplicated subtitle references, with atomic recovery budget; restore undoable | Keystore/files/lifecycle/account switching on a phone; no old-session undo-history persistence |
 | Video scene suggestion | Experimental sampled-frame local label analysis | Grounded quality, cancellation and preview/export acceptance |
 | Multiple video sources | Implemented with durable document grants, per-clip routing and compatible drafts | Physical provider/codec/audio/aspect and lifecycle acceptance |
 | Project soundtrack | One looping audio sequence, gain/removal, undo, drafts and original-file protection | Physical loop boundaries, mix/sync/output; richer audio timeline still incomplete |
@@ -35,7 +35,9 @@ Updated October 20, 2026. Continue the existing application and design. No featu
 | Basic clip titles and visual fades | Implemented with local wrapped overlay and output-time fade-through-black, shared preview/export and history/drafts | Physical GPU/text/fade acceptance, richer title styling/timing |
 | Overlapping crossfades/keyframes | Planned | Actual overlap scheduling/render engine and visual controls |
 | AI-assisted video rough-cut creation | Existing-clip assembly using bounded sampled local labels, 15/30/60s targets, review/cancel/undo; source/speed/music retained | Physical inference quality, rendered output and cancellation/lifecycle acceptance; no speech/beat/generative model |
-| AI captions / advanced AI video | Planned | Real inference and timing, editable results, output/performance/privacy validation |
+| Timed video captions | Manual source-timed cues follow trim/split/reorder/speed in shared preview/export; undo/redo, bounded v6 recovery and original-document protection; JVM/build/package checks pass | Caption pixels/readability, output and physical lifecycle/provider acceptance pending; not automatic transcription |
+| SRT import/export | Strict bounded UTF-8 import into one clip; source timestamps on import, edited-project timestamps on export; checked saved copy and original protection | Five caption integration cases compile only; real provider/alias/cancellation/picker/output acceptance pending |
+| AI captions / advanced AI video | Automatic transcription and inference remain planned; manual captions/SRT infrastructure is built | Real speech model/runtime, grounded timestamp quality, editable inference results and performance/privacy validation |
 | Tracking / stabilization / video 3D | Planned | Real tracking/render engines and supported hardware |
 | Nodes / Code workspace | Web foundations; processing/script execution unavailable | Canonical project/render engine and robust sandbox before execution |
 | Real Google identity | Local production-server browser sign-in/session/logout verified | Hosted account service and actual Android sign-in |

@@ -55,6 +55,10 @@ class HonorableVideoEditorActivity : Activity() {
     private val draftWorker = Executors.newSingleThreadExecutor()
     private var pendingRange: Pair<Long, Long>? = null
     private var pendingSegments: List<VideoSegment>? = null
+    private var captionImportTarget: Pair<Int, VideoSegment>? = null
+    private var captionImportProject: VideoEditProject? = null
+    private var pendingSubtitleBytes: ByteArray? = null
+    private var pendingSubtitleOriginals: Set<Uri>? = null
     private var project: VideoEditProject? = null
     private var selectedClip = 0
     private lateinit var timeline: VideoFilmstripView
@@ -262,6 +266,7 @@ class HonorableVideoEditorActivity : Activity() {
         } },LinearLayout.LayoutParams(0,-2,1f))
         creativeTools.addView(creative)
         creativeTools.addView(Button(this).apply{text="Title style";setOnClickListener{titleStyle()}})
+        creativeTools.addView(Button(this).apply{text="Captions";setOnClickListener{captionOptions()}})
         val music = LinearLayout(this)
         fun musicButton(title: String, action: () -> Unit) {
             music.addView(Button(this).apply { text = title; setOnClickListener {
@@ -575,7 +580,7 @@ class HonorableVideoEditorActivity : Activity() {
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
-            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Project audio fade"){toggleAudioFade()}),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Project audio fade"){toggleAudioFade()}),
             "Project" to listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}),
             "On-device AI" to listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})
         ))
@@ -776,6 +781,8 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode == 25) { finishCaptionImport(resultCode,data); return }
+        if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
         if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
         if(requestCode == 23) { finishImport(resultCode, data); return }
         if (requestCode != 22) return
@@ -884,7 +891,115 @@ class HonorableVideoEditorActivity : Activity() {
     private fun sourceDuration(id: String): Long = if(id == "primary") primaryDurationMs else requireNotNull(importedSources[id]).durationMs
     private fun sourceNumber(id: String): Int = if(id == "primary") 1 else importedSources.keys.indexOf(id) + 2
     private fun sourceUris(): Map<String, Uri> = mapOf("primary" to source) + importedSources.mapValues { Uri.parse(it.value.uri) } +
-        (project?.soundtrackUris()?.mapIndexed { index, uri -> "__audio_$index" to Uri.parse(uri) }?.toMap() ?: emptyMap())
+        (project?.soundtrackUris()?.mapIndexed { index, uri -> "__audio_$index" to Uri.parse(uri) }?.toMap() ?: emptyMap()) +
+        (project?.captionSourceUris()?.mapIndexed { index, uri -> "__caption_$index" to Uri.parse(uri) }?.toMap() ?: emptyMap())
+
+    private fun captionOptions() {
+        if(!editorIdle()) return
+        val current=project?:return;val index=selectedClip;val clip=current.segments[index]
+        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
+        android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
+            .setItems(choices.toTypedArray()){_,choice->
+                if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip)return@setItems
+                when(choice){
+                    0->editCaption(current,index,clip,null)
+                    1->importCaptions(current,index,clip)
+                    2->exportSubtitles()
+                    3->android.app.AlertDialog.Builder(this).setTitle("Clear clip captions?").setMessage("Removes ${clip.captions.size} captions from this clip. Undo restores them.")
+                        .setNegativeButton("Cancel",null).setPositiveButton("Clear"){_,_->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,emptyList());showClip();previewProject()}}.show()
+                    else->editCaption(current,index,clip,choice-4)
+                }
+            }.setNegativeButton("Close",null).show()
+    }
+
+    private fun editCaption(current:VideoEditProject,index:Int,clip:VideoSegment,cueIndex:Int?) {
+        val cue=cueIndex?.let{clip.captions[it]}
+        val from=cue?.startMs ?: runCatching{splitPosition()}.getOrDefault(clip.startMs).coerceIn(clip.startMs,clip.endMs-1)
+        val to=cue?.endMs ?: minOf(from+3000,clip.endMs)
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(8),dp(20),dp(8))}
+        body.addView(TextView(this).apply{text="Use original video timestamps in seconds. Captions follow this clip's trims and speed. Up to 200 cues per clip; plain text only.";setTextColor(Color.DKGRAY)})
+        fun timeField(label:String,value:Long)=EditText(this).apply{hint=label;contentDescription=label;setText(String.format(java.util.Locale.ROOT,"%.3f",value/1000.0));inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL}.also{body.addView(it)}
+        val a=timeField("Caption start, source seconds",from);val b=timeField("Caption end, source seconds",to)
+        val text=EditText(this).apply{hint="Caption text";contentDescription="Caption text";setText(cue?.text.orEmpty());maxLines=3;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(240))}
+        body.addView(text)
+        val builder=android.app.AlertDialog.Builder(this).setTitle(if(cue==null)"Add caption" else "Edit caption").setView(body).setNegativeButton("Cancel",null).setPositiveButton("Apply",null)
+        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,clip.captions.filterIndexed{i,_->i!=cueIndex});showClip();previewProject()}}
+        val dialog=builder.create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip){dialog.dismiss();return@setOnClickListener}
+            runCatching{
+                val next=VideoCaption(VideoCaptions.seconds(a.text.toString()),VideoCaptions.seconds(b.text.toString()),text.text.toString().trim())
+                val cues=clip.captions.toMutableList().apply{if(cueIndex==null)add(next)else set(cueIndex,next)}.sortedBy{it.startMs}
+                current.setCaptions(index,cues)
+            }.onSuccess{dialog.dismiss();showClip();previewProject();status.text="Captions updated. Preview the project before exporting."}.onFailure{text.error=it.message?:"Check caption timing and text"}
+        }}
+        dialog.show()
+    }
+
+    private fun importCaptions(current:VideoEditProject,index:Int,clip:VideoSegment) {
+        android.app.AlertDialog.Builder(this).setTitle("Import SRT")
+            .setMessage("Replaces captions on this clip as one undoable edit. SRT times refer to the original video before trimming or speed changes. UTF-8, up to 128 KB / 200 non-overlapping cues.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Choose SRT"){_,_->
+                if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip)return@setPositiveButton
+                importing=true;captionImportTarget=index to clip;captionImportProject=current;video.pause();stopProjectPreview()
+                try{startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="*/*";addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)},25)}
+                catch(error:Exception){importing=false;captionImportTarget=null;captionImportProject=null;status.text="No subtitle document picker is available."}
+            }.show()
+    }
+
+    private fun finishCaptionImport(resultCode:Int,data:Intent?) {
+        val target=captionImportTarget;val current=captionImportProject;val uri=data?.data
+        captionImportTarget=null;captionImportProject=null
+        if(resultCode!=RESULT_OK||uri==null||target==null||current==null||isDestroyed||isFinishing){importing=false;return}
+        val sourceDuration=sourceDuration(target.second.sourceId)
+        status.text="Reading subtitles on this device..."
+        draftWorker.execute{
+            val alreadyGranted=contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission}
+            val result=runCatching{
+                require(uri.scheme=="content")
+                contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                require(contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission})
+                contentResolver.openFileDescriptor(uri,"r").use{input->requireNotNull(input);require(android.system.Os.fstat(input.fileDescriptor).st_ino!=0L){"Cannot protect this subtitle original"}}
+                val bytes=contentResolver.openInputStream(uri)?.use{VideoSubtitleDocuments.readBounded(it)}?:error("Cannot read SRT")
+                VideoCaptions.parseSrt(bytes,sourceDuration)
+            }
+            if(result.isFailure&&!alreadyGranted)runCatching{contentResolver.releasePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+            runOnUiThread{
+                importing=false
+                if(isDestroyed||isFinishing)return@runOnUiThread
+                if(project!==current||selectedClip!=target.first||current.segments.getOrNull(target.first)!=target.second){status.text="Clip changed. Import subtitles again.";return@runOnUiThread}
+                result.onSuccess{cues->runCatching{current.setCaptions(target.first,cues,uri.toString())}
+                    .onSuccess{showClip();previewProject();status.text="Imported ${cues.size} captions. Preview before exporting."}
+                    .onFailure{status.text="Caption limits exceeded. Your existing captions are unchanged."}}
+                    .onFailure{status.text="SRT import failed: ${it.message?:"Unreadable file"}. Existing captions are unchanged."}
+            }
+        }
+    }
+
+    private fun exportSubtitles() {
+        if(!editorIdle())return
+        val current=project?:return
+        val clip=current.segments.getOrNull(selectedClip)?:return
+        val from=maxOf(start.progress*1000L,clip.startMs);val to=minOf(end.progress*1000L,clip.endMs)
+        if(to<=from){status.text="Choose a valid clip range first.";return}
+        val effective=current.segments.toMutableList().apply{set(selectedClip,clip.copy(startMs=from,endMs=to))}
+        val bytes=runCatching{VideoCaptions.exportSrt(effective)}.getOrElse{status.text=it.message?:"Add captions first";return}
+        current.trim(selectedClip,from,to);showClip()
+        pendingSubtitleBytes=bytes;pendingSubtitleOriginals=sourceUris().values.toSet();importing=true
+        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="application/x-subrip";putExtra(Intent.EXTRA_TITLE,"Honorable-captions-copy.srt")},26)}
+        catch(error:Exception){importing=false;pendingSubtitleBytes=null;pendingSubtitleOriginals=null;status.text="No app is available to save subtitles."}
+    }
+
+    private fun finishSubtitleExport(resultCode:Int,data:Intent?) {
+        val bytes=pendingSubtitleBytes;val originals=pendingSubtitleOriginals;val destination=data?.data
+        pendingSubtitleBytes=null;pendingSubtitleOriginals=null
+        if(resultCode!=RESULT_OK||bytes==null||originals==null||destination==null||isDestroyed||isFinishing){importing=false;return}
+        status.text="Saving subtitle copy..."
+        draftWorker.execute{
+            val result=runCatching{VideoSubtitleDocuments.writeCopy(this,destination,bytes,originals)}
+            runOnUiThread{importing=false;if(!isDestroyed&&!isFinishing)status.text=result.fold({"Subtitle copy saved. Timings match the edited project."},{"Subtitle export failed: ${it.message}"})}
+        }
+    }
 
     private fun currentDraft(): VideoDraft {
         val clips = requireNotNull(project).segments

@@ -77,7 +77,10 @@ internal class VideoCompositionExporter(private val context: Context) {
             }
             return Composition.Builder(sequences).apply {
                 val audio=if(clips.first().audioFade)listOf(GainProcessor(VideoProjectAudioFade(clips.sumOf{it.durationUs})))else emptyList()
-                val visual=if(clips.any{it.fadeEdges})listOf(VideoTimelineFade(clips.toList()))else emptyList()
+                val visual=mutableListOf<Effect>()
+                if(clips.any{it.fadeEdges})visual.add(VideoTimelineFade(clips.toList()))
+                val captions=VideoCaptions.resolve(clips)
+                if(captions.isNotEmpty())visual.add(OverlayEffect(listOf(VideoCaptionOverlay(captions))))
                 if(audio.isNotEmpty()||visual.isNotEmpty())setEffects(Effects(audio,visual))
             }.build()
         }

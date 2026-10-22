@@ -36,7 +36,7 @@ internal class VideoTimelineFade(private val clips: List<VideoSegment>) : RgbMat
 
 /** Bounded, wrapped lower-third title. Texture allocation is lazy and owned by this overlay. */
 @UnstableApi
-internal class VideoTitleOverlay(private val title: String,private val titleStyle:VideoTitleStyle=VideoTitleStyle()) : BitmapOverlay() {
+internal class VideoTitleOverlay(private val title: String,private val titleStyle:VideoTitleStyle=VideoTitleStyle(),private val fitCaption:Boolean=false) : BitmapOverlay() {
     private var frame = Size(720,1280)
     private var owned: Bitmap? = null
     private val width: Int get() = (frame.width*.84f).toInt().coerceIn(64,1024)
@@ -51,7 +51,19 @@ internal class VideoTitleOverlay(private val title: String,private val titleStyl
             color = if(titleStyle.light)Color.WHITE else Color.BLACK
             textSize = (minOf(frame.width*titleStyle.size, frame.height*.09f)/scale).coerceIn(12f,72f)
         }
-        val layout = StaticLayout.Builder.obtain(title,0,title.length,paint,width-padding*2)
+        fun captionLayout() = StaticLayout.Builder.obtain(title,0,title.length,paint,width-padding*2)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).build()
+        val layout = if(fitCaption) {
+            var fitted=captionLayout()
+            val heightBudget=(frame.height*.28f/scale-padding*2).toInt().coerceAtLeast(2)
+            repeat(16) {
+                if(fitted.height>heightBudget&&paint.textSize>1f) {
+                    paint.textSize=(paint.textSize*kotlin.math.sqrt(heightBudget.toFloat()/fitted.height)*.9f).coerceAtLeast(1f)
+                    fitted=captionLayout()
+                }
+            }
+            fitted
+        } else StaticLayout.Builder.obtain(title,0,title.length,paint,width-padding*2)
             .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false)
             .setMaxLines(3).setEllipsize(TextUtils.TruncateAt.END).build()
         return Bitmap.createBitmap(width,layout.height+padding*2,Bitmap.Config.ARGB_8888).also {

@@ -1,0 +1,5 @@
+
+# Local Obsidian workspace state; project notes and portable settings stay in Git.
+docs/.obsidian/workspace*.json
+docs/.obsidian/cache/
+docs/.trash/

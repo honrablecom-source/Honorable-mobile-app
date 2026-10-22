@@ -1,3 +1,9 @@
+# Latest checkpoint — timed captions and SRT, October 21, 2026
+
+**2 new user-facing features:** editable timed video captions and SRT subtitle import/export. **0 new AI inference or generation engines.** Captions follow trim, split, speed and order through shared preview/export, undo/redo and compatible bounded v6 recovery. Original subtitle documents participate in copy protection. UI redesign remains paused. Three agents handled review, Obsidian coordination and exclusive build/verification; the reviewer found and helped verify a recovery-overflow fix.
+
+82 fresh RN-native JVM cases pass (13 new); 98 shared Android cases are reused only after unchanged Git-input comparison to their previously tested source. 32 RN tests / 9 suites and TypeScript pass; lint 0 errors / 36 existing warnings. Five new caption instrumentation cases compile only; no execution. Full ARM64 internal APK independently verified against 485 frozen app inputs, package/code/models, certificate and ZIP alignment: Honorable-1.0.3-captions-arm64.apk; SHA-256 d54c45b151a7598d2ad5e63c6dd5105098e95058ebb7d92e9b86163fcc0bc971. Public debug signing; signInConfigured=false. Phone rendering/provider/lifecycle, production account API, private signing/store, generation and iOS gates remain open. See HONORABLE_CAPTIONS_CHECKPOINT.md. The Obsidian vault is actively used for handoff, queue, decisions and implementation evidence.
+
 # Latest checkpoint — Apple Photos / iOS revision, October 21, 2026
 
 Owner-selected reference: Apple Photos / iOS, calm and media-focused. Replaced the rejected editorial direction with restrained Home, Studio, Library and Account screens, shared controls and real media. **0 new editing/AI features; 4 core-screen visual refinements.** The deleted source tree was recovered from the same repository's committed 3937d58 version at the owner's request; the uncommitted rejected draft was not recovered from Git.

@@ -13,8 +13,12 @@ internal data class VideoSegment(
     val layout:VideoLayout=VideoLayout(),
     val titleStyle:VideoTitleStyle=VideoTitleStyle(),
     val audioFade:Boolean=false,
+    val captions: List<VideoCaption> = emptyList(),
+    val captionSourceUri: String? = null,
 ) {
     init {
+        VideoCaptions.validate(captions)
+        captionSourceUri?.let { require(it.startsWith("content://") && it.none { c -> c.isISOControl() } && it.toByteArray(Charsets.UTF_8).size <= 2048 && it.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == it) }
         require(title.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == title)
         require(title.length <= 120 && title.count { it == '\n' } <= 2 && title.none { it.isISOControl() && it != '\n' })
         require(!sourceId.startsWith("__") && sourceId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
@@ -40,7 +44,12 @@ internal class VideoEditProject(durationMs: Long) {
         private set
 
     private fun validate(clips: List<VideoSegment>, sources: Map<String, Long>) {
+        VideoDraftCodec.requireRecoverableCaptions(clips)
+        require(clips.mapNotNull { it.captionSourceUri }.distinct().size <= 32) { "Use up to 32 subtitle source documents" }
         require(clips.sumOf { it.title.toByteArray(Charsets.UTF_8).size } <= 128_000) { "Project title text limit reached" }
+        require(clips.sumOf { it.captions.size } <= VideoCaptions.MAX_PROJECT_CUES) { "Project caption count limit reached" }
+        require(clips.sumOf { clip -> clip.captions.sumOf { it.text.toByteArray(Charsets.UTF_8).size } } <= VideoCaptions.MAX_PROJECT_TEXT_BYTES) { "Project caption text limit reached" }
+        require(clips.all { clip -> clip.captions.all { it.endMs <= (sources[clip.sourceId] ?: 0) } }) { "Caption exceeds original source duration" }
         require(clips.size in 1..1000 && sources.size in 1..32)
         require(sources.all { (id, duration) -> id.matches(Regex("[A-Za-z0-9_-]{1,64}")) && duration > 0 })
         require(clips.all { it.endMs <= (sources[it.sourceId] ?: 0) }) { "Unknown source or clip outside its source" }
@@ -75,6 +84,7 @@ internal class VideoEditProject(durationMs: Long) {
 
     val totalDurationMs: Long get() = segments.sumOf { it.durationMs }
     fun soundtrackUris(): Set<String> = (undo.toList() + redo.toList() + state()).mapNotNull { it.soundtrack?.uri }.toSet()
+    fun captionSourceUris(): Set<String> = (undo.toList() + redo.toList() + state()).flatMap { state -> state.clips.mapNotNull { it.captionSourceUri } }.toSet()
     val canUndo: Boolean get() = undo.isNotEmpty()
     val canRedo: Boolean get() = redo.isNotEmpty()
 
@@ -92,15 +102,15 @@ internal class VideoEditProject(durationMs: Long) {
         require(sourceTimeMs > clip.startMs && sourceTimeMs < clip.endMs) { "Split inside the clip" }
         change(segments.toMutableList().apply {
             removeAt(index)
-            add(index, clip.copy(startMs = sourceTimeMs))
-            add(index, clip.copy(endMs = sourceTimeMs))
+            add(index, clip.copy(startMs = sourceTimeMs, captions = clip.captions.filter { it.endMs > sourceTimeMs && it.startMs < clip.endMs }))
+            add(index, clip.copy(endMs = sourceTimeMs, captions = clip.captions.filter { it.startMs < sourceTimeMs && it.endMs > clip.startMs }))
         })
     }
 
     fun trim(index: Int, startMs: Long, endMs: Long) {
         val clip = segments[index]
         require(startMs >= clip.startMs && endMs <= clip.endMs) { "Trim inside the clip" }
-        change(segments.toMutableList().apply { set(index, clip.copy(startMs = startMs, endMs = endMs)) })
+        change(segments.toMutableList().apply { set(index, clip.copy(startMs = startMs, endMs = endMs, captions = clip.captions.filter { it.endMs > startMs && it.startMs < endMs })) })
     }
 
     fun setSpeed(index: Int, speed: Float) {
@@ -114,6 +124,7 @@ internal class VideoEditProject(durationMs: Long) {
     fun setSoundtrack(track: VideoSoundtrack?) = change(segments,track)
 
     fun setTitle(index: Int, title: String) = change(segments.toMutableList().apply { set(index, get(index).copy(title = title)) })
+    fun setCaptions(index: Int, cues: List<VideoCaption>, sourceUri: String? = segments[index].captionSourceUri) = change(segments.toMutableList().apply { set(index, get(index).copy(captions = cues.toList(), captionSourceUri = sourceUri)) })
     fun setFadeEdges(index: Int, enabled: Boolean) = change(segments.toMutableList().apply { set(index, get(index).copy(fadeEdges = enabled)) })
     fun setGrade(index: Int, grade: VideoGrade) = change(segments.toMutableList().apply { set(index, get(index).copy(grade = grade)) })
     fun setLayout(index:Int,layout:VideoLayout)=change(segments.toMutableList().apply{set(index,get(index).copy(layout=layout))})

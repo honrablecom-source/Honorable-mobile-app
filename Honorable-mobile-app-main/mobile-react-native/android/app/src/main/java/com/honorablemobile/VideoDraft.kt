@@ -39,12 +39,16 @@ internal data class VideoDraft(
     val soundtrack: VideoSoundtrack? = null,
 ) {
     init {
+        VideoDraftCodec.requireRecoverableCaptions(segments)
+        require(segments.mapNotNull { it.captionSourceUri }.distinct().size <= 32)
+        require(segments.sumOf { it.captions.size } <= VideoCaptions.MAX_PROJECT_CUES)
+        require(segments.sumOf { clip -> clip.captions.sumOf { it.text.toByteArray(Charsets.UTF_8).size } } <= VideoCaptions.MAX_PROJECT_TEXT_BYTES)
         require(segments.sumOf { it.title.toByteArray(Charsets.UTF_8).size } <= 128_000)
         require(sourceDurationMs > 0 && segments.size in 1..1000)
         require(sources.size <= 31 && sources.map { it.id }.distinct().size == sources.size)
         require(sources.map { it.uri }.distinct().size == sources.size)
         val durations = mapOf("primary" to sourceDurationMs) + sources.associate { it.id to it.durationMs }
-        require(segments.all { it.endMs <= (durations[it.sourceId] ?: 0) })
+        require(segments.all { clip -> clip.endMs <= (durations[clip.sourceId] ?: 0) && clip.captions.all { it.endMs <= (durations[clip.sourceId] ?: 0) } })
         require(selectedClip in segments.indices)
         require(previewPositionMs in 0 until durations.getValue(segments[selectedClip].sourceId))
         val selected = segments[selectedClip]
@@ -54,13 +58,24 @@ internal data class VideoDraft(
 
 internal object VideoDraftCodec {
     private const val MAGIC = 0x484e5644 // HNVD
-    private const val VERSION = 5
+    private const val VERSION = 6
     private const val MAX_BYTES = 256_000
+
+    /** Reserve the largest permitted source catalog, soundtrack and fixed header before accepting edits. */
+    fun requireRecoverableCaptions(clips: List<VideoSegment>) {
+        if(clips.none { it.captions.isNotEmpty() || it.captionSourceUri != null }) return
+        val references=clips.mapNotNull { it.captionSourceUri }.distinct()
+        val payload=4L + references.sumOf { 4L + it.toByteArray(Charsets.UTF_8).size } + clips.sumOf { clip ->
+            74L + clip.title.toByteArray(Charsets.UTF_8).size + clip.captions.sumOf { 20L + it.text.toByteArray(Charsets.UTF_8).size }
+        }
+        // 48-byte header, 31 maximum-length sources, soundtrack and source-count field.
+        require(payload + 68_024 <= MAX_BYTES) { "Project caption recovery limit reached" }
+    }
 
     fun encode(draft: VideoDraft): ByteArray = ByteArrayOutputStream().use { bytes ->
         DataOutputStream(bytes).use { output ->
             output.writeInt(MAGIC)
-            val version = if(draft.segments.any{!it.layout.isIdentity||!it.titleStyle.isIdentity||it.audioFade||it.grade.warmth!=0f||it.grade.tint!=0f})5 else if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
+            val version = if(draft.segments.any { it.captions.isNotEmpty() || it.captionSourceUri != null }) 6 else if(draft.segments.any{!it.layout.isIdentity||!it.titleStyle.isIdentity||it.audioFade||it.grade.warmth!=0f||it.grade.tint!=0f})5 else if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
             output.writeInt(version)
             output.writeLong(draft.sourceDurationMs)
             output.writeInt(draft.selectedClip)
@@ -68,6 +83,11 @@ internal object VideoDraftCodec {
             output.writeLong(draft.trimStartMs)
             output.writeLong(draft.trimEndMs)
             output.writeInt(draft.segments.size)
+            val captionReferences=draft.segments.mapNotNull { it.captionSourceUri }.distinct()
+            if(version >= 6) {
+                output.writeInt(captionReferences.size)
+                captionReferences.forEach { writeText(output,it,2048) }
+            }
             draft.segments.forEach { clip ->
                 output.writeLong(clip.startMs); output.writeLong(clip.endMs)
                 output.writeFloat(clip.speed); output.writeFloat(clip.volume)
@@ -78,6 +98,11 @@ internal object VideoDraftCodec {
                     output.writeFloat(clip.grade.warmth);output.writeFloat(clip.grade.tint)
                     output.writeByte(clip.layout.ratio);output.writeBoolean(clip.layout.crop);output.writeByte(clip.layout.rotation/90);output.writeBoolean(clip.layout.mirrorX);output.writeBoolean(clip.layout.mirrorY)
                     output.writeByte(clip.titleStyle.position);output.writeFloat(clip.titleStyle.size);output.writeBoolean(clip.titleStyle.light);output.writeBoolean(clip.titleStyle.plate);output.writeBoolean(clip.audioFade)
+                }
+                if(version >= 6) {
+                    output.writeInt(clip.captions.size)
+                    clip.captions.forEach { cue -> output.writeLong(cue.startMs); output.writeLong(cue.endMs); writeText(output,cue.text,720) }
+                    output.writeInt(clip.captionSourceUri?.let { captionReferences.indexOf(it) } ?: -1)
                 }
             }
             if(version >= 2) {
@@ -105,13 +130,23 @@ internal object VideoDraftCodec {
             val end = input.readLong()
             val count = input.readInt()
             require(count in 1..1000)
+            val captionReferences=if(version >= 6) {
+                val size=input.readInt(); require(size in 0..32)
+                List(size) { readText(input,2048) }.also { require(it.distinct().size==it.size) }
+            } else emptyList()
             val indices = mutableListOf<Int>()
             val raw = List(count) {
                 val clip = VideoSegment(input.readLong(), input.readLong(), input.readFloat(), input.readFloat())
                 indices.add(if(version >= 2) input.readInt() else 0)
                 val titled=if(version >= 3) clip.copy(title = readText(input,360), fadeEdges = input.readBoolean()) else clip
                 val graded=if(version >= 4)titled.copy(grade=VideoGrade(input.readFloat(),input.readFloat(),input.readFloat())) else titled
-                if(version>=5)graded.copy(grade=graded.grade.copy(warmth=input.readFloat(),tint=input.readFloat()),layout=VideoLayout(input.readUnsignedByte(),input.readBoolean(),input.readUnsignedByte()*90,input.readBoolean(),input.readBoolean()),titleStyle=VideoTitleStyle(input.readUnsignedByte(),input.readFloat(),input.readBoolean(),input.readBoolean()),audioFade=input.readBoolean())else graded
+                val finished = if(version>=5)graded.copy(grade=graded.grade.copy(warmth=input.readFloat(),tint=input.readFloat()),layout=VideoLayout(input.readUnsignedByte(),input.readBoolean(),input.readUnsignedByte()*90,input.readBoolean(),input.readBoolean()),titleStyle=VideoTitleStyle(input.readUnsignedByte(),input.readFloat(),input.readBoolean(),input.readBoolean()),audioFade=input.readBoolean())else graded
+                if(version >= 6) {
+                    val cueCount = input.readInt(); require(cueCount in 0..VideoCaptions.MAX_PER_CLIP)
+                    val cues = List(cueCount) { VideoCaption(input.readLong(),input.readLong(),readText(input,720)) }
+                    val reference=input.readInt(); require(reference in -1 until captionReferences.size)
+                    finished.copy(captions=cues,captionSourceUri=if(reference==-1)null else captionReferences[reference])
+                } else finished
             }
             val sources = if(version >= 2) {
                 val size = input.readInt(); require(size in (if(version >= 3) 0 else 1)..31)
