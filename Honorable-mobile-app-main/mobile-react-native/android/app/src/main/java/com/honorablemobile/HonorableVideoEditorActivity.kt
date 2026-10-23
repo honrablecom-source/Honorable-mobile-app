@@ -29,9 +29,11 @@ import android.graphics.drawable.GradientDrawable
 import androidx.media3.common.util.UnstableApi
 import app.honorable.editor.PhotoLook
 import app.honorable.editor.PhotoLightStats
+import app.honorable.editor.EditorAccessMode
 
 @UnstableApi
 class HonorableVideoEditorActivity : Activity() {
+    private var accessMode = EditorAccessMode.ACCOUNT
     private lateinit var source: Uri
     private lateinit var video: VideoView
     private lateinit var projectPreviewView: PlayerView
@@ -83,7 +85,10 @@ class HonorableVideoEditorActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        recoveryBytes = savedInstanceState?.getByteArray("multiSourceProject")
+        accessMode = runCatching { EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA)) }.getOrElse { finish(); return }
+        val restoreMode=savedInstanceState?.getString(EditorAccessMode.EXTRA)
+        val sameMode=restoreMode==accessMode.name||(restoreMode==null&&accessMode==EditorAccessMode.ACCOUNT)
+        recoveryBytes = if(sameMode)savedInstanceState?.getByteArray("multiSourceProject")else null
         source = Uri.parse(intent.getStringExtra("uri") ?: run { finish(); return })
         window.statusBarColor = Color.WHITE
         window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) Color.WHITE else Color.BLACK
@@ -167,10 +172,10 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
         projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
-        assistTools.addView(Button(this).apply { text = "AI rough cut"; setOnClickListener { roughCutOptions() } })
-        assistTools.addView(Button(this).apply { text = "AI video looks"; setOnClickListener { videoLookOptions() } })
+        assistTools.addView(Button(this).apply { text = "AI rough cut"; isEnabled=accessMode.allowsAi; setOnClickListener { roughCutOptions() } })
+        assistTools.addView(Button(this).apply { text = "AI video looks"; isEnabled=accessMode.allowsAi; setOnClickListener { videoLookOptions() } })
         assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
-        assistTools.addView(Button(this).apply { text = "Suggest scene"; setOnClickListener { suggestScene() } })
+        assistTools.addView(Button(this).apply { text = "Suggest scene"; isEnabled=accessMode.allowsAi; setOnClickListener { suggestScene() } })
         assistTools.addView(label("Experimental · on-device sampled-frame labels. Preview every suggestion.", 12f))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         actions.addView(Button(this).apply {
@@ -286,9 +291,9 @@ class HonorableVideoEditorActivity : Activity() {
         audioTools.addView(label("Soundtrack loops to the video length. Use Preview project to check the mix.",12f))
         creativeTools.addView(label("Titles appear throughout the clip. Video fades are up to 0.5s at each edge; audio is unchanged.",12f))
         val drafts = LinearLayout(this)
-        drafts.addView(Button(this).apply { text = "Save draft"; setOnClickListener { draftOperation(false) } },
+        drafts.addView(Button(this).apply { text = "Save draft"; isEnabled=accessMode.allowsAccountDrafts; setOnClickListener { draftOperation(false) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        drafts.addView(Button(this).apply { text = "Restore draft"; setOnClickListener { draftOperation(true) } },
+        drafts.addView(Button(this).apply { text = "Restore draft"; isEnabled=accessMode.allowsAccountDrafts; setOnClickListener { draftOperation(true) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         projectTools.addView(drafts)
         projectTools.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
@@ -310,7 +315,7 @@ class HonorableVideoEditorActivity : Activity() {
         val split=findAction(controls,"Split")
         val titles=findAction(creativeTools,"Title")
         val options=listOf("Trim" to "Edit","Split" to "Edit","Speed" to "Speed","Color" to "Picture","Title" to "Titles","Music" to "Audio","AI" to "Assist","More" to "Project")
-        options.forEach{(name,group)->val tab=Button(this).apply{text=name;contentDescription="$name tools";setOnClickListener{val collapse=isSelected&&tray.visibility==View.VISIBLE;selectTools(group);tray.visibility=if(collapse)View.GONE else View.VISIBLE;tabButtons.forEach{it.isSelected=!collapse&&it===this;it.setBackgroundColor(if(it.isSelected)Color.rgb(241,241,241)else Color.WHITE)};when(name){"Split"->split?.performClick();"Title"->titles?.performClick();"Color"->editColor()}}};tabButtons.add(tab);tabs.addView(tab,LinearLayout.LayoutParams(dp(68),dp(if(compactWorkspace)64 else 72)))}
+        options.forEach{(name,group)->val tab=Button(this).apply{text=name;contentDescription="$name tools";isEnabled=name!="AI"||accessMode.allowsAi;setOnClickListener{val collapse=isSelected&&tray.visibility==View.VISIBLE;selectTools(group);tray.visibility=if(collapse)View.GONE else View.VISIBLE;tabButtons.forEach{it.isSelected=!collapse&&it===this;it.setBackgroundColor(if(it.isSelected)Color.rgb(241,241,241)else Color.WHITE)};when(name){"Split"->split?.performClick();"Title"->titles?.performClick();"Color"->editColor()}}};tabButtons.add(tab);tabs.addView(tab,LinearLayout.LayoutParams(dp(68),dp(if(compactWorkspace)64 else 72)))}
         root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)},root.indexOfChild(tray))
         styleEditorControls(root, previewFrame)
         tabButtons.forEach { app.honorable.editor.EditorChrome.style(it,true) }
@@ -351,7 +356,7 @@ class HonorableVideoEditorActivity : Activity() {
             } else {
                 recoveryBytes = null
                 // Preserve lifecycle compatibility with the earlier single-source editor.
-                readSegments(savedInstanceState, "project")?.let { runCatching { current.restore(it) } }
+                readSegments(if(sameMode)savedInstanceState else null, "project")?.let { runCatching { current.restore(it) } }
                 selectedClip = (savedInstanceState?.getInt("selectedClip") ?: 0).coerceIn(0, current.segments.lastIndex)
                 showClip()
                 pendingSeekMs = savedInstanceState?.getLong("previewPositionMs") ?: intent.getLongExtra("timestampMs", 0L)
@@ -516,6 +521,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun suggestScene() {
+        if(!allowAi())return
         if (analyzing || saving || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val selection = runCatching { VideoSceneSelection.capture(project?.segments ?: emptyList(), selectedClip,
             start.progress * 1_000L, end.progress * 1_000L) }.getOrElse {
@@ -582,10 +588,15 @@ class HonorableVideoEditorActivity : Activity() {
             "Picture" to listOf(t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Project audio fade"){toggleAudioFade()}),
             "Project" to listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}),
-            "On-device AI" to listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})
-        ))
+            "On-device AI" to (if(accessMode.allowsAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
+        ).filter{it.second.isNotEmpty()})
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
+    private fun allowAi():Boolean {
+        if(accessMode.allowsAi)return true
+        status.text="Sign in to use AI tools. Basic editing and export work offline."
+        return false
+    }
     private fun outputFormat(){
         if(!editorIdle())return;val current=project?:return;val snapshot=current.segments
         VideoInspectorControls.format(this,snapshot.first().layout){ratio,crop->if(editorIdle()&&project===current&&current.segments==snapshot){current.setFormat(ratio,crop);showClip();previewProject()}}
@@ -619,12 +630,14 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun videoLookOptions() {
+        if(!allowAi())return
         if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
         val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
         android.app.AlertDialog.Builder(this).setTitle("AI video look").setItems(names){_,which->suggestVideoLook(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
     }
 
     private fun suggestVideoLook(look:PhotoLook) {
+        if(!allowAi())return
         if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
         val current=project?:return
         val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
@@ -679,6 +692,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun roughCutOptions() {
+        if(!allowAi())return
         if(isDestroyed||isFinishing||analyzing||saving||draftBusy||importing||pendingRange!=null)return
         val clips=project?.segments?:return
         if(clips.size>VideoRoughCut.MAX_CLIPS){status.text="AI rough cut supports up to 8 timeline clips. Keep a smaller selection first.";return}
@@ -692,6 +706,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun createRoughCut(target:Long,focus:RoughCutFocus) {
+        if(!allowAi())return
         if(isDestroyed||isFinishing||analyzing||saving||draftBusy||importing||pendingRange!=null||!sourceReady)return
         val current=project?:return
         val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
@@ -816,6 +831,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun draftOperation(restore: Boolean) {
+        if(!accessMode.allowsAccountDrafts){status.text="Sign in to save or restore account drafts. Export a copy to keep your guest edit.";return}
         if (saving || analyzing || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val current = project ?: return
         val sourceDuration = primaryDurationMs
@@ -954,23 +970,26 @@ class HonorableVideoEditorActivity : Activity() {
         val sourceDuration=sourceDuration(target.second.sourceId)
         status.text="Reading subtitles on this device..."
         draftWorker.execute{
-            val alreadyGranted=contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission}
             val result=runCatching{
                 require(uri.scheme=="content")
-                contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                require(contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission})
                 contentResolver.openFileDescriptor(uri,"r").use{input->requireNotNull(input);require(android.system.Os.fstat(input.fileDescriptor).st_ino!=0L){"Cannot protect this subtitle original"}}
                 val bytes=contentResolver.openInputStream(uri)?.use{VideoSubtitleDocuments.readBounded(it)}?:error("Cannot read SRT")
                 VideoCaptions.parseSrt(bytes,sourceDuration)
             }
-            if(result.isFailure&&!alreadyGranted)runCatching{contentResolver.releasePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}
             runOnUiThread{
                 importing=false
                 if(isDestroyed||isFinishing)return@runOnUiThread
                 if(project!==current||selectedClip!=target.first||current.segments.getOrNull(target.first)!=target.second){status.text="Clip changed. Import subtitles again.";return@runOnUiThread}
-                result.onSuccess{cues->runCatching{current.setCaptions(target.first,cues,uri.toString())}
+                result.onSuccess{cues->runCatching{
+                    VideoCaptionImportPermissions.commit(
+                        hasReadGrant={contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission}},
+                        takeReadGrant={contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)},
+                        releaseReadGrant={contentResolver.releasePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)},
+                        applyCaptions={current.setCaptions(target.first,cues,uri.toString())},
+                    )
+                }
                     .onSuccess{showClip();previewProject();status.text="Imported ${cues.size} captions. Preview before exporting."}
-                    .onFailure{status.text="Caption limits exceeded. Your existing captions are unchanged."}}
+                    .onFailure{status.text="Could not keep subtitles: ${it.message?:"Check document access and project limits"}. Existing captions are unchanged."}}
                     .onFailure{status.text="SRT import failed: ${it.message?:"Unreadable file"}. Existing captions are unchanged."}
             }
         }
@@ -1130,6 +1149,7 @@ class HonorableVideoEditorActivity : Activity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putString(EditorAccessMode.EXTRA,accessMode.name)
         if (::start.isInitialized) outState.putInt("startProgress", start.progress)
         if (::end.isInitialized) outState.putInt("endProgress", end.progress)
         if (::video.isInitialized) outState.putLong("previewPositionMs", video.currentPosition.toLong())

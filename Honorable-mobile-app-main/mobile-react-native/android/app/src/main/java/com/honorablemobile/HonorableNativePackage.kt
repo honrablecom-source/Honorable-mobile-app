@@ -3,6 +3,7 @@ package com.honorablemobile
 import app.honorable.auth.SafeBetaTelemetry
 import app.honorable.auth.AccountSession
 import app.honorable.auth.GoogleAccountSignIn
+import app.honorable.editor.EditorAccessMode
 import org.json.JSONObject
 import org.json.JSONArray
 import app.honorable.HonorableFeature
@@ -171,6 +172,19 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @ReactMethod fun getSearchHistory(promise:Promise)=work.execute{guarded(promise){Arguments.createMap().apply{putArray("queries",Arguments.fromList(searchHistory()))}}}
     @ReactMethod fun clearSearchHistory(promise:Promise)=work.execute{guarded(promise){context.getSharedPreferences("honorable-ui",0).edit().remove("search-history").apply();Arguments.createMap().apply{putBoolean("cleared",true)}}}
     @ReactMethod fun editPhoto(uri:String,promise:Promise)=work.execute{guarded(promise){accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"));context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri)});Arguments.createMap().apply{putBoolean("opened",true)}}}
+    @ReactMethod fun editPhotoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"image/",app.honorable.editor.PhotoEditorActivity::class.java,promise)
+    @ReactMethod fun editVideoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"video/",HonorableVideoEditorActivity::class.java,promise)
+    private fun launchGuestEditor(uri:String,mimePrefix:String,editor:Class<out android.app.Activity>,promise:Promise)=work.execute{guarded(promise){
+        val selected=Uri.parse(uri)
+        require(selected.scheme=="content") { "Choose a local photo or video from the picker" }
+        require(context.contentResolver.getType(selected)?.startsWith(mimePrefix)==true) { "Choose a supported ${if(mimePrefix=="image/")"photo"else"video"}" }
+        context.contentResolver.openFileDescriptor(selected,"r").use{requireNotNull(it){"The selected file could not be opened"}}
+        context.startActivity(Intent(context,editor).apply{
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra("uri",uri);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)
+        })
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
     @ReactMethod fun editVideo(uri:String,promise:Promise)=launchVideoEditor(uri,null,promise)
     @ReactMethod fun editVideoAtMoment(uri:String,timestampMs:Double,promise:Promise)=launchVideoEditor(uri,timestampMs,promise)
     private fun launchVideoEditor(uri:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){

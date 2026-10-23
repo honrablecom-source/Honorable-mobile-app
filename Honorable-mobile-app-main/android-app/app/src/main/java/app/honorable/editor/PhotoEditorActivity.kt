@@ -19,7 +19,8 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 
 /** Local, non-destructive raster editor. Exports through CREATE_DOCUMENT; never writes source URI. */
 class PhotoEditorActivity:Activity(){
-
+ private var accessMode:EditorAccessMode?=null
+ private var guestInstance:String?=null
  private var renderedEdit:PhotoEdit?=null
  private var placingLight:PhotoRadialLight?=null
  private var placingOn:PhotoEdit?=null
@@ -32,22 +33,34 @@ class PhotoEditorActivity:Activity(){
  private var waitingForPicker=false
  private var loadedScope:String?=null
  private fun currentScope():String?=runCatching {
-  val session=app.honorable.auth.SecureAccountStore(this).read()?:return@runCatching null
-  if(session.optLong("expiresAt")<=System.currentTimeMillis())return@runCatching null
-  val account=session.optJSONObject("cached")?.optJSONObject("account")?.optString("accountId").orEmpty()
-  val api=session.optString("apiUrl")
-  if(account.isBlank()||!api.startsWith("https://"))return@runCatching null
-  PhotoSessionCodec.scope(account,api,source.toString())
+  accessMode?.lifecycleScope(source.toString(),guestInstance,readAccountScope=readScope@{
+   val session=app.honorable.auth.SecureAccountStore(this).read()?:return@readScope null
+   if(session.optLong("expiresAt")<=System.currentTimeMillis())return@readScope null
+   val account=session.optJSONObject("cached")?.optJSONObject("account")?.optString("accountId").orEmpty()
+   val api=session.optString("apiUrl")
+   if(account.isBlank()||!api.startsWith("https://"))return@readScope null
+   PhotoSessionCodec.scope(account,api,source.toString())
+  })
  }.getOrNull()
  private var readingText=false;private var enhancing=false;private var cuttingOut=false;private var exportEdit:PhotoEdit?=null
  @Volatile private var personMask:Bitmap?=null
  private var cutoutJob:AutoCloseable?=null
  private val openedAt=System.currentTimeMillis()
- private fun tool(name:String){SafeBetaTelemetry.emit(this,"edit_tool_used",JSONObject().put("tool",name))}
+ private fun emit(type:String,metadata:JSONObject=JSONObject()){if(accessMode==EditorAccessMode.ACCOUNT)SafeBetaTelemetry.emit(this,type,metadata)}
+ private fun tool(name:String){emit("edit_tool_used",JSONObject().put("tool",name))}
+ private fun authorizeEditor(){requireNotNull(accessMode).authorizeAccount{SafeBetaTelemetry.authorizeEditor(this)}}
+ private fun allowAi():Boolean {
+  if(accessMode?.allowsAi==true)return true
+  note.text="Sign in to use AI tools. Basic editing and export work offline."
+  return false
+ }
  private val sliders=mutableListOf<SeekBar>();private var edit=PhotoEdit();private val undo=mutableListOf<PhotoEdit>();private val redo=mutableListOf<PhotoEdit>();private var before=false
  private lateinit var image:ImageView;private lateinit var note:TextView;private lateinit var source:Uri
  private var bitmap:Bitmap?=null;private var rendered:Bitmap?=null;private val worker=Executors.newSingleThreadExecutor();@Volatile private var revision=0
- override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);source=Uri.parse(intent.getStringExtra("uri")?:run{finish();return})
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState)
+ accessMode=runCatching{EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA))}.getOrElse{finish();return}
+ if(accessMode==EditorAccessMode.GUEST_BASIC)guestInstance=savedInstanceState?.getString("guestEditorInstance")?.takeIf{it.matches(Regex("[0-9a-f-]{36}"))}?:java.util.UUID.randomUUID().toString()
+ source=Uri.parse(intent.getStringExtra("uri")?:run{finish();return})
  restoredSession=runCatching{val bytes=savedInstanceState?.getByteArray("photoSession")?:return@runCatching null
   PhotoSessionCodec.decode(bytes,currentScope()?:return@runCatching null)}.getOrNull()
  exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
@@ -136,11 +149,11 @@ class PhotoEditorActivity:Activity(){
  button(detailTools,"Vignette"){finishAdjust("Vignette",2)}
  button(detailTools,"Sharpen"){finishAdjust("Sharpen",3)}
  button(row(transforms),"Add text"){editCaption()}
- button(row(assist),"AI scene enhance"){enhanceScene()}
- button(row(assist),"AI photo looks"){chooseLook()}
- button(row(assist),"Cut out person (beta)"){cutOutPerson()}
- button(row(assist),"AI person background"){chooseBackground()}
- button(row(assist),"Read text"){readText()}
+ button(row(assist),"AI scene enhance"){enhanceScene()}.isEnabled=accessMode?.allowsAi==true
+ button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsAi==true
+ button(row(assist),"Cut out person (beta)"){cutOutPerson()}.isEnabled=accessMode?.allowsAi==true
+ button(row(assist),"AI person background"){chooseBackground()}.isEnabled=accessMode?.allowsAi==true
+ button(row(assist),"Read text"){readText()}.isEnabled=accessMode?.allowsAi==true
  val tabs=row();val tabButtons=mutableListOf<Button>()
  fun selectCategory(name:String){
   categories.forEach{(key,content)->(content.parent as View).visibility=if(key==name)View.VISIBLE else View.GONE}
@@ -152,15 +165,15 @@ class PhotoEditorActivity:Activity(){
   "Mirror" to {chooseMirror()}, "Color" to {finishAdjust("White balance",0)},
   "Curves" to {showCurve()}, "People" to {chooseBackground()}, "Text" to {editCaption()},
   "Framing" to {selectCategory("Transform")}, "AI" to {selectCategory("Assist")}, "More" to {openInspector()})
- directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);setOnClickListener{action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
+ directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsAi==true||name !in setOf("AI","People");setOnClickListener{action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
  root.removeView(tabs)
  root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)})
  selectCategory("Adjust");toolButtons.first().performClick()
 
  setContentView(root)
  NativeWorkspaceInsets.install(this,root)
- SafeBetaTelemetry.emit(this,"editor_opened",JSONObject().put("mediaType","IMAGE"));
- worker.execute{try{SafeBetaTelemetry.authorizeEditor(this);val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){
+ emit("editor_opened",JSONObject().put("mediaType","IMAGE"));
+ worker.execute{try{authorizeEditor();val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)emit("performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){
    bitmap=loaded;loadedScope=currentScope()
    restoredSession?.takeIf{it.scope==loadedScope}?.let{saved->edit=saved.edit;undo.addAll(saved.undo);redo.addAll(saved.redo);before=saved.compareOriginal;activeTool=saved.activeTool
     if(activeTool in toolButtons.indices)toolButtons[activeTool].performClick()}
@@ -187,7 +200,7 @@ class PhotoEditorActivity:Activity(){
     runOnUiThread {
      if(request==revision&&!isDestroyed){
       val old=rendered;rendered=result
-      SafeBetaTelemetry.duration(this,"EDITOR_RESPONSE",started)
+      if(accessMode==EditorAccessMode.ACCOUNT)SafeBetaTelemetry.duration(this,"EDITOR_RESPONSE",started)
       image.setImageBitmap(result);renderedEdit=state;old?.recycle()
       if(!readingText&&!cuttingOut&&exportEdit==null)note.text=if(before)"Original preview" else if(state.background!=null)"Person background · check hair and edges before saving a copy" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
      }else result.recycle()
@@ -204,9 +217,9 @@ class PhotoEditorActivity:Activity(){
    "Framing" to listOf(t("Aspect ratio"){chooseRatio()},t("Mirror"){chooseMirror()}),
    "Color & light" to listOf(t("White balance"){finishAdjust("White balance",0)},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
    "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
-   "On-device AI" to listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()}),
+    "On-device AI" to (if(accessMode?.allowsAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
-  ))
+   ).filter{it.second.isNotEmpty()})
  }
  private fun canFinish()=bitmap!=null&&exportEdit==null&&!enhancing&&!cuttingOut&&!isFinishing
  private fun chooseRatio(){if(!canFinish())return;val base=edit
@@ -230,6 +243,7 @@ class PhotoEditorActivity:Activity(){
   }.setNegativeButton("Cancel",null).show()
  }
  private fun chooseBackground(){
+   if(!allowAi())return
   if(bitmap==null||exportEdit!=null||cuttingOut||enhancing||readingText)return
   val base=edit;val request=revision
   fun commit(background:PhotoBackground?){
@@ -255,6 +269,7 @@ class PhotoEditorActivity:Activity(){
   }.setNegativeButton("Cancel",null).show()
  }
  private fun cutOutPerson(recover:Boolean=false,background:PhotoBackground?=null) {
+   if(!allowAi())return
   val input=bitmap?:return
   if(cuttingOut||readingText||enhancing||(!recover&&exportEdit!=null)||isFinishing)return
   fun applyPersonEdit(){tool(if(background==null)"person_cutout" else "person_background");change(edit.copy(personCutout=background==null,background=background))}
@@ -299,11 +314,13 @@ class PhotoEditorActivity:Activity(){
   })
  }
  private fun chooseLook(){
+   if(!allowAi())return
   if(bitmap==null||enhancing||cuttingOut||exportEdit!=null)return
   val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
   android.app.AlertDialog.Builder(this).setTitle("AI-assisted photo look").setItems(names){_,which->enhanceScene(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
  }
  private fun enhanceScene(look:PhotoLook=PhotoLook.AUTO) {
+   if(!allowAi())return
   val input=bitmap?:return
   if(enhancing||cuttingOut||exportEdit!=null||isFinishing)return
   val owned=runCatching{requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory for scene analysis.";return}
@@ -325,6 +342,7 @@ class PhotoEditorActivity:Activity(){
   }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();note.text="Scene analysis failed. Try manual adjustments."}
  }
  private fun readText() {
+   if(!allowAi())return
   val input=bitmap?:return
   if(readingText||cuttingOut||isFinishing)return
   readingText=true
@@ -366,17 +384,17 @@ class PhotoEditorActivity:Activity(){
    var input:Bitmap?=null
    var output:Bitmap?=null
    try {
-    SafeBetaTelemetry.authorizeEditor(this)
+    authorizeEditor()
     val decoded=decode(8192)
     input=decoded
     val result=render(decoded,state)
     output=result
     SafePhotoCopy.save(this,source,destination,result,exportEncoding,exportQuality)
     val dimensions="${result.width} × ${result.height}"
-    SafeBetaTelemetry.emit(this,"edit_saved",JSONObject().put("mediaType","IMAGE"))
+    emit("edit_saved",JSONObject().put("mediaType","IMAGE"))
     runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."}
    } catch(e:Exception) {
-    SafeBetaTelemetry.emit(this,"client_error",JSONObject().put("errorCode","SAVE_FAILED"))
+    emit("client_error",JSONObject().put("errorCode","SAVE_FAILED"))
     runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Export failed. Choose a local writable destination; check Files for a partial copy."}
    } catch(e:OutOfMemoryError) {
     runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Not enough memory to save this photo. Close other tools and try again."}
@@ -385,6 +403,7 @@ class PhotoEditorActivity:Activity(){
  }
  override fun onSaveInstanceState(outState:Bundle){
   super.onSaveInstanceState(outState)
+   if(accessMode==EditorAccessMode.GUEST_BASIC)guestInstance?.let{outState.putString("guestEditorInstance",it)}
   outState.putInt("photoEncoding",exportEncoding.ordinal);outState.putInt("photoQuality",exportQuality)
   runCatching {
    val scope=currentScope()?:return@runCatching
@@ -395,6 +414,6 @@ class PhotoEditorActivity:Activity(){
    if(loadedScope==null||loadedScope==scope)outState.putByteArray("photoSession",PhotoSessionCodec.encode(snapshot))
   }
  }
- override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)SafeBetaTelemetry.emit(this,"performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
- override fun onDestroy(){SafeBetaTelemetry.emit(this,"editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
+ override fun onDestroy(){emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }

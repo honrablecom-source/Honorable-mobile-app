@@ -2,6 +2,9 @@
 
 ## Latest built increment — phone acceptance pending
 
+- [x] **GUEST-01** — Offline basic guest photo/video editing; build/test verified, physical acceptance pending. [[HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT]].
+- [x] Fix signed-in denied/empty-library editor access and subtitle grant rollback; actual tests/build recorded in checkpoint.
+
 - [x] **CAP-01** — Timed captions: bounded model, editor controls, shared preview/export, undo and compatible recovery. Built and checked; not device-accepted. Evidence: [[HONORABLE_CAPTIONS_CHECKPOINT]].
 - [x] **CAP-02** — SRT subtitle import/export: strict parsing, source protection and explicit timing semantics. Built and checked; not device-accepted. Evidence: [[HONORABLE_CAPTIONS_CHECKPOINT]].
 

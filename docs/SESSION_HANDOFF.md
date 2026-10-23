@@ -1,16 +1,13 @@
 # Resume Honorable
 
-Updated: October 21, 2026.
+Updated October 23, 2026. Authoritative repository/branch: https://github.com/honrablecom-source/Honorable-mobile-app, `codex/android-internal-readiness`, draft PR #1. Checkout: `C:/Users/Shadow/Desktop/honrabl/Honorable-current`.
 
-- Authoritative repo: https://github.com/honrablecom-source/Honorable-mobile-app
-- Checkout: `C:/Users/Shadow/Desktop/honrabl/Honorable-current`; branch `codex/android-internal-readiness`, draft PR #1.
-- Latest completed engineering increment: **2 features — timed video captions and SRT interchange**. See [[HONORABLE_CAPTIONS_CHECKPOINT]] and [[CAPTIONS_WORKLOG]]. No new AI inference/generation engine; automatic transcription remains next.
-- Verified APK: `Honorable-1.0.3-captions-arm64.apk`; SHA-256 `d54c45b151a7598d2ad5e63c6dd5105098e95058ebb7d92e9b86163fcc0bc971`. 485 frozen app inputs matched. Source commit identity is recorded in the APK verification/GitHub review evidence and Git history.
-- Fresh checks: 82 RN-native JVM cases (13 new), 32 RN tests / nine suites, TypeScript; lint 0 errors / 36 existing warnings. Shared 98 JVM cases reused after unchanged Git-input comparison. Five caption integration cases compiled only, never executed.
-- Review fixed repeated long subtitle references overflowing recovery: v6 deduplicated URI table + atomic payload budget. Versions 1–5 remain readable.
-- Owner direction: leave UI alone; continue useful photo/video features. Actively use this vault. [[TEAM_WORK]] records the three-agent split; only one agent runs Gradle.
-- Next task: assess genuine local speech transcription runtime/model/license/hardware and timestamp quality with isolated sample media, then integrate editable transcripts into the built caption infrastructure. Do not count a model/engine until it runs successfully.
-- Build tools: portable Node/JDK/Android SDK under `C:/Users/Shadow/Desktop/honrabl/.tools`; Gradle cache `C:/g`; H: repo, J: RN Android `.cxx`.
-- Proven limits: one worker, in-process Kotlin, 1 GB heap / 512 MB metaspace, SerialGC, two active processors; keep owner's apps open. Existing RTK filter is available; no total-credit/token-savings claim.
-- Gates: no Android phone, live account API or private signing; public-debug internal APK, signInConfigured=false. Billing/hosting deferred. Native caption pixels, providers, lifecycle/output, owner UI acceptance, store, generation and iOS remain unfinished.
-- Read AGENTS.md, [[WORK_QUEUE]] and [[DECISIONS]] before changing scope. Preserve source-copy safety, credit policy, server authority and protected Seran holdout.
+- Latest engineering increment: **1 guest-editing workflow + 2 fixes**, zero new AI engines. See [[HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT]], [[LOCAL_EDITING_READINESS_WORKLOG]] and [[GUEST_TEST_GUIDE]].
+- Guest entry opens local basic photo/video editors without account setup; AI/account drafts remain gated. Signed-in policy is unchanged. Guest recovery is activity-local, so export copies to keep work.
+- APK `Honorable-1.0.3-usability-arm64.apk`; SHA-256 `7699ed4cfd0ae31184cb4b68ef9a29bfe97f7bea0285830ab7a9a418bdb36225`. 493 frozen inputs match. Exact commit is recorded by final artifact/GitHub evidence.
+- Fresh checks: 105 shared + 89 RN-native JVM cases; 52 RN / 11 suites; TypeScript; lint 0 errors/36 existing warnings. Integration compiles only. Initial RN timeout retained; final run uses 20 seconds on unchanged source.
+- Next: device acceptance when possible, durable local projects, then real speech-transcription feasibility. No new engine without actual measured output.
+- Owner: UI redesign paused; actively use Obsidian notes and focused RTK/search output. Multiple agents permitted; one Gradle owner at a time. Do not claim total token savings.
+- Toolchain/cache/aliases unchanged: portable tools under `C:/Users/Shadow/Desktop/honrabl/.tools`, Gradle `C:/g`, H: repo/J: native staging. One worker, in-process Kotlin, 1 GB heap/512 MB metaspace; keep user apps open.
+- Gates: no phone; hosted account service unset/signInConfigured=false; billing/hosting deferred; internal debug signing, store, native output/lifecycle acceptance, generation and iOS unfinished.
+- Read AGENTS.md, [[WORK_QUEUE]] and [[DECISIONS]]. Preserve Seran/credit/server authority, source-copy safety and protected holdout.

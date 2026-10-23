@@ -3,11 +3,22 @@ import { Alert } from 'react-native';
 import { honorableNative } from './HonorableNative';
 
 export type WorkspaceKind = 'IMAGE' | 'VIDEO';
+export type WorkspaceAccess = 'account' | 'guest';
 
 /** Only the user-selected URI reaches the existing authorized editor entry point. */
-export async function openWorkspace(kind: WorkspaceKind): Promise<boolean> {
+export async function openWorkspace(
+  kind: WorkspaceKind,
+  access: WorkspaceAccess = 'account',
+): Promise<boolean> {
   const selected = await honorableNative.pickWorkspaceMedia(kind);
   if (!selected) return false;
+  if (access === 'guest') {
+    const result =
+      kind === 'IMAGE'
+        ? await honorableNative.editPhotoGuest(selected.uri)
+        : await honorableNative.editVideoGuest(selected.uri);
+    return result.opened;
+  }
   const result =
     kind === 'IMAGE'
       ? await honorableNative.editPhoto(selected.uri)
@@ -15,7 +26,7 @@ export async function openWorkspace(kind: WorkspaceKind): Promise<boolean> {
   return result.opened;
 }
 
-export function useOpenWorkspace() {
+export function useOpenWorkspace(access: WorkspaceAccess = 'account') {
   const pending = useRef(false);
   const [busy, setBusy] = useState(false);
   const open = async (kind: WorkspaceKind) => {
@@ -23,7 +34,7 @@ export function useOpenWorkspace() {
     pending.current = true;
     setBusy(true);
     try {
-      await openWorkspace(kind);
+      await openWorkspace(kind, access);
     } catch (error) {
       Alert.alert(
         'Open workspace',

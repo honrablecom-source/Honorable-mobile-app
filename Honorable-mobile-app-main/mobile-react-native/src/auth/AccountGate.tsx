@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { colors } from '../design-system/tokens';
 import { UserRound, ShieldCheck } from 'lucide-react-native';
 import { BetaUpdateNotice } from '../screens/BetaUpdateNotice';
@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemoryPass } from '../passes/MemoryPassContext';
+import { GuestEditingScreen } from '../screens/GuestEditingScreen';
 export function AccountGate({ children }: { children: React.ReactNode }) {
   const auth = useMemoryPass();
+  const [guestEditing, setGuestEditing] = useState(false);
   if (auth.signedIn)
     return (
       <>
@@ -22,6 +24,8 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
         {children}
       </>
     );
+  if (guestEditing)
+    return <GuestEditingScreen onSignIn={() => setGuestEditing(false)} />;
   if (auth.status === 'restoring' || auth.status === 'signing-in')
     return (
       <View style={styles.launch}>
@@ -46,6 +50,7 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
         </Text>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
           disabled={!auth.googleConfigured}
           accessibilityState={{ disabled: !auth.googleConfigured }}
           style={[styles.button, !auth.googleConfigured && { opacity: 0.45 }]}
@@ -53,11 +58,29 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
         >
           <Text style={styles.buttonText}>Continue with Google</Text>
         </Pressable>
+        {!auth.googleConfigured && (
+          <Text style={styles.small}>
+            Account sign-in is not configured in this build. Local editing is
+            available below.
+          </Text>
+        )}
         {!!auth.error && (
           <Text accessibilityRole="alert" style={styles.small}>
             {auth.error}
           </Text>
         )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit without an account"
+          onPress={() => setGuestEditing(true)}
+          style={styles.guestButton}
+        >
+          <Text style={styles.guestButtonText}>Edit without an account</Text>
+        </Pressable>
+        <Text style={styles.small}>
+          Basic local photo and video editing. Search, AI tools, credits and
+          account features require sign-in.
+        </Text>
         <View style={styles.privacyRow}>
           <ShieldCheck size={17} color={colors.textSecondary} />
           <Text style={styles.small}>Your memories stay yours.</Text>
@@ -219,6 +242,19 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   buttonText: { fontSize: 15, fontWeight: '600', color: colors.canvas },
+  guestButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  guestButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
   privacy: {
     color: colors.textPrimary,
     fontSize: 14,

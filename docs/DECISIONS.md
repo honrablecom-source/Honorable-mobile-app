@@ -15,3 +15,7 @@
 - Do not inspect or tune on protected Seran holdout or run the expensive benchmark for build validation.
 - Keep the owner's other apps open. No Android phone is available.
 - Internal public-debug signing is not store signing. Compile/build/device/store evidence must be distinguished.
+
+## October 23, 2026 — guest editing authorized
+
+The owner explicitly approved separate offline guest basic editing. Guest entry must not authorize search, AI, credits or account drafts; existing server policies remain intact. Guest copy export and isolated activity recovery are local operations.

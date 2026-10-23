@@ -6,6 +6,8 @@ jest.mock('../src/native/HonorableNative', () => ({
     pickWorkspaceMedia: jest.fn(),
     editPhoto: jest.fn(),
     editVideo: jest.fn(),
+    editPhotoGuest: jest.fn(),
+    editVideoGuest: jest.fn(),
   },
 }));
 const native = honorableNative as jest.Mocked<typeof honorableNative>;
@@ -27,6 +29,27 @@ test.each(['IMAGE', 'VIDEO'] as const)(
     expect(
       kind === 'IMAGE' ? native.editVideo : native.editPhoto,
     ).not.toHaveBeenCalled();
+  },
+);
+
+test.each(['IMAGE', 'VIDEO'] as const)(
+  'guest %s selection uses only the dedicated local editor entry',
+  async kind => {
+    native.pickWorkspaceMedia.mockResolvedValue({
+      uri: 'content://test/guest-chosen',
+    });
+    native.editPhotoGuest.mockResolvedValue({ opened: true });
+    native.editVideoGuest.mockResolvedValue({ opened: true });
+    expect(await openWorkspace(kind, 'guest')).toBe(true);
+    expect(native.pickWorkspaceMedia).toHaveBeenCalledWith(kind);
+    expect(
+      kind === 'IMAGE' ? native.editPhotoGuest : native.editVideoGuest,
+    ).toHaveBeenCalledWith('content://test/guest-chosen');
+    expect(
+      kind === 'IMAGE' ? native.editVideoGuest : native.editPhotoGuest,
+    ).not.toHaveBeenCalled();
+    expect(native.editPhoto).not.toHaveBeenCalled();
+    expect(native.editVideo).not.toHaveBeenCalled();
   },
 );
 

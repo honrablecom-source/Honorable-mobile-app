@@ -111,6 +111,8 @@ type NativeBoundary = {
   clearSearchHistory(): Promise<{ cleared: boolean }>;
   editPhoto(uri:string):Promise<{opened:boolean}>;
   editVideo(uri:string):Promise<{opened:boolean}>;
+  editPhotoGuest(uri:string):Promise<{opened:boolean}>;
+  editVideoGuest(uri:string):Promise<{opened:boolean}>;
   editVideoAtMoment(uri:string,timestampMs:number):Promise<{opened:boolean}>;
   openMedia(
     uri: string,
@@ -160,6 +162,8 @@ export const honorableNative = {
   clearSearchHistory: () => boundary().clearSearchHistory(),
   editPhoto:(uri:string)=>boundary().editPhoto(uri),
   editVideo:(uri:string,timestampMs?:number)=>timestampMs===undefined?boundary().editVideo(uri):boundary().editVideoAtMoment(uri,timestampMs),
+  editPhotoGuest:(uri:string)=>boundary().editPhotoGuest(uri),
+  editVideoGuest:(uri:string)=>boundary().editVideoGuest(uri),
   openMedia: (item: {
     mediaUri: string;
     mediaType: 'IMAGE' | 'VIDEO';

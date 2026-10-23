@@ -11,6 +11,35 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Images, ShieldCheck } from 'lucide-react-native';
 import { useLibrary } from './LibraryContext';
+import { useOpenWorkspace } from '../native/openWorkspace';
+
+function DirectEditors() {
+  const { busy, open } = useOpenWorkspace();
+  return (
+    <View style={s.editors}>
+      <Text style={s.noteText}>
+        You can also edit one file without indexing your library.
+      </Text>
+      {(['IMAGE', 'VIDEO'] as const).map(kind => {
+        const label = kind === 'IMAGE' ? 'Edit a photo' : 'Edit a video';
+        return (
+          <Pressable
+            key={kind}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={() => open(kind)}
+            style={[s.editorButton, busy && s.disabled]}
+          >
+            <Text style={s.editorText}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function LibraryGate({ children }: { children: React.ReactNode }) {
   const { status, loading, indexing, error, requestAccess, reindex } =
     useLibrary();
@@ -46,6 +75,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
             <ShieldCheck color={colors.textPrimary} size={17} />
             <Text style={s.noteText}>You can change access at any time.</Text>
           </View>
+          <DirectEditors />
           {!!error && <Text style={s.error}>{error}</Text>}
         </ScrollView>
       </SafeAreaView>
@@ -78,6 +108,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
               {indexing ? 'Indexing…' : 'Start indexing'}
             </Text>
           </Pressable>
+          <DirectEditors />
           {!!error && <Text style={s.error}>{error}</Text>}
         </ScrollView>
       </SafeAreaView>
@@ -148,6 +179,17 @@ const s = StyleSheet.create({
   },
   disabled: { opacity: 0.55 },
   buttonText: { color: colors.canvas, fontSize: 14, fontWeight: '500' },
+  editors: { marginTop: 24, gap: 10 },
+  editorButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.canvas,
+  },
+  editorText: { color: colors.textPrimary, fontSize: 14, fontWeight: '500' },
   note: {
     marginTop: 18,
     flexDirection: 'row',

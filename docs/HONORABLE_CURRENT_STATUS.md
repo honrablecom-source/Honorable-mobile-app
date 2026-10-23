@@ -1,3 +1,9 @@
+# Latest checkpoint — offline guest editing, October 23, 2026
+
+**1 new user-facing workflow:** explicit offline guest basic photo/video editing. **2 fixes:** authenticated document-picker access behind empty/denied-library gates, and subtitle permission rollback/cleanup. **0 new AI engines.** First launch can enter isolated guest pickers without the unconfigured account service. Native guest mode validates readable content sources, denies AI/account drafts, isolates local lifecycle state and avoids account telemetry/reads. Signed-in server authorization and credit/search policy remain intact.
+
+Fresh 105 shared + 89 RN-native JVM cases pass (14 added); 52 RN tests / 11 suites pass (20 added), TypeScript passes, lint 0 errors / 36 existing warnings. Integration compiles only. Full ARM64 internal APK independently verified against 493 frozen inputs, guest/code/model/manifest markers, certificate and ZIP alignment: Honorable-1.0.3-usability-arm64.apk; SHA-256 7699ed4cfd0ae31184cb4b68ef9a29bfe97f7bea0285830ab7a9a418bdb36225. Public debug signing; signInConfigured=false, guest editing available. Physical-device media/output/lifecycle, hosted sign-in, private signing/store, full AI generation and iOS remain open. See HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT.md and GUEST_TEST_GUIDE.md.
+
 # Latest checkpoint — timed captions and SRT, October 21, 2026
 
 **2 new user-facing features:** editable timed video captions and SRT subtitle import/export. **0 new AI inference or generation engines.** Captions follow trim, split, speed and order through shared preview/export, undo/redo and compatible bounded v6 recovery. Original subtitle documents participate in copy protection. UI redesign remains paused. Three agents handled review, Obsidian coordination and exclusive build/verification; the reviewer found and helped verify a recovery-overflow fix.

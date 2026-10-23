@@ -5,16 +5,16 @@ updated: 2026-10-21
 ---
 # Live team work
 
-Current milestone: timed video captions and SRT interchange. [[CAPTIONS_WORKLOG]] holds implementation evidence; [[WORK_QUEUE]] holds acceptance status. Engineering checks and APK verification are complete; physical acceptance is still pending. See [[HONORABLE_CAPTIONS_CHECKPOINT]]. Manual captions and SRT are not automatic speech transcription.
+Current milestone: offline guest editing and local-access/permission fixes; see [[LOCAL_EDITING_READINESS_WORKLOG]]. [[CAPTIONS_WORKLOG]] holds implementation evidence; [[WORK_QUEUE]] holds acceptance status. Engineering checks and APK verification are complete; physical acceptance is still pending. See [[HONORABLE_CAPTIONS_CHECKPOINT]]. Manual captions and SRT are not automatic speech transcription.
 
 ## Assignments and ownership
 
 | Agent | Assignment | Write boundary |
 | --- | --- | --- |
 | Director (`root`) | Integrate caption controls, timing, preview/export, history and recovery; reconcile findings and final evidence. | App source and milestone notes, including [[SESSION_HANDOFF]], [[WORK_QUEUE]], [[CAPTIONS_WORKLOG]] and [[DECISIONS]]. |
-| `caption_review` | Independently review caption correctness, bounds, cancellation and original-file safety; report concrete findings to the director. | Read-only review. |
+| `caption_review` | Implement native guest policy, isolated recovery and subtitle permission correctness; report review findings. | Native editor/bridge source and relevant tests, coordinated with director. |
 | `android_build` | Own native/Gradle validation and the internal APK; report actual test results, source identity and artifact verification. | Exclusive Gradle/native build execution and build outputs; coordinate any source changes with the director. |
-| `obsidian_notes` | Maintain this coordination note and its [[START_HERE]] entry; check vault links. | Only `TEAM_WORK.md` and its home-note link. |
+| `obsidian_notes` | Implement RN guest entry and denied/empty-library access with regression tests and work log. | RN source/tests and READINESS_WORKLOG. |
 
 Keep Gradle work with `android_build` to avoid competing builds. Agents report findings and completion directly to the director; unresolved review findings return to the source owner before packaging is accepted.
 
@@ -36,3 +36,7 @@ The active vault is this repository's `docs` directory, opened in installed Obsi
 ## Recorded outcome
 
 The reviewer found a repeated-reference recovery overflow; the director fixed it and the reviewer verified the byte-budget math. The documentation agent validated all initial wiki links. The build agent completed fresh native checks, integration compilation and full APK verification. Final source publication and compact handoff belong to the director. Scope: two built caption/SRT features, zero new AI engines; device acceptance remains open.
+
+## October 23 outcome
+
+Native and RN owners implemented explicit guest access with preserved account/AI boundaries. Independent integration review completed; the director took over after the build agent reached its usage limit. Fresh JVM/RN checks and the full APK were verified against frozen inputs. One new guest workflow and two fixes; no AI engine or physical-device acceptance. Final evidence: [[HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT]].

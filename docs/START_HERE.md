@@ -16,6 +16,8 @@ This vault uses the authoritative repository's existing project documents. Notes
 
 ## Active work
 
+Latest: [[HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT|Offline guest editing milestone]] and [[GUEST_TEST_GUIDE|Tester guide]].
+
 **Timed video captions and subtitle interchange.** The owner has paused UI redesign. Caption features are built for internal Android testing; phone acceptance remains open. They are not automatic speech transcription.
 
 ## Project map
