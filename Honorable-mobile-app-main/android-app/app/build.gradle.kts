@@ -63,6 +63,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     testImplementation("junit:junit:4.13.2")

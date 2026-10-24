@@ -31,6 +31,11 @@
         </intent-filter>
       </activity>
       <activity android:name=".HonorableMediaViewerActivity" android:exported="false" android:theme="@style/AppTheme" />
+      <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.creation" android:exported="false" android:grantUriPermissions="true">
+        <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/creation_paths" />
+      </provider>
+      <activity android:name=".HonorableDrawingActivity" android:exported="false" android:theme="@style/AppTheme" />
+      <activity android:name=".HonorableVideoEditorActivity" android:exported="false" android:theme="@style/AppTheme" />
     <activity android:name="app.honorable.editor.PhotoEditorActivity" android:exported="false" />
     </application>
 </manifest>

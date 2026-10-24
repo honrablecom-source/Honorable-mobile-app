@@ -1,0 +1,66 @@
+name: iOS simulator build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Honorable-mobile-app-main/mobile-react-native/ios/**'
+      - 'Honorable-mobile-app-main/mobile-react-native/src/**'
+      - 'Honorable-mobile-app-main/mobile-react-native/App.tsx'
+      - 'Honorable-mobile-app-main/mobile-react-native/package*.json'
+      - 'Honorable-mobile-app-main/mobile-react-native/Gemfile*'
+      - '.github/workflows/ios-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator-build:
+    # Standard public-repository runner; no paid larger runner or signing secrets.
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: Honorable-mobile-app-main/mobile-react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Honorable-mobile-app-main/mobile-react-native/package-lock.json
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          working-directory: Honorable-mobile-app-main/mobile-react-native
+      - name: Install JavaScript dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install CocoaPods and resolve iOS dependencies
+        run: |
+          bundle install
+          cd ios
+          bundle exec pod install
+      - name: Compile unsigned simulator application
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -version
+          xcodebuild \
+            -workspace ios/HonorableMobile.xcworkspace \
+            -scheme HonorableMobile \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/honorable-ios" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/honorable-ios-build.log"
+          test -s "$RUNNER_TEMP/honorable-ios/Build/Products/Release-iphonesimulator/HonorableMobile.app/main.jsbundle"
+      - name: Record scope of this check
+        if: always()
+        run: |
+          echo '## iOS shell compilation' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unsigned simulator compilation only. Native Honorable search/editing modules are not implemented for iOS. This is not an IPA, phone test, editor acceptance or feature-parity claim.' >> "$GITHUB_STEP_SUMMARY"

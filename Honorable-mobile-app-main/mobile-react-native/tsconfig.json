@@ -1,6 +1,22 @@
 {
   "extends": "@react-native/typescript-config",
-  "compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["./*"]}, "ignoreDeprecations": "6.0"},
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["**/node_modules", "**/Pods"]
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "ignoreDeprecations": "6.0"
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/Pods",
+    "creation-web"
+  ]
 }

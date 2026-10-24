@@ -3,14 +3,14 @@ package app.honorable
 // Generated from product/design-tokens.json.
 import androidx.compose.ui.graphics.Color
 internal object HonorablePalette {
- val canvas=Color(0xFF000000)
- val surface=Color(0xFF080808)
- val surfaceRaised=Color(0xFF101010)
- val surfaceSelected=Color(0xFF171717)
- val border=Color(0xFF242424)
- val textPrimary=Color(0xFFFFFFFF)
- val textSecondary=Color(0xFFBDBAB4)
- val textTertiary=Color(0xFF94918C)
- val accent=Color(0xFFA9D8C5)
- val danger=Color(0xFFF47D84)
+ val canvas=Color(0xFFFFFFFF)
+ val surface=Color(0xFFFFFFFF)
+ val surfaceRaised=Color(0xFFFAFAFA)
+ val surfaceSelected=Color(0xFFF1F1F1)
+ val border=Color(0xFFDEDEDE)
+ val textPrimary=Color(0xFF111111)
+ val textSecondary=Color(0xFF555555)
+ val textTertiary=Color(0xFF6B6B6B)
+ val accent=Color(0xFF111111)
+ val danger=Color(0xFF111111)
 }

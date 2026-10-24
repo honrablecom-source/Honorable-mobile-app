@@ -24,13 +24,15 @@ Sign out clears local account state and revokes the current server session when 
 - For a separately deployed account service, set `HONORABLE_WEB_ORIGINS` to the exact comma-separated browser origins. The bundled launcher supplies localhost and the current Codespaces origin automatically.
 - In the existing Google Web OAuth client, authorize `http://localhost`, `http://localhost:4174`, and the actual forwarded HTTPS origin. The GIS callback needs no redirect URI.
 - Android OAuth registration must cover the installed package and its signing SHA-1. The existing Android build workflow reports the APK certificate fingerprint. Register the actual release package/certificate for production; do not substitute the web client for Android package registration.
-- Run the Android build workflow and test Google account selection, process-kill/relaunch restoration, airplane-mode fallback, sign out and same-account credits on an Android device. This workspace has no Android SDK, so APK compilation/device execution was not verified locally.
+- Run the Android build workflow and test Google account selection, process-kill/relaunch restoration, airplane-mode fallback, sign out and same-account credits on an Android device. October 18 update: the full ARM64 internal APK now builds locally with the existing toolchain; physical Android execution and live configured sign-in remain unverified. See the outer repository's `docs/HONORABLE_CURRENT_STATUS.md` for the artifact evidence.
 
 ## Focused checks
 
 - `npm run build:web` and `npm run typecheck`
 - `npm run test:auth:account`: account, Google verification, cookie persistence/CSRF, rotation, replay rejection, expiry and ledger retention.
 - `npm run test:auth:web`: browser startup, no Welcome flash, close/reopen and server restart, HttpOnly persistence, offline logout, expiry and same-account credits. Uses signed Google test fixtures through the real verifier; only the Google account picker and key download are substituted inside the test.
+- Browser fixtures prefer the pinned `ui-previews` Playwright installation. An existing Playwright runtime can also be resolved through `NODE_PATH`; set `HONORABLE_BROWSER_EXECUTABLE` to an installed compatible browser if its bundled Chromium is unavailable. Optional `HONORABLE_AUTH_SCREENSHOT` and `HONORABLE_PRODUCT_SCREENSHOT` select screenshot destinations. These are test harness settings, not account configuration or production identity substitutes.
+- `npm run check:account -- --probe`: checks the existing Google client/HTTPS endpoint configuration and service probes without printing values. Configuration readiness does not establish live Google sign-in or native search completion authority.
 - `npm --prefix Honorable-mobile-app-main/mobile-react-native test -- --runInBand AccountStartup.test.tsx`
 - From `android-app`: `./test-lab.sh :test-lab:test --tests app.honorable.auth.SessionPolicyTest --console=plain`
 

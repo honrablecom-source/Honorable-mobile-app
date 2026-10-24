@@ -1,12 +1,12 @@
 import React from 'react';
 import { BetaFeedbackScreen } from '../screens/BetaFeedbackScreen';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
   Images,
   SlidersHorizontal,
-  Ticket,
-  Activity,
+  UserRound,
 } from 'lucide-react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -40,18 +40,23 @@ const icons = {
   Home,
   Memories: Images,
   Studio: SlidersHorizontal,
-  Pass: Ticket,
-  Usage: Activity,
+  Account: UserRound,
 };
 function TabIcon({
   name,
   color,
+  focused,
 }: {
   name: keyof MainTabParamList;
   color: string;
+  focused: boolean;
 }) {
   const Icon = icons[name];
-  return <Icon color={color} size={21} strokeWidth={1.7} />;
+  return (
+    <View style={[styles.icon, focused && styles.iconSelected]}>
+      <Icon color={color} size={22} strokeWidth={focused ? 2 : 1.7} />
+    </View>
+  );
 }
 const HomeTab = () => (
   <TabTransition>
@@ -63,27 +68,8 @@ const MemoriesTab = () => (
     <MemoriesScreen />
   </TabTransition>
 );
-const PassTab = () => (
-  <TabTransition>
-    <PassScreen />
-  </TabTransition>
-);
-const ModelsTab = () => (
-  <TabTransition>
-    <ModelsScreen />
-  </TabTransition>
-);
-const ActivityTab = () => (
-  <TabTransition>
-    <StorageScreen />
-  </TabTransition>
-);
-const SettingsTab = () => (
-  <TabTransition>
-    <SettingsScreen />
-  </TabTransition>
-);
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs.Navigator
       screenListeners={({ navigation, route }) => ({
@@ -96,16 +82,25 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.textPrimary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          { height: 62 + insets.bottom, paddingBottom: insets.bottom + 4 },
+        ],
         tabBarLabelStyle: styles.label,
-        tabBarIcon: ({ color }) => <TabIcon color={color} name={route.name} />,
+        tabBarActiveBackgroundColor: colors.canvas,
+        tabBarIcon: ({ color, focused }) => (
+          <TabIcon color={color} focused={focused} name={route.name} />
+        ),
       })}
     >
       <Tabs.Screen name="Home" component={HomeTab} />
-      <Tabs.Screen name="Memories" component={MemoriesTab} />
+      <Tabs.Screen
+        name="Memories"
+        component={MemoriesTab}
+        options={{ title: 'Library' }}
+      />
       <Tabs.Screen name="Studio" component={StudioScreen} />
-      <Tabs.Screen name="Pass" component={PassTab} />
-      <Tabs.Screen name="Usage" component={UsageScreen} />
+      <Tabs.Screen name="Account" component={SettingsScreen} />
     </Tabs.Navigator>
   );
 }
@@ -141,8 +136,16 @@ const styles = StyleSheet.create({
     height: 64,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 6,
+    borderTopColor: colors.surfaceSelected,
+    paddingTop: 8,
   },
-  label: { fontSize: 10, fontWeight: '500' },
+  icon: {
+    width: 48,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconSelected: { backgroundColor: colors.surfaceSelected },
+  label: { fontSize: 11, fontWeight: '500', letterSpacing: 0 },
 });

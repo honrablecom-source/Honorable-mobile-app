@@ -1,0 +1,7 @@
+android/build/
+android/app/build/
+android/app/.cxx/
+
+# Isolated, bundled browser editor has its own build and scene-contract tests.
+creation-web/**
+android/app/src/main/assets/drawing/**

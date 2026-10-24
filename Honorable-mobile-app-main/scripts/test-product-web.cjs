@@ -4,12 +4,14 @@ const http = require("node:http"),
   os = require("node:os"),
   path = require("node:path"),
   assert = require("node:assert/strict");
-const { chromium } = require("../ui-previews/node_modules/playwright");
+const { chromium, browserOptions } = require("./browser-test-runtime.cjs");
 const { createServer } = require("../dev-server/src/server");
 const root = path.resolve(__dirname, "../android-app/test-lab/web-test-shell");
 (async () => {
   let accounts;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "honorable-product-ui-"));
+  const sourcePath = path.join(root, "prompt_beach.png");
+  const sourceBytes = fs.readFileSync(sourcePath);
   const server = http.createServer((req, res) => {
     if (req.url.startsWith("/account/")) {
       req.url = req.url.slice(8);
@@ -74,6 +76,7 @@ const root = path.resolve(__dirname, "../android-app/test-lab/web-test-shell");
   const browser = await chromium.launch({
     headless: true,
     args: ["--no-sandbox"],
+    ...browserOptions,
   });
   try {
     const page = await browser.newPage({
@@ -163,7 +166,30 @@ const root = path.resolve(__dirname, "../android-app/test-lab/web-test-shell");
     await page.locator("#edit-redo").click();
     const download = page.waitForEvent("download");
     await page.locator("#edit-export").click();
-    assert.equal((await download).suggestedFilename(), "Honorable-copy.png");
+    const exported = await download;
+    assert.equal(exported.suggestedFilename(), "Honorable-copy.png");
+    const copyPath = path.join(dir, "Honorable-copy.png");
+    await exported.saveAs(copyPath);
+    const copy = fs.readFileSync(copyPath);
+    assert.equal(copy.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    assert.notDeepEqual(copy, sourceBytes, "Export must contain the edited image");
+    assert.deepEqual(fs.readFileSync(sourcePath), sourceBytes, "Original fixture must remain unchanged");
+    const raster = await page.evaluate(async bytes => {
+      const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], {type: "image/png"}));
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width; canvas.height = image.height;
+      const context = canvas.getContext("2d"); context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, image.width, image.height).data;
+      let visible = 0, colored = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] === 0) continue;
+        visible++;
+        if (Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) - Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) > 1) colored++;
+      }
+      return {width: image.width, height: image.height, visible, colored, sourceWidth: editImage.naturalWidth, sourceHeight: editImage.naturalHeight};
+    }, Array.from(copy));
+    assert.equal(raster.width, raster.sourceWidth); assert.equal(raster.height, raster.sourceHeight);
+    assert(raster.visible > 100); assert.equal(raster.colored, 0, "Downloaded copy must retain the mono filter after redo");
     await page.locator("[data-workspace=More]").click();
     await page
       .locator("[data-workspace=Code]")
@@ -187,7 +213,9 @@ const root = path.resolve(__dirname, "../android-app/test-lab/web-test-shell");
       await page.evaluate(() => accountState.freeMonthlyRemaining),
       14
     );
-    await page.screenshot({ path: path.join(dir, "editor.png") });
+    const screenshot = process.env.HONORABLE_PRODUCT_SCREENSHOT || path.join(dir, "editor.png");
+    fs.mkdirSync(path.dirname(screenshot), {recursive: true});
+    await page.screenshot({ path: screenshot });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.evaluate(() => {
       activeWorkspace = "Edit";
@@ -212,9 +240,9 @@ const root = path.resolve(__dirname, "../android-app/test-lab/web-test-shell");
     );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: tabs, 20/31 catalog, test purchase, monthly balance, Studio gate, successful search debit, pixel editing, undo/redo, copy export, code editor and project representation."
+      "PASS: tabs, 20/31 catalog, test purchase, monthly balance, Studio gate, fixture search debit, pixel editing, undo/redo, downloaded full-resolution mono PNG, unchanged original, code editor and project representation."
     );
-    console.log("Screenshot: " + path.join(dir, "editor.png"));
+    console.log("Screenshot: " + screenshot);
   } finally {
     await browser.close();
     await new Promise((r) => server.close(r));

@@ -14,7 +14,7 @@ const previous = fs.readFileSync(file, "utf8"),
     " as const;\n" +
     'export const typography='+JSON.stringify(tokens.typography)+' as const;\nexport const motion='+JSON.stringify(tokens.motion)+' as const;\nexport const grid='+JSON.stringify(tokens.grid)+' as const;\n' ;
 const aliases = {
-  background: "surface",
+  background: "canvas",
   floating: "surfaceRaised",
   active: "surfaceSelected",
   text: "textPrimary",
@@ -67,7 +67,7 @@ function hsl(hex) {
   return `${h.toFixed(1)} ${(s * 100).toFixed(1)}% ${(l * 100).toFixed(1)}%`;
 }
 const utility = {
-  background: "surface",
+  background: "canvas",
   foreground: "textPrimary",
   card: "surfaceRaised",
   "card-foreground": "textPrimary",

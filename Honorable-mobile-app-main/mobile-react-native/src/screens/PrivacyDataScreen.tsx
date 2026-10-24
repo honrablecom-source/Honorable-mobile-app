@@ -1,3 +1,5 @@
+import { colors } from '../design-system/tokens';
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
 import React, { useCallback, useState } from 'react';
 import {
   Alert,
@@ -10,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react-native';
+import { ChevronRight, ShieldCheck } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import {
   honorableNative,
@@ -29,20 +31,12 @@ function Shell({
   const navigation = useNavigation();
   return (
     <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.content}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => navigation.goBack()}
-          style={s.back}
-        >
-          <ChevronLeft color="#fff" size={20} />
-        </Pressable>
-        <Text accessibilityRole="header" style={s.title}>
-          {title}
-        </Text>
-        {children}
-      </ScrollView>
+      <WorkspaceHeader
+        title={title}
+        section="honorable / privacy"
+        onBack={() => navigation.goBack()}
+      />
+      <ScrollView contentContainerStyle={s.content}>{children}</ScrollView>
     </SafeAreaView>
   );
 }
@@ -61,7 +55,7 @@ function LinkRow({
         <Text style={s.rowTitle}>{title}</Text>
         <Text style={s.rowDetail}>{detail}</Text>
       </View>
-      <ChevronRight color="#777" size={18} />
+      <ChevronRight color={colors.textSecondary} size={18} />
     </Pressable>
   );
 }
@@ -100,7 +94,7 @@ export function PrivacyDataScreen() {
   return (
     <Shell title="Privacy & Data">
       <View style={s.local}>
-        <ShieldCheck color="#000" size={22} />
+        <ShieldCheck color={colors.textPrimary} size={22} />
         <View style={s.localCopy}>
           <Text style={s.localTitle}>Search remains local</Text>
           <Text style={s.localDetail}>
@@ -119,8 +113,11 @@ export function PrivacyDataScreen() {
           <Switch
             value={state?.enabled ?? false}
             onValueChange={toggle}
-            trackColor={{ false: '#333', true: '#fff' }}
-            thumbColor="#000"
+            trackColor={{
+              false: colors.surfaceSelected,
+              true: colors.textPrimary,
+            }}
+            thumbColor={colors.canvas}
           />
         </View>
         <Text style={s.programCopy}>
@@ -248,7 +245,7 @@ export function SeranImprovementScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#000' },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: 20, paddingBottom: 80 },
   back: {
     width: 42,
@@ -256,11 +253,11 @@ const s = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1b1b1b',
+    backgroundColor: colors.canvas,
   },
   title: {
     marginTop: 22,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 34,
     fontWeight: '700',
     letterSpacing: -1,
@@ -271,63 +268,83 @@ const s = StyleSheet.create({
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surfaceRaised,
   },
   localCopy: { flex: 1, paddingLeft: 12 },
-  localTitle: { color: '#000', fontSize: 15, fontWeight: '700' },
-  localDetail: { marginTop: 4, color: '#555', fontSize: 11, lineHeight: 15 },
+  localTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  localDetail: {
+    marginTop: 4,
+    color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+  },
   program: {
     marginTop: 12,
     padding: 20,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333',
-    backgroundColor: '#111',
+    borderColor: colors.border,
+    backgroundColor: colors.canvas,
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  programTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  programStatus: { marginTop: 4, color: '#888', fontSize: 10 },
-  programCopy: { marginTop: 16, color: '#aaa', fontSize: 12, lineHeight: 18 },
+  programTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },
+  programStatus: { marginTop: 4, color: colors.textSecondary, fontSize: 10 },
+  programCopy: {
+    marginTop: 16,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   rows: {
     marginTop: 12,
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#292929',
+    borderColor: colors.border,
   },
   row: {
     minHeight: 72,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0c0c0c',
+    backgroundColor: colors.canvas,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#292929',
+    borderColor: colors.border,
   },
   rowCopy: { flex: 1 },
-  rowTitle: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  rowDetail: { marginTop: 5, color: '#94918C', fontSize: 10 },
+  rowTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  rowDetail: { marginTop: 5, color: colors.textSecondary, fontSize: 10 },
   danger: {
     height: 50,
     marginTop: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#633',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dangerText: { color: '#f99', fontWeight: '700' },
-  version: { marginTop: 14, color: '#94918C', fontSize: 9 },
-  lead: { marginTop: 24, color: '#fff', fontSize: 17, lineHeight: 26 },
-  body: { marginTop: 12, color: '#aaa', fontSize: 13, lineHeight: 21 },
+  dangerText: { color: colors.textPrimary, fontWeight: '700' },
+  version: { marginTop: 14, color: colors.textSecondary, fontSize: 12 },
+  lead: {
+    marginTop: 24,
+    color: colors.textPrimary,
+    fontSize: 17,
+    lineHeight: 26,
+  },
+  body: {
+    marginTop: 12,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 21,
+  },
   draft: {
     marginTop: 18,
-    color: '#d6ad66',
-    fontSize: 10,
+    color: colors.textPrimary,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.7,
   },
@@ -337,21 +354,21 @@ const s = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.textPrimary,
   },
-  allowText: { color: '#000', fontWeight: '700' },
+  allowText: { color: colors.canvas, fontWeight: '700' },
   notNow: {
     height: 50,
     marginTop: 10,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.canvas,
   },
-  notNowText: { color: '#fff', fontWeight: '600' },
+  notNowText: { color: colors.textPrimary, fontWeight: '600' },
   sectionTitle: {
     marginTop: 24,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },

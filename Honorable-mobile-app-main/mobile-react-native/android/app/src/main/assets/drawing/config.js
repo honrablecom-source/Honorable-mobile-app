@@ -1,0 +1,1 @@
+window.EXCALIDRAW_ASSET_PATH="https://honorable-drawing.local/drawing/";

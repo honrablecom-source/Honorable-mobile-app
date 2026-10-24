@@ -1,0 +1,27 @@
+{
+  "apk": {
+    "name": "Honorable-1.0.3-story-tools-arm64.apk",
+    "sizeBytes": 129019287,
+    "sha256": "3da1516b5f61ddc4e2aeb9b70122f2758e44ed021cf1da38c17694773a45b18f"
+  },
+  "nativeTests": 130,
+  "sharedTests": 112,
+  "reactNativeTests": 60,
+  "newUserFacingWorkflows": 2,
+  "newAiEngines": 0,
+  "fullAndroidInternalBuild": true,
+  "physicalDeviceVerified": false,
+  "iosWorkingVerified": false,
+  "sourceCommit": "See Git history and postcommit task verification receipt",
+  "productDocument": {
+    "document": "docs/releases/Honorable-Creative-Guide.docx",
+    "sha256": "a08aef49dae1823545438b9b106214f929e33633de53f535e32496bdd1b78505",
+    "pagesRendered": 4,
+    "allPagesVisuallyInspected": true,
+    "layoutIssuesFound": false,
+    "titleBorderRemoved": true,
+    "wordingReviewedForSupportedClaims": true,
+    "physicalDeviceVerified": false,
+    "workMode": "solo; no computer-use tools"
+  }
+}

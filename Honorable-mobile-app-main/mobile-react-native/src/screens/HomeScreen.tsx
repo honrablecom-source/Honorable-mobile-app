@@ -9,7 +9,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Clock3, X } from 'lucide-react-native';
+import {
+  Clock3,
+  X,
+  UserRound,
+  ChevronDown,
+  ShieldCheck,
+  ArrowUpRight,
+} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Button } from '@/components/ui/button';
@@ -17,14 +24,11 @@ import { Text } from '@/components/ui/text';
 import { HonorableSearchBar } from '../components/HonorableSearchBar';
 import { MediaGrid, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
-import {
-  SearchModeControl,
-  SearchModeSheet,
-} from '../components/SearchModeSheet';
+import { MediaShelf } from '../components/MediaShelf';
 import { colors } from '../design-system/tokens';
+import { FilterTabs, SectionHeading } from '../design-system/CreativeChrome';
 import { honorableNative, SearchResponse } from '../native/HonorableNative';
 import { useLibrary } from '../library/LibraryContext';
-import { useSearchMode } from '../search/SearchModeContext';
 import type { MainTabParamList } from '../navigation/types';
 import { seranCreditCosts } from '../passes/catalog';
 import { useMemoryPass } from '../passes/MemoryPassContext';
@@ -37,10 +41,12 @@ function duration(ms?: number) {
 }
 export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const { items: library } = useLibrary();
-  const { mode, setMode, entitlement } = useSearchMode();
   const {
-    account,
+    items: library,
+    loading: libraryLoading,
+    error: libraryError,
+  } = useLibrary();
+  const {
     connected: passConnected,
     startSearch,
     finishSearch,
@@ -70,7 +76,9 @@ export function HomeScreen() {
         item =>
           ({
             id: String(item.mediaId),
-            uri: item.thumbnailUri ?? item.mediaUri,
+            uri:
+              item.thumbnailUri ??
+              (item.mediaType === 'IMAGE' ? item.mediaUri : undefined),
             mediaUri: item.mediaUri,
             type: item.mediaType,
             duration: duration(item.durationMs),
@@ -86,7 +94,9 @@ export function HomeScreen() {
         const source = library.find(item => item.mediaId === result.mediaId);
         return {
           id: `${result.mediaId}-${result.rank}`,
-          uri: source?.thumbnailUri ?? result.mediaUri,
+          uri:
+            source?.thumbnailUri ??
+            (result.mediaType === 'IMAGE' ? result.mediaUri : undefined),
           mediaUri: result.mediaUri,
           type: result.mediaType,
           duration: duration(source?.durationMs),
@@ -100,6 +110,7 @@ export function HomeScreen() {
   const base = response ? nativeItems : libraryItems.slice(0, 18);
   const visible = base.filter(
     item =>
+      !response ||
       filter === 'All' ||
       (filter === 'Photos' && item.type === 'IMAGE') ||
       (filter === 'Videos' && item.type === 'VIDEO') ||
@@ -143,43 +154,56 @@ export function HomeScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
         <View style={styles.utility}>
+          <View style={styles.wordmarkRow}>
+            <Text accessibilityRole="header" style={styles.wordmark}>
+              Seran
+            </Text>
+          </View>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Account"
+            style={styles.accountButton}
             onPress={() => navigation.getParent()?.navigate('Settings')}
           >
-            <Text>honorable · Account</Text>
+            <UserRound size={19} color={colors.textSecondary} />
           </Pressable>
-          <Text variant="muted" className="text-[12px]">
-            On-device
+        </View>
+        <View style={styles.hero}>
+          <Text style={styles.heroDetail}>
+            Describe a photo or a moment in a video.
           </Text>
         </View>
-        <Text
-          accessibilityRole="header"
-          className="mx-4 mb-8 mt-8 text-[40px] font-medium"
-        >
-          What do you remember?
-        </Text>
         <HonorableSearchBar
           value={query}
           onChangeText={setQuery}
           onSubmit={() => search()}
+          busy={loading}
+          footer={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Select search model"
+              style={styles.modelButton}
+              onPress={() => setModeOpen(true)}
+            >
+              <Text style={styles.modelName}>
+                Seran {productModel === 'SERAN_V1' ? 'Fast' : 'Video'}
+              </Text>
+              <ChevronDown size={12} color={colors.textSecondary} />
+              <Text style={styles.modelCost}>
+                {productModel === 'SERAN_V1' ? '1 credit' : '3 credits'}
+              </Text>
+            </Pressable>
+          }
         />
-
-        <Pressable
-          accessibilityLabel="Select search model"
-          onPress={() => setModeOpen(true)}
-          style={{ padding: 16 }}
-        >
-          <Text>
-            {productModel === 'SERAN_V1' ? 'FAST' : 'VIDEO'} ▾ ·{' '}
-            {productModel === 'SERAN_V1' ? 1 : 3} credit
-            {productModel === 'SERAN_V1' ? '' : 's'}
-          </Text>
-        </Pressable>
+        <View style={styles.privacyRow}>
+          <ShieldCheck size={12} color={colors.textTertiary} />
+          <Text style={styles.privacyText}>Search runs on your device</Text>
+        </View>
         <Modal
           visible={modeOpen}
           transparent
@@ -213,8 +237,10 @@ export function HomeScreen() {
                   }}
                   style={{
                     padding: 16,
-                    backgroundColor: colors.surfaceSelected,
-                    borderRadius: 12,
+                    backgroundColor: colors.canvas,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 10,
                   }}
                 >
                   <Text>
@@ -223,16 +249,17 @@ export function HomeScreen() {
                   </Text>
                 </Pressable>
               ))}
-              <Pressable onPress={() => setModeOpen(false)}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close model selection"
+                style={{ minHeight: 48, justifyContent: 'center' }}
+                onPress={() => setModeOpen(false)}
+              >
                 <Text>Close</Text>
               </Pressable>
             </View>
           </View>
         </Modal>
-        <Text variant="muted" className="mx-4 mb-4 text-[12px]">
-          {account?.freeMonthlyRemaining ?? '—'} free ·{' '}
-          {account?.balance ?? '—'} purchased
-        </Text>
         {history.length > 0 && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>
@@ -245,6 +272,12 @@ export function HomeScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Clear search history"
+                style={{
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
                 onPress={clearHistory}
               >
                 <X color={colors.iconMuted} size={15} />
@@ -259,6 +292,7 @@ export function HomeScreen() {
                 <Pressable
                   key={item}
                   onPress={() => search(item)}
+                  accessibilityRole="button"
                   style={styles.historyChip}
                 >
                   <Text className="text-[11px]">{item}</Text>
@@ -306,39 +340,62 @@ export function HomeScreen() {
         )}
         {!loading && visible.length > 0 && (
           <>
-            <View style={styles.resultsHeader}>
-              <Text className="text-[17px] font-semibold">
-                {response
-                  ? `${nativeItems.length} matches`
-                  : 'Recently remembered'}
-              </Text>
-              <Text variant="muted" className="text-[11px]">
-                {response ? 'Best first' : 'Your library'}
+            <SectionHeading
+              title={
+                response ? `${nativeItems.length} matches` : 'From your library'
+              }
+              detail={response ? 'Best matches first' : undefined}
+            />
+            {response ? (
+              <>
+                <FilterTabs
+                  items={filters}
+                  value={filter}
+                  onChange={setFilter}
+                />
+                <MediaGrid leading items={visible} onPress={setSelected} />
+              </>
+            ) : (
+              <MediaShelf items={visible.slice(0, 8)} onPress={setSelected} />
+            )}
+          </>
+        )}
+        {!response && libraryLoading && (
+          <View style={styles.message}>
+            <ActivityIndicator
+              color={colors.textPrimary}
+              accessibilityLabel="Loading your library"
+            />
+          </View>
+        )}
+        {!response && !libraryLoading && !library.length && (
+          <View style={styles.message}>
+            <Text style={styles.emptyTitle}>Your memories belong here</Text>
+            <Text style={styles.emptyDetail}>
+              Allow photo and video access in Account to search your library.
+            </Text>
+          </View>
+        )}
+        {!response && !!libraryError && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {libraryError}
+          </Text>
+        )}
+        {!response && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Studio"
+            onPress={() => navigation.navigate('Studio')}
+            style={styles.studioLink}
+          >
+            <View style={styles.studioCopy}>
+              <Text style={styles.studioLabel}>Open Studio</Text>
+              <Text style={styles.studioDetail}>
+                Edit a photo or start a video.
               </Text>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filters}
-            >
-              {filters.map(item => (
-                <Button
-                  key={item}
-                  size="sm"
-                  variant={filter === item ? 'default' : 'ghost'}
-                  className="rounded-full"
-                  onPress={() => setFilter(item)}
-                >
-                  <Text>{item}</Text>
-                </Button>
-              ))}
-            </ScrollView>
-            <MediaGrid
-              leading={!!response}
-              items={visible}
-              onPress={setSelected}
-            />
-          </>
+            <ArrowUpRight size={20} color={colors.textPrimary} />
+          </Pressable>
         )}
       </ScrollView>
       <MediaViewer item={selected} onClose={() => setSelected(undefined)} />
@@ -346,29 +403,112 @@ export function HomeScreen() {
   );
 }
 const styles = StyleSheet.create({
+  studioCopy: { flex: 1, gap: 4 },
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: 90 },
+  content: { paddingBottom: 48 },
   utility: {
-    minHeight: 48,
+    minHeight: 76,
     paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 6,
+    borderBottomWidth: 0,
+    borderBottomColor: colors.border,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  wordmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandMark: {
+    width: 28,
+    height: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandLetter: {
+    fontSize: 23,
+    lineHeight: 27,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  wordmark: {
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '600',
+    letterSpacing: -0.7,
+  },
+  accountButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceSelected,
+    borderWidth: 0,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hero: { paddingHorizontal: 16, paddingBottom: 20 },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 10,
+  },
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  eyebrow: { fontSize: 10, letterSpacing: 1.5, color: colors.textTertiary },
+  heroTitle: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '600',
+    letterSpacing: -1,
+  },
+  heroDetail: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textSecondary,
+    marginTop: 0,
+  },
+  modelButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  modelName: { fontSize: 12, color: colors.textSecondary },
+  modelCost: { fontSize: 11, color: colors.textTertiary, marginLeft: 3 },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  privacyText: { fontSize: 11, color: colors.textTertiary },
   history: { marginTop: 12 },
   historyTitle: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   historyLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  historyItems: { paddingHorizontal: 16, paddingTop: 8, gap: 6 },
+  historyItems: { paddingHorizontal: 20, paddingTop: 8, gap: 6 },
   historyChip: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 0,
     borderColor: colors.border,
     backgroundColor: colors.surfaceRaised,
   },
@@ -388,10 +528,29 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.surface,
   },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  emptyDetail: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  studioLink: {
+    marginHorizontal: 16,
+    marginTop: 26,
+    paddingVertical: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 72,
+  },
+  studioLabel: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  studioDetail: { fontSize: 13, color: colors.textSecondary },
   resultsHeader: {
     marginTop: 20,
     marginBottom: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

@@ -1,0 +1,74 @@
+{
+  "nodes": [
+    {
+      "id": "legend",
+      "type": "text",
+      "x": 0,
+      "y": -130,
+      "width": 1110,
+      "height": 100,
+      "text": "# Honorable delivery board\nGreen = implemented and build checked. Orange = remaining work. Physical phone acceptance is still open."
+    },
+    {
+      "id": "card0",
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 350,
+      "height": 230,
+      "text": "## PHOTO EDITING\nCrop, rotate, mirror and color\nCurves and local light\nText, PNG and JPEG copy export",
+      "color": "4"
+    },
+    {
+      "id": "card1",
+      "type": "text",
+      "x": 380,
+      "y": 0,
+      "width": 350,
+      "height": 230,
+      "text": "## VIDEO EDITING\nMultiple clips and real edits\nTitles, captions and SRT\nSoundtrack, preview and copy export",
+      "color": "4"
+    },
+    {
+      "id": "card2",
+      "type": "text",
+      "x": 760,
+      "y": 0,
+      "width": 350,
+      "height": 230,
+      "text": "## ON DEVICE AI\nScene-aware photo and video looks\nPerson cutout and backgrounds\nSampled scene and rough-cut assistance",
+      "color": "4"
+    },
+    {
+      "id": "card3",
+      "type": "text",
+      "x": 0,
+      "y": 260,
+      "width": 350,
+      "height": 230,
+      "text": "## NEW WORKFLOWS\nSaved photo looks\nAudio-only export\nBlank canvas creation\nGuest access to local AI\nTests and internal APK passed",
+      "color": "4"
+    },
+    {
+      "id": "card4",
+      "type": "text",
+      "x": 380,
+      "y": 260,
+      "width": 350,
+      "height": 230,
+      "text": "## STILL TO VERIFY\nAndroid phone output and usability\nProviders, audio sync and cancellation\nTouch, memory and lifecycle",
+      "color": "2"
+    },
+    {
+      "id": "card5",
+      "type": "text",
+      "x": 760,
+      "y": 260,
+      "width": 350,
+      "height": 230,
+      "text": "## FUTURE ENGINES\nPrompt image and video generation\nSpeech transcription and tracking\nLayers, nodes, rigging and iOS",
+      "color": "2"
+    }
+  ],
+  "edges": []
+}

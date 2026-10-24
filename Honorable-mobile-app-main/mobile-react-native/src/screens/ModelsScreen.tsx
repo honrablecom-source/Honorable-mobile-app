@@ -1,3 +1,6 @@
+import { colors } from '../design-system/tokens';
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
+import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,10 +18,18 @@ import {
   SeranModelState,
 } from '../native/HonorableNative';
 
-import {seranCreditCosts} from '../passes/catalog';
-const models=seranCreditCosts.map(m=>({id:m.model,level:m.name,name:m.name,description:m.description,batch:0,status:m.available?'AVAILABLE':'COMING SOON'}));
+import { seranCreditCosts } from '../passes/catalog';
+const models = seranCreditCosts.map(m => ({
+  id: m.model,
+  level: m.name,
+  name: m.name,
+  description: m.description,
+  batch: 0,
+  status: m.available ? 'AVAILABLE' : 'COMING SOON',
+}));
 
 export function ModelsScreen() {
+  const navigation = useNavigation();
   const [state, setState] = useState<SeranModelState>();
   const [preview, setPreview] = useState<SeranModelId>();
   const [saving, setSaving] = useState(false);
@@ -54,7 +65,9 @@ export function ModelsScreen() {
       models[0],
     [preview, state],
   );
-  const available = model.status==='AVAILABLE' && (state?.available.includes(model.id) ?? false);
+  const available =
+    model.status === 'AVAILABLE' &&
+    (state?.available.includes(model.id) ?? false);
   const select = async () => {
     if (!available || model.id === state?.selected) return;
     setSaving(true);
@@ -69,16 +82,16 @@ export function ModelsScreen() {
   };
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
+      <WorkspaceHeader
+        title="Seran models"
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.eyebrow}>SERAN INTELLIGENCE</Text>
-        <Text accessibilityRole="header" style={s.title}>
-          Models
-        </Text>
         <Text style={s.subtitle}>
           Choose how Honorable understands your memories.
         </Text>
         {!state && !error ? (
-          <ActivityIndicator color="#fff" style={s.loading} />
+          <ActivityIndicator color={colors.textPrimary} style={s.loading} />
         ) : (
           <>
             <View style={s.hero}>
@@ -90,9 +103,7 @@ export function ModelsScreen() {
               <Text style={s.heroDescription}>{model.description}</Text>
               <View style={s.rule} />
               <Text style={s.capability}>{model.description}</Text>
-              <Text style={s.capability}>
-                {model.batch}-item indexing batches
-              </Text>
+
               {model.id === state?.selected &&
                 state.enrichmentStatus === 'PREPARING_VIDEO_INTELLIGENCE' && (
                   <Text style={s.progress}>
@@ -110,7 +121,7 @@ export function ModelsScreen() {
                 ]}
               >
                 {saving ? (
-                  <ActivityIndicator color="#000" />
+                  <ActivityIndicator color={colors.canvas} />
                 ) : (
                   <Text
                     style={[
@@ -151,7 +162,7 @@ export function ModelsScreen() {
                     {current ? (
                       <View style={s.current}>
                         <Text style={s.currentText}>CURRENT</Text>
-                        <Check color="#fff" size={16} />
+                        <Check color={colors.textPrimary} size={16} />
                       </View>
                     ) : !unlocked ? (
                       <LockKeyhole color="#777" size={16} />
@@ -175,72 +186,77 @@ export function ModelsScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#000' },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: 20, paddingBottom: 110 },
   eyebrow: {
     marginTop: 8,
-    color: '#777',
-    fontSize: 10,
+    color: colors.textSecondary,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.8,
   },
   title: {
     marginTop: 8,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 44,
     fontWeight: '700',
     letterSpacing: -1.8,
   },
-  subtitle: { marginTop: 5, color: '#999', fontSize: 14 },
+  subtitle: { marginTop: 5, color: colors.textSecondary, fontSize: 14 },
   loading: { marginTop: 100 },
   hero: {
     marginTop: 28,
     padding: 24,
-    borderRadius: 34,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,.22)',
-    backgroundColor: 'rgba(24,24,24,.88)',
+    borderColor: colors.border,
+    backgroundColor: colors.canvas,
   },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between' },
   heroLevel: {
-    color: '#888',
-    fontSize: 10,
+    color: colors.textSecondary,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.6,
   },
-  status: { color: '#aaa', fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
+  status: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
   heroName: {
     marginTop: 28,
-    color: '#fff',
-    fontSize: 36,
+    color: colors.textPrimary,
+    fontSize: 28,
     fontWeight: '700',
     letterSpacing: -1.2,
   },
-  heroDescription: { marginTop: 7, color: '#aaa', fontSize: 14 },
+  heroDescription: { marginTop: 7, color: colors.textSecondary, fontSize: 14 },
   rule: {
     height: 1,
     marginVertical: 22,
-    backgroundColor: 'rgba(255,255,255,.14)',
+    backgroundColor: colors.border,
   },
-  capability: { marginTop: 6, color: '#eee', fontSize: 13 },
-  progress: { marginTop: 12, color: '#aaa', fontSize: 11 },
+  capability: { marginTop: 6, color: colors.textSecondary, fontSize: 13 },
+  progress: { marginTop: 12, color: colors.textSecondary, fontSize: 11 },
   select: {
     height: 52,
     marginTop: 24,
-    borderRadius: 26,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.textPrimary,
   },
-  selectMuted: { backgroundColor: '#343434' },
-  selectText: { color: '#000', fontSize: 13, fontWeight: '700' },
-  selectTextMuted: { color: '#fff' },
+  selectMuted: { backgroundColor: colors.textPrimary, opacity: 0.4 },
+  selectText: { color: colors.canvas, fontSize: 13, fontWeight: '700' },
+  selectTextMuted: { color: colors.canvas },
   rail: {
     marginTop: 14,
-    borderRadius: 28,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,.14)',
+    borderColor: colors.border,
   },
   modelRow: {
     height: 70,
@@ -248,26 +264,36 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#090909',
+    backgroundColor: colors.canvas,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#282828',
+    borderBottomColor: colors.border,
   },
-  modelRowSelected: { backgroundColor: '#1c1c1c' },
+  modelRowSelected: { backgroundColor: colors.surfaceSelected },
   rowLevel: {
-    color: '#777',
-    fontSize: 8,
+    color: colors.textSecondary,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.3,
   },
-  rowName: { marginTop: 4, color: '#fff', fontSize: 14, fontWeight: '600' },
+  rowName: {
+    marginTop: 4,
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   current: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   currentText: {
-    color: '#aaa',
-    fontSize: 8,
+    color: colors.textSecondary,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
   },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  authority: { margin: 14, color: '#666', fontSize: 10, lineHeight: 15 },
-  error: { marginTop: 18, color: '#d88' },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.textPrimary,
+  },
+  authority: { margin: 14, color: '#666', fontSize: 12, lineHeight: 15 },
+  error: { marginTop: 18, color: colors.textPrimary },
 });

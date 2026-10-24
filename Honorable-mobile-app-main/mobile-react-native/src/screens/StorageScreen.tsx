@@ -1,3 +1,5 @@
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
+import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -73,6 +75,7 @@ function Action({
 }
 
 export function StorageScreen() {
+  const navigation = useNavigation();
   const {
     status,
     loading,
@@ -105,23 +108,14 @@ export function StorageScreen() {
   const ready = status?.status.toLowerCase().includes('ready');
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
+      <WorkspaceHeader
+        title="Storage & indexing"
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={s.content}>
-        <View style={s.utilityBar}>
-          <View style={s.localPill}>
-            <View style={s.localDot} />
-            <Text style={s.localText}>On device</Text>
-          </View>
-        </View>
-        <View style={s.intro}>
-          <Text style={s.eyebrow}>LOCAL LIBRARY</Text>
-          <Text accessibilityRole="header" style={s.title}>
-            Your library
-          </Text>
-          <Text style={[s.title, s.titleMuted]}>stays local.</Text>
-          <Text style={s.subtitle}>
-            See what is ready to search and manage Honorable’s private index.
-          </Text>
-        </View>
+        <Text style={s.subtitle}>
+          Manage the private search index on this device.
+        </Text>
         {loading ? (
           <ActivityIndicator style={s.loading} color={p.ink} />
         ) : (
@@ -258,7 +252,9 @@ const s = StyleSheet.create({
   },
   loading: { marginTop: 90 },
   indexCard: {
-    height: 136,
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginTop: 15,
     padding: 14,
     borderRadius: 8,
@@ -270,7 +266,7 @@ const s = StyleSheet.create({
     width: 92,
     height: 92,
     borderRadius: 46,
-    borderWidth: 7,
+    borderWidth: 2,
     borderColor: p.ring,
     alignItems: 'center',
     justifyContent: 'center',
@@ -279,13 +275,13 @@ const s = StyleSheet.create({
   progressUnit: { fontSize: 12 },
   indexCopy: { flex: 1, paddingLeft: 15 },
   indexLabel: {
-    color: '#AEB7C2',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1,
   },
   indexValue: { marginTop: 6, color: p.white, fontSize: 20, fontWeight: '700' },
-  indexDetail: { marginTop: 5, color: '#AAAAAA', fontSize: 12 },
+  indexDetail: { marginTop: 5, color: colors.textSecondary, fontSize: 12 },
   check: {
     width: 29,
     height: 29,
@@ -361,5 +357,5 @@ const s = StyleSheet.create({
   safeTitle: { color: p.ink, fontSize: 12, fontWeight: '700' },
   safeDetail: { marginTop: 3, color: p.muted, fontSize: 12 },
   cache: { color: p.muted, fontSize: 12 },
-  error: { marginTop: 12, color: '#A33', fontSize: 12 },
+  error: { marginTop: 12, color: colors.textPrimary, fontSize: 12 },
 });

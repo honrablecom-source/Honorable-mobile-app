@@ -1,9 +1,10 @@
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { colors } from '../design-system';
 import type { RootStackParamList } from '../navigation/types';
@@ -17,23 +18,12 @@ function Shell({
   const navigation = useNavigation();
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => navigation.goBack()}
-          style={styles.back}
-        >
-          <ChevronLeft color={colors.icon} size={20} />
-        </Pressable>
-        <Text
-          accessibilityRole="header"
-          className="mt-4 text-[30px] font-semibold"
-        >
-          {title}
-        </Text>
-        {children}
-      </ScrollView>
+      <WorkspaceHeader
+        title={title}
+        section="honorable / privacy"
+        onBack={() => navigation.goBack()}
+      />
+      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
     </SafeAreaView>
   );
 }
@@ -133,7 +123,7 @@ const styles = StyleSheet.create({
   },
   draft: {
     marginTop: 16,
-    color: '#D5A95D',
+    color: colors.textPrimary,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.6,

@@ -1,0 +1,21 @@
+{
+  "apk": {
+    "name": "Honorable-1.0.3-drawing-release-arm64.apk",
+    "sizeBytes": 129019287,
+    "sha256": "b4f3b4a63b285d45b6ea458b2e3dd2efc8d53f2e71619f5a5f406303e4485261"
+  },
+  "nativeTests": 120,
+  "sharedTests": 112,
+  "rnTests": 60,
+  "drawingContractTests": 8,
+  "frozenAppInputs": 782,
+  "drawingAssets": 257,
+  "signatureVerified": true,
+  "zipAlignmentVerified": true,
+  "deviceVerified": false,
+  "iosEditingImplemented": false,
+  "newCreationWorkflows": 2,
+  "newlyPackagedWorkflowsSince19aba32": 4,
+  "newAiEngines": 0,
+  "reportSha256": "2523b3c5d1003e2610580e03feee096ae7bfd7e91945de255b26ced8de3efc48"
+}

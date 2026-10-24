@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { HonorableSearchBar } from '../components/HonorableSearchBar';
 import { MediaGrid, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
-import { colors } from '../design-system';
+import { colors, WorkspaceHeader } from '../design-system';
 import { useLibrary } from '../library/LibraryContext';
+import { FilterTabs } from '../design-system/CreativeChrome';
 
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
 type Filter = (typeof filters)[number];
@@ -50,7 +50,9 @@ export function MemoriesScreen() {
       const label = monthLabel(item.capturedAt);
       const media: MediaItem = {
         id: String(item.mediaId),
-        uri: item.thumbnailUri ?? item.mediaUri,
+        uri:
+          item.thumbnailUri ??
+          (item.mediaType === 'IMAGE' ? item.mediaUri : undefined),
         mediaUri: item.mediaUri,
         type: item.mediaType,
         duration: duration(item.durationMs),
@@ -68,45 +70,20 @@ export function MemoriesScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        <View style={styles.header}>
-          <View>
-            <Text className="text-[12px] font-semibold tracking-[2px] text-muted-foreground">
-              MEMORIES
-            </Text>
-            <Text
-              accessibilityRole="header"
-              className="mt-1 text-[28px] font-semibold"
-            >
-              Your library
-            </Text>
-          </View>
-          <Text variant="muted" className="text-[12px]">
-            {total.toLocaleString()} items
-          </Text>
-        </View>
+        <WorkspaceHeader
+          title="Library"
+          section={`${total.toLocaleString()} items on your device`}
+        />
+
         <HonorableSearchBar
           compact
           value={query}
           onChangeText={setQuery}
           onSubmit={() => undefined}
         />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
-          {filters.map(item => (
-            <Button
-              key={item}
-              size="sm"
-              variant={item === filter ? 'default' : 'ghost'}
-              className="rounded-md"
-              onPress={() => setFilter(item)}
-            >
-              <Text>{item}</Text>
-            </Button>
-          ))}
-        </ScrollView>
+        <View style={{ height: 8 }} />
+        <FilterTabs items={filters} value={filter} onChange={setFilter} />
+        <View style={{ height: 16 }} />
         {sections.length === 0 ? (
           <View style={styles.empty}>
             <Text className="text-[17px] font-semibold">No memories found</Text>
@@ -117,10 +94,10 @@ export function MemoriesScreen() {
         ) : (
           sections.map(([label, media]) => (
             <View key={label} style={styles.section}>
-              <Text className="mb-3 px-4 text-[16px] font-semibold">
+              <Text className="mb-4 px-4 text-[13px] font-semibold">
                 {label}
               </Text>
-              <MediaGrid items={media} onPress={setSelected} />
+              <MediaGrid edgeToEdge items={media} onPress={setSelected} />
             </View>
           ))
         )}
@@ -141,7 +118,7 @@ export function MemoriesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: 90 },
+  content: { paddingBottom: 24 },
   header: {
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -156,16 +133,20 @@ const styles = StyleSheet.create({
     margin: 16,
     padding: 24,
     alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: colors.surface,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 0,
+    borderColor: colors.border,
   },
   more: {
     height: 48,
     marginHorizontal: 16,
     marginTop: 8,
-    borderRadius: 8,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 0,
+    borderColor: colors.border,
   },
 });

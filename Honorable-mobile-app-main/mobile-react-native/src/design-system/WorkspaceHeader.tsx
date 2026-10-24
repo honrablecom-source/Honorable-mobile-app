@@ -1,0 +1,80 @@
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ChevronLeft } from 'lucide-react-native';
+import { colors } from './tokens';
+
+/** Shared phone workspace chrome. Back is explicit so tab roots never show a dead control. */
+export function WorkspaceHeader({
+  title,
+  section = 'honorable',
+  onBack,
+  action,
+}: {
+  title: string;
+  section?: string;
+  onBack?: () => void;
+  action?: React.ReactNode;
+}) {
+  return (
+    <View style={s.header}>
+      {onBack && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={onBack}
+          style={s.back}
+        >
+          <ChevronLeft size={22} color={colors.textPrimary} />
+        </Pressable>
+      )}
+      <View style={s.copy}>
+        <Text accessibilityRole="header" style={s.title}>
+          {title}
+        </Text>
+        {section !== 'honorable' && !section.startsWith('honorable /') && (
+          <Text style={s.section}>{section}</Text>
+        )}
+      </View>
+      {action && <View style={s.action}>{action}</View>}
+    </View>
+  );
+}
+export const workspaceStyles = StyleSheet.create({
+  content: { padding: 20, paddingBottom: 32, gap: 16 },
+  screen: { flex: 1, backgroundColor: colors.canvas },
+});
+const s = StyleSheet.create({
+  header: {
+    minHeight: 84,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 0,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.canvas,
+  },
+  copy: { flex: 1, gap: 4 },
+  section: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+    letterSpacing: 0,
+  },
+  title: {
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '600',
+    letterSpacing: -0.7,
+    color: colors.textPrimary,
+  },
+  back: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -12,
+  },
+  action: { flexShrink: 1 },
+});

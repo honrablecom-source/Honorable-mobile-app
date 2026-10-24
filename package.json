@@ -7,6 +7,7 @@
     "typecheck": "npm --prefix Honorable-mobile-app-main/mobile-react-native run typecheck",
     "test:auth:web": "node Honorable-mobile-app-main/scripts/test-auth-web.cjs",
     "test:auth:account": "node --test Honorable-mobile-app-main/dev-server/test/*.test.js",
+    "check:account": "node Honorable-mobile-app-main/scripts/check-account-config.cjs",
     "test:product": "node --test Honorable-mobile-app-main/dev-server/test/*.test.js Honorable-mobile-app-main/product/studio/project.test.js",
     "test:product:web": "node Honorable-mobile-app-main/scripts/test-product-web.cjs",
     "generate:product": "node Honorable-mobile-app-main/scripts/generate-product.cjs",

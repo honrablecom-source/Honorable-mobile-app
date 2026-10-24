@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { useLibrary } from '../library/LibraryContext';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,18 +8,11 @@ import {
   View,
 } from 'react-native';
 import { colors, radii } from '../design-system/tokens';
-import {
-  Image as Photo,
-  Film,
-  Box,
-  Code2,
-  Move,
-  Lock,
-} from 'lucide-react-native';
+import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 import { memoryPasses } from '../passes/catalog';
-import { useNavigation } from '@react-navigation/native';
 export const productStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 24, paddingBottom: 40, gap: 16 },
@@ -40,7 +31,9 @@ export const productStyles = StyleSheet.create({
   body: { color: colors.textSecondary, fontSize: 14, lineHeight: 21 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radii.lg,
     padding: 16,
     width: '48%',
@@ -50,8 +43,10 @@ export const productStyles = StyleSheet.create({
   button: {
     padding: 14,
     borderRadius: radii.md,
-    backgroundColor: colors.surfaceSelected,
-    minHeight: 44,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 48,
   },
   label: { color: colors.textPrimary },
   row: {
@@ -70,7 +65,7 @@ export const productStyles = StyleSheet.create({
   },
   eyebrow: { fontSize: 12, letterSpacing: 0.5, color: colors.textSecondary },
   balance: { flex: 1, paddingVertical: 20, gap: 8 },
-  bar: { height: 4, backgroundColor: colors.border, overflow: 'hidden' },
+  bar: { height: 4, backgroundColor: colors.surfaceSelected, overflow: 'hidden' },
   hero: {
     height: 270,
     justifyContent: 'flex-end',
@@ -113,12 +108,15 @@ export function ProductPage({
   title: string;
   children: React.ReactNode;
 }) {
+  const navigation = useNavigation();
   return (
     <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.title}>{title}</Text>
-        {children}
-      </ScrollView>
+      <WorkspaceHeader
+        title={title}
+        section="honorable / membership"
+        onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+      />
+      <ScrollView contentContainerStyle={s.content}>{children}</ScrollView>
     </SafeAreaView>
   );
 }
@@ -280,147 +278,4 @@ export function ProductUsageScreen() {
     </ProductPage>
   );
 }
-export function StudioScreen() {
-  const { items } = useLibrary();
-  const photo = items.find(item => item.mediaType === 'IMAGE');
-  const { account } = useMemoryPass();
-  const navigation = useNavigation<any>();
-  const [category, setCategory] = useState<string | null>(null);
-  const active = account?.subscription.status === 'ACTIVE';
-  const categories = [
-    ['Photo', Photo],
-    ['Video', Film],
-    ['Code', Code2],
-  ] as const;
-  return (
-    <ProductPage title="Honorable Studio">
-      {active ? (
-        <>
-          <Text style={s.heading}>Continue editing</Text>
-          <Text style={s.body}>
-            Open a memory to start or continue a photo edit.
-          </Text>
-          <Pressable
-            style={s.button}
-            onPress={() => navigation.navigate('Memories')}
-          >
-            <Text style={s.label}>Choose a memory</Text>
-          </Pressable>
-        </>
-      ) : (
-        <View style={{ paddingVertical: 24 }}>
-          <Text style={s.heroTitle}>Make something{'\n'}of a memory.</Text>
-          <Text style={[s.body, { marginTop: 12 }]}>
-            Start with a photo. Keep the original.
-          </Text>
-        </View>
-      )}
-      <Text style={s.eyebrow}>Create</Text>
-      <View style={s.grid}>
-        {categories.map(([name, Icon]) => (
-          <Pressable
-            key={name}
-            style={[
-              s.tile,
-              name === 'Photo' && {
-                width: '100%',
-                minHeight: 220,
-                padding: 20,
-                justifyContent: 'flex-end',
-                overflow: 'hidden',
-                backgroundColor: colors.surfaceRaised,
-              },
-            ]}
-            onPress={() => setCategory(name)}
-          >
-            {name === 'Photo' && photo && (
-              <>
-                <Image
-                  source={{ uri: photo.thumbnailUri ?? photo.mediaUri }}
-                  style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
-                />
-                <View
-                  style={[
-                    StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(0,0,0,.3)' },
-                  ]}
-                />
-              </>
-            )}
-            <View style={s.spread}>
-              <Icon color={colors.textSecondary} size={30} strokeWidth={1.5} />
-              {name !== 'Photo' && !active && (
-                <Lock color={colors.textTertiary} size={14} />
-              )}
-            </View>
-            <View>
-              <Text style={s.heading}>{name}</Text>
-              <Text style={s.body}>
-                {name === 'Photo' ? 'Free essentials' : 'Studio workspace'}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-      {active && (
-        <>
-          <Text style={s.eyebrow}>ADVANCED</Text>
-          <View style={s.spread}>
-            {['Nodes', 'Code'].map(name => (
-              <Pressable
-                key={name}
-                style={[s.button, { flex: 1 }]}
-                onPress={() => setCategory(name)}
-              >
-                <Text style={s.label}>{name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
-      )}
-      {category && (
-        <View style={s.row}>
-          <Text style={s.heading}>{category}</Text>
-          <Text style={s.body}>
-            {category === 'Photo'
-              ? 'Crop, rotate, adjust, undo, compare and export a new copy.'
-              : category === 'Code'
-              ? 'Python and Java editors are available in the web workspace. Execution is unavailable.'
-              : category === 'Nodes'
-              ? 'Node graph foundation is available in the web workspace. Processing is unavailable.'
-              : 'Advanced processing is Coming Soon.'}
-          </Text>
-          {category === 'Photo' ? (
-            <Pressable
-              style={s.button}
-              onPress={() => navigation.navigate('Memories')}
-            >
-              <Text style={s.label}>Choose a memory to edit</Text>
-            </Pressable>
-          ) : (
-            <Text style={s.body}>
-              {active ? 'Studio member' : 'Requires Studio membership'}
-            </Text>
-          )}
-          <Pressable onPress={() => setCategory(null)}>
-            <Text style={s.label}>Close</Text>
-          </Pressable>
-        </View>
-      )}
-      <Pressable
-        style={s.button}
-        onPress={() =>
-          Alert.alert(
-            'Honorable Studio',
-            'Monthly membership pricing is not finalized. Store subscriptions are not connected.',
-          )
-        }
-      >
-        <Text style={s.label}>
-          {active ? 'Studio active' : 'Explore Studio membership'}
-        </Text>
-      </Pressable>
-    </ProductPage>
-  );
-}
+export { StudioScreen } from './StudioScreen';

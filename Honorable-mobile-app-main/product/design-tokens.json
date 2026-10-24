@@ -1,21 +1,21 @@
 {
   "colors": {
-    "canvas": "#000000",
-    "surface": "#080808",
-    "surfaceRaised": "#101010",
-    "surfaceSelected": "#171717",
-    "border": "#242424",
-    "textPrimary": "#FFFFFF",
-    "textSecondary": "#BDBAB4",
-    "textTertiary": "#94918C",
-    "accent": "#A9D8C5",
-    "danger": "#F47D84"
+    "canvas": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surfaceRaised": "#FAFAFA",
+    "surfaceSelected": "#F1F1F1",
+    "border": "#DEDEDE",
+    "textPrimary": "#111111",
+    "textSecondary": "#555555",
+    "textTertiary": "#6B6B6B",
+    "accent": "#111111",
+    "danger": "#111111"
   },
   "radii": {
     "sm": 6,
-    "md": 10,
-    "lg": 12,
-    "sheet": 12,
+    "md": 14,
+    "lg": 18,
+    "sheet": 24,
     "pill": 999
   },
   "spacing": {
@@ -76,7 +76,7 @@
     "viewer": 240
   },
   "grid": {
-    "gap": 2,
+    "gap": 4,
     "columns": 3
   }
 }

@@ -1,0 +1,36 @@
+# Decisions
+
+## October 21, 2026 — active direction
+
+- **UI paused.** The owner said to leave UI alone and continue useful features. Retain the current app design while adding functional controls to existing editor surfaces.
+- **Use this vault.** Existing repository Markdown is the project memory. Keep a compact handoff, linked work queue, decisions and verified milestone notes up to date. Obsidian setup is scaffolding, not an app feature or proof of lower token usage.
+- **Captions first in this batch.** Real timed subtitles and interchange are a useful bounded next step toward transcript and AI-video workflows. Do not label manual/SRT captions as automatic AI transcription.
+
+## Persistent constraints
+
+- Continue the authoritative existing repository and architecture; preserve completed systems.
+- No paid hosting/billing setup; the owner deferred it.
+- No personal media or query uploads without explicit authorization.
+- Preserve V3 locked/unchargeable; V1/V2 costs 1/3, 15 free monthly credits, free-first deductions, no free rollover, nonexpiring purchases and server ledger authority.
+- Do not inspect or tune on protected Seran holdout or run the expensive benchmark for build validation.
+- Keep the owner's other apps open. No Android phone is available.
+- Internal public-debug signing is not store signing. Compile/build/device/store evidence must be distinguished.
+
+## October 23, 2026 — guest editing authorized
+
+The owner explicitly approved separate offline guest basic editing. Guest entry must not authorize search, AI, credits or account drafts; existing server policies remain intact. Guest copy export and isolated activity recovery are local operations.
+
+
+## October 23 creative outputs
+
+Owner approved existing free on-device AI for guests; search, credits, future paid generation and account drafts stay gated. No hosting/billing started. Blank creation is manual. Green cards mean implemented/build checked, with phone acceptance separate. Preserve current UI and original repository.
+
+
+## October24 owner direction
+
+Stop new feature work for the roundup, push current source and provide a summary. Work solo. No subagents unless the owner explicitly authorizes them again. No computer-use tools. Do not describe the latest source as a verified APK or a working iOS app.
+
+
+## October24 creation increment
+
+Owner resumed core feature work with open-source creation integration. Work remains solo with no computer-use tools. Excalidraw is bundled offline with retained licenses; preserve native photo/video engines. Manual drawing is separate from unfinished AI generation. Local drafts are private to this device, not account/cloud projects. Fresh APK verification does not imply phone, iOS or store acceptance.
