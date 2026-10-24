@@ -21,6 +21,6 @@ RTK 1.0.1 is installed, on user PATH and used by absolute path in stale sessions
 
 ## Shareable report and next work
 
-See releases/Honorable-App-Changes-and-Features.docx and the labelled Obsidian board export. The cumulative report compares the oldest Git ZIP 424cf33 with current implementation. Green board cards mean implemented/build checked, not phone accepted.
+See archive/releases/Honorable-App-Changes-and-Features.docx and the labelled Obsidian board export. The cumulative report compares the oldest Git ZIP 424cf33 with current implementation. Green board cards mean implemented/build checked, not phone accepted.
 
 Next: disposable-media physical acceptance, durable guest projects, measured speech feasibility, then real generation and advanced layers/compositing. Generative photos/videos, automatic transcription, rigging, general nodes/code/3D, production accounts/stores and iOS remain unfinished. Hosting/billing deferred; no user apps closed or personal media uploaded; protected holdout untouched.

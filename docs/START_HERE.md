@@ -1,54 +1,36 @@
 ---
 project: Honorable
 type: project-home
-updated: 2026-10-23
+updated: 2026-10-24
 ---
-# Honorable
+# Honorable project home
 
-This vault uses the authoritative repository's existing project documents. Notes and evidence are committed with engineering milestones.
+## Current app
 
-## Resume work
+- [[DRAWING_READINESS|Latest verified Android candidate and acceptance limits]]
+- [Current product summary](releases/Honorable-Product-Update.docx)
+- [[HONORABLE_FEATURE_STATUS|Implemented and planned features]]
+- [[GUEST_TEST_GUIDE|Local editing tester guide]]
 
-1. Read [[SESSION_HANDOFF]] for the current source, objective and verified state.
-2. Select the next bounded item in [[WORK_QUEUE]].
-3. Confirm its implementation before editing; preserve completed systems.
-4. Record actual checks and artifact evidence, then update the handoff and queue.
+Offline drawing and editable drawing drafts are built into the latest complete ARM64 internal APK. Saved guest video projects and precise trim are packaged too. Physical-device validation remains open. iOS native editors and generative AI remain unfinished.
 
-## Active work
+## Continue development
 
-Latest: [[HONORABLE_CREATIVE_OUTPUTS_CHECKPOINT|Four creative output workflows]] and [[GUEST_TEST_GUIDE|Tester guide]].
+1. Read [[SESSION_HANDOFF]] for the current verified state.
+2. Read [[WORK_QUEUE]] and select the next bounded task.
+3. Preserve completed systems and product decisions in [[DECISIONS]].
+4. Record actual evidence; build success, device behavior and store readiness are separate claims.
 
-**Photo looks, audio export, blank image creation and free local guest AI.** The owner has paused UI redesign. These workflows and existing captions are built for internal Android testing; phone acceptance remains open. They are not automatic speech transcription.
+Work solo. No subagents without new owner authorization. No computer-use tools. Keep credentials, private media and protected benchmark holdout out of project notes.
 
 ## Project map
 
-- [[TEAM_WORK|Live team assignments and handoff]]
-- [[WORK_QUEUE|Engineering queue]]
-- [[DECISIONS|Product and engineering decisions]]
-- [[CAPTIONS_WORKLOG|Current caption implementation log]]
-- [[HONORABLE_FEATURE_STATUS|Working versus planned features]]
-- [[HONORABLE_CURRENT_STATUS|Detailed status and historical checkpoints]]
-- [[HONORABLE_CAPTIONS_CHECKPOINT|Latest completed engineering build]]
-- [[HONORABLE_PHOTOS_UI_CHECKPOINT|Existing UI scope]]
+- [[HONORABLE_UI_AND_CREATIVE_ROADMAP|Product roadmap]]
 - [[HONORABLE_ANDROID_DEVICE_CHECKS|Device acceptance checklist]]
-- [[HONORABLE_UI_AND_CREATIVE_ROADMAP|Full product roadmap]]
+- [[HONORABLE_CURRENT_STATUS|Current checkpoint and historical timeline]]
+- [[HONORABLE_RELEASE_BOARD.canvas|Completed work board]]
+- [[TOOL_EFFICIENCY|Configured efficiency tools]]
+- [Labelled board export](releases/Honorable-Project-board.png)
+- [Historical reports and references](archive/README.md)
 
-## Evidence rules
-
-Build success, a packaged APK, real-device behavior and store readiness are separate claims. Count new features separately from fixes and notes. Never put credentials, private media or queries in this vault. Protected Seran holdout remains untouched.
-
-## Shareable update
-
-- [[HONORABLE_RELEASE_BOARD.canvas|Green completed work board]]
-- [Simple feature report](releases/Honorable-App-Changes-and-Features.docx)
-- [Labelled Obsidian board export](releases/Honorable-Project-board.png)
-
-- [[AI_TRANSCRIPTION_FEASIBILITY|Speech feasibility remains separate from implemented captions]]
-
-## Current handoff October24
-
-Read [[FINAL_HANDOFF]] and [[SESSION_HANDOFF]]. [Latest summary](releases/Honorable-Final-Handoff.docx). Work solo; no subagents without new permission. Latest source has unit/compile evidence but no fresh verified APK.
-
-## Current Android candidate
-
-[[DRAWING_READINESS|Offline creation and fresh verified APK]]. [Current product summary](releases/Honorable-Product-Update.docx). Earlier source-only handoff is superseded.
+The board records implementation/build checks, not physical-device acceptance. Older checkpoints are historical and may describe superseded limitations.

@@ -26,4 +26,4 @@ Open-source drawing integration was started outside the app and stopped at owner
 
 ## Documents and next step
 
-Current simple summary: releases/Honorable-Final-Handoff.docx. Detailed previous feature inventory: releases/Honorable-App-Changes-and-Features.docx. Preserve the original repo and designs. Next engineering step, when authorized: finish a new full APK from latest source, verify it, then physical acceptance; review the iOS CI result separately.
+Current simple summary: archive/releases/Honorable-Final-Handoff.docx. Detailed previous feature inventory: archive/releases/Honorable-App-Changes-and-Features.docx. Preserve the original repo and designs. Next engineering step, when authorized: finish a new full APK from latest source, verify it, then physical acceptance; review the iOS CI result separately.
