@@ -73,15 +73,27 @@ export type ImprovementProgramState = {
   revokedAt?: number;
 };
 type NativeBoundary = {
-  pickWorkspaceMedia(kind: 'IMAGE' | 'VIDEO'): Promise<{uri: string} | null>;
-  pickBetaScreenshot():Promise<{base64:string}|null>;
-  restoreAccountSession():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
-  signInAccountWithGoogle():Promise<{status:string;account?:import('../passes/MemoryPassClient').MemoryAccount}>;
-  signOutAccountSession():Promise<{signedOut:boolean}>;
-  accountSessionAction(route:string,body:string|null):Promise<import('../passes/MemoryPassClient').MemoryAccount>;
-  getAccountConfiguration():Promise<{googleConfigured:boolean;apiUrl:string}>;
-  signInWithGoogle(): Promise<{idToken:string}>;
-  signOutGoogle(): Promise<{signedOut:boolean}>;
+  pickWorkspaceMedia(kind: 'IMAGE' | 'VIDEO'): Promise<{ uri: string } | null>;
+  pickBetaScreenshot(): Promise<{ base64: string } | null>;
+  restoreAccountSession(): Promise<{
+    status: string;
+    account?: import('../passes/MemoryPassClient').MemoryAccount;
+  }>;
+  signInAccountWithGoogle(): Promise<{
+    status: string;
+    account?: import('../passes/MemoryPassClient').MemoryAccount;
+  }>;
+  signOutAccountSession(): Promise<{ signedOut: boolean }>;
+  accountSessionAction(
+    route: string,
+    body: string | null,
+  ): Promise<import('../passes/MemoryPassClient').MemoryAccount>;
+  getAccountConfiguration(): Promise<{
+    googleConfigured: boolean;
+    apiUrl: string;
+  }>;
+  signInWithGoogle(): Promise<{ idToken: string }>;
+  signOutGoogle(): Promise<{ signedOut: boolean }>;
   search(query: string): Promise<SearchResponse>;
   cancelSearch(): void;
   getStatus(): Promise<IndexStatus>;
@@ -109,11 +121,17 @@ type NativeBoundary = {
   ): Promise<ImprovementProgramState>;
   getSearchHistory(): Promise<{ queries: string[] }>;
   clearSearchHistory(): Promise<{ cleared: boolean }>;
-  editPhoto(uri:string):Promise<{opened:boolean}>;
-  editVideo(uri:string):Promise<{opened:boolean}>;
-  editPhotoGuest(uri:string):Promise<{opened:boolean}>;
-  editVideoGuest(uri:string):Promise<{opened:boolean}>;
-  editVideoAtMoment(uri:string,timestampMs:number):Promise<{opened:boolean}>;
+  editPhoto(uri: string): Promise<{ opened: boolean }>;
+  editVideo(uri: string): Promise<{ opened: boolean }>;
+  editPhotoGuest(uri: string): Promise<{ opened: boolean }>;
+  editVideoGuest(uri: string): Promise<{ opened: boolean }>;
+  createImageGuest(
+    format: 'square' | 'portrait' | 'landscape',
+  ): Promise<{ opened: boolean }>;
+  editVideoAtMoment(
+    uri: string,
+    timestampMs: number,
+  ): Promise<{ opened: boolean }>;
   openMedia(
     uri: string,
     kind: string,
@@ -130,13 +148,15 @@ function boundary(): NativeBoundary {
   return native;
 }
 export const honorableNative = {
-  pickWorkspaceMedia: (kind: 'IMAGE' | 'VIDEO') => boundary().pickWorkspaceMedia(kind),
-  restoreAccountSession:()=>boundary().restoreAccountSession(),
-  signInAccountWithGoogle:()=>boundary().signInAccountWithGoogle(),
-  signOutAccountSession:()=>boundary().signOutAccountSession(),
-  pickBetaScreenshot:()=>boundary().pickBetaScreenshot(),
-  accountSessionAction:(route:string,body:string|null)=>boundary().accountSessionAction(route,body),
-  getAccountConfiguration:()=>boundary().getAccountConfiguration(),
+  pickWorkspaceMedia: (kind: 'IMAGE' | 'VIDEO') =>
+    boundary().pickWorkspaceMedia(kind),
+  restoreAccountSession: () => boundary().restoreAccountSession(),
+  signInAccountWithGoogle: () => boundary().signInAccountWithGoogle(),
+  signOutAccountSession: () => boundary().signOutAccountSession(),
+  pickBetaScreenshot: () => boundary().pickBetaScreenshot(),
+  accountSessionAction: (route: string, body: string | null) =>
+    boundary().accountSessionAction(route, body),
+  getAccountConfiguration: () => boundary().getAccountConfiguration(),
   signInWithGoogle: () => boundary().signInWithGoogle(),
   signOutGoogle: () => boundary().signOutGoogle(),
   search: (query: string) => boundary().search(query),
@@ -160,10 +180,15 @@ export const honorableNative = {
     ),
   getSearchHistory: () => boundary().getSearchHistory(),
   clearSearchHistory: () => boundary().clearSearchHistory(),
-  editPhoto:(uri:string)=>boundary().editPhoto(uri),
-  editVideo:(uri:string,timestampMs?:number)=>timestampMs===undefined?boundary().editVideo(uri):boundary().editVideoAtMoment(uri,timestampMs),
-  editPhotoGuest:(uri:string)=>boundary().editPhotoGuest(uri),
-  editVideoGuest:(uri:string)=>boundary().editVideoGuest(uri),
+  editPhoto: (uri: string) => boundary().editPhoto(uri),
+  editVideo: (uri: string, timestampMs?: number) =>
+    timestampMs === undefined
+      ? boundary().editVideo(uri)
+      : boundary().editVideoAtMoment(uri, timestampMs),
+  editPhotoGuest: (uri: string) => boundary().editPhotoGuest(uri),
+  editVideoGuest: (uri: string) => boundary().editVideoGuest(uri),
+  createImageGuest: (format: 'square' | 'portrait' | 'landscape') =>
+    boundary().createImageGuest(format),
   openMedia: (item: {
     mediaUri: string;
     mediaType: 'IMAGE' | 'VIDEO';

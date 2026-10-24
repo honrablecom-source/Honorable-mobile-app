@@ -1,3 +1,11 @@
+# Latest checkpoint — creative outputs, October 23, 2026
+
+**4 new user-facing workflows, 0 new AI engines:** saved local photo adjustment looks; audio-only AAC/M4A export of the edited project; blank square/portrait/landscape image creation; approved guest access to existing free on-device AI. Variants and buttons are not counted separately. Existing app/design/search/credit/server policy is preserved.
+
+112 shared Android + 95 RN-native JVM cases pass, all fresh; 56 RN tests / 11 suites and TypeScript pass; lint 0 errors / 36 existing warnings. Android instrumentation compiled only, not executed. Full ARM64 internal APK independently verified; 503 frozen inputs match.
+
+APK `Honorable-1.0.3-creative-outputs-arm64.apk`; SHA-256 `fc665a2dc7b6b8fd5d763196ffbc32a72ec1100d5c84ec74984467d09766f5f2`. Public debug certificate, internal testing only. Hosted API unset/signInConfigured=false. No phone available; actual media/provider/codec/audio/lifecycle/UX acceptance remains open. See HONORABLE_CREATIVE_OUTPUTS_CHECKPOINT.md. Older checkpoints below retain their historical access policies.
+
 # Latest checkpoint — offline guest editing, October 23, 2026
 
 **1 new user-facing workflow:** explicit offline guest basic photo/video editing. **2 fixes:** authenticated document-picker access behind empty/denied-library gates, and subtitle permission rollback/cleanup. **0 new AI engines.** First launch can enter isolated guest pickers without the unconfigured account service. Native guest mode validates readable content sources, denies AI/account drafts, isolates local lifecycle state and avoids account telemetry/reads. Signed-in server authorization and credit/search policy remain intact.

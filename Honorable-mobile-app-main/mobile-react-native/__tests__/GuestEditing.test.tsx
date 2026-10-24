@@ -25,6 +25,7 @@ jest.mock('../src/screens/BetaUpdateNotice', () => ({
 }));
 jest.mock('../src/native/HonorableNative', () => ({
   honorableNative: {
+    createImageGuest: jest.fn(),
     pickWorkspaceMedia: jest.fn(),
     editPhotoGuest: jest.fn(),
     editVideoGuest: jest.fn(),
@@ -73,6 +74,7 @@ beforeEach(() => {
   mockAuth.googleConfigured = false;
   mockAuth.error = undefined;
   native.pickWorkspaceMedia.mockResolvedValue({ uri: 'content://test/guest' });
+  native.createImageGuest.mockResolvedValue({ opened: true });
   native.editPhotoGuest.mockResolvedValue({ opened: true });
   native.editVideoGuest.mockResolvedValue({ opened: true });
 });
@@ -126,6 +128,7 @@ test('guest navigation exposes only local editors and sign-in, never account/sea
   );
   expect([...labels].sort()).toEqual([
     'Back to sign in',
+    'Create an image',
     'Edit a photo',
     'Edit a video',
   ]);
@@ -223,4 +226,36 @@ test('a pending guest picker blocks duplicate launches and leaving that request 
   });
   expect(button('Edit a video').props.disabled).toBe(false);
   expect(button('Back to sign in').props.disabled).toBe(false);
+});
+
+test.each(['Square', 'Portrait', 'Landscape'])(
+  'creation opens the %s canvas without a picker or account',
+  async format => {
+    const alert = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation(() => undefined);
+    await enterGuest();
+    await act(async () => button('Create an image').props.onPress());
+    const choices = alert.mock.calls[0][2]!;
+    await act(async () =>
+      choices.find(choice => choice.text === format)!.onPress!(),
+    );
+    expect(native.createImageGuest).toHaveBeenCalledWith(format.toLowerCase());
+    expect(native.pickWorkspaceMedia).not.toHaveBeenCalled();
+    expect(native.accountSessionAction).not.toHaveBeenCalled();
+    expect(mockAccountMounted).not.toHaveBeenCalled();
+  },
+);
+test('failed canvas creation permits retry without spending credits', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  native.createImageGuest.mockRejectedValue(new Error('Storage unavailable'));
+  await enterGuest();
+  await act(async () => button('Create an image').props.onPress());
+  await act(async () => alert.mock.calls[0][2]![0].onPress!());
+  expect(alert).toHaveBeenLastCalledWith(
+    'Open workspace',
+    'Storage unavailable',
+  );
+  expect(button('Create an image').props.disabled).toBe(false);
+  expect(mockAuth.charge).not.toHaveBeenCalled();
 });

@@ -1,12 +1,19 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../design-system/tokens';
 import { useOpenWorkspace } from '../native/openWorkspace';
 
 /** Guest editing never mounts the account, search or paid-feature navigation. */
 export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
-  const { busy, open } = useOpenWorkspace('guest');
+  const { busy, open, create } = useOpenWorkspace('guest');
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content}>
@@ -15,10 +22,31 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
           Edit on this device.
         </Text>
         <Text style={s.copy}>
-          Choose a photo or video for basic local editing. Your files stay on
-          this device. Exports create a new copy.
+          Choose a photo or video for local editing. Your files stay on this
+          device. Exports create a new copy.
         </Text>
         <View style={s.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create an image"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            style={[s.button, busy && s.disabled]}
+            onPress={() =>
+              Alert.alert(
+                'Create an image',
+                'Start with a white canvas, then add text and edit. Export a copy to keep it.',
+                [
+                  { text: 'Square', onPress: () => create('square') },
+                  { text: 'Portrait', onPress: () => create('portrait') },
+                  { text: 'Landscape', onPress: () => create('landscape') },
+                  { text: 'Cancel', style: 'cancel' },
+                ],
+              )
+            }
+          >
+            <Text style={s.buttonText}>Create an image</Text>
+          </Pressable>
           {(['IMAGE', 'VIDEO'] as const).map(kind => {
             const label = kind === 'IMAGE' ? 'Edit a photo' : 'Edit a video';
             return (
@@ -37,7 +65,8 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
           })}
         </View>
         <Text style={s.note}>
-          Search, AI tools, credits and account features require sign-in.
+          On-device AI tools run locally. Search, credits and account features
+          require sign-in.
         </Text>
         <Pressable
           accessibilityRole="button"

@@ -174,7 +174,13 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @ReactMethod fun editPhoto(uri:String,promise:Promise)=work.execute{guarded(promise){accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"));context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri)});Arguments.createMap().apply{putBoolean("opened",true)}}}
     @ReactMethod fun editPhotoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"image/",app.honorable.editor.PhotoEditorActivity::class.java,promise)
     @ReactMethod fun editVideoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"video/",HonorableVideoEditorActivity::class.java,promise)
+    @ReactMethod fun createImageGuest(format:String,promise:Promise)=work.execute{guarded(promise){
+        openGuestEditor(CreatedPhotoCanvas.create(context,format).toString(),"image/",app.honorable.editor.PhotoEditorActivity::class.java)
+    }}
     private fun launchGuestEditor(uri:String,mimePrefix:String,editor:Class<out android.app.Activity>,promise:Promise)=work.execute{guarded(promise){
+        openGuestEditor(uri,mimePrefix,editor)
+    }}
+    private fun openGuestEditor(uri:String,mimePrefix:String,editor:Class<out android.app.Activity>):WritableMap {
         val selected=Uri.parse(uri)
         require(selected.scheme=="content") { "Choose a local photo or video from the picker" }
         require(context.contentResolver.getType(selected)?.startsWith(mimePrefix)==true) { "Choose a supported ${if(mimePrefix=="image/")"photo"else"video"}" }
@@ -183,8 +189,8 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             putExtra("uri",uri);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)
         })
-        Arguments.createMap().apply{putBoolean("opened",true)}
-    }}
+        return Arguments.createMap().apply{putBoolean("opened",true)}
+    }
     @ReactMethod fun editVideo(uri:String,promise:Promise)=launchVideoEditor(uri,null,promise)
     @ReactMethod fun editVideoAtMoment(uri:String,timestampMs:Double,promise:Promise)=launchVideoEditor(uri,timestampMs,promise)
     private fun launchVideoEditor(uri:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){

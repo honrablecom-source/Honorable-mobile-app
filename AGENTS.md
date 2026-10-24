@@ -1,6 +1,7 @@
 # Honorable project guidance
 
 - For compact project resumption, read docs/SESSION_HANDOFF.md and docs/WORK_QUEUE.md. Use the linked current work log during implementation and update these notes with verified results at each milestone.
+- Output efficiency: RTK 1.0.1 is installed at C:/Users/Shadow/Desktop/honrabl/.tools/rtk-oss-v1.0.1/rtk.exe and added to user PATH. Use the absolute executable in existing agent sessions if PATH is stale. Prefer scoped rg searches, `rtk log <file>` for build-log summaries and `rtk read --level minimal <file>` for source previews; default `rtk read` does not filter. Retain full logs and inspect complete relevant errors/context before changing code. RTK output savings are not total conversation/credit savings.
 
 - This Git repository is the authoritative source. The app lives under Honorable-mobile-app-main/; GitHub workflows belong in the outer .github/workflows/. Ignore adjacent extracted ZIP copies.
 - Honorable is a privacy-first AI photo/video search and editing app. Preserve the native on-device search engine. The owner's latest UI direction (October 19) supersedes earlier dark references: white-majority mobile UI with black typography, outlines and controls; neutral grays only, original media colors retained. Blend calm conversational input with compact creative-workspace organization; no desktop sidebar as the primary phone layout. Do not upload personal media or queries without explicit owner authorization.

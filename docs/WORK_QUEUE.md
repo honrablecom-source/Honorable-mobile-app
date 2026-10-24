@@ -2,6 +2,14 @@
 
 ## Latest built increment — phone acceptance pending
 
+- [x] **OUT-01** — Saved photo adjustment looks with isolated local shelves.
+- [x] **OUT-02** — Protected AAC/M4A audio-only project export.
+- [x] **OUT-03** — Blank image creation in the existing photo editor.
+- [x] **OUT-04** — Approved guest access to existing free on-device AI.
+- [x] Cumulative feature report and labelled Obsidian board export with green implemented cards.
+- Evidence: [[HONORABLE_CREATIVE_OUTPUTS_CHECKPOINT]]. All remain subject to phone acceptance.
+
+
 - [x] **GUEST-01** — Offline basic guest photo/video editing; build/test verified, physical acceptance pending. [[HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT]].
 - [x] Fix signed-in denied/empty-library editor access and subtitle grant rollback; actual tests/build recorded in checkpoint.
 

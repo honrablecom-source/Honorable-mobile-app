@@ -49,9 +49,9 @@ class PhotoEditorActivity:Activity(){
  private fun emit(type:String,metadata:JSONObject=JSONObject()){if(accessMode==EditorAccessMode.ACCOUNT)SafeBetaTelemetry.emit(this,type,metadata)}
  private fun tool(name:String){emit("edit_tool_used",JSONObject().put("tool",name))}
  private fun authorizeEditor(){requireNotNull(accessMode).authorizeAccount{SafeBetaTelemetry.authorizeEditor(this)}}
- private fun allowAi():Boolean {
-  if(accessMode?.allowsAi==true)return true
-  note.text="Sign in to use AI tools. Basic editing and export work offline."
+ private fun allowOnDeviceAi():Boolean {
+  if(accessMode?.allowsOnDeviceAi==true)return true
+  note.text="On-device editing tools are unavailable in this editor session."
   return false
  }
  private val sliders=mutableListOf<SeekBar>();private var edit=PhotoEdit();private val undo=mutableListOf<PhotoEdit>();private val redo=mutableListOf<PhotoEdit>();private var before=false
@@ -148,12 +148,13 @@ class PhotoEditorActivity:Activity(){
  val detailTools=row(adjustments)
  button(detailTools,"Vignette"){finishAdjust("Vignette",2)}
  button(detailTools,"Sharpen"){finishAdjust("Sharpen",3)}
+ button(row(adjustments),"Saved looks"){showSavedLooks()}
  button(row(transforms),"Add text"){editCaption()}
- button(row(assist),"AI scene enhance"){enhanceScene()}.isEnabled=accessMode?.allowsAi==true
- button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsAi==true
- button(row(assist),"Cut out person (beta)"){cutOutPerson()}.isEnabled=accessMode?.allowsAi==true
- button(row(assist),"AI person background"){chooseBackground()}.isEnabled=accessMode?.allowsAi==true
- button(row(assist),"Read text"){readText()}.isEnabled=accessMode?.allowsAi==true
+ button(row(assist),"AI scene enhance"){enhanceScene()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"Cut out person (beta)"){cutOutPerson()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"AI person background"){chooseBackground()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"Read text"){readText()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  val tabs=row();val tabButtons=mutableListOf<Button>()
  fun selectCategory(name:String){
   categories.forEach{(key,content)->(content.parent as View).visibility=if(key==name)View.VISIBLE else View.GONE}
@@ -163,9 +164,9 @@ class PhotoEditorActivity:Activity(){
   "Light" to {selectCategory("Adjust");toolButtons.first().performClick()},
   "Crop" to {chooseRatio()}, "Rotate" to {tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))},
   "Mirror" to {chooseMirror()}, "Color" to {finishAdjust("White balance",0)},
-  "Curves" to {showCurve()}, "People" to {chooseBackground()}, "Text" to {editCaption()},
+  "Curves" to {showCurve()}, "Saved looks" to {showSavedLooks()}, "People" to {chooseBackground()}, "Text" to {editCaption()},
   "Framing" to {selectCategory("Transform")}, "AI" to {selectCategory("Assist")}, "More" to {openInspector()})
- directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsAi==true||name !in setOf("AI","People");setOnClickListener{action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
+ directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsOnDeviceAi==true||name !in setOf("AI","People");setOnClickListener{action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
  root.removeView(tabs)
  root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)})
  selectCategory("Adjust");toolButtons.first().performClick()
@@ -217,11 +218,75 @@ class PhotoEditorActivity:Activity(){
    "Framing" to listOf(t("Aspect ratio"){chooseRatio()},t("Mirror"){chooseMirror()}),
    "Color & light" to listOf(t("White balance"){finishAdjust("White balance",0)},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
    "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
-    "On-device AI" to (if(accessMode?.allowsAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
+   "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
+    "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
    ).filter{it.second.isNotEmpty()})
  }
  private fun canFinish()=bitmap!=null&&exportEdit==null&&!enhancing&&!cuttingOut&&!isFinishing
+ private fun currentPresetNamespace():String?=runCatching {
+  if(accessMode==EditorAccessMode.GUEST_BASIC)return@runCatching PhotoPresetNamespace.GUEST
+  if(accessMode!=EditorAccessMode.ACCOUNT)return@runCatching null
+  val session=app.honorable.auth.SecureAccountStore(this).read()?:return@runCatching null
+  if(session.optLong("expiresAt")<=System.currentTimeMillis())return@runCatching null
+  val account=session.optJSONObject("cached")?.optJSONObject("account")?.optString("accountId").orEmpty()
+  val api=session.optString("apiUrl")
+  if(account.isBlank()||!api.startsWith("https://"))return@runCatching null
+  PhotoPresetNamespace.account(account,api)
+ }.getOrNull()
+ private fun presetShelf():Pair<String,PhotoPresetStore>? {
+  if(!canFinish())return null
+  val namespace=currentPresetNamespace()
+  if(namespace==null||(loadedScope!=null&&currentScope()!=loadedScope)){note.text="Session changed. Reopen this photo before using saved looks.";return null}
+  return namespace to PhotoPresetStore(java.io.File(noBackupFilesDir,"photo-presets"),namespace)
+ }
+ private fun presetAccessUnchanged(namespace:String)=canFinish()&&currentPresetNamespace()==namespace&&(loadedScope==null||currentScope()==loadedScope)
+ private fun showSavedLooks(){
+  if(!canFinish())return
+  android.app.AlertDialog.Builder(this).setTitle("Saved photo looks")
+   .setItems(arrayOf("Apply saved look","Save current adjustments","Delete saved look")){_,which->when(which){0->chooseSavedLook();1->saveCurrentLook();else->deleteSavedLook()}}
+   .setNegativeButton("Cancel",null).show()
+ }
+ private fun saveCurrentLook(){
+  val(namespace,store)=presetShelf()?:return
+  val base=edit;val adjustments=PhotoAdjustmentPreset.capture(base)
+  val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(20.dp(),12.dp(),20.dp(),12.dp())}
+  panel.addView(TextView(this).apply{text="Save light, color, curves and finishing for another photo. Framing, local light, people and text are excluded. Looks stay in this local guest or account shelf.";setTextColor(Color.DKGRAY)})
+  val name=EditText(this).apply{hint="Look name";contentDescription="Saved look name";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(40))};panel.addView(name)
+  val dialog=android.app.AlertDialog.Builder(this).setTitle("Save photo look").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create()
+  dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+   if(edit!=base||!presetAccessUnchanged(namespace)){note.text="Photo or session changed. Open saved looks again.";dialog.dismiss();return@setOnClickListener}
+   val preset=runCatching{NamedPhotoPreset(name.text.toString().trim(),adjustments)}.getOrElse{name.error="Use 1–40 characters without control characters.";return@setOnClickListener}
+   val catalog=runCatching{store.load()}.getOrElse{name.error="Saved looks could not be read. Existing data was left unchanged.";return@setOnClickListener}
+   if(catalog.find(preset.name)!=null){name.error="This name already exists. Choose another name or delete the old look.";return@setOnClickListener}
+   if(catalog.entries.size>=PhotoPresetCatalog.MAX_ENTRIES){name.error="You can save 20 looks. Delete one before saving another.";return@setOnClickListener}
+   runCatching{store.add(preset)}.onSuccess{tool("save_photo_look");note.text="Photo look saved locally. Open another photo to reuse it.";dialog.dismiss()}
+    .onFailure{name.error="Unable to save this look. Existing looks were left unchanged."}
+  }};dialog.show()
+ }
+ private fun chooseSavedLook(){
+  val(namespace,store)=presetShelf()?:return
+  val catalog=runCatching{store.load()}.getOrElse{note.text="Saved looks could not be read. Existing data was left unchanged.";return}
+  if(catalog.entries.isEmpty()){android.app.AlertDialog.Builder(this).setTitle("No saved photo looks").setMessage("Save current adjustments, then reuse that look on another photo.").setPositiveButton("OK",null).show();return}
+  val base=edit
+  android.app.AlertDialog.Builder(this).setTitle("Apply saved photo look").setItems(catalog.entries.map{it.name}.toTypedArray()){_,which->
+   if(edit!=base||!presetAccessUnchanged(namespace)){note.text="Photo or session changed. Open saved looks again.";return@setItems}
+   tool("apply_saved_look");change(catalog.entries[which].adjustments.applyTo(edit))
+  }.setNegativeButton("Cancel",null).show()
+ }
+ private fun deleteSavedLook(){
+  val(namespace,store)=presetShelf()?:return
+  val catalog=runCatching{store.load()}.getOrElse{note.text="Saved looks could not be read. Existing data was left unchanged.";return}
+  if(catalog.entries.isEmpty()){note.text="No saved photo looks to delete.";return}
+  android.app.AlertDialog.Builder(this).setTitle("Delete saved photo look").setItems(catalog.entries.map{it.name}.toTypedArray()){_,which->
+   val name=catalog.entries[which].name
+   android.app.AlertDialog.Builder(this).setTitle("Delete this look?").setMessage(name).setNegativeButton("Cancel",null).setPositiveButton("Delete"){_,_->
+    if(!presetAccessUnchanged(namespace)){note.text="Session changed. Open saved looks again.";return@setPositiveButton}
+    runCatching{store.remove(name)}.onSuccess{note.text="Saved look deleted. Current photo edits are unchanged."}
+     .onFailure{note.text="Unable to delete this look. Existing looks were left unchanged."}
+   }.show()
+  }.setNegativeButton("Cancel",null).show()
+ }
  private fun chooseRatio(){if(!canFinish())return;val base=edit
   android.app.AlertDialog.Builder(this).setTitle("Photo aspect ratio").setItems(arrayOf("Original","Square 1:1","Portrait 4:5","Wide 16:9","Vertical 9:16")){_,i->if(edit==base&&canFinish())change(edit.copy(finish=edit.finish.copy(ratio=listOf(0f,1f,.8f,16f/9,9f/16)[i])))}.setNegativeButton("Cancel",null).show()
  }
@@ -243,7 +308,7 @@ class PhotoEditorActivity:Activity(){
   }.setNegativeButton("Cancel",null).show()
  }
  private fun chooseBackground(){
-   if(!allowAi())return
+   if(!allowOnDeviceAi())return
   if(bitmap==null||exportEdit!=null||cuttingOut||enhancing||readingText)return
   val base=edit;val request=revision
   fun commit(background:PhotoBackground?){
@@ -269,7 +334,7 @@ class PhotoEditorActivity:Activity(){
   }.setNegativeButton("Cancel",null).show()
  }
  private fun cutOutPerson(recover:Boolean=false,background:PhotoBackground?=null) {
-   if(!allowAi())return
+   if(!allowOnDeviceAi())return
   val input=bitmap?:return
   if(cuttingOut||readingText||enhancing||(!recover&&exportEdit!=null)||isFinishing)return
   fun applyPersonEdit(){tool(if(background==null)"person_cutout" else "person_background");change(edit.copy(personCutout=background==null,background=background))}
@@ -314,13 +379,13 @@ class PhotoEditorActivity:Activity(){
   })
  }
  private fun chooseLook(){
-   if(!allowAi())return
+   if(!allowOnDeviceAi())return
   if(bitmap==null||enhancing||cuttingOut||exportEdit!=null)return
   val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
   android.app.AlertDialog.Builder(this).setTitle("AI-assisted photo look").setItems(names){_,which->enhanceScene(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
  }
  private fun enhanceScene(look:PhotoLook=PhotoLook.AUTO) {
-   if(!allowAi())return
+   if(!allowOnDeviceAi())return
   val input=bitmap?:return
   if(enhancing||cuttingOut||exportEdit!=null||isFinishing)return
   val owned=runCatching{requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory for scene analysis.";return}
@@ -342,7 +407,7 @@ class PhotoEditorActivity:Activity(){
   }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();note.text="Scene analysis failed. Try manual adjustments."}
  }
  private fun readText() {
-   if(!allowAi())return
+   if(!allowOnDeviceAi())return
   val input=bitmap?:return
   if(readingText||cuttingOut||isFinishing)return
   readingText=true

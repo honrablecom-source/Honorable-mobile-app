@@ -19,3 +19,8 @@
 ## October 23, 2026 — guest editing authorized
 
 The owner explicitly approved separate offline guest basic editing. Guest entry must not authorize search, AI, credits or account drafts; existing server policies remain intact. Guest copy export and isolated activity recovery are local operations.
+
+
+## October 23 creative outputs
+
+Owner approved existing free on-device AI for guests; search, credits, future paid generation and account drafts stay gated. No hosting/billing started. Blank creation is manual. Green cards mean implemented/build checked, with phone acceptance separate. Preserve current UI and original repository.

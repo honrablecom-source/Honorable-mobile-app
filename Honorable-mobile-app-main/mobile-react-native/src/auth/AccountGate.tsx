@@ -78,8 +78,8 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
           <Text style={styles.guestButtonText}>Edit without an account</Text>
         </Pressable>
         <Text style={styles.small}>
-          Basic local photo and video editing. Search, AI tools, credits and
-          account features require sign-in.
+          Local photo and video editing, including on-device AI tools. Search,
+          credits and account features require sign-in.
         </Text>
         <View style={styles.privacyRow}>
           <ShieldCheck size={17} color={colors.textSecondary} />

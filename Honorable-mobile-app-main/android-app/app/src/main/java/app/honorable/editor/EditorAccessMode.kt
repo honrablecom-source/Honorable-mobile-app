@@ -5,7 +5,8 @@ enum class EditorAccessMode {
     ACCOUNT,
     GUEST_BASIC;
 
-    val allowsAi: Boolean get() = this == ACCOUNT
+    /** Only bundled on-device editing models; never authorizes search, credits or paid generation. */
+    val allowsOnDeviceAi: Boolean get() = true
     val allowsAccountDrafts: Boolean get() = this == ACCOUNT
 
     fun authorizeAccount(authorize: () -> Unit) {

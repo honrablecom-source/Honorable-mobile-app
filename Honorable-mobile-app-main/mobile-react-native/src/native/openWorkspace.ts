@@ -29,12 +29,12 @@ export async function openWorkspace(
 export function useOpenWorkspace(access: WorkspaceAccess = 'account') {
   const pending = useRef(false);
   const [busy, setBusy] = useState(false);
-  const open = async (kind: WorkspaceKind) => {
+  const run = async (action: () => Promise<unknown>) => {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
     try {
-      await openWorkspace(kind, access);
+      await action();
     } catch (error) {
       Alert.alert(
         'Open workspace',
@@ -47,5 +47,8 @@ export function useOpenWorkspace(access: WorkspaceAccess = 'account') {
       setBusy(false);
     }
   };
-  return { busy, open };
+  const open = (kind: WorkspaceKind) => run(() => openWorkspace(kind, access));
+  const create = (format: 'square' | 'portrait' | 'landscape') =>
+    run(() => honorableNative.createImageGuest(format));
+  return { busy, open, create };
 }

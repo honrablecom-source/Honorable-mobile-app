@@ -41,7 +41,17 @@ internal class VideoCompositionExporter(private val context: Context) {
         fun composition(source: Uri, clips: List<VideoSegment>): Composition = composition(mapOf("primary" to source), clips)
 
         fun composition(sources: Map<String, Uri>, clips: List<VideoSegment>, sourceDurations: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null): Composition {
+            return buildComposition(sources,clips,sourceDurations,soundtrack,null)
+        }
+
+        fun audioComposition(sources: Map<String, Uri>, clips: List<VideoSegment>, sourceDurations: Map<String, Long>, soundtrack: VideoSoundtrack?, audioSources: Set<String>): Composition {
+            VideoAudioPlan.requireAudio(clips,audioSources,soundtrack)
+            return buildComposition(sources,clips,sourceDurations,soundtrack,audioSources)
+        }
+
+        private fun buildComposition(sources: Map<String, Uri>, clips: List<VideoSegment>, sourceDurations: Map<String, Long>, soundtrack: VideoSoundtrack?, audioSources: Set<String>?): Composition {
             require(clips.isNotEmpty())
+            val audioOnly=audioSources!=null
             soundtrack?.let { VideoTimeline.soundtrackRepeatCount(clips,it) }
             val items = clips.map { clip ->
                 val media = MediaItem.Builder().setUri(requireNotNull(sources[clip.sourceId]) { "Missing clip source" }).setClippingConfiguration(
@@ -51,6 +61,7 @@ internal class VideoCompositionExporter(private val context: Context) {
                         .build()
                 ).build()
                 EditedMediaItem.Builder(media).apply {
+                    if(audioOnly)setRemoveVideo(true)
                     sourceDurations[clip.sourceId]?.let { duration ->
                         require(duration >= clip.endMs)
                         setDurationUs(duration * 1000)
@@ -61,14 +72,24 @@ internal class VideoCompositionExporter(private val context: Context) {
                     })
                     val audio = if(clip.volume != 1f) listOf(GainProcessor(DefaultGainProvider.Builder(clip.volume).build())) else emptyList()
                     val visual = mutableListOf<Effect>()
-                    if(clip.layout.rotation!=0||clip.layout.mirrorX||clip.layout.mirrorY)visual.add(ScaleAndRotateTransformation.Builder().setRotationDegrees(-clip.layout.rotation.toFloat()).setScale(if(clip.layout.mirrorX)-1f else 1f,if(clip.layout.mirrorY)-1f else 1f).build())
-                    if(clip.layout.ratio!=0)visual.add(Presentation.createForAspectRatio(clip.layout.aspect,if(clip.layout.crop)Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
-                    if(!clip.grade.isIdentity)visual.add(VideoColorEffect(clip.grade))
-                    if(clip.title.isNotBlank())visual.add(OverlayEffect(listOf(VideoTitleOverlay(clip.title,clip.titleStyle))))
+                    if(!audioOnly) {
+                        if(clip.layout.rotation!=0||clip.layout.mirrorX||clip.layout.mirrorY)visual.add(ScaleAndRotateTransformation.Builder().setRotationDegrees(-clip.layout.rotation.toFloat()).setScale(if(clip.layout.mirrorX)-1f else 1f,if(clip.layout.mirrorY)-1f else 1f).build())
+                        if(clip.layout.ratio!=0)visual.add(Presentation.createForAspectRatio(clip.layout.aspect,if(clip.layout.crop)Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
+                        if(!clip.grade.isIdentity)visual.add(VideoColorEffect(clip.grade))
+                        if(clip.title.isNotBlank())visual.add(OverlayEffect(listOf(VideoTitleOverlay(clip.title,clip.titleStyle))))
+                    }
                     setEffects(Effects(audio, visual))
                 }.build()
             }
-            val sequences = mutableListOf(EditedMediaItemSequence.withAudioAndVideoFrom(items))
+            val mainSequence=if(audioOnly) {
+                EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO)).apply {
+                    items.forEachIndexed { index,item ->
+                        if(clips[index].sourceId in requireNotNull(audioSources))addItem(item)
+                        else addGap(clips[index].durationUs)
+                    }
+                }.build()
+            }else EditedMediaItemSequence.withAudioAndVideoFrom(items)
+            val sequences = mutableListOf(mainSequence)
             soundtrack?.let { track ->
                 val audio = EditedMediaItem.Builder(MediaItem.fromUri(Uri.parse(track.uri)))
                     .setDurationUs(track.durationMs*1000).setRemoveVideo(true)
@@ -78,9 +99,11 @@ internal class VideoCompositionExporter(private val context: Context) {
             return Composition.Builder(sequences).apply {
                 val audio=if(clips.first().audioFade)listOf(GainProcessor(VideoProjectAudioFade(clips.sumOf{it.durationUs})))else emptyList()
                 val visual=mutableListOf<Effect>()
-                if(clips.any{it.fadeEdges})visual.add(VideoTimelineFade(clips.toList()))
-                val captions=VideoCaptions.resolve(clips)
-                if(captions.isNotEmpty())visual.add(OverlayEffect(listOf(VideoCaptionOverlay(captions))))
+                if(!audioOnly) {
+                    if(clips.any{it.fadeEdges})visual.add(VideoTimelineFade(clips.toList()))
+                    val captions=VideoCaptions.resolve(clips)
+                    if(captions.isNotEmpty())visual.add(OverlayEffect(listOf(VideoCaptionOverlay(captions))))
+                }
                 if(audio.isNotEmpty()||visual.isNotEmpty())setEffects(Effects(audio,visual))
             }.build()
         }
@@ -98,6 +121,12 @@ internal class VideoCompositionExporter(private val context: Context) {
             copyRenderedToDocument(context, mapOf("primary" to source), destination, rendered, clips, cancelled, onChunkCopied)
         }
 
+        internal fun copyRenderedAudioToDocument(context: Context, sources: Map<String,Uri>, destination: Uri, rendered: File, clips: List<VideoSegment>, cancelled: AtomicBoolean, onChunkCopied: () -> Unit = {}) {
+            copyVerifiedDocument(context,sources,destination,rendered,clips,cancelled,onChunkCopied) {
+                VideoAudioExporter.verifyOutput(context,destination,clips)
+            }
+        }
+
         internal fun copyRenderedToDocument(
             context: Context,
             sources: Map<String, Uri>,
@@ -107,12 +136,18 @@ internal class VideoCompositionExporter(private val context: Context) {
             cancelled: AtomicBoolean,
             onChunkCopied: () -> Unit = {},
         ) {
+            copyVerifiedDocument(context,sources,destination,rendered,clips,cancelled,onChunkCopied) {
+                verifyOutput(context,sources,destination,clips)
+            }
+        }
+
+        private fun copyVerifiedDocument(context: Context, sources: Map<String,Uri>, destination: Uri, rendered: File, clips: List<VideoSegment>, cancelled: AtomicBoolean, onChunkCopied: () -> Unit, verify: () -> Unit) {
             val resolver = context.contentResolver
             var safeToDelete = false
             try {
                 if (cancelled.get()) throw OperationCanceledException()
                 require(clips.isNotEmpty() && clips.all { it.sourceId in sources })
-                require(rendered.length() > 0) { "Rendered video is empty" }
+                require(rendered.length() > 0) { "Rendered media is empty" }
                 require(sources.isNotEmpty() && destination !in sources.values) { "A copy cannot replace any imported original" }
                 resolver.openFileDescriptor(destination, "rw").use { output ->
                     requireNotNull(output) { "Cannot open destination" }
@@ -143,7 +178,7 @@ internal class VideoCompositionExporter(private val context: Context) {
                         }
                 }
                 if (cancelled.get()) throw OperationCanceledException()
-                verifyOutput(context, sources, destination, clips)
+                verify()
                 if (cancelled.get()) throw OperationCanceledException()
             } catch (error: Throwable) {
                 val removed = if (safeToDelete) runCatching {

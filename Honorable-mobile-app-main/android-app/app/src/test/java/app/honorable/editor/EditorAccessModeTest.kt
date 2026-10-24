@@ -12,14 +12,14 @@ class EditorAccessModeTest {
         var calls = 0
         mode.authorizeAccount { calls++ }
         assertEquals(EditorAccessMode.ACCOUNT,mode);assertEquals(1,calls)
-        assertTrue(mode.allowsAi);assertTrue(mode.allowsAccountDrafts)
+        assertTrue(mode.allowsOnDeviceAi);assertTrue(mode.allowsAccountDrafts)
     }
 
     @Test fun explicitGuestDoesNotReadOrAuthorizeAnAccount() {
         val mode = EditorAccessMode.fromExtra("GUEST_BASIC")
         mode.authorizeAccount { error("Guest must not authorize an account") }
         val scope = mode.lifecycleScope(source,instance) { error("Guest must not read an account") }
-        assertNotNull(scope);assertFalse(mode.allowsAi);assertFalse(mode.allowsAccountDrafts)
+        assertNotNull(scope);assertTrue(mode.allowsOnDeviceAi);assertFalse(mode.allowsAccountDrafts)
     }
 
     @Test fun malformedModeCannotGrantGuestOrAccountAccess() {

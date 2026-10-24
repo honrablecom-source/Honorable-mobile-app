@@ -1,13 +1,17 @@
 # Resume Honorable
 
-Updated October 23, 2026. Authoritative repository/branch: https://github.com/honrablecom-source/Honorable-mobile-app, `codex/android-internal-readiness`, draft PR #1. Checkout: `C:/Users/Shadow/Desktop/honrabl/Honorable-current`.
+Updated October 23, 2026. Authoritative repo https://github.com/honrablecom-source/Honorable-mobile-app; branch codex/android-internal-readiness, draft PR 1. Checkout C:/Users/Shadow/Desktop/honrabl/Honorable-current.
 
-- Latest engineering increment: **1 guest-editing workflow + 2 fixes**, zero new AI engines. See [[HONORABLE_LOCAL_EDITING_READINESS_CHECKPOINT]], [[LOCAL_EDITING_READINESS_WORKLOG]] and [[GUEST_TEST_GUIDE]].
-- Guest entry opens local basic photo/video editors without account setup; AI/account drafts remain gated. Signed-in policy is unchanged. Guest recovery is activity-local, so export copies to keep work.
-- APK `Honorable-1.0.3-usability-arm64.apk`; SHA-256 `7699ed4cfd0ae31184cb4b68ef9a29bfe97f7bea0285830ab7a9a418bdb36225`. 493 frozen inputs match. Exact commit is recorded by final artifact/GitHub evidence.
-- Fresh checks: 105 shared + 89 RN-native JVM cases; 52 RN / 11 suites; TypeScript; lint 0 errors/36 existing warnings. Integration compiles only. Initial RN timeout retained; final run uses 20 seconds on unchanged source.
-- Next: device acceptance when possible, durable local projects, then real speech-transcription feasibility. No new engine without actual measured output.
-- Owner: UI redesign paused; actively use Obsidian notes and focused RTK/search output. Multiple agents permitted; one Gradle owner at a time. Do not claim total token savings.
-- Toolchain/cache/aliases unchanged: portable tools under `C:/Users/Shadow/Desktop/honrabl/.tools`, Gradle `C:/g`, H: repo/J: native staging. One worker, in-process Kotlin, 1 GB heap/512 MB metaspace; keep user apps open.
-- Gates: no phone; hosted account service unset/signInConfigured=false; billing/hosting deferred; internal debug signing, store, native output/lifecycle acceptance, generation and iOS unfinished.
-- Read AGENTS.md, [[WORK_QUEUE]] and [[DECISIONS]]. Preserve Seran/credit/server authority, source-copy safety and protected holdout.
+**4 new user-facing workflows, 0 new AI engines:** saved local photo adjustment looks; audio-only AAC/M4A export of the edited project; blank square/portrait/landscape image creation; approved guest access to existing free on-device AI. Variants and buttons are not counted separately. Existing app/design/search/credit/server policy is preserved.
+
+112 shared Android + 95 RN-native JVM cases pass, all fresh; 56 RN tests / 11 suites and TypeScript pass; lint 0 errors / 36 existing warnings. Android instrumentation compiled only, not executed. Full ARM64 internal APK independently verified; 503 frozen inputs match.
+
+APK `Honorable-1.0.3-creative-outputs-arm64.apk`; SHA-256 `fc665a2dc7b6b8fd5d763196ffbc32a72ec1100d5c84ec74984467d09766f5f2`. Public debug certificate, internal testing only. Hosted API unset/signInConfigured=false. No phone available; actual media/provider/codec/audio/lifecycle/UX acceptance remains open.
+
+- Start with [[HONORABLE_CREATIVE_OUTPUTS_CHECKPOINT]], [[CREATIVE_OUTPUTS_WORKLOG]], [[GUEST_TEST_GUIDE]] and [[WORK_QUEUE]].
+- Guest AI explicitly approved for existing free bundled on-device editing. Account drafts, search, credits and future paid generation stay gated. Guest recovery is activity-local; export copies to keep work.
+- Report: releases/Honorable-App-Changes-and-Features.docx. Labelled Obsidian board export embedded; board [[HONORABLE_RELEASE_BOARD.canvas]].
+- UI redesign paused. Use Obsidian, multiple reviewers and one Gradle owner. RTK path in AGENTS.md; no total-credit savings claim.
+- One worker/in-process Kotlin/1 GiB heap/512 MiB metaspace; H: repo/J: staging restored in the same build session. Tools under C:/Users/Shadow/Desktop/honrabl/.tools, Gradle C:/g. Keep user apps open.
+- Next: phone acceptance, durable local projects, measured speech feasibility. No paid hosting/billing, personal-media upload or holdout inspection. DeepSeek/Roblox connection remains deferred and unverified.
+- Read AGENTS.md and [[DECISIONS]]; preserve Seran, credits, server authority and copy safety.

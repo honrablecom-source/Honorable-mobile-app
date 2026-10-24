@@ -72,6 +72,9 @@ class HonorableVideoEditorActivity : Activity() {
     private val workspaceTick=object:Runnable{override fun run(){if(!workspaceActive)return;updateWorkspace();previewHandler.postDelayed(this,100)}}
     private lateinit var clipStatus: TextView
     private var exporter: VideoCompositionExporter? = null
+    private data class PendingAudio(val clips:List<VideoSegment>,val sources:Map<String,Uri>,val durations:Map<String,Long>,val soundtrack:VideoSoundtrack?)
+    private var pendingAudio:PendingAudio?=null
+    private var audioExporter:VideoAudioExporter?=null
     private val exportCancellation = CancellationSignal()
     private val analysisCancellation = AtomicBoolean(false)
     private val previewHandler = Handler(Looper.getMainLooper())
@@ -172,10 +175,10 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
         projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
-        assistTools.addView(Button(this).apply { text = "AI rough cut"; isEnabled=accessMode.allowsAi; setOnClickListener { roughCutOptions() } })
-        assistTools.addView(Button(this).apply { text = "AI video looks"; isEnabled=accessMode.allowsAi; setOnClickListener { videoLookOptions() } })
+        assistTools.addView(Button(this).apply { text = "AI rough cut"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { roughCutOptions() } })
+        assistTools.addView(Button(this).apply { text = "AI video looks"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { videoLookOptions() } })
         assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
-        assistTools.addView(Button(this).apply { text = "Suggest scene"; isEnabled=accessMode.allowsAi; setOnClickListener { suggestScene() } })
+        assistTools.addView(Button(this).apply { text = "Suggest scene"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { suggestScene() } })
         assistTools.addView(label("Experimental · on-device sampled-frame labels. Preview every suggestion.", 12f))
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         actions.addView(Button(this).apply {
@@ -259,6 +262,8 @@ class HonorableVideoEditorActivity : Activity() {
             showClip()
         }
         audioTools.addView(audioActions)
+        audioTools.addView(Button(this).apply{text="Export audio copy";setOnClickListener{saveAudioCopy()}})
+        audioTools.addView(Button(this).apply{text="Cancel audio export";setOnClickListener{audioExporter?.cancel()}})
         audioTools.addView(Button(this).apply{text="Project audio fade";setOnClickListener{toggleAudioFade()}})
         val creative = LinearLayout(this)
         creative.addView(Button(this).apply { text = "Title"; setOnClickListener { editTitle() } },LinearLayout.LayoutParams(0,-2,1f))
@@ -315,7 +320,7 @@ class HonorableVideoEditorActivity : Activity() {
         val split=findAction(controls,"Split")
         val titles=findAction(creativeTools,"Title")
         val options=listOf("Trim" to "Edit","Split" to "Edit","Speed" to "Speed","Color" to "Picture","Title" to "Titles","Music" to "Audio","AI" to "Assist","More" to "Project")
-        options.forEach{(name,group)->val tab=Button(this).apply{text=name;contentDescription="$name tools";isEnabled=name!="AI"||accessMode.allowsAi;setOnClickListener{val collapse=isSelected&&tray.visibility==View.VISIBLE;selectTools(group);tray.visibility=if(collapse)View.GONE else View.VISIBLE;tabButtons.forEach{it.isSelected=!collapse&&it===this;it.setBackgroundColor(if(it.isSelected)Color.rgb(241,241,241)else Color.WHITE)};when(name){"Split"->split?.performClick();"Title"->titles?.performClick();"Color"->editColor()}}};tabButtons.add(tab);tabs.addView(tab,LinearLayout.LayoutParams(dp(68),dp(if(compactWorkspace)64 else 72)))}
+        options.forEach{(name,group)->val tab=Button(this).apply{text=name;contentDescription="$name tools";isEnabled=name!="AI"||accessMode.allowsOnDeviceAi;setOnClickListener{val collapse=isSelected&&tray.visibility==View.VISIBLE;selectTools(group);tray.visibility=if(collapse)View.GONE else View.VISIBLE;tabButtons.forEach{it.isSelected=!collapse&&it===this;it.setBackgroundColor(if(it.isSelected)Color.rgb(241,241,241)else Color.WHITE)};when(name){"Split"->split?.performClick();"Title"->titles?.performClick();"Color"->editColor()}}};tabButtons.add(tab);tabs.addView(tab,LinearLayout.LayoutParams(dp(68),dp(if(compactWorkspace)64 else 72)))}
         root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)},root.indexOfChild(tray))
         styleEditorControls(root, previewFrame)
         tabButtons.forEach { app.honorable.editor.EditorChrome.style(it,true) }
@@ -521,7 +526,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun suggestScene() {
-        if(!allowAi())return
+        if(!allowOnDeviceAi())return
         if (analyzing || saving || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val selection = runCatching { VideoSceneSelection.capture(project?.segments ?: emptyList(), selectedClip,
             start.progress * 1_000L, end.progress * 1_000L) }.getOrElse {
@@ -588,13 +593,13 @@ class HonorableVideoEditorActivity : Activity() {
             "Picture" to listOf(t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Project audio fade"){toggleAudioFade()}),
             "Project" to listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}),
-            "On-device AI" to (if(accessMode.allowsAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
+            "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
-    private fun allowAi():Boolean {
-        if(accessMode.allowsAi)return true
-        status.text="Sign in to use AI tools. Basic editing and export work offline."
+    private fun allowOnDeviceAi():Boolean {
+        if(accessMode.allowsOnDeviceAi)return true
+        status.text="On-device editing tools are unavailable in this editor session."
         return false
     }
     private fun outputFormat(){
@@ -630,14 +635,14 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun videoLookOptions() {
-        if(!allowAi())return
+        if(!allowOnDeviceAi())return
         if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
         val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
         android.app.AlertDialog.Builder(this).setTitle("AI video look").setItems(names){_,which->suggestVideoLook(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
     }
 
     private fun suggestVideoLook(look:PhotoLook) {
-        if(!allowAi())return
+        if(!allowOnDeviceAi())return
         if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
         val current=project?:return
         val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
@@ -692,7 +697,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun roughCutOptions() {
-        if(!allowAi())return
+        if(!allowOnDeviceAi())return
         if(isDestroyed||isFinishing||analyzing||saving||draftBusy||importing||pendingRange!=null)return
         val clips=project?.segments?:return
         if(clips.size>VideoRoughCut.MAX_CLIPS){status.text="AI rough cut supports up to 8 timeline clips. Keep a smaller selection first.";return}
@@ -706,7 +711,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun createRoughCut(target:Long,focus:RoughCutFocus) {
-        if(!allowAi())return
+        if(!allowOnDeviceAi())return
         if(isDestroyed||isFinishing||analyzing||saving||draftBusy||importing||pendingRange!=null||!sourceReady)return
         val current=project?:return
         val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
@@ -769,6 +774,43 @@ class HonorableVideoEditorActivity : Activity() {
         }.start()
     }
 
+    private fun saveAudioCopy() {
+        if(!editorIdle() || durationMs<=0)return
+        val current=project?:return
+        val clip=current.segments.getOrNull(selectedClip)?:return
+        val from=maxOf(start.progress*1000L,clip.startMs)
+        val to=minOf(end.progress*1000L,clip.endMs)
+        if(to<=from){status.text="End must be after start";return}
+        current.trim(selectedClip,from,to)
+        pendingAudio=PendingAudio(current.segments.toList(),sourceUris().toMap(),sourceDurations().toMap(),current.soundtrack)
+        importing=true;video.pause();stopProjectPreview()
+        start.isEnabled=false;end.isEnabled=false
+        try {
+            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE);type="audio/mp4"
+                putExtra(Intent.EXTRA_TITLE,"Honorable-audio-copy.m4a")
+            },27)
+        }catch(error:Exception){pendingAudio=null;importing=false;start.isEnabled=true;end.isEnabled=true;status.text="No app is available to save audio"}
+    }
+    private fun finishAudioCopy(resultCode:Int,data:Intent?) {
+        val snapshot=pendingAudio;pendingAudio=null;importing=false
+        start.isEnabled=true;end.isEnabled=true
+        if(resultCode!=RESULT_OK||data?.data==null)return
+        if(snapshot==null){status.text="Audio export was interrupted. Choose Export audio copy again.";return}
+        if(isDestroyed||isFinishing)return
+        saving=true;start.isEnabled=false;end.isEnabled=false;status.text="Saving audio copy..."
+        val worker=VideoAudioExporter(this);audioExporter=worker
+        runCatching {
+            worker.export(snapshot.sources,requireNotNull(data.data),snapshot.clips,snapshot.durations,snapshot.soundtrack){result->
+                saving=false;audioExporter=null
+                if(!isDestroyed&&!isFinishing){
+                    start.isEnabled=true;end.isEnabled=true
+                    status.text=result.fold({"Audio copy saved. Original preserved. Check playback in Files."},{"Audio export stopped: ${it.message?:"Unknown error"}. Check Files for a partial copy."})
+                }
+            }
+        }.onFailure{saving=false;audioExporter=null;start.isEnabled=true;end.isEnabled=true;status.text="Audio export could not start: ${it.message}"}
+    }
+
     private fun saveCopy() {
         if (saving || analyzing || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val current = project?.segments?.getOrNull(selectedClip) ?: return
@@ -796,6 +838,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
         if(requestCode == 25) { finishCaptionImport(resultCode,data); return }
         if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
         if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
@@ -1182,6 +1225,7 @@ class HonorableVideoEditorActivity : Activity() {
         draftWorker.shutdownNow()
         exportCancellation.cancel()
         exporter?.cancel()
+        audioExporter?.cancel()
         super.onDestroy()
     }
 }
