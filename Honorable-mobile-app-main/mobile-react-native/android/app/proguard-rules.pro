@@ -24,3 +24,8 @@
     public static int v(...);
     public static int d(...);
 }
+
+# Retain the trusted offline drawing PNG bridge in shrunk builds.
+-keepclassmembers class com.honorablemobile.HonorableDrawingActivity$Bridge {
+    @android.webkit.JavascriptInterface <methods>;
+}

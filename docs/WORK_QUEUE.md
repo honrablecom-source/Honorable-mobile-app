@@ -1,3 +1,13 @@
+# Current engineering checkpoint
+
+- [x] Offline drawing and local drawing drafts,2 new creation workflows.
+- [x] Fresh complete ARM64 APK packages guest video projects and Precise trim.
+- [x] Source/tests/assets/signature/alignment checks and cumulative Word summary.
+- [ ] Physical drawing/WebView/PNG/draft and photo/video acceptance; no phone available.
+- [ ] Real generative engines, advanced editing and iOS native parity.
+
+Work solo. See [[DRAWING_READINESS]]. Older queue entries below are historical.
+
 # Current roundup status
 
 - [x] Durable guest video project source and Precise trim;114 native unit tests and integration compile.

@@ -125,6 +125,7 @@ type NativeBoundary = {
   editVideo(uri: string): Promise<{ opened: boolean }>;
   editPhotoGuest(uri: string): Promise<{ opened: boolean }>;
   editVideoGuest(uri: string): Promise<{ opened: boolean }>;
+  createDrawingGuest(): Promise<{ opened: boolean }>;
   createImageGuest(
     format: 'square' | 'portrait' | 'landscape',
   ): Promise<{ opened: boolean }>;
@@ -187,6 +188,7 @@ export const honorableNative = {
       : boundary().editVideoAtMoment(uri, timestampMs),
   editPhotoGuest: (uri: string) => boundary().editPhotoGuest(uri),
   editVideoGuest: (uri: string) => boundary().editVideoGuest(uri),
+  createDrawingGuest: () => boundary().createDrawingGuest(),
   createImageGuest: (format: 'square' | 'portrait' | 'landscape') =>
     boundary().createImageGuest(format),
   openMedia: (item: {

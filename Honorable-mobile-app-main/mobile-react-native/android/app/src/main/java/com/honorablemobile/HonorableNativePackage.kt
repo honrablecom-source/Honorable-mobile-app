@@ -174,6 +174,10 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @ReactMethod fun editPhoto(uri:String,promise:Promise)=work.execute{guarded(promise){accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"));context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri)});Arguments.createMap().apply{putBoolean("opened",true)}}}
     @ReactMethod fun editPhotoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"image/",app.honorable.editor.PhotoEditorActivity::class.java,promise)
     @ReactMethod fun editVideoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"video/",HonorableVideoEditorActivity::class.java,promise)
+    @ReactMethod fun createDrawingGuest(promise:Promise)=work.execute{guarded(promise){
+        context.startActivity(Intent(context,HonorableDrawingActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
     @ReactMethod fun createImageGuest(format:String,promise:Promise)=work.execute{guarded(promise){
         openGuestEditor(CreatedPhotoCanvas.create(context,format).toString(),"image/",app.honorable.editor.PhotoEditorActivity::class.java)
     }}

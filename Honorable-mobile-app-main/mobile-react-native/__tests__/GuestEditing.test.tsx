@@ -26,6 +26,7 @@ jest.mock('../src/screens/BetaUpdateNotice', () => ({
 }));
 jest.mock('../src/native/HonorableNative', () => ({
   honorableNative: {
+    createDrawingGuest: jest.fn(),
     createImageGuest: jest.fn(),
     pickWorkspaceMedia: jest.fn(),
     editPhotoGuest: jest.fn(),
@@ -79,6 +80,7 @@ beforeEach(() => {
   mockAuth.googleConfigured = false;
   mockAuth.error = undefined;
   native.pickWorkspaceMedia.mockResolvedValue({ uri: 'content://test/guest' });
+  native.createDrawingGuest.mockResolvedValue({ opened: true });
   native.createImageGuest.mockResolvedValue({ opened: true });
   native.editPhotoGuest.mockResolvedValue({ opened: true });
   native.editVideoGuest.mockResolvedValue({ opened: true });
@@ -138,6 +140,7 @@ test('guest navigation exposes only local editors and sign-in, never account/sea
   expect([...labels].sort()).toEqual([
     'Back to sign in',
     'Create an image',
+    'Draw an image',
     'Edit a photo',
     'Edit a video',
   ]);
@@ -280,4 +283,43 @@ test('iOS shell explains missing editors without offering broken guest navigatio
   );
   expect(native.editPhotoGuest).not.toHaveBeenCalled();
   expect(native.editVideoGuest).not.toHaveBeenCalled();
+});
+
+test('drawing opens the local guest workspace without a picker or account call', async () => {
+  await enterGuest();
+  await act(async () => button('Draw an image').props.onPress());
+  expect(native.createDrawingGuest).toHaveBeenCalledTimes(1);
+  expect(native.pickWorkspaceMedia).not.toHaveBeenCalled();
+  expect(native.accountSessionAction).not.toHaveBeenCalled();
+  expect(mockAuth.charge).not.toHaveBeenCalled();
+});
+test('drawing launch failure permits retry', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  native.createDrawingGuest.mockRejectedValue(new Error('Drawing unavailable'));
+  await enterGuest();
+  await act(async () => button('Draw an image').props.onPress());
+  expect(alert).toHaveBeenCalledWith('Open workspace', 'Drawing unavailable');
+  expect(button('Draw an image').props.disabled).toBe(false);
+});
+test('pending drawing blocks a second editor launch', async () => {
+  let resolve!: (value: { opened: boolean }) => void;
+  native.createDrawingGuest.mockImplementation(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  await enterGuest();
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button('Draw an image').props.onPress();
+  });
+  await act(async () => button('Edit a video').props.onPress());
+  expect(native.pickWorkspaceMedia).not.toHaveBeenCalled();
+  expect(button('Back to sign in').props.disabled).toBe(true);
+  await act(async () => {
+    resolve({ opened: true });
+    await pending;
+  });
+  expect(button('Edit a video').props.disabled).toBe(false);
 });

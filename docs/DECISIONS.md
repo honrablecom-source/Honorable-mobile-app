@@ -29,3 +29,8 @@ Owner approved existing free on-device AI for guests; search, credits, future pa
 ## October24 owner direction
 
 Stop new feature work for the roundup, push current source and provide a summary. Work solo. No subagents unless the owner explicitly authorizes them again. No computer-use tools. Do not describe the latest source as a verified APK or a working iOS app.
+
+
+## October24 creation increment
+
+Owner resumed core feature work with open-source creation integration. Work remains solo with no computer-use tools. Excalidraw is bundled offline with retained licenses; preserve native photo/video engines. Manual drawing is separate from unfinished AI generation. Local drafts are private to this device, not account/cloud projects. Fresh APK verification does not imply phone, iOS or store acceptance.

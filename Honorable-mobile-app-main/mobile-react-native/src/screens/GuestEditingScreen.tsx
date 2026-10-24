@@ -13,7 +13,7 @@ import { useOpenWorkspace } from '../native/openWorkspace';
 
 /** Guest editing never mounts the account, search or paid-feature navigation. */
 export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
-  const { busy, open, create } = useOpenWorkspace('guest');
+  const { busy, open, create, draw } = useOpenWorkspace('guest');
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content}>
@@ -26,6 +26,16 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
           device. Exports create a new copy.
         </Text>
         <View style={s.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Draw an image"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={draw}
+            style={[s.button, busy && s.disabled]}
+          >
+            <Text style={s.buttonText}>Draw an image</Text>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Create an image"

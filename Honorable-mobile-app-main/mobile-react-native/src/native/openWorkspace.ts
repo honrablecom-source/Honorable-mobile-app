@@ -50,5 +50,6 @@ export function useOpenWorkspace(access: WorkspaceAccess = 'account') {
   const open = (kind: WorkspaceKind) => run(() => openWorkspace(kind, access));
   const create = (format: 'square' | 'portrait' | 'landscape') =>
     run(() => honorableNative.createImageGuest(format));
-  return { busy, open, create };
+  const draw = () => run(() => honorableNative.createDrawingGuest());
+  return { busy, open, create, draw };
 }

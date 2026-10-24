@@ -48,3 +48,7 @@ Build success, a packaged APK, real-device behavior and store readiness are sepa
 ## Current handoff October24
 
 Read [[FINAL_HANDOFF]] and [[SESSION_HANDOFF]]. [Latest summary](releases/Honorable-Final-Handoff.docx). Work solo; no subagents without new permission. Latest source has unit/compile evidence but no fresh verified APK.
+
+## Current Android candidate
+
+[[DRAWING_READINESS|Offline creation and fresh verified APK]]. [Current product summary](releases/Honorable-Product-Update.docx). Earlier source-only handoff is superseded.
