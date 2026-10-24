@@ -1,3 +1,14 @@
+# Latest checkpoint October 24
+
+- [x] Balanced offline montage builder with review, shared preview/export and one-step undo.
+- [x] Script-to-captions with estimated editable timing, replacement review and existing SRT support.
+- [x] Fresh complete ARM64 APK; 130 native plus 112 shared JVM cases, 60 RN tests, TypeScript/lint and artifact checks.
+- [x] Human-readable creative guide with cumulative changes and honest release limits.
+- [ ] Physical acceptance; no phone is available.
+- [ ] Real generation, speech transcription, iOS native editors and public release gates.
+
+See [[STORY_TOOLS_READINESS]]. All queue entries below are historical checkpoints.
+
 # Current engineering checkpoint
 
 - [x] Offline drawing and local drawing drafts,2 new creation workflows.

@@ -5,8 +5,8 @@ Privacy-first photo/video search, editing and local creation. This repository pr
 ## Start here
 
 - [Current project home](docs/START_HERE.md)
-- [Simple product update](docs/releases/Honorable-Product-Update.docx)
-- [Latest Android build evidence and limitations](docs/DRAWING_READINESS.md)
+- [Simple product update](docs/releases/Honorable-Creative-Guide.docx)
+- [Latest Android build evidence and limitations](docs/STORY_TOOLS_READINESS.md)
 - [Working versus planned features](docs/HONORABLE_FEATURE_STATUS.md)
 - [Engineering handoff](docs/SESSION_HANDOFF.md)
 
@@ -25,4 +25,4 @@ The React Native app is in `Honorable-mobile-app-main/mobile-react-native/`. Fol
 
 ## Readiness
 
-The current Android candidate includes offline guest photo/video editing, local video projects, precise trim, drawing and editable drawing drafts. It is an internal build using the public debug certificate. Physical-device acceptance remains open. Native iOS editors, hosted accounts and AI image/video generation remain unfinished. See the linked evidence before making release claims.
+The current Android candidate includes offline guest photo/video editing, local video projects, precise trim, drawing, editable drawing drafts, a balanced montage builder and script-to-captions. It is an internal build using the public debug certificate. Physical-device acceptance remains open. Native iOS editors, hosted accounts and AI image/video generation remain unfinished. See the linked evidence before making release claims.

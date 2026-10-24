@@ -176,6 +176,7 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
         projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
+        projectTools.addView(Button(this).apply { text = "Build a montage"; setOnClickListener { montageOptions() } })
         assistTools.addView(Button(this).apply { text = "AI rough cut"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { roughCutOptions() } })
         assistTools.addView(Button(this).apply { text = "AI video looks"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { videoLookOptions() } })
         assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
@@ -279,6 +280,7 @@ class HonorableVideoEditorActivity : Activity() {
         creativeTools.addView(creative)
         creativeTools.addView(Button(this).apply{text="Title style";setOnClickListener{titleStyle()}})
         creativeTools.addView(Button(this).apply{text="Captions";setOnClickListener{captionOptions()}})
+        creativeTools.addView(Button(this).apply { text = "Script to captions"; setOnClickListener { scriptCaptionOptions() } })
         val music = LinearLayout(this)
         fun musicButton(title: String, action: () -> Unit) {
             music.addView(Button(this).apply { text = title; setOnClickListener {
@@ -595,12 +597,68 @@ class HonorableVideoEditorActivity : Activity() {
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
-            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Project audio fade"){toggleAudioFade()}),
-            "Project" to (listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()}),
+            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
+
+    private fun montageOptions() {
+        if (!editorIdle() || isDestroyed || isFinishing) return
+        val current = project ?: return
+        val snapshot = current.segments
+        val music = current.soundtrack
+        val mode = accessMode
+        val owner = if (mode == EditorAccessMode.ACCOUNT) runCatching { VideoDraftPersistence(this, source.toString()) }
+            .getOrElse { status.text = "Account changed. Reopen this video."; return } else null
+        val targets = listOf(15_000L, 30_000L, 60_000L)
+        android.app.AlertDialog.Builder(this).setTitle("Build a montage")
+            .setItems(arrayOf("15 seconds", "30 seconds", "60 seconds")) { _, choice ->
+                if (!editorIdle() || isDestroyed || isFinishing || project !== current || current.segments != snapshot || current.soundtrack != music || accessMode != mode || runCatching { owner?.requireCurrentOwner() }.isFailure) return@setItems
+                val proposed = runCatching { VideoStoryTools.montage(snapshot, targets[choice]) }.getOrElse { status.text = "Cannot build a montage from this project."; return@setItems }
+                val seconds = String.format(java.util.Locale.ROOT, "%.2f", proposed.sumOf { it.durationUs } / 1_000_000.0)
+                android.app.AlertDialog.Builder(this).setTitle("Review montage")
+                    .setMessage("$seconds seconds · ${proposed.size} clips. Uses balanced centre excerpts in your current order. Short footage stays shorter; nothing is repeated or generated. Existing color, speed, titles, visible captions and music are kept. Replaces the timeline as one undoable edit. Preview before exporting.")
+                    .setNegativeButton("Cancel", null).setPositiveButton("Apply and preview") { _, _ ->
+                        if (!editorIdle() || isDestroyed || isFinishing || project !== current || current.segments != snapshot || current.soundtrack != music || accessMode != mode || runCatching { owner?.requireCurrentOwner() }.isFailure) { status.text = "Project or session changed. Build the montage again."; return@setPositiveButton }
+                        runCatching { current.applyDraft(proposed, soundtrack = music) }
+                            .onSuccess { selectedClip = 0; showClip(); previewProject(); status.text = "Montage applied. Undo restores the full timeline." }
+                            .onFailure { status.text = "Montage could not be applied; existing edits are unchanged." }
+                    }.show()
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun scriptCaptionOptions() {
+        if (!editorIdle() || isDestroyed || isFinishing) return
+        val current = project ?: return
+        val index = selectedClip
+        val clip = current.segments.getOrNull(index) ?: return
+        val mode = accessMode
+        val owner = if (mode == EditorAccessMode.ACCOUNT) runCatching { VideoDraftPersistence(this, source.toString()) }
+            .getOrElse { status.text = "Account changed. Reopen this video."; return } else null
+        fun valid() = editorIdle() && !isDestroyed && !isFinishing && project === current && selectedClip == index && current.segments.getOrNull(index) == clip && accessMode == mode && runCatching { owner?.requireCurrentOwner() }.isSuccess
+        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(12), dp(20), dp(12)) }
+        panel.addView(TextView(this).apply { text = "Paste one caption per line, up to 100 lines and 240 characters per line. Timing is estimated from text length across this clip, not speech recognition. Review and adjust in Captions. Applying replaces this clip's captions; Undo restores them."; setTextColor(Color.DKGRAY) })
+        val script = EditText(this).apply { hint = "Write or paste your script"; contentDescription = "Caption script, one caption per line"; minLines = 4; maxLines = 7; gravity = Gravity.TOP; inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE; filters = arrayOf(android.text.InputFilter.LengthFilter(16_000)) }
+        panel.addView(script)
+        val dialog = android.app.AlertDialog.Builder(this).setTitle("Script to captions").setView(panel).setNegativeButton("Cancel", null).setPositiveButton("Review timing", null).create()
+        dialog.setOnShowListener { dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            if (!valid()) { status.text = "Clip or session changed. Open Script to captions again."; dialog.dismiss(); return@setOnClickListener }
+            val proposed = runCatching { VideoStoryTools.scriptCaptions(clip, script.text.toString()) }.getOrElse { script.error = it.message; return@setOnClickListener }
+            val overview = proposed.take(4).joinToString("\n\n") { "${VideoTrimRange.format(it.startMs)}–${VideoTrimRange.format(it.endMs)} source seconds\n${it.text}" }
+            android.app.AlertDialog.Builder(this).setTitle("Review ${proposed.size} captions")
+                .setMessage("$overview${if (proposed.size > 4) "\n\nPlus ${proposed.size - 4} more. All captions remain editable." else ""}\n\nEstimated timing, not synchronized to speech. Replaces ${clip.captions.size} existing captions on this clip.")
+                .setNegativeButton("Back", null).setPositiveButton("Apply and preview") { _, _ ->
+                    if (!valid()) { status.text = "Clip or session changed. Open Script to captions again."; dialog.dismiss(); return@setPositiveButton }
+                    runCatching { current.setCaptions(index, proposed, null) }
+                        .onSuccess { dialog.dismiss(); showClip(); previewProject(); status.text = "Script captions applied. Review timing in Captions; Undo restores previous captions." }
+                        .onFailure { script.error = "Caption limits reached. Existing edits are unchanged." }
+                }.show()
+        } }
+        dialog.show()
+    }
+
     private fun preciseTrim() {
         if(!editorIdle()||isDestroyed||isFinishing)return
         val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return

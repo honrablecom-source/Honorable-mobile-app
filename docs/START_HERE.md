@@ -7,12 +7,12 @@ updated: 2026-10-24
 
 ## Current app
 
-- [[DRAWING_READINESS|Latest verified Android candidate and acceptance limits]]
-- [Current product summary](releases/Honorable-Product-Update.docx)
+- [[STORY_TOOLS_READINESS|Latest verified Android candidate and acceptance limits]]
+- [Current product summary](releases/Honorable-Creative-Guide.docx)
 - [[HONORABLE_FEATURE_STATUS|Implemented and planned features]]
 - [[GUEST_TEST_GUIDE|Local editing tester guide]]
 
-Offline drawing and editable drawing drafts are built into the latest complete ARM64 internal APK. Saved guest video projects and precise trim are packaged too. Physical-device validation remains open. iOS native editors and generative AI remain unfinished.
+The latest complete ARM64 internal APK adds a balanced montage builder and script-to-captions. Photo/video editing, drawing, editable drawing drafts, saved guest video projects and precise trim remain included. Physical-device validation remains open. iOS native editors and generative AI remain unfinished.
 
 ## Continue development
 

@@ -38,6 +38,6 @@ No phone is available here, so no device acceptance is claimed. iOS native edito
 
 ## Documents and preview
 
-Current cumulative summary from oldest Git ZIP 424cf33: releases/Honorable-Product-Update.docx. Historical detailed inventory remains in archive/releases/Honorable-App-Changes-and-Features.docx. Existing browser preview is a schematic/component capture, not native proof. Automatic approval review blocked a new preview-server launch without a specific reason; no workaround or further server launch was attempted.
+Current cumulative summary from oldest Git ZIP 424cf33: archive/releases/Honorable-Product-Update.docx. Historical detailed inventory remains in archive/releases/Honorable-App-Changes-and-Features.docx. Existing browser preview is a schematic/component capture, not native proof. Automatic approval review blocked a new preview-server launch without a specific reason; no workaround or further server launch was attempted.
 
 Next: physical acceptance of drawing/fonts/PNG/drafts and photo/video output; genuine generation and iOS parity require separate work. Work solo unless the owner explicitly authorizes subagents again. Preserve source/design/search/credit decisions.

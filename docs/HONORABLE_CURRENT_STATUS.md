@@ -1,6 +1,10 @@
+# Current checkpoint October 24 video story tools
+
+Two new offline workflows: balanced montage building and script-to-captions. Complete ARM64 internal APK passes. 130 native and 112 shared JVM cases, 60 RN tests, TypeScript/lint pass fresh. Device acceptance remains pending; no phone. No new AI engine. See [[STORY_TOOLS_READINESS]] and releases/Honorable-Creative-Guide.docx. Prior checkpoints below retain their historical status and evidence.
+
 # Latest checkpoint October24 offline drawing
 
-Fresh verified complete Android APK with2 new creation workflows (offline drawing/local drawing drafts); earlier guest video saves and precise trim packaged.120native/112shared JVM,60RN/TypeScript/lint and8drawing-contract checks pass. Device/iOS/generation/store gates remain open. See DRAWING_READINESS.md and releases/Honorable-Product-Update.docx.
+Fresh verified complete Android APK with2 new creation workflows (offline drawing/local drawing drafts); earlier guest video saves and precise trim packaged.120native/112shared JVM,60RN/TypeScript/lint and8drawing-contract checks pass. Device/iOS/generation/store gates remain open. See DRAWING_READINESS.md and archive/releases/Honorable-Product-Update.docx.
 
 # Latest source handoff October24 2026
 

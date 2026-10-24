@@ -1,10 +1,12 @@
 # Resume Honorable
 
-Updated October 24, 2026. Authoritative repository https://github.com/honrablecom-source/Honorable-mobile-app; branch codex/android-internal-readiness; draft PR1.
+Updated October 24, 2026. Authoritative repository https://github.com/honrablecom-source/Honorable-mobile-app; branch codex/android-internal-readiness; draft PR 1.
 
-- Work solo. No subagents without new explicit owner authorization. No computer-use tools.
-- Read [[DRAWING_READINESS]] first. New offline Excalidraw drawing and local drawing drafts are built in a fresh complete ARM64 internal APK. Earlier guest video saves and precise trim are now packaged too.2 new creation workflows;0 new AI engines.
-- 120 native +112 shared JVM cases fresh;60RN checks/TypeScript/lint and8 drawing-contract checks pass. Integration compiles only. Full artifact/assets/model/certificate/alignment verification passes; exact APK/hash in DRAWING_READINESS.
-- Current report: releases/Honorable-Product-Update.docx. Device/WebView/media/output/lifecycle acceptance remains open; no phone. iOS editors and working release absent; hosting/billing deferred.
-- Caveman/Headroom/Repomix/RTK configured; no proxy interception or total-credit savings claim. Code in mobile-react-native/creation-web is reproducible; assets committed. No personal-media upload or protected holdout work.
-- Historical FINAL_HANDOFF records the preceding source-only state; it is superseded by this fresh APK. Next: phone acceptance, then generation/iOS work as authorized. Preserve all account/credit/search policy and current design.
+- Work solo. No subagents without new owner authorization. No computer-use tools.
+- Read [[STORY_TOOLS_READINESS]] first. Two new offline video workflows are built: balanced montage creation and script-to-captions with estimated editable timing. Neither is a new AI model.
+- Full ARM64 internal APK passes; 130 native plus 112 shared JVM tests pass fresh, including 10 new story cases. 60 React Native tests, TypeScript and lint pass. Integration compiles only. Exact artifact/hash and scope are in STORY_TOOLS_READINESS.
+- New tools use existing validated project state, undo, preview/export and draft formats. Guest access is preserved; account, search and credit policy is unchanged.
+- [Current human-readable guide](releases/Honorable-Creative-Guide.docx). Older drawing readiness and product reports are historical evidence for the preceding candidate.
+- No phone is available. Physical installation, media/render/audio/WebView/lifecycle acceptance remains pending. iOS native editors and generation are unfinished; hosting/billing deferred.
+- Efficiency tools are installed; logs are retained. No proxy interception or promised credit savings. Preserve private media and protected holdout.
+- Next: physical acceptance of the existing tools before public release, then genuine generation and iOS parity as authorized. No further UI rebuild is requested.

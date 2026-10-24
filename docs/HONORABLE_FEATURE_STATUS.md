@@ -9,6 +9,8 @@ Updated October 23, 2026. Continue the existing application and design. No featu
 | Blank image creation | Square/portrait/landscape white PNG canvas opens guest editor | Manual creation only; device pixels/provider/memory acceptance pending |
 | Audio-only video export | Edited timeline/soundtrack to protected validated AAC/M4A copy; cancellation | Device codec/audio/sync/provider/lifecycle acceptance pending |
 | Durable guest video projects | Source save/restore/delete with bounded isolated storage and durable grants; unit/compile checks pass | Fresh APK built; device/provider/lifecycle acceptance pending |
+| Balanced montage builder | Offline 15/30/60-second centre-excerpt recipe, ordered sampling, review, one-step undo and existing preview/export; fresh full APK and tests pass | Not semantic/beat-aware; actual media output and device acceptance pending |
+| Script to captions | User text becomes weighted, source-relative editable captions; review, undo, SRT and existing preview/export; fresh full APK and tests pass | Estimated timing, not speech recognition; physical readability/output/lifecycle acceptance pending |
 | Precise video trim | Source-second range input to3 decimals; undoable | Not frame-exact; fresh APK built; device acceptance pending |
 | Offline drawing creation | Bundled Excalidraw0.18.1, touch/freehand/shapes/text/undo, PNG to photo editor; APK checked | Phone/WebView/fonts/output acceptance pending; manual creation, not generation |
 | Local drawing draft | One bounded editable local scene, save/restore and explicit replacement; source/contract checks pass | Phone storage/lifecycle acceptance pending |
