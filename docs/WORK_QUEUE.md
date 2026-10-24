@@ -1,3 +1,13 @@
+# Current roundup status
+
+- [x] Durable guest video project source and Precise trim;114 native unit tests and integration compile.
+- [x] Current summary document, efficiency tools and preview update.
+- [ ] Fresh complete APK for latest source; previous APK19aba32 remains last verified.
+- [ ] iOS build result and native editor parity.
+- [ ] Device acceptance and full creation engines.
+
+Owner: work solo; no subagents without new authorization. See [[FINAL_HANDOFF]].
+
 # Engineering queue
 
 ## Latest built increment — phone acceptance pending

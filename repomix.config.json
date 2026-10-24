@@ -1,0 +1,32 @@
+{
+  "output": {
+    "filePath": ".context/honorable-overview.xml",
+    "style": "xml",
+    "compress": true,
+    "removeComments": true,
+    "removeEmptyLines": true,
+    "showLineNumbers": false,
+    "topFilesLength": 5
+  },
+  "include": [
+    "Honorable-mobile-app-main/mobile-react-native/App.tsx",
+    "Honorable-mobile-app-main/mobile-react-native/src/screens/StudioScreen.tsx",
+    "Honorable-mobile-app-main/mobile-react-native/src/screens/GuestEditingScreen.tsx",
+    "Honorable-mobile-app-main/mobile-react-native/android/app/src/main/java/com/honorablemobile/VideoEditProject.kt",
+    "Honorable-mobile-app-main/android-app/app/src/main/java/app/honorable/editor/PhotoEdit.kt"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "customPatterns": [
+      "**/holdout/**",
+      "**/*benchmark*",
+      "**/test-lab/**",
+      "**/.env*",
+      "**/node_modules/**",
+      "**/build/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

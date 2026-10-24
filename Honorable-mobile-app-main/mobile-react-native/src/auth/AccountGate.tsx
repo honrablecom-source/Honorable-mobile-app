@@ -5,6 +5,7 @@ import { BetaUpdateNotice } from '../screens/BetaUpdateNotice';
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { useMemoryPass } from '../passes/MemoryPassContext';
 import { GuestEditingScreen } from '../screens/GuestEditingScreen';
 export function AccountGate({ children }: { children: React.ReactNode }) {
   const auth = useMemoryPass();
+  const localEditingAvailable = Platform.OS === 'android';
   const [guestEditing, setGuestEditing] = useState(false);
   if (auth.signedIn)
     return (
@@ -60,8 +62,9 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
         </Pressable>
         {!auth.googleConfigured && (
           <Text style={styles.small}>
-            Account sign-in is not configured in this build. Local editing is
-            available below.
+            {localEditingAvailable
+              ? 'Account sign-in is not configured in this build. Local editing is available below.'
+              : 'Account sign-in is not configured in this build.'}
           </Text>
         )}
         {!!auth.error && (
@@ -69,17 +72,20 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
             {auth.error}
           </Text>
         )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Edit without an account"
-          onPress={() => setGuestEditing(true)}
-          style={styles.guestButton}
-        >
-          <Text style={styles.guestButtonText}>Edit without an account</Text>
-        </Pressable>
+        {localEditingAvailable && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Edit without an account"
+            onPress={() => setGuestEditing(true)}
+            style={styles.guestButton}
+          >
+            <Text style={styles.guestButtonText}>Edit without an account</Text>
+          </Pressable>
+        )}
         <Text style={styles.small}>
-          Local photo and video editing, including on-device AI tools. Search,
-          credits and account features require sign-in.
+          {localEditingAvailable
+            ? 'Local photo and video editing, including on-device AI tools. Search, credits and account features require sign-in.'
+            : 'Photo and video editing is available on Android. iOS editing is not implemented yet.'}
         </Text>
         <View style={styles.privacyRow}>
           <ShieldCheck size={17} color={colors.textSecondary} />

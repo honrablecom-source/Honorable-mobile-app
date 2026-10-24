@@ -1,0 +1,22 @@
+{
+  "nativeTests": 114,
+  "nativeFailures": 0,
+  "nativeErrors": 0,
+  "newUserFacingWorkflows": 2,
+  "newAiEngines": 0,
+  "latestSourceApkBuilt": false,
+  "iosWorkingVerified": false,
+  "tools": {
+    "repomixVersion": "1.18.1",
+    "includedFiles": 5,
+    "uncompressedBytes": 38860,
+    "compressedBytes": 15320,
+    "reductionPercent": 60.58,
+    "scope": "Same five allowlisted source files; byte reduction, not conversation or credit savings",
+    "securityScanEnabled": true,
+    "uploaded": false,
+    "cavemanSkillInstalled": true,
+    "cavemanSkillSha256": "415d43518f2b1a9498c15a445d4657117b129ee5e81b19454ce348439cc6672b",
+    "cavemanProxyInstalled": false
+  }
+}

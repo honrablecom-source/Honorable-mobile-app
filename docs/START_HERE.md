@@ -44,3 +44,7 @@ Build success, a packaged APK, real-device behavior and store readiness are sepa
 - [Labelled Obsidian board export](releases/Honorable-Project-board.png)
 
 - [[AI_TRANSCRIPTION_FEASIBILITY|Speech feasibility remains separate from implemented captions]]
+
+## Current handoff October24
+
+Read [[FINAL_HANDOFF]] and [[SESSION_HANDOFF]]. [Latest summary](releases/Honorable-Final-Handoff.docx). Work solo; no subagents without new permission. Latest source has unit/compile evidence but no fresh verified APK.

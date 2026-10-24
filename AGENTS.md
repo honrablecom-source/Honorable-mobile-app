@@ -13,3 +13,7 @@
 - Validation: Node tests in dev-server/test/*.test.js, product/studio/project.test.js, scripts/android-sdk-config.test.cjs and scripts/release-manifest.test.cjs. Run npm ci, typecheck, lint and Jest in mobile-react-native/ when dependencies are available. Android CI builds the full React Native app and checks the standalone Compose compilation.
 - Full build success, artifact presence, real-device behavior and store readiness are separate claims. Record actual evidence; never promote readiness based on previews or an isolated compile.
 - In every completion update, give the number of newly added user-facing features. Count fixes, scaffolding and unfinished work separately; state whether a feature is built, device-tested or still experimental.
+
+- Efficiency tools installed October 23: Caveman skill at C:/Users/Shadow/.codex/skills/caveman (concise output; keep facts and full code intact), Repomix1.18.1 via .tools/bin/repomix.cmd with the root allowlist config, Headroom0.41.0 via .tools/headroom-local/headroom-local.ps1 (offline log/JSON compression; originals retained). Use them only where useful; no proxy interception or guaranteed credit-savings claim. No computer-use tools per owner instruction.
+
+- Owner instruction October 24: work solo. Do not use subagents without new explicit user authorization. No computer-use tools. Preserve this preference across turns.

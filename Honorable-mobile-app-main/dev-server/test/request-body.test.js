@@ -4,7 +4,7 @@ async function fixture(run){
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'honorable-json-body-'));
  const server=createServer({file:path.join(directory,'ledger.json'),mode:'development',googleClientId:''});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- try{await run(server,`http://127.0.0.1:${server.address().port}`)}finally{await new Promise(resolve=>server.close(resolve));fs.rmSync(directory,{recursive:true,force:true})}
+ try{await run(server,`http://127.0.0.1:${server.address().port}`)}finally{await new Promise(resolve=>server.close(resolve));await server.analytics.close?.();fs.rmSync(directory,{recursive:true,force:true})}
 }
 test('malformed JSON and non-object bodies return fixed errors without echoing credentials',async()=>{
  await fixture(async(_server,base)=>{

@@ -3,3 +3,6 @@
 docs/.obsidian/workspace*.json
 docs/.obsidian/cache/
 docs/.trash/
+
+# Local compressed code context; never a release artifact
+.context/

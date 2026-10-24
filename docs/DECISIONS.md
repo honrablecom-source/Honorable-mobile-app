@@ -24,3 +24,8 @@ The owner explicitly approved separate offline guest basic editing. Guest entry 
 ## October 23 creative outputs
 
 Owner approved existing free on-device AI for guests; search, credits, future paid generation and account drafts stay gated. No hosting/billing started. Blank creation is manual. Green cards mean implemented/build checked, with phone acceptance separate. Preserve current UI and original repository.
+
+
+## October24 owner direction
+
+Stop new feature work for the roundup, push current source and provide a summary. Work solo. No subagents unless the owner explicitly authorizes them again. No computer-use tools. Do not describe the latest source as a verified APK or a working iOS app.

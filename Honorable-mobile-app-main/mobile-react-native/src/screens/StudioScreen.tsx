@@ -88,7 +88,7 @@ export function StudioScreen() {
           },
           {
             title: 'Detail & text',
-            detail: 'Sharpen, vignette and captions',
+            detail: 'Sharpen, vignette, text and saved looks',
             Icon: Type,
           },
           {
@@ -115,7 +115,7 @@ export function StudioScreen() {
           },
           {
             title: 'Titles & audio',
-            detail: 'Text, music and fades',
+            detail: 'Titles, timed captions, SRT, music and fades',
             Icon: Music2,
           },
           {
@@ -125,7 +125,7 @@ export function StudioScreen() {
           },
           {
             title: 'Export',
-            detail: 'Format, fit and crop. A new copy.',
+            detail: 'Video copy or audio-only M4A. Original preserved.',
             Icon: Download,
           },
         ];

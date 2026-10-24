@@ -34,6 +34,7 @@ import app.honorable.editor.EditorAccessMode
 @UnstableApi
 class HonorableVideoEditorActivity : Activity() {
     private var accessMode = EditorAccessMode.ACCOUNT
+    @Volatile private var guestProjectRequest = 0L
     private lateinit var source: Uri
     private lateinit var video: VideoView
     private lateinit var projectPreviewView: PlayerView
@@ -231,6 +232,7 @@ class HonorableVideoEditorActivity : Activity() {
             project?.setVolume(selectedClip, 0f); showClip()
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(extraActions)
+        controls.addView(Button(this).apply { text="Precise trim";setOnClickListener{preciseTrim()} })
         controls.addView(clipActions)
         val historyActions = LinearLayout(this)
         fun historyButton(title: String, action: () -> Unit) {
@@ -296,12 +298,14 @@ class HonorableVideoEditorActivity : Activity() {
         audioTools.addView(label("Soundtrack loops to the video length. Use Preview project to check the mix.",12f))
         creativeTools.addView(label("Titles appear throughout the clip. Video fades are up to 0.5s at each edge; audio is unchanged.",12f))
         val drafts = LinearLayout(this)
-        drafts.addView(Button(this).apply { text = "Save draft"; isEnabled=accessMode.allowsAccountDrafts; setOnClickListener { draftOperation(false) } },
+        val guestProject = accessMode == EditorAccessMode.GUEST_BASIC
+        drafts.addView(Button(this).apply { text = if(guestProject)"Save project" else "Save draft"; isEnabled=guestProject||accessMode.allowsAccountDrafts; setOnClickListener { if(guestProject)guestProjectOperation(false)else draftOperation(false) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        drafts.addView(Button(this).apply { text = "Restore draft"; isEnabled=accessMode.allowsAccountDrafts; setOnClickListener { draftOperation(true) } },
+        drafts.addView(Button(this).apply { text = if(guestProject)"Restore project" else "Restore draft"; isEnabled=guestProject||accessMode.allowsAccountDrafts; setOnClickListener { if(guestProject)guestProjectOperation(true)else draftOperation(true) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         projectTools.addView(drafts)
-        projectTools.addView(label("Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
+        if(guestProject)projectTools.addView(Button(this).apply{text="Delete saved project";setOnClickListener{deleteGuestProject()}})
+        projectTools.addView(label(if(guestProject)"One local guest save per original video, up to 20. Save replaces its earlier save. Reopen the same original in Files, then Restore project. Media must remain available; account drafts stay separate." else "Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
         val tabs = LinearLayout(this)
         val tabButtons = mutableListOf<Button>()
         fun selectTools(name: String) {
@@ -590,13 +594,29 @@ class HonorableVideoEditorActivity : Activity() {
         if(!editorIdle())return;val current=project?:return
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
-            "Picture" to listOf(t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
+            "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Project audio fade"){toggleAudioFade()}),
-            "Project" to listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}),
+            "Project" to (listOf(t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
+    private fun preciseTrim() {
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        val originalDuration=sourceDuration(clip.sourceId);val mode=accessMode
+        val accountOwner=if(mode==EditorAccessMode.ACCOUNT)runCatching{VideoDraftPersistence(this,source.toString())}.getOrElse{status.text="Account changed. Reopen this video before trimming.";return}else null
+        val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        panel.addView(TextView(this).apply{text="Original-source seconds, up to 3 decimal places. This trims inside the current clip and is undoable. Codec output is not guaranteed frame-exact.";textSize=12f;setTextColor(Color.DKGRAY)})
+        fun field(name:String,value:Long)=EditText(this).apply{hint=name;contentDescription=name;inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;setText(VideoTrimRange.format(value));setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(16));panel.addView(this)}
+        val from=field("Trim start in source seconds",clip.startMs);val to=field("Trim end in source seconds",clip.endMs)
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Precise trim").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!editorIdle()||isDestroyed||isFinishing||accessMode!=mode||project!==current||selectedClip!=index||current.segments.getOrNull(index)!=clip||runCatching{accountOwner?.requireCurrentOwner()}.isFailure){status.text="Clip or session changed. Open Precise trim again.";dialog.dismiss();return@setOnClickListener}
+            val range=runCatching{VideoTrimRange.parse(from.text.toString(),to.text.toString(),clip,originalDuration)}.getOrElse{to.error=it.message;return@setOnClickListener}
+            runCatching{current.trim(index,range.startMs,range.endMs)}.onSuccess{showClip();status.text="Trim applied: ${VideoTrimRange.format(range.startMs)}–${VideoTrimRange.format(range.endMs)} source seconds. Undo restores the clip.";dialog.dismiss()}.onFailure{to.error="Trim could not be applied; existing edits are unchanged."}
+        }};dialog.show()
+    }
     private fun allowOnDeviceAi():Boolean {
         if(accessMode.allowsOnDeviceAi)return true
         status.text="On-device editing tools are unavailable in this editor session."
@@ -870,6 +890,71 @@ class HonorableVideoEditorActivity : Activity() {
             saving = false; exporter = null
             start.isEnabled = true; end.isEnabled = true
             status.text = "Export could not start: ${it.message ?: "Unknown error"}"
+        }
+    }
+
+    private enum class GuestProjectAction { SAVE, RESTORE, DELETE, DELETE_ALL }
+    private fun guestProjectOperation(restore:Boolean)=runGuestProjectAction(if(restore)GuestProjectAction.RESTORE else GuestProjectAction.SAVE)
+    private fun deleteGuestProject() {
+        if(accessMode!=EditorAccessMode.GUEST_BASIC||!editorIdle()||isDestroyed||isFinishing)return
+        android.app.AlertDialog.Builder(this).setTitle("Delete saved guest project?")
+            .setMessage("Delete only the local saved edits for this original video. Current edits, source media and account drafts stay unchanged.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Delete this save"){_,_->runGuestProjectAction(GuestProjectAction.DELETE)}
+            .setNeutralButton("All guest saves"){_,_->android.app.AlertDialog.Builder(this).setTitle("Delete all saved guest projects?")
+                .setMessage("Remove every local guest video save, including saves with unavailable originals. Source media, current edits and account drafts stay unchanged.")
+                .setNegativeButton("Cancel",null).setPositiveButton("Delete all guest saves"){_,_->runGuestProjectAction(GuestProjectAction.DELETE_ALL)}.show()}.show()
+    }
+    private fun validateGuestMedia(primary:String,saved:VideoDraft) {
+        fun hasRead(value:String)=contentResolver.persistedUriPermissions.any{it.uri==Uri.parse(value)&&it.isReadPermission}
+        GuestVideoProjectMedia.validate(primary,saved,::hasRead,{inspectSource(Uri.parse(it))},{inspectSoundtrack(Uri.parse(it))}){value,duration->
+            val uri=Uri.parse(value)
+            contentResolver.openFileDescriptor(uri,"r").use{input->requireNotNull(input);require(android.system.Os.fstat(input.fileDescriptor).st_ino!=0L){"Subtitle original is unavailable"}}
+            val bytes=contentResolver.openInputStream(uri)?.use{VideoSubtitleDocuments.readBounded(it)}?:error("Subtitle original is unavailable")
+            VideoCaptions.parseSrt(bytes,duration)
+        }
+    }
+    private fun runGuestProjectAction(action:GuestProjectAction) {
+        if(accessMode!=EditorAccessMode.GUEST_BASIC||!editorIdle()||durationMs<=0||isDestroyed||isFinishing)return
+        val current=project?:return;val primary=source.toString();val duration=primaryDurationMs
+        val before=current.segments;val beforeMusic=current.soundtrack;val beforeIndex=selectedClip
+        val snapshot=if(action==GuestProjectAction.SAVE)runCatching{currentDraft()}.getOrElse{status.text="Choose a valid clip range before saving the guest project.";return}else null
+        val request=++guestProjectRequest
+        fun requireCurrent(){check(request==guestProjectRequest&&!isDestroyed&&!isFinishing&&accessMode==EditorAccessMode.GUEST_BASIC&&source.toString()==primary){"Guest editor session changed"}}
+        draftBusy=true;start.isEnabled=false;end.isEnabled=false;stopProjectPreview();video.pause();previewHandler.removeCallbacks(stopPreview)
+        status.text=when(action){GuestProjectAction.SAVE->"Saving local guest project...";GuestProjectAction.RESTORE->"Checking saved guest project and original files...";else->"Deleting guest save..."}
+        draftWorker.execute{
+            val result=runCatching{
+                requireCurrent()
+                val directory=java.io.File(noBackupFilesDir,"guest-video-projects")
+                val store=GuestVideoProjectStore(directory,primary)
+                when(action){
+                    GuestProjectAction.SAVE->{
+                        val saved=requireNotNull(snapshot)
+                        GuestVideoProjectMedia.withDurableAccess(GuestVideoProjectMedia.originals(primary,saved),
+                            {value->contentResolver.persistedUriPermissions.any{it.uri==Uri.parse(value)&&it.isReadPermission}},
+                            {value->contentResolver.takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION)},
+                            {value->contentResolver.releasePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION)},::requireCurrent){
+                            validateGuestMedia(primary,saved);store.save(saved,::requireCurrent)
+                        };null
+                    }
+                    GuestProjectAction.RESTORE->store.load(duration)?.also{validateGuestMedia(primary,it);requireCurrent()}
+                    GuestProjectAction.DELETE->{store.delete(::requireCurrent);null}
+                    GuestProjectAction.DELETE_ALL->{GuestVideoProjectStore.deleteAll(directory,::requireCurrent);null}
+                }
+            }
+            runOnUiThread{
+                if(runCatching{requireCurrent()}.isFailure)return@runOnUiThread
+                draftBusy=false;start.isEnabled=true;end.isEnabled=true
+                if(project!==current||primaryDurationMs!=duration||current.segments!=before||current.soundtrack!=beforeMusic||selectedClip!=beforeIndex){status.text="Video changed. Run the guest project action again.";return@runOnUiThread}
+                val saved=result.getOrElse{status.text="Guest project unavailable: ${it.message?:"Check document access and storage"}. Current edits are unchanged.";return@runOnUiThread}
+                if(action==GuestProjectAction.RESTORE&&saved!=null){
+                    val applied=runCatching{
+                        require(GuestVideoProjectMedia.originals(primary,saved).all{value->contentResolver.persistedUriPermissions.any{it.uri==Uri.parse(value)&&it.isReadPermission}}){"Original document access changed"}
+                        applySavedDraft(current,saved,true)
+                    }
+                    status.text=if(applied.isSuccess)"Guest project restored. Preview before exporting. Undo restores prior clip edits." else "Guest project sources conflict or access changed. Current edits are preserved."
+                }else status.text=when(action){GuestProjectAction.SAVE->"Guest project saved locally. Reopen this same original, then Restore project. Media is not copied.";GuestProjectAction.RESTORE->"No guest project is saved for this original video.";else->"Guest save deleted. Source media and account drafts are unchanged."}
+            }
         }
     }
 
@@ -1217,6 +1302,7 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick)}
     override fun onPause() { workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        guestProjectRequest++
         previewHandler.removeCallbacks(stopPreview)
         previewHandler.removeCallbacks(workspaceTick)
         if(::timeline.isInitialized)timeline.close()

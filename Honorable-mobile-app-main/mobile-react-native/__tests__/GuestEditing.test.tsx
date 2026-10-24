@@ -1,9 +1,10 @@
 import React from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert, Platform, Text } from 'react-native';
 import Renderer, { act } from 'react-test-renderer';
 import { AccountGate } from '../src/auth/AccountGate';
 import { honorableNative } from '../src/native/HonorableNative';
 
+const originalPlatform = Platform.OS;
 const mockAuth = {
   signedIn: false,
   status: 'welcome',
@@ -69,6 +70,10 @@ const enterGuest = async () => {
 };
 beforeEach(() => {
   jest.resetAllMocks();
+  Object.defineProperty(Platform, 'OS', {
+    value: 'android',
+    configurable: true,
+  });
   mockAuth.signedIn = false;
   mockAuth.status = 'welcome';
   mockAuth.googleConfigured = false;
@@ -80,6 +85,10 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => tree.unmount());
+  Object.defineProperty(Platform, 'OS', {
+    value: originalPlatform,
+    configurable: true,
+  });
   jest.restoreAllMocks();
 });
 
@@ -237,6 +246,8 @@ test.each(['Square', 'Portrait', 'Landscape'])(
     await enterGuest();
     await act(async () => button('Create an image').props.onPress());
     const choices = alert.mock.calls[0][2]!;
+    expect(choices).toHaveLength(3);
+    expect(alert.mock.calls[0][3]).toEqual({ cancelable: true });
     await act(async () =>
       choices.find(choice => choice.text === format)!.onPress!(),
     );
@@ -258,4 +269,15 @@ test('failed canvas creation permits retry without spending credits', async () =
   );
   expect(button('Create an image').props.disabled).toBe(false);
   expect(mockAuth.charge).not.toHaveBeenCalled();
+});
+
+test('iOS shell explains missing editors without offering broken guest navigation', async () => {
+  Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+  await render();
+  expect(button('Edit without an account')).toBeUndefined();
+  expect(JSON.stringify(tree.toJSON())).toContain(
+    'iOS editing is not implemented yet.',
+  );
+  expect(native.editPhotoGuest).not.toHaveBeenCalled();
+  expect(native.editVideoGuest).not.toHaveBeenCalled();
 });

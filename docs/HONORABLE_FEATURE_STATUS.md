@@ -8,6 +8,8 @@ Updated October 23, 2026. Continue the existing application and design. No featu
 | Saved photo looks | Named bounded global-adjustment presets; isolated atomic local shelves; apply through history | Device storage/history/lifecycle acceptance pending |
 | Blank image creation | Square/portrait/landscape white PNG canvas opens guest editor | Manual creation only; device pixels/provider/memory acceptance pending |
 | Audio-only video export | Edited timeline/soundtrack to protected validated AAC/M4A copy; cancellation | Device codec/audio/sync/provider/lifecycle acceptance pending |
+| Durable guest video projects | Source save/restore/delete with bounded isolated storage and durable grants; unit/compile checks pass | Fresh APK and device/provider/lifecycle acceptance pending |
+| Precise video trim | Source-second range input to3 decimals; undoable | Not frame-exact; fresh APK/device acceptance pending |
 | App-wide mobile UI | Shared workspace chrome across routed RN screens and native photo/video/playback; white/light dialog theme and native insets; local checks and internal APK pass | Owner visual approval, native screenshots and device/touch/large-text validation; iOS build proof remains open |
 | Editor/Studio inspector panels | Native actionable photo/video inspectors plus Studio Tools/Source bottom sheet and selected-source editor routing; shared app chrome refinement | 31 RN tests/typecheck/lint and internal APK pass; no native screenshot/phone/owner visual acceptance |
 | Home/library/search/results/viewer | Existing RN presentation and native Seran integration | Physical permissions, usability/accessibility, grounded retrieval and performance |

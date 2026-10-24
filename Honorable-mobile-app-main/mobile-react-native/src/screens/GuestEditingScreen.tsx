@@ -40,8 +40,8 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
                   { text: 'Square', onPress: () => create('square') },
                   { text: 'Portrait', onPress: () => create('portrait') },
                   { text: 'Landscape', onPress: () => create('landscape') },
-                  { text: 'Cancel', style: 'cancel' },
                 ],
+                { cancelable: true },
               )
             }
           >
