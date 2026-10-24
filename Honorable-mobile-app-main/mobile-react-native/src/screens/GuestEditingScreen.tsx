@@ -10,6 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../design-system/tokens';
 import { useOpenWorkspace } from '../native/openWorkspace';
+import {
+  Image as Photo,
+  Film,
+  PenLine,
+  Plus,
+  ArrowUpRight,
+} from 'lucide-react-native';
 
 /** Guest editing never mounts the account, search or paid-feature navigation. */
 export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
@@ -19,11 +26,10 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.wordmark}>honorable</Text>
         <Text accessibilityRole="header" style={s.title}>
-          Edit on this device.
+          {'Your ideas.\nYour studio.'}
         </Text>
         <Text style={s.copy}>
-          Choose a photo or video for local editing. Your files stay on this
-          device. Exports create a new copy.
+          Make something from a moment you already have.
         </Text>
         <View style={s.actions}>
           <Pressable
@@ -34,7 +40,12 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
             onPress={draw}
             style={[s.button, busy && s.disabled]}
           >
+            <View style={s.cardTop}>
+              <PenLine size={25} color={colors.textPrimary} strokeWidth={1.5} />
+              <ArrowUpRight size={16} color={colors.textSecondary} />
+            </View>
             <Text style={s.buttonText}>Draw an image</Text>
+            <Text style={s.cardDetail}>A blank page for your ideas</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -55,7 +66,12 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
               )
             }
           >
+            <View style={s.cardTop}>
+              <Plus size={25} color={colors.textPrimary} strokeWidth={1.5} />
+              <ArrowUpRight size={16} color={colors.textSecondary} />
+            </View>
             <Text style={s.buttonText}>Create an image</Text>
+            <Text style={s.cardDetail}>Choose a canvas. Make it yours.</Text>
           </Pressable>
           {(['IMAGE', 'VIDEO'] as const).map(kind => {
             const label = kind === 'IMAGE' ? 'Edit a photo' : 'Edit a video';
@@ -69,14 +85,35 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
                 onPress={() => open(kind)}
                 style={[s.button, busy && s.disabled]}
               >
+                <View style={s.cardTop}>
+                  {kind === 'IMAGE' ? (
+                    <Photo
+                      size={25}
+                      color={colors.textPrimary}
+                      strokeWidth={1.5}
+                    />
+                  ) : (
+                    <Film
+                      size={25}
+                      color={colors.textPrimary}
+                      strokeWidth={1.5}
+                    />
+                  )}
+                  <ArrowUpRight size={16} color={colors.textSecondary} />
+                </View>
                 <Text style={s.buttonText}>{label}</Text>
+                <Text style={s.cardDetail}>
+                  {kind === 'IMAGE'
+                    ? 'Light, color & a fresh look'
+                    : 'Clips, captions & sound'}
+                </Text>
               </Pressable>
             );
           })}
         </View>
         <Text style={s.note}>
-          On-device AI tools run locally. Search, credits and account features
-          require sign-in.
+          Your files stay here. Exports create a new copy. Free on-device AI is
+          included; search and account features require sign-in.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -108,25 +145,45 @@ const s = StyleSheet.create({
     lineHeight: 42,
     fontWeight: '500',
     letterSpacing: -1.2,
-    marginTop: 48,
+    marginTop: 28,
   },
   copy: {
     color: colors.textSecondary,
-    fontSize: 17,
-    lineHeight: 25,
-    marginTop: 16,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 12,
   },
-  actions: { gap: 12, marginVertical: 24 },
+  actions: {
+    gap: 12,
+    marginVertical: 26,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
   button: {
-    minHeight: 56,
-    backgroundColor: colors.textPrimary,
-    borderRadius: 10,
+    minHeight: 148,
+    width: '47%',
+    flexGrow: 1,
+    backgroundColor: colors.canvas,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
+    padding: 15,
+    alignItems: 'stretch',
     justifyContent: 'center',
   },
-  buttonText: { fontSize: 15, fontWeight: '600', color: colors.canvas },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  cardDetail: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textSecondary,
+    marginTop: 5,
+  },
+  buttonText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   note: { color: colors.textTertiary, fontSize: 13, lineHeight: 20 },
   disabled: { opacity: 0.45 },
   returnButton: {

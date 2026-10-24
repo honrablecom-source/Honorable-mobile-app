@@ -59,6 +59,18 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RUNNER_TEMP/honorable-ios-build.log"
           test -s "$RUNNER_TEMP/honorable-ios/Build/Products/Release-iphonesimulator/HonorableMobile.app/main.jsbundle"
+      - name: Package unsigned simulator app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/honorable-ios/Build/Products/Release-iphonesimulator/HonorableMobile.app" \
+            "$RUNNER_TEMP/Honorable-iOS-simulator.zip"
+      - name: Upload simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Honorable-iOS-simulator-unsigned
+          path: ${{ runner.temp }}/Honorable-iOS-simulator.zip
+          if-no-files-found: error
+          retention-days: 14
       - name: Record scope of this check
         if: always()
         run: |

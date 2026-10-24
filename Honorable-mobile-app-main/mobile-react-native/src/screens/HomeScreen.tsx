@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -16,6 +17,8 @@ import {
   ChevronDown,
   ShieldCheck,
   ArrowUpRight,
+  Image as Photo,
+  Film,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -32,6 +35,7 @@ import { useLibrary } from '../library/LibraryContext';
 import type { MainTabParamList } from '../navigation/types';
 import { seranCreditCosts } from '../passes/catalog';
 import { useMemoryPass } from '../passes/MemoryPassContext';
+import { useOpenWorkspace } from '../native/openWorkspace';
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
 type Filter = (typeof filters)[number];
 function duration(ms?: number) {
@@ -40,6 +44,7 @@ function duration(ms?: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 export function HomeScreen() {
+  const { busy: openingEditor, open } = useOpenWorkspace();
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const {
     items: library,
@@ -161,7 +166,7 @@ export function HomeScreen() {
         <View style={styles.utility}>
           <View style={styles.wordmarkRow}>
             <Text accessibilityRole="header" style={styles.wordmark}>
-              Seran
+              honorable
             </Text>
           </View>
           <Pressable
@@ -174,9 +179,56 @@ export function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.hero}>
-          <Text style={styles.heroDetail}>
-            Describe a photo or a moment in a video.
+          <Text accessibilityRole="header" style={styles.heroTitle}>
+            {'Your library.\nYour studio.'}
           </Text>
+          <Text style={styles.heroDetail}>
+            A place for your memories and what comes next.
+          </Text>
+        </View>
+        {!response && Platform.OS === 'android' && (
+          <View style={styles.launchRow}>
+            {(['IMAGE', 'VIDEO'] as const).map(kind => {
+              const Icon = kind === 'IMAGE' ? Photo : Film;
+              return (
+                <Pressable
+                  key={kind}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    kind === 'IMAGE' ? 'Open photo studio' : 'Open video studio'
+                  }
+                  accessibilityState={{ disabled: openingEditor }}
+                  disabled={openingEditor}
+                  onPress={() => open(kind)}
+                  style={[
+                    styles.launchCard,
+                    openingEditor && { opacity: 0.45 },
+                  ]}
+                >
+                  <View style={styles.launchTop}>
+                    <Icon
+                      size={26}
+                      strokeWidth={1.5}
+                      color={colors.textPrimary}
+                    />
+                    <ArrowUpRight size={17} color={colors.textSecondary} />
+                  </View>
+                  <Text style={styles.launchTitle}>
+                    {kind === 'IMAGE' ? 'Photo studio' : 'Video studio'}
+                  </Text>
+                  <Text style={styles.launchDetail}>
+                    {kind === 'IMAGE'
+                      ? 'Light, color & a fresh look'
+                      : 'Clips, captions & sound'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        <View style={styles.searchHeading}>
+          <Text style={styles.searchTitle}>Find a memory</Text>
+          <Text style={styles.searchTag}>SERAN</Text>
         </View>
         <HonorableSearchBar
           value={query}
@@ -407,7 +459,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 48 },
   utility: {
-    minHeight: 76,
+    minHeight: 64,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 6,
@@ -434,8 +486,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   wordmark: {
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 23,
+    lineHeight: 30,
     fontWeight: '600',
     letterSpacing: -0.7,
   },
@@ -449,7 +501,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hero: { paddingHorizontal: 16, paddingBottom: 20 },
+  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 },
+  launchRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 28,
+  },
+  launchCard: {
+    flex: 1,
+    minHeight: 146,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.canvas,
+  },
+  launchTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  launchTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  launchDetail: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textSecondary,
+    marginTop: 5,
+  },
+  searchHeading: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  searchTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    letterSpacing: -0.4,
+  },
+  searchTag: { fontSize: 9, letterSpacing: 1.6, color: colors.textTertiary },
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -464,8 +563,8 @@ const styles = StyleSheet.create({
   },
   eyebrow: { fontSize: 10, letterSpacing: 1.5, color: colors.textTertiary },
   heroTitle: {
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 36,
+    lineHeight: 40,
     fontWeight: '600',
     letterSpacing: -1,
   },
@@ -473,7 +572,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: colors.textSecondary,
-    marginTop: 0,
+    marginTop: 10,
   },
   modelButton: {
     minHeight: 44,

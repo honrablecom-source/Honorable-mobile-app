@@ -105,7 +105,7 @@ export function StudioScreen() {
       : [
           {
             title: 'Edit clips',
-            detail: 'Trim, split, speed and reorder',
+            detail: 'Trim, split, speed, reorder and balanced montages',
             Icon: Film,
           },
           {
@@ -115,7 +115,7 @@ export function StudioScreen() {
           },
           {
             title: 'Titles & audio',
-            detail: 'Titles, timed captions, SRT, music and fades',
+            detail: 'Titles, script captions, SRT, music and fades',
             Icon: Music2,
           },
           {

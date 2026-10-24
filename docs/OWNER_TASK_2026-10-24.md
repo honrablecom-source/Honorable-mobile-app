@@ -8,8 +8,8 @@ The owner clarified: remove obsolete and unrelated files; preserve the Honorable
 
 ## Ordered delivery register
 
-1. Repository cleanup and main publication. Unrelated tracked folders removed; main publication and final executable packaging pending. Git LFS configured locally for executable APK/IPA files. A new Android candidate is building; last verified artifact is the story-tools APK from 358e0c6. No signed iOS IPA exists.
-2. Illustrated change summary. An eight-page illustrated guide builder and 12 labelled preview captures are prepared. Add a practical classical-portrait procedure and an explicitly labelled HTML-preview video. Render and inspect before marking done.
+1. Repository cleanup and main publication. Unrelated tracked folders removed; main advanced to 2d4074b. Final source/document/LFS APK publication is in progress. Git LFS configured locally for executable APK/IPA files. A new Home/studios ARM64 candidate passed full build/artifact verification; it will replace the older story-tools APK in executable. No signed iOS IPA exists.
+2. Illustrated change summary. Nine-page illustrated guide rendered and all pages visually inspected, including before/after images, studio/inspector views, a public-domain portrait reference and practical steps. Labelled WebM preview tour decodes; publication pending.
 3. Ninety new photo/video/creation capabilities requested. Not implemented or counted as complete. Audit existing features first; license review and genuine working output are required for each reused engine. Do not count controls, filter variants, screenshots, tests or roadmaps as 90 completed features.
 4. App icon for Android and iOS, preserving the Honorable brand unless the owner explicitly renames it. The quoted Noble advertising script is not itself a rename instruction.
 5. UI, Google sign-in and two-word photo retrieval. Preserve native/shared Seran. Existing Google configuration is present; hosted account API remains deferred/unset. Two-word retrieval needs development-set/device evidence, not a guarantee for every query.

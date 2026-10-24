@@ -1,3 +1,7 @@
+# Current owner task
+
+Follow [[OWNER_TASK_2026-10-24]] in order. Cleanup/main publication, executable packaging and illustrated handoff are the first milestones. See [[HOME_STUDIOS_READINESS]]. All checkpoints below are historical.
+
 # Latest checkpoint October 24
 
 - [x] Balanced offline montage builder with review, shared preview/export and one-step undo.

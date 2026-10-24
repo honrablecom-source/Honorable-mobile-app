@@ -6,9 +6,12 @@ Privacy-first photo/video search, editing and local creation. This repository pr
 
 - [Current project home](docs/START_HERE.md)
 - [Simple product update](docs/releases/Honorable-Creative-Guide.docx)
-- [Latest Android build evidence and limitations](docs/STORY_TOOLS_READINESS.md)
+- [Latest Android build evidence and limitations](docs/HOME_STUDIOS_READINESS.md)
 - [Working versus planned features](docs/HONORABLE_FEATURE_STATUS.md)
 - [Engineering handoff](docs/SESSION_HANDOFF.md)
+
+- [Android executable and iOS build status](executable/README.md)
+- [Current owner task](docs/OWNER_TASK_2026-10-24.md)
 
 ## Repository map
 

@@ -41,6 +41,11 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: require('react-native').View,
 }));
 jest.mock('lucide-react-native', () => ({
+  Image: require('react-native').View,
+  Film: require('react-native').View,
+  PenLine: require('react-native').View,
+  Plus: require('react-native').View,
+  ArrowUpRight: require('react-native').View,
   UserRound: require('react-native').View,
   ShieldCheck: require('react-native').View,
 }));

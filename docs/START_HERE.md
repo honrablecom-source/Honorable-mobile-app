@@ -7,12 +7,16 @@ updated: 2026-10-24
 
 ## Current app
 
-- [[STORY_TOOLS_READINESS|Latest verified Android candidate and acceptance limits]]
+- [[HOME_STUDIOS_READINESS|Latest verified Android candidate and acceptance limits]]
 - [Current product summary](releases/Honorable-Creative-Guide.docx)
 - [[HONORABLE_FEATURE_STATUS|Implemented and planned features]]
 - [[GUEST_TEST_GUIDE|Local editing tester guide]]
 
 The latest complete ARM64 internal APK adds a balanced montage builder and script-to-captions. Photo/video editing, drawing, editable drawing drafts, saved guest video projects and precise trim remain included. Physical-device validation remains open. iOS native editors and generative AI remain unfinished.
+
+## Current owner task
+
+Read [[OWNER_TASK_2026-10-24]] for the adopted task order and honest completion register.
 
 ## Continue development
 
