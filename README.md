@@ -19,7 +19,6 @@ Privacy-first photo/video search, editing and local creation. This repository pr
 | `docs/` | Current engineering notes and Obsidian project vault |
 | `docs/releases/` | Current product report and release evidence |
 | `docs/archive/` | Superseded reports and historical design references |
-| `Extension/`, `Roblox/` | Separate existing projects; preserved independently of the mobile app |
 
 The React Native app is in `Honorable-mobile-app-main/mobile-react-native/`. Follow its README and the engineering handoff for setup. Older UI previews are design references, not proof of working native features.
 

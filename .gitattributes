@@ -1,3 +1,5 @@
 # These assets have pinned byte digests. Windows checkout must not rewrite them.
 Honorable-mobile-app-main/android-app/app/src/main/assets/tinyclip/tokenizer.json -text
 *.onnx -text
+executable/*.apk filter=lfs diff=lfs merge=lfs -text
+executable/*.ipa filter=lfs diff=lfs merge=lfs -text
