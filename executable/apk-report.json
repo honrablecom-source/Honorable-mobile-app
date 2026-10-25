@@ -1,5 +1,4 @@
 {
-  "commit": "4b34fbc610af1f16549d2d57931202eb1229350c",
   "featureBatch": "Noble branding snapshot before Authoring20",
   "containsAuthoring20": false,
   "deviceTested": false,
@@ -19,7 +18,9 @@
       "signing": "PUBLIC_DEBUG_KEY",
       "variant": "internal",
       "requiresMetro": false,
-      "deviceTested": false
+      "deviceTested": false,
+      "sourceCommit": "4b34fbc610af1f16549d2d57931202eb1229350c",
+      "containsAuthoring20": false
     },
     {
       "filename": "Noble-all-abis-debug.apk",
@@ -35,7 +36,153 @@
       "signing": "PUBLIC_DEBUG_KEY",
       "variant": "debug",
       "requiresMetro": true,
-      "deviceTested": false
+      "deviceTested": false,
+      "sourceCommit": "4b34fbc610af1f16549d2d57931202eb1229350c",
+      "containsAuthoring20": false
+    },
+    {
+      "filename": "Noble-universal-debug.apk",
+      "sizeBytes": 340548883,
+      "sha256": "18d492bed2d495f239ff26582b5942f7eaa369ec176798b593d31328ef3e413c",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86_64"
+      ],
+      "signed": true,
+      "variant": "debug",
+      "requiresMetro": true,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "PUBLIC_DEBUG_KEY"
+    },
+    {
+      "filename": "Noble-arm64-v8a-debug.apk",
+      "sizeBytes": 162880536,
+      "sha256": "13a16612ba4be92098a72b9d336832b08f38aba75926a71aed046b969b082966",
+      "abis": [
+        "arm64-v8a"
+      ],
+      "signed": true,
+      "variant": "debug",
+      "requiresMetro": true,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "PUBLIC_DEBUG_KEY"
+    },
+    {
+      "filename": "Noble-armeabi-v7a-debug.apk",
+      "sizeBytes": 122420578,
+      "sha256": "ef0d3983465fa02f561857fadfcd0bb631376ef3eb9e09a2f878b2a20075e97a",
+      "abis": [
+        "armeabi-v7a"
+      ],
+      "signed": true,
+      "variant": "debug",
+      "requiresMetro": true,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "PUBLIC_DEBUG_KEY"
+    },
+    {
+      "filename": "Noble-x86_64-debug.apk",
+      "sizeBytes": 167333841,
+      "sha256": "91dcfd013c83475bc1862e0d10694a38349af51355e9ca7ba3773e795d62faaa",
+      "abis": [
+        "x86_64"
+      ],
+      "signed": true,
+      "variant": "debug",
+      "requiresMetro": true,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "PUBLIC_DEBUG_KEY"
+    },
+    {
+      "filename": "Noble-universal-release-unsigned.apk",
+      "sizeBytes": 241152310,
+      "sha256": "626e4f0c2e9be5559bab8fb1a10e12d8824e089396754e5cf2a632f999942e33",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86_64"
+      ],
+      "signed": false,
+      "variant": "release",
+      "requiresMetro": false,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "UNSIGNED_RELEASE"
+    },
+    {
+      "filename": "Noble-arm64-v8a-release-unsigned.apk",
+      "sizeBytes": 120369211,
+      "sha256": "a6e622a968436cc2608eece58e27817b926e94894b9c2454f726315d9f59fc21",
+      "abis": [
+        "arm64-v8a"
+      ],
+      "signed": false,
+      "variant": "release",
+      "requiresMetro": false,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "UNSIGNED_RELEASE"
+    },
+    {
+      "filename": "Noble-armeabi-v7a-release-unsigned.apk",
+      "sizeBytes": 97341829,
+      "sha256": "5427d9ae9f25c12ce3570e141af9efc0111ece4e12d42a0e040ce7029c6fa791",
+      "abis": [
+        "armeabi-v7a"
+      ],
+      "signed": false,
+      "variant": "release",
+      "requiresMetro": false,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "UNSIGNED_RELEASE"
+    },
+    {
+      "filename": "Noble-x86_64-release-unsigned.apk",
+      "sizeBytes": 126493684,
+      "sha256": "083db068a3e64391f058c1deb1b9070a4f955dff394d000a656d14612faf04c1",
+      "abis": [
+        "x86_64"
+      ],
+      "signed": false,
+      "variant": "release",
+      "requiresMetro": false,
+      "sourceCommit": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288",
+      "containsAuthoring20": false,
+      "deviceTested": false,
+      "zipAligned16KB": true,
+      "zipCrcVerified": true,
+      "signing": "UNSIGNED_RELEASE"
     }
-  ]
+  ],
+  "sourceCommits": {
+    "normal": "4b34fbc610af1f16549d2d57931202eb1229350c",
+    "matrix": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288"
+  }
 }

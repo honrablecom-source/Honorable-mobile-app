@@ -7,12 +7,23 @@ Only verified artifacts belong here. Read `release.json` for the exact source co
 
 ## Ready APKs — earlier branding snapshot
 
-These two verified APKs are from source `4b34fbc` and **do not contain Authoring20**. The twenty new tools are pushed in source (`ca9d4ec`); their full build and final ABI delivery are still running. Read [apk-report.json](apk-report.json) for exact sizes, hashes and architecture coverage.
+All ten Noble APKs below are verified earlier branding snapshots and **do not contain Authoring20**. Normal APKs are from `4b34fbc`; the ABI matrix is from `6659e1e`. The twenty new tools are pushed in source (`ca9d4ec`); their full build and final ABI delivery are still running. Read [apk-report.json](apk-report.json) for exact sizes, hashes and architecture coverage.
 
 - [Noble-all-abis-internal.apk](Noble-all-abis-internal.apk): self-contained internal test build, public debug signature, no Metro needed.
 - [Noble-all-abis-debug.apk](Noble-all-abis-debug.apk): developer build requiring Metro, public debug signature.
 
-Both include ARM64, ARMv7, x86 and x86-64. Neither is device-accepted or store-ready. The existing Honorable APK below is retained as a historical Creative20 artifact. Final Authoring20 APKs will replace/update the Noble set only after validation.
+The two normal APKs include ARM64, ARMv7, x86 and x86-64. The matrix uses the three requested ABIs below. Neither is device-accepted or store-ready. The existing Honorable APK below is retained as a historical Creative20 artifact. Final Authoring20 APKs will replace/update the Noble set only after validation.
+
+### Verified ABI matrix
+
+| Architecture | Debug — requires Metro | Release — unsigned |
+| --- | --- | --- |
+| Universal (ARM64, ARMv7, x86-64) | [APK](Noble-universal-debug.apk) | [APK](Noble-universal-release-unsigned.apk) |
+| ARM64 | [APK](Noble-arm64-v8a-debug.apk) | [APK](Noble-arm64-v8a-release-unsigned.apk) |
+| ARMv7 | [APK](Noble-armeabi-v7a-debug.apk) | [APK](Noble-armeabi-v7a-release-unsigned.apk) |
+| x86-64 | [APK](Noble-x86_64-debug.apk) | [APK](Noble-x86_64-release-unsigned.apk) |
+
+Unsigned release APKs require private signing before installation/distribution.
 
 ## iOS status
 

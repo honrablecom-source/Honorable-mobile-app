@@ -25,8 +25,12 @@
   },
   "nobleReady": {
     "report": "apk-report.json",
-    "sourceCommit": "4b34fbc610af1f16549d2d57931202eb1229350c",
+    "sourceCommits": {
+      "normal": "4b34fbc610af1f16549d2d57931202eb1229350c",
+      "matrix": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288"
+    },
+    "apkCount": 10,
     "containsAuthoring20": false,
-    "status": "Two verified branding APKs; twenty new Authoring20 tools are source-published but their final APK build is pending."
+    "status": "Ten verified earlier Noble APKs. Authoring20 source is pushed; its feature-bearing APK build is pending."
   }
 }
