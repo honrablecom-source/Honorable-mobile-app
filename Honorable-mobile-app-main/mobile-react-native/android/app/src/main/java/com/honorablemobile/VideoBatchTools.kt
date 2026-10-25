@@ -6,7 +6,11 @@ import kotlin.random.Random
 internal enum class VideoBatchTool(val title:String) {
     DIVIDE("Divide clip evenly"), LIMIT("Limit clip lengths"), REVERSE("Reverse clip order"),
     SHUFFLE("Shuffle clip order"), REPEAT("Repeat sequence"), SPEED("Set all clip speeds"),
-    CAPTION_SHIFT("Shift caption timing"), CAPTION_WRAP("Reflow caption lines")
+    CAPTION_SHIFT("Shift caption timing"), CAPTION_WRAP("Reflow caption lines"),
+    REMOVE_INTERVAL("Ripple-delete interval"), CAPTION_CUT("Keep captioned ranges"), BEAT_GRID("Manual beat-grid cuts"),
+    SPEED_RAMP("Stepped speed ramp"), INTERLEAVE("Interleave source videos"), WORD_CAPTIONS("Word-timed captions"),
+    MERGE_CAPTIONS("Merge caption phrases"), TIMECODES("Burn in source timecodes"),
+    CAPTION_DUCK("Caption-led clip ducking"), STORYBOARD_TITLES("Storyboard titles")
 }
 
 /** Pure proposals applied by the existing project validator as one undoable change. */

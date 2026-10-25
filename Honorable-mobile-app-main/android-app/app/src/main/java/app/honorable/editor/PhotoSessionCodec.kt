@@ -24,24 +24,37 @@ object PhotoSessionCodec {
         }
         return MessageDigest.getInstance("SHA-256").digest(bytes.toByteArray()).joinToString(""){"%02x".format(it)}
     }
-    fun encode(s:PhotoSessionSnapshot):ByteArray {
+    fun encode(s:PhotoSessionSnapshot):ByteArray = encodeBytes(s).also{require(it.size<=MAX_BYTES)}
+
+    /** Keep current/pending edits and the nearest history when a rich session reaches 64 KiB. */
+    fun encodeForRecovery(s:PhotoSessionSnapshot):ByteArray {
+        var candidate=s
+        while(true) {
+            val bytes=encodeBytes(candidate)
+            if(bytes.size<=MAX_BYTES)return bytes
+            require(candidate.undo.isNotEmpty() || candidate.redo.isNotEmpty())
+            candidate=if(candidate.undo.size>=candidate.redo.size && candidate.undo.isNotEmpty())candidate.copy(undo=candidate.undo.drop(1))
+                else candidate.copy(redo=candidate.redo.drop(1))
+        }
+    }
+    private fun encodeBytes(s:PhotoSessionSnapshot):ByteArray {
         require(s.scope.matches(Regex("[0-9a-f]{64}")) && s.activeTool in -1..3)
         require(s.undo.size<=50 && s.redo.size<=50)
         val bytes=ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
             val all=listOf(s.edit)+s.undo+s.redo+listOfNotNull(s.pendingExport)
-            val version=if(all.any{it.effects!=PhotoEffects()})6 else if(all.any{!it.creative.isIdentity})5 else if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
+            val version=if(all.any{it.composition!=PhotoComposition()})7 else if(all.any{it.effects!=PhotoEffects()})6 else if(all.any{!it.creative.isIdentity})5 else if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
             out.writeInt(MAGIC);out.writeInt(version);out.writeUTF(s.scope);writeEdit(out,s.edit,version)
             for(history in listOf(s.undo,s.redo)){out.writeInt(history.size);history.forEach{writeEdit(out,it,version)}}
             out.writeBoolean(s.compareOriginal);out.writeInt(s.activeTool)
             out.writeBoolean(s.pendingExport!=null);s.pendingExport?.let{writeEdit(out,it,version)}
         }
-        return bytes.toByteArray().also{require(it.size<=MAX_BYTES)}
+        return bytes.toByteArray()
     }
     fun decode(bytes:ByteArray,expectedScope:String):PhotoSessionSnapshot {
         require(bytes.size in 1..MAX_BYTES)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..6)
+            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..7)
             val scope=input.readUTF();require(scope==expectedScope && scope.matches(Regex("[0-9a-f]{64}")))
             val edit=readEdit(input,version)
             fun history():List<PhotoEdit>{val count=input.readInt();require(count in 0..50);return List(count){readEdit(input,version)}}
@@ -66,6 +79,7 @@ object PhotoSessionCodec {
         }
         if(version>=5)e.creative.write(out)
         if(version>=6)e.effects.write(out)
+        if(version>=7)e.composition.write(out)
     }
     private fun readEdit(input:DataInputStream,version:Int):PhotoEdit {
         val base=PhotoEdit(input.readInt(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean())
@@ -84,6 +98,7 @@ object PhotoSessionCodec {
         }else PhotoFinish()
         val creative=if(version>=5)PhotoCreative.read(input)else PhotoCreative()
         val effects=if(version>=6)PhotoEffects.read(input)else PhotoEffects()
-        return base.copy(curve=curve,radialLight=radial,background=background,finish=finish,creative=creative,effects=effects)
+        val composition=if(version>=7)PhotoComposition.read(input)else PhotoComposition()
+        return base.copy(curve=curve,radialLight=radial,background=background,finish=finish,creative=creative,effects=effects,composition=composition)
     }
 }

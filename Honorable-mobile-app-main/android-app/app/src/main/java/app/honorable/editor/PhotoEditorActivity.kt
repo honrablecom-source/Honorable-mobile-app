@@ -153,6 +153,7 @@ class PhotoEditorActivity:Activity(){
  button(row(adjustments),"Saved looks"){showSavedLooks()}
  button(row(adjustments),"Creative color"){chooseCreative()}
  button(row(adjustments),"Photo effects"){chooseEffects()}
+ button(row(adjustments),"Create & compose"){chooseComposition()}
  button(row(transforms),"Add text"){editCaption()}
  button(row(assist),"AI scene enhance"){enhanceScene()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsOnDeviceAi==true
@@ -224,6 +225,7 @@ class PhotoEditorActivity:Activity(){
    "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
    "Creative color" to PhotoCreativeTool.values().map{kind->t(kind.title){creativeAdjust(kind)}},
    "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
+   "Create & compose" to PhotoCompositionTool.values().map{kind->t(kind.title){compositionAdjust(kind)}},
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
     "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
@@ -233,6 +235,16 @@ class PhotoEditorActivity:Activity(){
  private fun chooseCreative(){if(!canFinish())return
   val tools=PhotoCreativeTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Creative color").setItems(tools.map{it.title}.toTypedArray()){_,index->creativeAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
+ }
+ private fun chooseComposition(){if(!canFinish())return
+  val tools=PhotoCompositionTool.values()
+  android.app.AlertDialog.Builder(this).setTitle("Create & compose").setItems(tools.map{it.title}.toTypedArray()){_,index->compositionAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
+ }
+ private fun compositionAdjust(kind:PhotoCompositionTool){if(!canFinish())return;val base=edit
+  PhotoCompositionControls.show(this,kind,base.composition){value->
+   if(edit==base&&canFinish()){if(value!=base.composition){tool("composition_${kind.name.lowercase()}");change(base.copy(composition=value))}}
+   else note.text="Photo changed. Open the composition tool again."
+  }
  }
  private fun chooseEffects(){if(!canFinish())return
   val tools=PhotoEffectTool.values()
@@ -502,7 +514,7 @@ class PhotoEditorActivity:Activity(){
    if(restoredSession!=null&&pending==null)return@runCatching
    val snapshot=pending?.copy(pendingExport=if(waitingForPicker)exportEdit else null)?:PhotoSessionSnapshot(scope,edit,undo.toList(),redo.toList(),before,activeTool,
     if(waitingForPicker&&!exportInProgress&&pendingDestination==null)exportEdit else null)
-   if(loadedScope==null||loadedScope==scope)outState.putByteArray("photoSession",PhotoSessionCodec.encode(snapshot))
+   if(loadedScope==null||loadedScope==scope)outState.putByteArray("photoSession",PhotoSessionCodec.encodeForRecovery(snapshot))
   }
  }
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}

@@ -631,17 +631,41 @@ class HonorableVideoEditorActivity : Activity() {
                 VideoBatchTool.SPEED->"Replaces every clip's playback speed. Source-relative titles and captions follow the existing timing pipeline."
                 VideoBatchTool.CAPTION_SHIFT->"Moves the selected clip's caption timestamps by the chosen source-time offset. No captions are silently dropped."
                 VideoBatchTool.CAPTION_WRAP->"Reflows the selected clip's caption text without changing timing. No words are removed; all cues remain editable."
+                VideoBatchTool.REMOVE_INTERVAL->"Removes the chosen source interval from the selected clip and closes the timeline gap. Remaining captions follow the retained pieces."
+                VideoBatchTool.CAPTION_CUT->"Keeps ranges covered by existing captions, with optional source-time handles. This does not detect speech. Uncaptioned ranges are removed."
+                VideoBatchTool.BEAT_GRID->"Cuts the project on a manual tempo grid. Cuts within 0.1 playback second of clip edges are skipped. This does not analyze soundtrack beats."
+                VideoBatchTool.SPEED_RAMP->"Creates four editable pieces at 0.5x, 1x, 1.5x and 2x, in the chosen direction. This is a stepped ramp, not optical-flow interpolation."
+                VideoBatchTool.INTERLEAVE->"Alternates between source videos while preserving each source's existing clip order. It keeps every clip."
+                VideoBatchTool.WORD_CAPTIONS->"Replaces the selected clip's captions with word groups. Timing is estimated inside each existing cue, not aligned to speech."
+                VideoBatchTool.MERGE_CAPTIONS->"Joins nearby caption phrases up to 160 characters / eight source seconds. Merged text remains visible across the joined gaps."
+                VideoBatchTool.TIMECODES->"Replaces the selected clip's captions with original-source timecode labels. They are visible in preview and burned into exported video."
+                VideoBatchTool.CAPTION_DUCK->"Splits the selected clip at caption boundaries and lowers its original audio while captions are active. The project soundtrack is unchanged."
+                VideoBatchTool.STORYBOARD_TITLES->"Replaces clip titles using one pasted line per clip. Titles remain editable and follow the existing preview/export renderer."
+
             }
             android.app.AlertDialog.Builder(this).setTitle("Review ${kind.title.lowercase()}")
                 .setMessage("$explanation\n\n${snapshot.size} → ${proposed.size} clips · $duration seconds. Existing source files are unchanged. Apply as one undoable edit, then preview before export.")
                 .setNegativeButton("Cancel",null).setPositiveButton("Apply and preview"){_,_->
                     if(!valid()){status.text="Project or session changed. Open the batch tool again.";return@setPositiveButton}
                     runCatching{current.applyDraft(proposed,soundtrack=music)}
-                        .onSuccess{selectedClip=if(kind==VideoBatchTool.CAPTION_SHIFT||kind==VideoBatchTool.CAPTION_WRAP)index else 0;showClip();previewProject();status.text="${kind.title} applied. Undo restores the previous project."}
+                        .onSuccess{selectedClip=if(kind in setOf(VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES))index else 0;showClip();previewProject();status.text="${kind.title} applied. Undo restores the previous project."}
                         .onFailure{status.text=it.message?:"Project limits reached. Existing edits are unchanged."}
                 }.show()
         }
         fun options(labels:Array<String>,choose:(Int)->List<VideoSegment>){android.app.AlertDialog.Builder(this).setTitle(kind.title).setItems(labels){_,i->review{choose(i)}}.setNegativeButton("Cancel",null).show()}
+        fun textInput(hint:String,initial:String,choose:(String)->List<VideoSegment>){
+            val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+            panel.addView(TextView(this).apply{text=hint;setTextColor(Color.BLACK)})
+            val field=EditText(this).apply{setText(initial);setTextColor(Color.BLACK);minLines=3;maxLines=8;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(16000));contentDescription=kind.title};panel.addView(field)
+            val dialog=android.app.AlertDialog.Builder(this).setTitle(kind.title).setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+            dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                if(!valid()){dialog.dismiss();return@setOnClickListener}
+                val proposed=runCatching{choose(field.text.toString())}
+                if(proposed.isFailure){field.error=proposed.exceptionOrNull()?.message?:"Check these values";return@setOnClickListener}
+                dialog.dismiss();review{proposed.getOrThrow()}
+            }};dialog.show()
+        }
+
         when(kind){
             VideoBatchTool.DIVIDE->{val values=listOf(2,3,4,5,10);options(values.map{"$it pieces"}.toTypedArray()){VideoBatchTools.divide(snapshot,index,values[it])}}
             VideoBatchTool.LIMIT->{val values=listOf(1_000L,2_000L,3_000L,5_000L,10_000L);options(values.map{"${it/1000} seconds per clip"}.toTypedArray()){VideoBatchTools.limitLengths(snapshot,values[it])}}
@@ -651,6 +675,29 @@ class HonorableVideoEditorActivity : Activity() {
             VideoBatchTool.SPEED->{val values=listOf(.5f,1f,1.5f,2f);options(values.map{"All clips at ${it}x"}.toTypedArray()){VideoBatchTools.allSpeeds(snapshot,values[it])}}
             VideoBatchTool.CAPTION_SHIFT->{val values=listOf(-2000L,-1000L,-500L,-250L,250L,500L,1000L,2000L);options(values.map{String.format(java.util.Locale.ROOT,"%+.2f source seconds",it/1000.0)}.toTypedArray()){VideoBatchTools.shiftCaptions(snapshot,index,values[it])}}
             VideoBatchTool.CAPTION_WRAP->{val values=listOf(20,30,40,60,80);options(values.map{"Up to $it characters per line"}.toTypedArray()){VideoBatchTools.reflowCaptions(snapshot,index,values[it])}}
+            VideoBatchTool.REMOVE_INTERVAL->{
+                val clip=snapshot[index];val span=clip.endMs-clip.startMs
+                val initial=String.format(java.util.Locale.ROOT,"%.3f\n%.3f",(span/3)/1000.0,(span-span/3)/1000.0)
+                textInput("Two lines: start and end source-time seconds from this clip's current start, before playback speed changes.",initial){text->
+                    val lines=text.trim().lines();require(lines.size==2){"Write start and end on separate lines"}
+                    val from=VideoCaptions.seconds(lines[0]);val to=VideoCaptions.seconds(lines[1]);require(from<=span&&to<=span){"Use offsets inside this clip"}
+                    VideoAuthoringTools.removeInterval(snapshot,index,clip.startMs+from,clip.startMs+to)
+                }
+            }
+            VideoBatchTool.CAPTION_CUT->{val values=listOf(0L,150L,300L,500L,1000L);options(values.map{"$it ms source-time handles"}.toTypedArray()){VideoAuthoringTools.captionCut(snapshot,index,values[it])}}
+            VideoBatchTool.BEAT_GRID->{val tempos=listOf(60,90,120,150,180)
+                android.app.AlertDialog.Builder(this).setTitle("Manual tempo").setItems(tempos.map{"$it BPM"}.toTypedArray()){_,tempo->
+                    val beats=listOf(1,2,4);options(beats.map{"$it beat(s) per cut"}.toTypedArray()){VideoAuthoringTools.beatGrid(snapshot,tempos[tempo],beats[it])}
+                }.setNegativeButton("Cancel",null).show()
+            }
+            VideoBatchTool.SPEED_RAMP->options(arrayOf("Accelerate: 0.5x → 2x","Decelerate: 2x → 0.5x")){VideoAuthoringTools.speedRamp(snapshot,index,it==0)}
+            VideoBatchTool.INTERLEAVE->review{VideoAuthoringTools.interleaveSources(snapshot)}
+            VideoBatchTool.WORD_CAPTIONS->{val values=listOf(1,2,3,4);options(values.map{"$it word(s) per cue"}.toTypedArray()){VideoAuthoringTools.wordCaptions(snapshot,index,values[it])}}
+            VideoBatchTool.MERGE_CAPTIONS->{val values=listOf(0L,150L,300L,500L,1000L);options(values.map{"Join gaps up to $it source ms"}.toTypedArray()){VideoAuthoringTools.mergeCaptions(snapshot,index,values[it])}}
+            VideoBatchTool.TIMECODES->{val values=listOf(1000L,2000L,5000L,10000L);options(values.map{"Timecode every ${it/1000} playback second(s)"}.toTypedArray()){VideoAuthoringTools.sourceTimecodes(snapshot,index,values[it])}}
+            VideoBatchTool.CAPTION_DUCK->{val values=listOf(0f,.25f,.5f,.75f);options(values.map{"Captioned audio: ${(it*100).toInt()}% of current volume"}.toTypedArray()){VideoAuthoringTools.captionDucking(snapshot,index,values[it])}}
+            VideoBatchTool.STORYBOARD_TITLES->textInput("Exactly one nonempty title line for each of the ${snapshot.size} clips. This replaces their current titles.",snapshot.joinToString("\n"){it.title.replace('\n',' ')}){VideoAuthoringTools.storyboardTitles(snapshot,it)}
+
         }
     }
 

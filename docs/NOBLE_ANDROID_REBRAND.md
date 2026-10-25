@@ -111,3 +111,16 @@ cleanup race: production-auth-flow.test.js removed its directory while the
 server's asynchronous analytics close was still writing (ENOTEMPTY). The fixture
 now explicitly awaits server.analytics.close() after HTTP shutdown before deleting
 its synthetic files. Production auth, ledger and analytics behavior is unchanged.
+
+## Packaging milestone verified
+
+Run https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/40235549888
+completed successfully for `6659e1e43ed67c03cfb8b72b1c5ea7b537479288`.
+Normal developer/internal builds, tests and artifact checks passed, followed by
+strict verification and upload of all eight Noble ABI matrix APKs. Artifact
+`Noble-android-apks` is 752,516,799 compressed bytes. This verifies the ABI-scoped
+pick-first correction. It predates Authoring20. Owner has now requested twenty
+further features in one batch; see AUTHORING20_READINESS.md. Final executable
+publication must identify the correct feature-bearing source/build, not relabel
+this earlier packaging snapshot as the new batch. No new user-facing feature was
+added by the packaging/fixture fixes themselves.

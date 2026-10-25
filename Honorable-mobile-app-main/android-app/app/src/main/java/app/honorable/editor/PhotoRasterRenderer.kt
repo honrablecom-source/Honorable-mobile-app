@@ -65,8 +65,12 @@ object PhotoRasterRenderer {
                 output.setPixels(pixels,0,output.width,0,0,output.width,output.height)
             }
             if(edit.background!=null)PhotoBackgroundRenderer.apply(output,requireNotNull(personMask),edit,input.width,input.height)
-            PhotoFinishRenderer.caption(output,edit.finish.caption)
-            return output
+            val composed=PhotoCompositionRenderer.render(output,edit.composition)
+            try {
+                PhotoFinishRenderer.caption(composed,edit.finish.caption)
+                if(composed!==output)output.recycle()
+                return composed
+            }catch(error:Throwable){if(composed!==output)composed.recycle();throw error}
         } catch (error: Throwable) { output.recycle(); throw error }
     }
 }
