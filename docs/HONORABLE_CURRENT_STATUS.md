@@ -1,4 +1,8 @@
-# Current checkpoint October 24 video story tools
+# Current checkpoint October 24 creative color
+
+Eight new local photo tools in one creative-color workflow, with shared preview/export, saved looks and lifecycle recovery. 130 native and 129 shared JVM tests, 60 RN tests, TypeScript/lint and one full ARM64 APK pass. Four new Android integration cases compile only; no phone acceptance. Original-photo provenance protection added. No new AI engine; the requested 90-feature roadmap remains incomplete. See [[CREATIVE_COLOR_READINESS]], [[APP_ARCHITECTURE_HANDOFF]] and the updated illustrated guide. New native controls are not yet included in the HTML interface preview.
+
+# Earlier checkpoint October 24 video story tools
 
 Two new offline workflows: balanced montage building and script-to-captions. Complete ARM64 internal APK passes. 130 native and 112 shared JVM cases, 60 RN tests, TypeScript/lint pass fresh. Device acceptance remains pending; no phone. No new AI engine. See [[STORY_TOOLS_READINESS]] and releases/Honorable-Creative-Guide.docx. Prior checkpoints below retain their historical status and evidence.
 

@@ -20,6 +20,7 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 /** Local, non-destructive raster editor. Exports through CREATE_DOCUMENT; never writes source URI. */
 class PhotoEditorActivity:Activity(){
  private var accessMode:EditorAccessMode?=null
+ private var protectedOriginals:List<Uri> = emptyList()
  private var guestInstance:String?=null
  private var renderedEdit:PhotoEdit?=null
  private var placingLight:PhotoRadialLight?=null
@@ -61,6 +62,7 @@ class PhotoEditorActivity:Activity(){
  accessMode=runCatching{EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA))}.getOrElse{finish();return}
  if(accessMode==EditorAccessMode.GUEST_BASIC)guestInstance=savedInstanceState?.getString("guestEditorInstance")?.takeIf{it.matches(Regex("[0-9a-f-]{36}"))}?:java.util.UUID.randomUUID().toString()
  source=Uri.parse(intent.getStringExtra("uri")?:run{finish();return})
+ protectedOriginals=runCatching{ImportedPhotoOriginals.validate(intent.getStringArrayListExtra(ImportedPhotoOriginals.EXTRA)?.toList()?:emptyList()).map(Uri::parse)}.getOrElse{finish();return}
  restoredSession=runCatching{val bytes=savedInstanceState?.getByteArray("photoSession")?:return@runCatching null
   PhotoSessionCodec.decode(bytes,currentScope()?:return@runCatching null)}.getOrNull()
  exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
@@ -149,6 +151,7 @@ class PhotoEditorActivity:Activity(){
  button(detailTools,"Vignette"){finishAdjust("Vignette",2)}
  button(detailTools,"Sharpen"){finishAdjust("Sharpen",3)}
  button(row(adjustments),"Saved looks"){showSavedLooks()}
+ button(row(adjustments),"Creative color"){chooseCreative()}
  button(row(transforms),"Add text"){editCaption()}
  button(row(assist),"AI scene enhance"){enhanceScene()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsOnDeviceAi==true
@@ -218,12 +221,23 @@ class PhotoEditorActivity:Activity(){
    "Framing" to listOf(t("Aspect ratio"){chooseRatio()},t("Mirror"){chooseMirror()}),
    "Color & light" to listOf(t("White balance"){finishAdjust("White balance",0)},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
    "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
+   "Creative color" to PhotoCreativeTool.values().map{kind->t(kind.title){creativeAdjust(kind)}},
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
     "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
    ).filter{it.second.isNotEmpty()})
  }
  private fun canFinish()=bitmap!=null&&exportEdit==null&&!enhancing&&!cuttingOut&&!isFinishing
+ private fun chooseCreative(){if(!canFinish())return
+  val tools=PhotoCreativeTool.values()
+  android.app.AlertDialog.Builder(this).setTitle("Creative color").setItems(tools.map{it.title}.toTypedArray()){_,index->creativeAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
+ }
+ private fun creativeAdjust(kind:PhotoCreativeTool){if(!canFinish())return;val base=edit
+  PhotoCreativeControls.show(this,kind,base.creative){value->
+   if(edit==base&&canFinish()){if(value!=base.creative){tool("creative_${kind.name.lowercase()}");change(base.copy(creative=value))}}
+   else note.text="Photo changed. Open the tool again."
+  }
+ }
  private fun currentPresetNamespace():String?=runCatching {
   if(accessMode==EditorAccessMode.GUEST_BASIC)return@runCatching PhotoPresetNamespace.GUEST
   if(accessMode!=EditorAccessMode.ACCOUNT)return@runCatching null
@@ -454,7 +468,7 @@ class PhotoEditorActivity:Activity(){
     input=decoded
     val result=render(decoded,state)
     output=result
-    SafePhotoCopy.save(this,source,destination,result,exportEncoding,exportQuality)
+    SafePhotoCopy.save(this,source,destination,result,exportEncoding,exportQuality,protectedOriginals)
     val dimensions="${result.width} × ${result.height}"
     emit("edit_saved",JSONObject().put("mediaType","IMAGE"))
     runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."}

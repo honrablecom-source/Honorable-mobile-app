@@ -21,6 +21,7 @@ data class PhotoAdjustmentPreset(
     val highlights: Float = 0f,
     val vignette: Float = 0f,
     val sharpen: Float = 0f,
+    val creative: PhotoCreative = PhotoCreative(),
 ) {
     init {
         // Use precisely the same bounds as the existing editor/render model.
@@ -32,14 +33,14 @@ data class PhotoAdjustmentPreset(
     /** Replace adjustment values, retaining this photo's framing, local light, people and text. */
     fun applyTo(target: PhotoEdit): PhotoEdit = target.copy(
         brightness = brightness, contrast = contrast, saturation = saturation, exposure = exposure,
-        curve = curve, finish = target.finish.copy(warmth = warmth, tint = tint, shadows = shadows,
+        curve = curve, creative = creative, finish = target.finish.copy(warmth = warmth, tint = tint, shadows = shadows,
             highlights = highlights, vignette = vignette, sharpen = sharpen),
     )
 
     companion object {
         fun capture(edit: PhotoEdit) = PhotoAdjustmentPreset(edit.brightness, edit.contrast,
             edit.saturation, edit.exposure, edit.curve, edit.finish.warmth, edit.finish.tint,
-            edit.finish.shadows, edit.finish.highlights, edit.finish.vignette, edit.finish.sharpen)
+            edit.finish.shadows, edit.finish.highlights, edit.finish.vignette, edit.finish.sharpen, edit.creative)
     }
 }
 
@@ -73,16 +74,17 @@ class PhotoPresetCatalog(entries: List<NamedPhotoPreset> = emptyList()) {
     companion object { const val MAX_ENTRIES = 20 }
 }
 
-/** Strict bounded v1 format; an unknown or damaged shelf is never partially accepted. */
+/** Bounded format; reads legacy v1 and creative-adjustment v2 shelves without partial acceptance. */
 object PhotoPresetCodec {
     const val MAX_BYTES = 8192
     private const val MAGIC = 0x48505031
-    private const val VERSION = 1
+    private const val VERSION = 2
 
     fun encode(catalog: PhotoPresetCatalog): ByteArray {
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
-            out.writeInt(MAGIC); out.writeInt(VERSION); out.writeInt(catalog.entries.size)
+            val version=if(catalog.entries.any{!it.adjustments.creative.isIdentity})VERSION else 1
+            out.writeInt(MAGIC); out.writeInt(version); out.writeInt(catalog.entries.size)
             catalog.entries.forEach { preset ->
                 val name = preset.name.toByteArray(Charsets.UTF_8)
                 out.writeInt(name.size); out.write(name)
@@ -90,6 +92,7 @@ object PhotoPresetCodec {
                     listOf(brightness, contrast, saturation, exposure, curve.shadows, curve.midtones,
                         curve.highlights, warmth, tint, shadows, highlights, vignette, sharpen)
                         .forEach(out::writeFloat)
+                    if(version>=2)creative.write(out)
                 }
             }
         }
@@ -99,7 +102,8 @@ object PhotoPresetCodec {
     fun decode(bytes: ByteArray): PhotoPresetCatalog {
         require(bytes.size in 12..MAX_BYTES)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt() == MAGIC && input.readInt() == VERSION)
+            require(input.readInt() == MAGIC)
+            val version=input.readInt();require(version in 1..VERSION)
             val count = input.readInt(); require(count in 0..PhotoPresetCatalog.MAX_ENTRIES)
             val entries = List(count) {
                 val length = input.readInt(); require(length in 1..120)
@@ -109,8 +113,9 @@ object PhotoPresetCodec {
                 val brightness = input.readFloat(); val contrast = input.readFloat()
                 val saturation = input.readFloat(); val exposure = input.readFloat()
                 val curve = PhotoToneCurve(input.readFloat(), input.readFloat(), input.readFloat())
-                NamedPhotoPreset(name, PhotoAdjustmentPreset(brightness, contrast, saturation, exposure, curve,
-                    input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat()))
+                val adjustments=PhotoAdjustmentPreset(brightness, contrast, saturation, exposure, curve,
+                    input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat())
+                NamedPhotoPreset(name,if(version>=2)adjustments.copy(creative=PhotoCreative.read(input))else adjustments)
             }
             require(input.available() == 0)
             return PhotoPresetCatalog(entries)

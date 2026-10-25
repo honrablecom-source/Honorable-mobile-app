@@ -15,9 +15,12 @@ import java.security.MessageDigest
 /** Encode privately, refuse aliased destinations before truncation, then verify the saved PNG. */
 object SafePhotoCopy {
     enum class Encoding(val mime:String,val extension:String){PNG("image/png","png"),JPEG("image/jpeg","jpg")}
-    fun save(context: Context, source: Uri, destination: Uri, bitmap: Bitmap,encoding:Encoding=Encoding.PNG,quality:Int=95) {
+    fun save(context: Context, source: Uri, destination: Uri, bitmap: Bitmap,encoding:Encoding=Encoding.PNG,quality:Int=95,protectedOriginals:List<Uri> = emptyList()) {
         require(quality in 1..100)
-        require(source != destination) { "Choose a new copy destination" }
+        ImportedPhotoOriginals.validate(protectedOriginals.map { it.toString() })
+        val originals=(listOf(source)+protectedOriginals).distinct()
+        require(destination !in originals) { "Choose a new copy destination" }
+        val originalHandles=mutableListOf<Pair<Uri,ParcelFileDescriptor>>()
         val temp = File.createTempFile("honorable-photo-", ".${encoding.extension}", context.cacheDir)
         try {
             FileOutputStream(temp).use { output ->
@@ -29,11 +32,15 @@ object SafePhotoCopy {
                 output.fd.sync()
             }
             val expected = temp.inputStream().use(::digest)
-            requireNotNull(context.contentResolver.openFileDescriptor(source, "r")).use { original ->
+            // Keep every original open until the destination has been checked and written.
+            // This includes images flattened by another creation workspace before this editor opened.
+            originals.forEach { uri -> originalHandles.add(uri to requireNotNull(context.contentResolver.openFileDescriptor(uri,"r")) { "Reopen the project's original photos before exporting" }) }
                 requireNotNull(context.contentResolver.openFileDescriptor(destination, "rw")).use { copy ->
-                    val from = Os.fstat(original.fileDescriptor)
                     val to = Os.fstat(copy.fileDescriptor)
-                    PhotoDestinationSafety.requireSeparate(source.toString(), destination.toString(), from.st_dev, from.st_ino, to.st_dev, to.st_ino)
+                    originalHandles.forEach { (uri,original) ->
+                        val from=Os.fstat(original.fileDescriptor)
+                        PhotoDestinationSafety.requireSeparate(uri.toString(), destination.toString(), from.st_dev, from.st_ino, to.st_dev, to.st_ino)
+                    }
                     Os.lseek(copy.fileDescriptor, 0, OsConstants.SEEK_SET)
                     Os.ftruncate(copy.fileDescriptor, 0)
                     ParcelFileDescriptor.AutoCloseOutputStream(copy).use { output ->
@@ -41,7 +48,6 @@ object SafePhotoCopy {
                         output.flush()
                     }
                 }
-            }
             val actual = requireNotNull(context.contentResolver.openInputStream(destination)).use(::digest)
             check(expected.contentEquals(actual)) { if(encoding==Encoding.PNG)"Saved PNG differs from rendered copy" else "Saved JPEG differs from encoded copy" }
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -49,7 +55,7 @@ object SafePhotoCopy {
             check(bounds.outWidth == bitmap.width && bounds.outHeight == bitmap.height && bounds.outMimeType == encoding.mime) {
                 if(encoding==Encoding.PNG)"Saved PNG could not be validated" else "Saved JPEG could not be validated"
             }
-        } finally { temp.delete() }
+        } finally { originalHandles.forEach { runCatching { it.second.close() } };temp.delete() }
     }
 
     private fun digest(input: InputStream): ByteArray {

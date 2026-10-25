@@ -20,3 +20,5 @@ xcodebuild -workspace ios/HonorableMobile.xcworkspace -scheme HonorableMobile -c
 ```
 
 The simulator output is `build/ios-simulator/Build/Products/Release-iphonesimulator/HonorableMobile.app`. A phone IPA additionally needs an Apple Developer team, a signing certificate/provisioning profile and an archive/export configuration. Do not place signing credentials in Git.
+
+The preceding release source b9e135caf57cadc404b632f8e4ba68cbce94d817 passed the [unsigned iOS simulator workflow](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/40129418431). The current creative-color tools are Android native; that simulator result does not establish their availability on iOS.

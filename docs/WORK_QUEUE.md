@@ -1,5 +1,15 @@
 # Current owner task
 
+## Creative color batch October 24
+
+- [x] Eight local photo tools integrated together with shared preview/export, saved looks and lifecycle recovery.
+- [x] Imported-original provenance validation and destination-alias protection.
+- [x] 130 native and 129 shared JVM tests, 60 RN tests, TypeScript/lint, integration compilation and one verified ARM64 APK.
+- [x] Actual Kotlin-kernel example sheet, illustrated feature addendum and app architecture handoff.
+- [ ] Physical Android acceptance, new native-control preview, creation engine, real generation/rigging and native iOS editors.
+
+See [[CREATIVE_COLOR_READINESS]]. The requested 90-feature roadmap is incomplete. Continue in batches; no per-feature full builds, no subagents or computer-use tools.
+
 Follow [[OWNER_TASK_2026-10-24]] in order. Cleanup/main publication, executable packaging and illustrated handoff are the first milestones. See [[HOME_STUDIOS_READINESS]]. All checkpoints below are historical.
 
 # Latest checkpoint October 24

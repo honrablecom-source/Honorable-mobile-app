@@ -1,18 +1,18 @@
 {
   "android": {
     "file": "Honorable-Android-1.0.3.apk",
-    "sha256": "1d2e05637eb75b95f3d21c19208ea4ee221beedb6b1ac68086e076bf1bbadd73",
-    "bytes": 129022695,
+    "sha256": "0f6ffa80f4e9b4f8d26e35a2cd29d825a557a4f62ba3c5c3bf19e75f76148bbc",
+    "bytes": 129039079,
     "version": "1.0.3",
     "abi": "arm64-v8a",
     "build": "FAST_INTERNAL; public debug certificate",
     "tests": {
       "nativeJvm": 130,
-      "sharedJvm": 112,
+      "sharedJvm": 129,
       "reactNative": 60
     },
     "deviceTested": false,
-    "appSourceGitTree": "ae07721e995efa8beb6f9ed1e7ee4202df1de554",
+    "appSourceGitTree": "daebb0e755a449452b9140b793dc0c0d1bc37966",
     "sourceBinding": "appSourceGitTree equals HEAD:Honorable-mobile-app-main; the APK also matches the frozen SHA256 input manifest"
   },
   "ios": {
@@ -20,6 +20,7 @@
     "signedIpaAvailable": false,
     "nativeEditorParity": false,
     "simulatorWorkflow": ".github/workflows/ios-build.yml",
-    "status": "CI result must be checked; no executable fabricated"
+    "status": "Previous release unsigned simulator CI passed; no signed IPA or native editor parity",
+    "verifiedSimulatorRun": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/40129418431"
   }
 }

@@ -49,6 +49,15 @@ object PhotoRasterRenderer {
                 }
             }
             PhotoFinishRenderer.pixels(output,edit.finish)
+            if(!edit.creative.isIdentity) {
+                val kernel=PhotoCreativeKernel(edit.creative,output.width,output.height)
+                val row=IntArray(output.width)
+                for(y in 0 until output.height) {
+                    output.getPixels(row,0,row.size,0,y,row.size,1)
+                    for(x in row.indices)row[x]=kernel.apply(row[x],x,y)
+                    output.setPixels(row,0,row.size,0,y,row.size,1)
+                }
+            }
             if(edit.background!=null)PhotoBackgroundRenderer.apply(output,requireNotNull(personMask),edit,input.width,input.height)
             PhotoFinishRenderer.caption(output,edit.finish.caption)
             return output

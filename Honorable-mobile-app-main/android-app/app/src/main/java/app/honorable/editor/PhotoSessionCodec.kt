@@ -30,7 +30,7 @@ object PhotoSessionCodec {
         val bytes=ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
             val all=listOf(s.edit)+s.undo+s.redo+listOfNotNull(s.pendingExport)
-            val version=if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
+            val version=if(all.any{!it.creative.isIdentity})5 else if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
             out.writeInt(MAGIC);out.writeInt(version);out.writeUTF(s.scope);writeEdit(out,s.edit,version)
             for(history in listOf(s.undo,s.redo)){out.writeInt(history.size);history.forEach{writeEdit(out,it,version)}}
             out.writeBoolean(s.compareOriginal);out.writeInt(s.activeTool)
@@ -41,7 +41,7 @@ object PhotoSessionCodec {
     fun decode(bytes:ByteArray,expectedScope:String):PhotoSessionSnapshot {
         require(bytes.size in 1..MAX_BYTES)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..4)
+            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..5)
             val scope=input.readUTF();require(scope==expectedScope && scope.matches(Regex("[0-9a-f]{64}")))
             val edit=readEdit(input,version)
             fun history():List<PhotoEdit>{val count=input.readInt();require(count in 0..50);return List(count){readEdit(input,version)}}
@@ -64,6 +64,7 @@ object PhotoSessionCodec {
             for(v in listOf(f.warmth,f.tint,f.shadows,f.highlights,f.vignette,f.sharpen))out.writeFloat(v)
             out.writeBoolean(f.caption!=null);f.caption?.let{val text=it.text.toByteArray(Charsets.UTF_8);out.writeInt(text.size);out.write(text);out.writeFloat(it.x);out.writeFloat(it.y);out.writeFloat(it.size);out.writeBoolean(it.light);out.writeBoolean(it.plate)}
         }
+        if(version>=5)e.creative.write(out)
     }
     private fun readEdit(input:DataInputStream,version:Int):PhotoEdit {
         val base=PhotoEdit(input.readInt(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean())
@@ -80,6 +81,7 @@ object PhotoSessionCodec {
             val caption=if(input.readBoolean()){val n=input.readInt();require(n in 1..360);val bytes=ByteArray(n);input.readFully(bytes);PhotoCaption(Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean(),input.readBoolean())}else null
             PhotoFinish(ratio,mx,my,warmth,tint,shadows,highlights,vignette,sharp,caption)
         }else PhotoFinish()
-        return base.copy(curve=curve,radialLight=radial,background=background,finish=finish)
+        val creative=if(version>=5)PhotoCreative.read(input)else PhotoCreative()
+        return base.copy(curve=curve,radialLight=radial,background=background,finish=finish,creative=creative)
     }
 }
