@@ -1,8 +1,18 @@
-# App executables
+# Noble app executables
 
 Android APK and any future signed iOS IPA are tracked with Git LFS. Install Git LFS, then run `git lfs pull` after cloning.
 
 Only verified artifacts belong here. Read `release.json` for the exact source commit, SHA256 and acceptance scope. Internal Android candidates use the public debug certificate and are not store releases.
+
+
+## Ready APKs — earlier branding snapshot
+
+These two verified APKs are from source `4b34fbc` and **do not contain Authoring20**. The twenty new tools are pushed in source (`ca9d4ec`); their full build and final ABI delivery are still running. Read [apk-report.json](apk-report.json) for exact sizes, hashes and architecture coverage.
+
+- [Noble-all-abis-internal.apk](Noble-all-abis-internal.apk): self-contained internal test build, public debug signature, no Metro needed.
+- [Noble-all-abis-debug.apk](Noble-all-abis-debug.apk): developer build requiring Metro, public debug signature.
+
+Both include ARM64, ARMv7, x86 and x86-64. Neither is device-accepted or store-ready. The existing Honorable APK below is retained as a historical Creative20 artifact. Final Authoring20 APKs will replace/update the Noble set only after validation.
 
 ## iOS status
 

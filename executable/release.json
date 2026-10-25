@@ -13,7 +13,7 @@
     },
     "deviceTested": false,
     "appSourceGitTree": "dc1bb8bb5b282efba53f8b07a726cf2072f6c384",
-    "sourceBinding": "appSourceGitTree equals HEAD:Honorable-mobile-app-main; the APK also matches the frozen SHA256 input manifest"
+    "sourceBinding": "Historical Creative20 artifact; appSourceGitTree identifies its original source, not current HEAD."
   },
   "ios": {
     "file": null,
@@ -22,5 +22,11 @@
     "simulatorWorkflow": ".github/workflows/ios-build.yml",
     "status": "Previous release unsigned simulator CI passed; no signed IPA or native editor parity",
     "verifiedSimulatorRun": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/40129418431"
+  },
+  "nobleReady": {
+    "report": "apk-report.json",
+    "sourceCommit": "4b34fbc610af1f16549d2d57931202eb1229350c",
+    "containsAuthoring20": false,
+    "status": "Two verified branding APKs; twenty new Authoring20 tools are source-published but their final APK build is pending."
   }
 }

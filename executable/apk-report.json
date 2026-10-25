@@ -1,0 +1,41 @@
+{
+  "commit": "4b34fbc610af1f16549d2d57931202eb1229350c",
+  "featureBatch": "Noble branding snapshot before Authoring20",
+  "containsAuthoring20": false,
+  "deviceTested": false,
+  "storeReady": false,
+  "apks": [
+    {
+      "filename": "Noble-all-abis-internal.apk",
+      "sizeBytes": 317466436,
+      "sha256": "499f802d935a6b658849acc68ee51c48e4233a34193bc8135a89f462c84cbff0",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "signed": true,
+      "signing": "PUBLIC_DEBUG_KEY",
+      "variant": "internal",
+      "requiresMetro": false,
+      "deviceTested": false
+    },
+    {
+      "filename": "Noble-all-abis-debug.apk",
+      "sizeBytes": 454026017,
+      "sha256": "fe69e34006d0365ae726f63dc106b59a438aa0750196daaeaed97ce6e807dff8",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "signed": true,
+      "signing": "PUBLIC_DEBUG_KEY",
+      "variant": "debug",
+      "requiresMetro": true,
+      "deviceTested": false
+    }
+  ]
+}
