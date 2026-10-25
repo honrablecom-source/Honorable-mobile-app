@@ -105,3 +105,9 @@ rules directly for the six libraries in pinned React Native 0.87/Hermes rather
 than reading and then replacing the SetProperty. The real-AGP/84-path regression
 passes for this final form too. CI run for c7b9ea0 is superseded before full build
 by this configuration correction; it is not a successful matrix result.
+
+CI run for c7b9ea0 stopped before Android compilation due to an existing fixture
+cleanup race: production-auth-flow.test.js removed its directory while the
+server's asynchronous analytics close was still writing (ENOTEMPTY). The fixture
+now explicitly awaits server.analytics.close() after HTTP shutdown before deleting
+its synthetic files. Production auth, ledger and analytics behavior is unchanged.

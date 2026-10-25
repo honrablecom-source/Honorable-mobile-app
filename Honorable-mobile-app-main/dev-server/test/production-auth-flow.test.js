@@ -46,6 +46,7 @@ async function fixture(){
   }
   return{call,get keyDownloads(){return keyDownloads},close:async()=>{
     await new Promise(resolve=>server.close(resolve));
+    await server.analytics.close();
     fs.rmSync(directory,{recursive:true,force:true});
   }};
 }
