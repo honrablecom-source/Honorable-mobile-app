@@ -31,7 +31,7 @@ for variant in ('debug', 'release'):
             actual = {n.split('/')[1] for n in names if n.startswith('lib/') and n.endswith('.so')}
             expected = abis if abi == 'universal' else {abi}
             assert actual == expected, f'{apk.name}: expected {expected}, got {actual}'
-            required = {'libonnxruntime.so', 'libonnxruntime4j_jni.so', 'libhermes.so', 'libreactnative.so'}
+            required = {'libonnxruntime.so', 'libonnxruntime4j_jni.so', 'libhermesvm.so', 'libreactnative.so'}
             for arch in expected:
                 assert required <= libs[arch], f'{apk.name}: missing native dependency for {arch}: {required - libs[arch]}'
             if abi == 'universal':
