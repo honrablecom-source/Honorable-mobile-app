@@ -116,6 +116,15 @@ android {
             universalApk true
         }
     }
+    if (providers.gradleProperty("nobleAbiSplits").orNull == "true") {
+        // React Native disables ndk.abiFilters with ABI splits. Universal APKs
+        // otherwise retain x86 libraries supplied by dependency AARs.
+        packaging {
+            jniLibs {
+                excludes += ["**/x86/**"]
+            }
+        }
+    }
     buildFeatures { buildConfig true }
     sourceSets {
         // Keep the standalone Compose UI out of the React Native Kotlin compile.
