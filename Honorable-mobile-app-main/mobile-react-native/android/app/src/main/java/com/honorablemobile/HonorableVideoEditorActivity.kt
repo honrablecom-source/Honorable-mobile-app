@@ -177,6 +177,7 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
         projectTools.addView(Button(this).apply { text = "Build a montage"; setOnClickListener { montageOptions() } })
+        projectTools.addView(Button(this).apply { text = "Batch editing"; setOnClickListener { batchOptions() } })
         assistTools.addView(Button(this).apply { text = "AI rough cut"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { roughCutOptions() } })
         assistTools.addView(Button(this).apply { text = "AI video looks"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { videoLookOptions() } })
         assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
@@ -599,10 +600,59 @@ class HonorableVideoEditorActivity : Activity() {
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()}),
             "Project" to (listOf(t("Build a montage"){montageOptions()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
+
+    private fun batchOptions(){
+        if(!editorIdle())return
+        val tools=VideoBatchTool.values()
+        android.app.AlertDialog.Builder(this).setTitle("Batch editing").setItems(tools.map{it.title}.toTypedArray()){_,index->batchEdit(tools[index])}.setNegativeButton("Cancel",null).show()
+    }
+
+    private fun batchEdit(kind:VideoBatchTool){
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return;val snapshot=current.segments;val music=current.soundtrack;val index=selectedClip;val mode=accessMode
+        val owner=if(mode==EditorAccessMode.ACCOUNT)runCatching{VideoDraftPersistence(this,source.toString())}.getOrElse{status.text="Account changed. Reopen this video.";return}else null
+        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==snapshot&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&runCatching{owner?.requireCurrentOwner()}.isSuccess
+        fun review(proposal:()->List<VideoSegment>){
+            if(!valid())return
+            val proposed=runCatching(proposal).getOrElse{status.text=it.message?:"This batch could not be prepared.";return}
+            if(proposed==snapshot){status.text="These settings leave the project unchanged.";return}
+            val duration=String.format(java.util.Locale.ROOT,"%.2f",proposed.sumOf{it.durationUs}/1_000_000.0)
+            val explanation=when(kind){
+                VideoBatchTool.DIVIDE->"Divides the selected clip into equal source ranges. Captions crossing a cut remain visible on both pieces."
+                VideoBatchTool.LIMIT->"Keeps centered excerpts no longer than the chosen playback duration. Short clips stay unchanged. Captions outside the retained ranges are removed."
+                VideoBatchTool.REVERSE->"Reverses clip order only. Footage still plays forward within each clip."
+                VideoBatchTool.SHUFFLE->"Reorders the existing clips without changing their contents. This proposal stays fixed until you apply or cancel."
+                VideoBatchTool.REPEAT->"Repeats the whole sequence, including its titles and captions. Music remains the existing project soundtrack."
+                VideoBatchTool.SPEED->"Replaces every clip's playback speed. Source-relative titles and captions follow the existing timing pipeline."
+                VideoBatchTool.CAPTION_SHIFT->"Moves the selected clip's caption timestamps by the chosen source-time offset. No captions are silently dropped."
+                VideoBatchTool.CAPTION_WRAP->"Reflows the selected clip's caption text without changing timing. No words are removed; all cues remain editable."
+            }
+            android.app.AlertDialog.Builder(this).setTitle("Review ${kind.title.lowercase()}")
+                .setMessage("$explanation\n\n${snapshot.size} → ${proposed.size} clips · $duration seconds. Existing source files are unchanged. Apply as one undoable edit, then preview before export.")
+                .setNegativeButton("Cancel",null).setPositiveButton("Apply and preview"){_,_->
+                    if(!valid()){status.text="Project or session changed. Open the batch tool again.";return@setPositiveButton}
+                    runCatching{current.applyDraft(proposed,soundtrack=music)}
+                        .onSuccess{selectedClip=if(kind==VideoBatchTool.CAPTION_SHIFT||kind==VideoBatchTool.CAPTION_WRAP)index else 0;showClip();previewProject();status.text="${kind.title} applied. Undo restores the previous project."}
+                        .onFailure{status.text=it.message?:"Project limits reached. Existing edits are unchanged."}
+                }.show()
+        }
+        fun options(labels:Array<String>,choose:(Int)->List<VideoSegment>){android.app.AlertDialog.Builder(this).setTitle(kind.title).setItems(labels){_,i->review{choose(i)}}.setNegativeButton("Cancel",null).show()}
+        when(kind){
+            VideoBatchTool.DIVIDE->{val values=listOf(2,3,4,5,10);options(values.map{"$it pieces"}.toTypedArray()){VideoBatchTools.divide(snapshot,index,values[it])}}
+            VideoBatchTool.LIMIT->{val values=listOf(1_000L,2_000L,3_000L,5_000L,10_000L);options(values.map{"${it/1000} seconds per clip"}.toTypedArray()){VideoBatchTools.limitLengths(snapshot,values[it])}}
+            VideoBatchTool.REVERSE->review{VideoBatchTools.reverseOrder(snapshot)}
+            VideoBatchTool.SHUFFLE->{val seed=System.nanoTime().toInt();review{VideoBatchTools.shuffleOrder(snapshot,seed)}}
+            VideoBatchTool.REPEAT->{val values=listOf(2,3,4);options(values.map{"$it sequence copies"}.toTypedArray()){VideoBatchTools.repeatSequence(snapshot,values[it])}}
+            VideoBatchTool.SPEED->{val values=listOf(.5f,1f,1.5f,2f);options(values.map{"All clips at ${it}x"}.toTypedArray()){VideoBatchTools.allSpeeds(snapshot,values[it])}}
+            VideoBatchTool.CAPTION_SHIFT->{val values=listOf(-2000L,-1000L,-500L,-250L,250L,500L,1000L,2000L);options(values.map{String.format(java.util.Locale.ROOT,"%+.2f source seconds",it/1000.0)}.toTypedArray()){VideoBatchTools.shiftCaptions(snapshot,index,values[it])}}
+            VideoBatchTool.CAPTION_WRAP->{val values=listOf(20,30,40,60,80);options(values.map{"Up to $it characters per line"}.toTypedArray()){VideoBatchTools.reflowCaptions(snapshot,index,values[it])}}
+        }
+    }
 
     private fun montageOptions() {
         if (!editorIdle() || isDestroyed || isFinishing) return

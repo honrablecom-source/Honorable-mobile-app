@@ -1,4 +1,8 @@
-# Current checkpoint October 24 creative color
+# Current checkpoint October 24 twenty editing additions
+
+Twenty additions integrated as one batch: twelve local photo effects and eight reviewed video timeline/caption workflows. 144 native plus 147 shared JVM cases, 60 RN tests, TypeScript/lint, integration compilation and one verified ARM64 APK pass. All 797 frozen app inputs match. No new AI engine or generation claim. Phone acceptance, native iOS parity and updated native-control HTML preview remain pending. See [[CREATIVE20_READINESS]] and the updated illustrated guide.
+
+# Earlier checkpoint October 24 creative color
 
 Eight new local photo tools in one creative-color workflow, with shared preview/export, saved looks and lifecycle recovery. 130 native and 129 shared JVM tests, 60 RN tests, TypeScript/lint and one full ARM64 APK pass. Four new Android integration cases compile only; no phone acceptance. Original-photo provenance protection added. No new AI engine; the requested 90-feature roadmap remains incomplete. See [[CREATIVE_COLOR_READINESS]], [[APP_ARCHITECTURE_HANDOFF]] and the updated illustrated guide. New native controls are not yet included in the HTML interface preview.
 

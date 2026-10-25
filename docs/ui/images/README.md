@@ -7,3 +7,5 @@ Mona Lisa reference: Leonardo da Vinci; photographic reproduction C2RMF; retouch
 Source and rights record: https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg
 
 `creative-color-examples.png` uses that same reference, resized by Java ImageIO and processed by the actual compiled `PhotoCreativeKernel` from the creative-color batch. It compares the original with eight deterministic local effects. These are algorithm demonstrations, not Android screenshots, full-renderer device evidence or generated art. The original Honorable Java helper is preserved in the task workspace as `work/CreativeExamples.java`.
+
+`creative20-photo-examples.png` uses the same credited reference and the actual compiled `PhotoEffectsKernel` for twelve additional effect demonstrations. The helper is `work/Effects20Examples.java`; it resizes with Java ImageIO and invokes the compiled Kotlin class rather than reproducing the effects in a second language. These illustrations are not native phone evidence or generated art.

@@ -22,6 +22,10 @@ The owner clarified: remove obsolete and unrelated files; preserve the Honorable
 
 ## External constraints
 
-Current feature increment: eight new deterministic photo-color tools integrated as one workflow, with saved looks, lifecycle recovery and imported-original protection. 130 native plus 129 shared JVM tests, 60 RN tests, TypeScript/lint and a full verified ARM64 APK pass. See CREATIVE_COLOR_READINESS.md. The illustrated Word guide now includes two additional color-example and usage pages. This is partial progress on item 3, not completion of 90 features; zero new AI engines. The new native controls are not yet shown in the HTML UI preview.
+Earlier feature increment: eight new deterministic photo-color tools integrated as one workflow, with saved looks, lifecycle recovery and imported-original protection. 130 native plus 129 shared JVM tests, 60 RN tests, TypeScript/lint and a full verified ARM64 APK pass. See CREATIVE_COLOR_READINESS.md. The illustrated Word guide now includes two additional color-example and usage pages. This is partial progress on item 3, not completion of 90 features; zero new AI engines. The new native controls are not yet shown in the HTML UI preview.
 
 Windows has no Xcode; signed iPhone IPA needs macOS and Apple team/certificate/profile configuration. A simulator shell is not an iPhone release or native editor parity. No Android phone is available. Hosting/billing remain deferred unless the owner changes that preference. Work solo, no subagents, no computer-use tools. Use explicit output-reduction tools without claiming automatic chat-wide compression or guaranteed credit savings.
+
+## Latest twenty-tool batch
+
+Twenty further additions are integrated and build-verified: twelve photo effects and eight reviewed video workflows. 144 native plus 147 shared JVM cases and 60 RN tests pass; one final ARM64 APK passes independent verification against 797 frozen inputs. The guide is now 14 pages. See CREATIVE20_READINESS.md. Physical acceptance and native iOS parity remain pending; no new AI engine or 90-feature completion claim.

@@ -58,6 +58,12 @@ object PhotoRasterRenderer {
                     output.setPixels(row,0,row.size,0,y,row.size,1)
                 }
             }
+            if(!edit.effects.isIdentity) {
+                val pixels=IntArray(output.width*output.height)
+                output.getPixels(pixels,0,output.width,0,0,output.width,output.height)
+                PhotoEffectsKernel.applyInPlace(pixels,output.width,output.height,edit.effects)
+                output.setPixels(pixels,0,output.width,0,0,output.width,output.height)
+            }
             if(edit.background!=null)PhotoBackgroundRenderer.apply(output,requireNotNull(personMask),edit,input.width,input.height)
             PhotoFinishRenderer.caption(output,edit.finish.caption)
             return output

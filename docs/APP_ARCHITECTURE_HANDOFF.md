@@ -44,13 +44,18 @@ Shared Android source is in `android-app/app/src/main/java/app/honorable/editor/
 - `PhotoPresets.kt` and `PhotoPresetStore.kt`: local adjustment looks, separated by guest/account/server namespace. Do not copy framing, text, source identity or person masks between photos.
 - `SafePhotoCopy.kt`: encode privately, compare source/destination file identities before truncation, then verify output bytes and dimensions.
 - `ImportedPhotoOriginals.kt`: new bounded provenance list for future multi-source creation handoff. Imported originals must also remain protected from destination aliases.
-- `PhotoCreative.kt` and `PhotoCreativeControls.kt`: current batch of eight deterministic local color tools. These are not generative AI.
+- `PhotoCreative.kt` and `PhotoCreativeControls.kt`: eight deterministic local color tools. These are not generative AI.
+- `PhotoEffects.kt` and `PhotoEffectsControls.kt`: twelve additional local effects, including bounded spatial processing with one scratch array at most. Effect state is carried by session v6 and preset v3; older formats remain readable.
 
 The new creative stage runs after existing finish pixels and before person-background replacement and text. Background replacement therefore retains its chosen solid/blur appearance, and overlay text remains legible. PhotoSession version 5 and preset version 2 carry creative settings; identity-only edits still use compatible earlier encodings.
+
+The twelve-effect stage follows creative color and precedes background replacement/text. It preserves the alpha at each output position, including cutout edges. It stores no source media or paths. A disabled effect can still retain its chosen duotone colors in saved state. The earlier creative-only encoding remains supported.
 
 ## Video editor and creation
 
 `mobile-react-native/android/app/src/main/java/com/honorablemobile/HonorableVideoEditorActivity.kt` owns the Android video workspace. Reuse its project state, clip sequence, preview/export pipeline, captions, audio and inspector. Read existing `*READINESS.md` checkpoints before adding overlapping tools. A drawn timeline in an HTML preview is not proof of arbitrary compositing tracks or exported video effects.
+
+`VideoBatchTools.kt` adds eight pure timeline/caption proposals. The activity checks a current project/account snapshot before review and again before applying through existing `applyDraft`. Project validation happens before mutation, soundtrack stays intact, and the whole operation is one undo step. The resulting clips use the existing draft format; do not introduce a separate project schema for batch editing.
 
 `HonorableDrawingActivity.kt` hosts the existing bundled Excalidraw integration under an isolated local HTTPS origin. `DrawingPolicy.kt` restricts asset paths and PNG handoff size. File/network access is blocked. Created PNGs use the private creation FileProvider, then enter the existing photo editor. Keep this working integration intact.
 

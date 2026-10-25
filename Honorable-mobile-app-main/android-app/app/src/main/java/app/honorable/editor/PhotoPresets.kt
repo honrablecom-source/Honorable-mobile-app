@@ -8,7 +8,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.Locale
 
-/** Only global deterministic adjustments: never a source, mask, geometry, local anchor or text. */
+/** Only global deterministic adjustments: never a source, mask, framing, local anchor or text. */
 data class PhotoAdjustmentPreset(
     val brightness: Float = 0f,
     val contrast: Float = 1f,
@@ -22,6 +22,7 @@ data class PhotoAdjustmentPreset(
     val vignette: Float = 0f,
     val sharpen: Float = 0f,
     val creative: PhotoCreative = PhotoCreative(),
+    val effects: PhotoEffects = PhotoEffects(),
 ) {
     init {
         // Use precisely the same bounds as the existing editor/render model.
@@ -33,14 +34,14 @@ data class PhotoAdjustmentPreset(
     /** Replace adjustment values, retaining this photo's framing, local light, people and text. */
     fun applyTo(target: PhotoEdit): PhotoEdit = target.copy(
         brightness = brightness, contrast = contrast, saturation = saturation, exposure = exposure,
-        curve = curve, creative = creative, finish = target.finish.copy(warmth = warmth, tint = tint, shadows = shadows,
+        curve = curve, creative = creative, effects = effects, finish = target.finish.copy(warmth = warmth, tint = tint, shadows = shadows,
             highlights = highlights, vignette = vignette, sharpen = sharpen),
     )
 
     companion object {
         fun capture(edit: PhotoEdit) = PhotoAdjustmentPreset(edit.brightness, edit.contrast,
             edit.saturation, edit.exposure, edit.curve, edit.finish.warmth, edit.finish.tint,
-            edit.finish.shadows, edit.finish.highlights, edit.finish.vignette, edit.finish.sharpen, edit.creative)
+            edit.finish.shadows, edit.finish.highlights, edit.finish.vignette, edit.finish.sharpen, edit.creative, edit.effects)
     }
 }
 
@@ -74,16 +75,16 @@ class PhotoPresetCatalog(entries: List<NamedPhotoPreset> = emptyList()) {
     companion object { const val MAX_ENTRIES = 20 }
 }
 
-/** Bounded format; reads legacy v1 and creative-adjustment v2 shelves without partial acceptance. */
+/** Bounded format; reads legacy v1, creative v2 and effects v3 without partial acceptance. */
 object PhotoPresetCodec {
     const val MAX_BYTES = 8192
     private const val MAGIC = 0x48505031
-    private const val VERSION = 2
+    private const val VERSION = 3
 
     fun encode(catalog: PhotoPresetCatalog): ByteArray {
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
-            val version=if(catalog.entries.any{!it.adjustments.creative.isIdentity})VERSION else 1
+            val version=if(catalog.entries.any{it.adjustments.effects!=PhotoEffects()})VERSION else if(catalog.entries.any{!it.adjustments.creative.isIdentity})2 else 1
             out.writeInt(MAGIC); out.writeInt(version); out.writeInt(catalog.entries.size)
             catalog.entries.forEach { preset ->
                 val name = preset.name.toByteArray(Charsets.UTF_8)
@@ -93,6 +94,7 @@ object PhotoPresetCodec {
                         curve.highlights, warmth, tint, shadows, highlights, vignette, sharpen)
                         .forEach(out::writeFloat)
                     if(version>=2)creative.write(out)
+                    if(version>=3)effects.write(out)
                 }
             }
         }
@@ -115,7 +117,9 @@ object PhotoPresetCodec {
                 val curve = PhotoToneCurve(input.readFloat(), input.readFloat(), input.readFloat())
                 val adjustments=PhotoAdjustmentPreset(brightness, contrast, saturation, exposure, curve,
                     input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat())
-                NamedPhotoPreset(name,if(version>=2)adjustments.copy(creative=PhotoCreative.read(input))else adjustments)
+                val creative=if(version>=2)PhotoCreative.read(input)else PhotoCreative()
+                val effects=if(version>=3)PhotoEffects.read(input)else PhotoEffects()
+                NamedPhotoPreset(name,adjustments.copy(creative=creative,effects=effects))
             }
             require(input.available() == 0)
             return PhotoPresetCatalog(entries)

@@ -57,9 +57,8 @@ class PhotoCreativeKernel(private val edit: PhotoCreative, private val width: In
         var r = ((pixel ushr 16) and 255).toDouble() / 255
         var g = ((pixel ushr 8) and 255).toDouble() / 255
         var b = (pixel and 255).toDouble() / 255
-        fun luma() = .2126 * r + .7152 * g + .0722 * b
         if (edit.vibrance != 0f) {
-            val gray = luma()
+            val gray = .2126 * r + .7152 * g + .0722 * b
             val saturation = maxOf(r, g, b) - minOf(r, g, b)
             val gain = 1 + edit.vibrance * (1 - saturation)
             r = gray + (r - gray) * gain; g = gray + (g - gray) * gain; b = gray + (b - gray) * gain
@@ -74,7 +73,7 @@ class PhotoCreativeKernel(private val edit: PhotoCreative, private val width: In
         }
         r *= redGain; g *= greenGain; b *= blueGain
         if (edit.splitTone > 0f) {
-            val light = luma().coerceIn(0.0, 1.0)
+            val light = (.2126 * r + .7152 * g + .0722 * b).coerceIn(0.0, 1.0)
             val amount = edit.splitTone * .20
             r += amount * (2 * light - 1); b += amount * (1 - 2 * light)
             g += amount * .15 * light
@@ -98,7 +97,7 @@ class PhotoCreativeKernel(private val edit: PhotoCreative, private val width: In
             b = round(b.coerceIn(0.0, 1.0) * steps) / steps
         }
         if (edit.threshold >= 0f) {
-            val value = if (luma() >= edit.threshold) 1.0 else 0.0
+            val value = if (.2126 * r + .7152 * g + .0722 * b >= edit.threshold) 1.0 else 0.0
             r = value; g = value; b = value
         }
         fun channel(value: Double) = (value.coerceIn(0.0, 1.0) * 255).roundToInt()

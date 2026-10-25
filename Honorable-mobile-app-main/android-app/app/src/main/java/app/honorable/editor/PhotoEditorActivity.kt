@@ -152,6 +152,7 @@ class PhotoEditorActivity:Activity(){
  button(detailTools,"Sharpen"){finishAdjust("Sharpen",3)}
  button(row(adjustments),"Saved looks"){showSavedLooks()}
  button(row(adjustments),"Creative color"){chooseCreative()}
+ button(row(adjustments),"Photo effects"){chooseEffects()}
  button(row(transforms),"Add text"){editCaption()}
  button(row(assist),"AI scene enhance"){enhanceScene()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsOnDeviceAi==true
@@ -222,6 +223,7 @@ class PhotoEditorActivity:Activity(){
    "Color & light" to listOf(t("White balance"){finishAdjust("White balance",0)},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
    "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
    "Creative color" to PhotoCreativeTool.values().map{kind->t(kind.title){creativeAdjust(kind)}},
+   "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
     "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
@@ -231,6 +233,16 @@ class PhotoEditorActivity:Activity(){
  private fun chooseCreative(){if(!canFinish())return
   val tools=PhotoCreativeTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Creative color").setItems(tools.map{it.title}.toTypedArray()){_,index->creativeAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
+ }
+ private fun chooseEffects(){if(!canFinish())return
+  val tools=PhotoEffectTool.values()
+  android.app.AlertDialog.Builder(this).setTitle("Photo effects").setItems(tools.map{it.title}.toTypedArray()){_,index->effectAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
+ }
+ private fun effectAdjust(kind:PhotoEffectTool){if(!canFinish())return;val base=edit
+  PhotoEffectsControls.show(this,kind,base.effects){value->
+   if(edit==base&&canFinish()){if(value!=base.effects){tool("effect_${kind.name.lowercase()}");change(base.copy(effects=value))}}
+   else note.text="Photo changed. Open the effect again."
+  }
  }
  private fun creativeAdjust(kind:PhotoCreativeTool){if(!canFinish())return;val base=edit
   PhotoCreativeControls.show(this,kind,base.creative){value->

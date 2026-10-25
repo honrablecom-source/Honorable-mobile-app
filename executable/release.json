@@ -1,18 +1,18 @@
 {
   "android": {
     "file": "Honorable-Android-1.0.3.apk",
-    "sha256": "0f6ffa80f4e9b4f8d26e35a2cd29d825a557a4f62ba3c5c3bf19e75f76148bbc",
-    "bytes": 129039079,
+    "sha256": "409fa2c34747a43dc5ae496e325a5c403bd62b98111bdde572d70c00cb6a87cb",
+    "bytes": 129055463,
     "version": "1.0.3",
     "abi": "arm64-v8a",
     "build": "FAST_INTERNAL; public debug certificate",
     "tests": {
-      "nativeJvm": 130,
-      "sharedJvm": 129,
+      "nativeJvm": 144,
+      "sharedJvm": 147,
       "reactNative": 60
     },
     "deviceTested": false,
-    "appSourceGitTree": "daebb0e755a449452b9140b793dc0c0d1bc37966",
+    "appSourceGitTree": "dc1bb8bb5b282efba53f8b07a726cf2072f6c384",
     "sourceBinding": "appSourceGitTree equals HEAD:Honorable-mobile-app-main; the APK also matches the frozen SHA256 input manifest"
   },
   "ios": {
