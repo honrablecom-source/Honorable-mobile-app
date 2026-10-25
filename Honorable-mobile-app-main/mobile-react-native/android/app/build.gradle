@@ -177,6 +177,19 @@ android {
     }
 }
 
+if (providers.gradleProperty("nobleAbiSplits").orNull == "true") {
+    androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+        // AGP applies pickFirsts before excludes. React Native registers wildcard
+        // pickFirsts, so scope them to the matrix ABIs after its variant callback.
+        def scopedPickFirsts = variant.packaging.jniLibs.pickFirsts.get().collectMany { pattern ->
+            pattern.startsWith("**/")
+                ? ["arm64-v8a", "armeabi-v7a", "x86_64"].collect { abi -> "/lib/${abi}/${pattern.substring(3)}".toString() }
+                : [pattern]
+        }
+        variant.packaging.jniLibs.pickFirsts.set(scopedPickFirsts)
+    }
+}
+
 gradle.taskGraph.whenReady { graph ->
     def requestsSignedArtifact = graph.allTasks.any { task ->
         task.project == project && task.name in ["bundleRelease", "publishReleaseBundle", "installRelease"]

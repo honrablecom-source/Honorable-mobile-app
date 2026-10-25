@@ -1,3 +1,5 @@
+October 25: two verified Noble normal APKs staged in executable/. Both matrix builds compiled but inspection caught x86 retained by React Native pickFirst rules. ABI-scoped pickFirst correction passes real AGP/84-library regression; CI rerun required. Owner requests all completed APKs in executable/. See [[NOBLE_ANDROID_REBRAND]].
+
 October 25 verification resumed: Actions run `40229448912` has passed JS/tooling and standalone native tests; full React Native developer/internal APK build and CI checks passed; downloaded APK integrity/assets verified; matrix compiled but strict inspection rejected extra x86 in universal APK; scoped JNI exclusion added, fresh CI verification required. See [[NOBLE_ANDROID_REBRAND]].
 
 Noble branding/ABI packaging work: see [[NOBLE_ANDROID_REBRAND]] for current verified evidence and build limitations. Earlier entries below are historical.

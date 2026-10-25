@@ -65,3 +65,37 @@ verification, zero device-tested additions.
 
 Android JNI exclusion reference:
 https://developer.android.com/reference/tools/gradle-api/8.13/com/android/build/api/dsl/JniLibsPackaging
+
+### Pick-first precedence correction
+
+Run `40232334266` built both normal APKs and the matrix, but strict inspection
+again caught x86. The first exclusion was insufficient. AGP 9.2.1 sources from
+Google Maven show mergeJavaNativeLibs/ParsedPackagingOptions prioritize pickFirst
+matches over excludes. React Native installs six wildcard pick-first rules, so
+those x86 libraries survive the exclusion.
+
+The new variant callback runs after React Native's callback and scopes its
+wildcard pick-first rules to `/lib/arm64-v8a/`, `/lib/armeabi-v7a/` and
+`/lib/x86_64/`. The x86 exclusion and strict artifact verifier remain in place.
+A local regression executed the transformation directly from build.gradle using
+Groovy and the real AGP 9.2.1 ParsedPackagingOptions against the actual debug APK:
+84 library paths checked; six original x86 overrides reproduced; all 21 x86 paths
+excluded by the revised policy; decisions unchanged for every other ABI.
+Retained helper: `/tmp/noble-packaging-regression.groovy`. Full CI still required.
+The workflow now preserves unverified raw APKs on failure for diagnosis.
+
+Two newly downloaded and independently verified normal APKs from `4b34fbc` are
+already staged in `executable/` via LFS. They pass CRC, metadata/icons, required
+assets/native libraries, signing and 16KB ZIP alignment. Their internal hash is
+`499f802d935a6b658849acc68ee51c48e4233a34193bc8135a89f462c84cbff0`;
+debug hash `fe69e34006d0365ae726f63dc106b59a438aa0750196daaeaed97ce6e807dff8`.
+Matrix delivery remains pending. Owner explicitly requests every completed APK
+in `executable/`, with actual binaries published through LFS.
+
+Additional generated local dependencies/caches were preserved under
+`/tmp/noble-mobile-node_modules`, `/tmp/noble-local-gradle-home` and
+`/tmp/noble-preserved-copilot-cache` and linked from their original paths to make
+room for real APK copies. Local LFS storage is `/tmp/noble-lfs-storage`.
+Git pack files were temporarily relocated, SHA256 verified and restored to
+`.git/objects/pack`; `git fsck --connectivity-only --no-dangling` passes. No Git
+object storage remains linked into temporary storage.
