@@ -31,12 +31,12 @@ object PhotoCompositionRenderer {
             canvas.save();canvas.translate(p.left,p.top);canvas.scale(p.scale,p.scale);canvas.concat(perspective)
             if(value.shadow>0) {
                 val offset=IntArray(2)
-                val shadow=input.extractAlpha(Paint().apply{maskFilter=BlurMaskFilter(min(width,height)*.05f*value.shadow,BlurMaskFilter.Blur.NORMAL)},offset)
+                val shadow=input.extractAlpha(Paint().apply{maskFilter=BlurMaskFilter((min(width,height)*.05f*value.shadow).coerceAtLeast(.01f),BlurMaskFilter.Blur.NORMAL)},offset)
                 try{val shift=min(width,height)*.035f*value.shadow;canvas.drawBitmap(shadow,offset[0]+shift,offset[1]+shift,Paint().apply{color=Color.BLACK;alpha=(value.shadow*180).toInt()})}finally{shadow.recycle()}
             }
             canvas.drawBitmap(input,0f,0f,paint);canvas.restore()
             if(p.reflectionHeight>0) {
-                val top=image.bottom+min(width,height)*.015f*p.scale
+                val top=p.reflectionTop
                 val bounds=RectF(image.left,top,image.right,minOf(output.height.toFloat(),top+p.reflectionHeight))
                 val layer=canvas.saveLayer(bounds,null)
                 canvas.save();canvas.clipRect(bounds);canvas.translate(image.left,top);canvas.scale(p.scale,-p.scale);canvas.translate(0f,-height);canvas.concat(perspective);canvas.drawBitmap(input,0f,0f,paint);canvas.restore()

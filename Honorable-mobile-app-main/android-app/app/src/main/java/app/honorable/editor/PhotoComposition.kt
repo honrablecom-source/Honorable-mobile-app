@@ -48,7 +48,7 @@ data class PhotoComposition(
 }
 
 /** Output never exceeds the decoded photo's pixel budget, including reflections and shadows. */
-data class PhotoCompositionPlan(val width:Int,val height:Int,val scale:Float,val left:Float,val top:Float,val frame:Float,val reflectionHeight:Float) {
+data class PhotoCompositionPlan(val width:Int,val height:Int,val scale:Float,val left:Float,val top:Float,val frame:Float,val reflectionHeight:Float,val reflectionTop:Float) {
     companion object {
         fun create(width:Int,height:Int,value:PhotoComposition):PhotoCompositionPlan {
             require(width in 1..8192 && height in 1..8192 && width.toLong()*height<=6_000_000)
@@ -59,7 +59,7 @@ data class PhotoCompositionPlan(val width:Int,val height:Int,val scale:Float,val
             val logicalWidth=width+2*margin
             val logicalHeight=height+2*margin+reflection+(if(reflection>0)unit*.015f else 0f)
             val scale=minOf(1.0,sqrt(width.toDouble()*height/(logicalWidth.toDouble()*logicalHeight))).toFloat()
-            return PhotoCompositionPlan(maxOf(1,floor(logicalWidth*scale).toInt()),maxOf(1,floor(logicalHeight*scale).toInt()),scale,margin*scale,margin*scale,frame*scale,reflection*scale)
+            return PhotoCompositionPlan(maxOf(1,floor(logicalWidth*scale).toInt()),maxOf(1,floor(logicalHeight*scale).toInt()),scale,margin*scale,margin*scale,frame*scale,reflection*scale,(margin+height+frame+(if(reflection>0)unit*.015f else 0f))*scale)
         }
     }
 }

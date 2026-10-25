@@ -13,7 +13,7 @@ class PhotoAuthoringIntegrationTest {
     @Test fun allTenCompositionToolsRenderWithoutChangingInput() {
         val source=Bitmap.createBitmap(64,48,Bitmap.Config.ARGB_8888).apply{eraseColor(0xFF7090B0.toInt())}
         val settings=listOf(PhotoComposition(padding=.2f,canvasColor=-1),PhotoComposition(frame=.1f),PhotoComposition(shadow=.8f),
-            PhotoComposition(reflection=.4f),PhotoComposition(shape=4),PhotoComposition(tiles=3),PhotoComposition(sectors=6),
+            PhotoComposition(reflection=.4f),PhotoComposition(shadow=Float.MIN_VALUE),PhotoComposition(shape=4),PhotoComposition(tiles=3),PhotoComposition(sectors=6),
             PhotoComposition(perspective=.3f),PhotoComposition(watermark="Noble"),PhotoComposition(keyColor=0x7090B0))
         try { for(c in settings) {
             val out=PhotoRasterRenderer.render(source,PhotoEdit(composition=c),null)

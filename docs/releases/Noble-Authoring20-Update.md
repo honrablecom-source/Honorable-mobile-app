@@ -36,4 +36,4 @@ Open a video, then **Project → Batch editing** (also in the inspector):
 
 Every tool prepares a review. Apply and preview changes the existing project as one undo step; then use the existing export. Original files stay unchanged and project soundtrack is retained. Beat grids are manual, word timings are estimates, and ramps are stepped; these tools do not detect speech/beats or synthesize intermediate frames.
 
-So far: 116 focused JVM cases pass (39 new), and Android 37 API compilation of photo controls/renderers passes. Five new instrumentation cases await app compilation and a device. See [the readiness log](../AUTHORING20_READINESS.md). The earlier Noble APK matrix predates these additions; final artifacts must identify their actual source commit.
+So far: 117 focused JVM cases pass (40 new), and Android 37 API compilation of photo controls/renderers passes. Five new instrumentation cases await app compilation and a device. See [the readiness log](../AUTHORING20_READINESS.md). The earlier Noble APK matrix predates these additions; final artifacts must identify their actual source commit.

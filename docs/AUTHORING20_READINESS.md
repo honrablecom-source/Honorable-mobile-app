@@ -34,7 +34,7 @@ Owner request: add twenty further photo/video creation features as one batch, th
 
 ## Evidence so far
 
-- 116 focused JVM cases pass, 0 failures/errors/skips, including 39 new photo/video regressions. Existing photo effects/creative color, preset, recovery, video project/draft and batch/story tests are included.
+- 117 focused JVM cases pass, 0 failures/errors/skips, including 40 new photo/video regressions. Existing photo effects/creative color, preset, recovery, video project/draft and batch/story tests are included.
 - Initial run: 115 cases, one tiny 9px rounded-corner fixture assertion failed because its pixel center was inside the curve. Fixture now uses a meaningful 32px raster; algorithm was not weakened to fit it.
 - Android 37 API compilation of the new photo controls, composition renderer and shared raster pipeline passes locally. This is not an app build or device execution.
 - Added three Android photo renderer/copy/alpha cases and two shared video composition cases. They are not yet compiled or executed.
@@ -44,3 +44,11 @@ Owner request: add twenty further photo/video creation features as one batch, th
 The earlier Noble packaging pipeline `40235549888` passed completely for source `6659e1e`, before Authoring20. Normal APK checks and strict eight-APK matrix verification/upload all passed. Its output must not be described as containing these twenty additions. Two earlier normal APKs are staged locally in `executable/`; final delivery must replace/update every APK type and publish through LFS with exact source/hash records.
 
 New user-facing features: **20 source implementations pending Android build**, zero new AI engines. Scaffolding/tests/guards are not extra features. Android phone acceptance, native iOS editor parity, signed phone IPA, production sign-in/payment operation and store readiness remain open. miniPaint is not integrated; this batch reuses the existing Android/Media3 engines without adding dependencies.
+
+Final combination review caught reflection painting over the bottom frame. The
+shared plan now includes a frame-aware reflectionTop, used by the renderer and
+verified by a new layout regression. The shadow blur radius also stays positive
+for extremely small valid strengths. Combined Android API compilation and all
+117 focused JVM tests pass after these changes (40 new cases). Run 40239507598
+for 78c92ba is superseded by this validation correction; no artifact from it is
+published as final. See AUTHORING20_DEVICE_ACCEPTANCE.md for unexecuted phone checks.

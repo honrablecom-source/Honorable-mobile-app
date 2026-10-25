@@ -39,7 +39,7 @@ Shared Android source is in `android-app/app/src/main/java/app/honorable/editor/
 
 - `PhotoEditorActivity.kt`: tools, inspector, undo/redo, lifecycle recovery, preview scheduling and copy-export selection.
 - `PhotoEdit.kt`: immutable scalar edit state. Keep new edits in this model so undo, compare and export use the same state.
-- `PhotoRasterRenderer.kt`: the shared preview/export render path, including geometry, color, person masks, finishes and captions.
+- `PhotoRasterRenderer.kt`: the shared preview/export render path, including geometry, color, person masks, finishes, composition and captions.
 - `PhotoSessionCodec.kt`: bounded versioned state for edit/history/pending-export recovery. Read earlier versions; reject invalid or unknown data.
 - `PhotoPresets.kt` and `PhotoPresetStore.kt`: local adjustment looks, separated by guest/account/server namespace. Do not copy framing, text, source identity or person masks between photos.
 - `SafePhotoCopy.kt`: encode privately, compare source/destination file identities before truncation, then verify output bytes and dimensions.
@@ -47,7 +47,9 @@ Shared Android source is in `android-app/app/src/main/java/app/honorable/editor/
 - `PhotoCreative.kt` and `PhotoCreativeControls.kt`: eight deterministic local color tools. These are not generative AI.
 - `PhotoEffects.kt` and `PhotoEffectsControls.kt`: twelve additional local effects, including bounded spatial processing with one scratch array at most. Effect state is carried by session v6 and preset v3; older formats remain readable.
 
-The new creative stage runs after existing finish pixels and before person-background replacement and text. Background replacement therefore retains its chosen solid/blur appearance, and overlay text remains legible. PhotoSession version 5 and preset version 2 carry creative settings; identity-only edits still use compatible earlier encodings.
+The raster pipeline applies geometry/tone, finish pixels, creative color, effects, person background, composition and finally caption text. `PhotoComposition.kt`, `PhotoCompositionRenderer.kt` and `PhotoCompositionControls.kt` add ten Authoring20 composition tools. Pixel sampling is source-coordinate based, preserves existing alpha through transforms and masks, and keeps presentation within the decoded pixel budget. The renderer operates on its private edited raster, never the imported bitmap. Composition is part of `PhotoEdit`, so preview, export, compare and undo share state.
+
+Session decoding supports versions 1–7; writing chooses the minimum required version. Composition uses v7. Activity recovery calls `encodeForRecovery` to retain current/pending edits and nearest history within 64 KiB. Strict codec encoding still rejects oversize packets. Adjustment preset v3 remains unchanged and deliberately retains the target photo's composition; it never transfers another photo's watermark or framing. See AUTHORING20_READINESS.md for validation scope.
 
 The twelve-effect stage follows creative color and precedes background replacement/text. It preserves the alpha at each output position, including cutout edges. It stores no source media or paths. A disabled effect can still retain its chosen duotone colors in saved state. The earlier creative-only encoding remains supported.
 
@@ -55,7 +57,9 @@ The twelve-effect stage follows creative color and precedes background replaceme
 
 `mobile-react-native/android/app/src/main/java/com/honorablemobile/HonorableVideoEditorActivity.kt` owns the Android video workspace. Reuse its project state, clip sequence, preview/export pipeline, captions, audio and inspector. Read existing `*READINESS.md` checkpoints before adding overlapping tools. A drawn timeline in an HTML preview is not proof of arbitrary compositing tracks or exported video effects.
 
-`VideoBatchTools.kt` adds eight pure timeline/caption proposals. The activity checks a current project/account snapshot before review and again before applying through existing `applyDraft`. Project validation happens before mutation, soundtrack stays intact, and the whole operation is one undo step. The resulting clips use the existing draft format; do not introduce a separate project schema for batch editing.
+`VideoBatchTools.kt` holds eight existing pure timeline/caption proposals; `VideoAuthoringTools.kt` adds ten more, exposed through the same eighteen-entry batch/inspector menu. New recipes produce clip ranges, speeds, volume gains, titles and captions supported by the existing renderer. They do not introduce a parallel project format. The activity checks a current project/account snapshot before review and again before `applyDraft`; validation precedes mutation, soundtrack is retained, and the whole operation is one undo step.
+
+Manual beat-grid cuts do not analyze audio. Word captions estimate timing inside existing cues. Speed ramps use four discrete supported speeds. Timecodes refer to original source time. Caption ducking splits only the selected clip and scales its original audio; existing clip fades must be disabled first. These are local authoring workflows, not new inference engines.
 
 `HonorableDrawingActivity.kt` hosts the existing bundled Excalidraw integration under an isolated local HTTPS origin. `DrawingPolicy.kt` restricts asset paths and PNG handoff size. File/network access is blocked. Created PNGs use the private creation FileProvider, then enter the existing photo editor. Keep this working integration intact.
 
@@ -71,7 +75,9 @@ The Google client configuration exists, but the hosted account API is unset/defe
 
 ## Builds and evidence
 
-The published Android artifact is `executable/Honorable-Android-1.0.3.apk`, stored through Git LFS. `executable/release.json` binds its checksum to an app source Git tree. A later source change does not automatically update that APK. Keep release metadata explicit about the corresponding source tree.
+The historical Creative20 artifact is `executable/Honorable-Android-1.0.3.apk`, stored through Git LFS. Noble normal debug/internal APKs include four ABIs; the opt-in distribution matrix creates debug/release APKs for ARM64, ARMv7, x86-64 and universal (those three ABIs). Release APKs are unsigned without private signing; debug needs Metro, internal bundles JavaScript with the public debug key.
+
+Packaging run 40235549888 passed before Authoring20. The complete twenty-feature source batch was committed in `78c92ba`, followed by the frame/reflection layout correction and a passing 117-case combined API/JVM check. Its final integrated build is pending. Owner requests all ten new APK files in `executable/`; final publication must update release metadata and hashes for the actual feature-bearing source. A later source change does not automatically update an existing APK. Do not relabel an earlier artifact as containing the new tools.
 
 Use the existing pinned Node 22, Java 17, Android SDK and constrained Gradle settings recorded in the task's build scripts. Shared JVM tests, RN-native JVM tests, TypeScript, Jest, lint, full APK assembly and independent APK verification are separate checks. Android integration tests can compile on this PC but have not run on a phone. Do not claim compilation as device acceptance.
 

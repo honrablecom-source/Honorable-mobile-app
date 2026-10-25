@@ -1,4 +1,4 @@
-October 25 Authoring20: twenty further photo/video tools implemented together; 116 focused JVM tests and Android photo API compilation pass (39 new cases). Earlier Noble matrix run 40235549888 passed; full Authoring20 app build/ABI delivery pending. Owner requires all APK types in executable/ and source publication. Do not describe the older Noble pipeline as containing Authoring20. See [[AUTHORING20_READINESS]].
+October 25 Authoring20: twenty further photo/video tools implemented together; 117 focused JVM tests and Android photo API compilation pass (40 new cases). Earlier Noble matrix run 40235549888 passed; full Authoring20 app build/ABI delivery pending. Owner requires all APK types in executable/ and source publication. Do not describe the older Noble pipeline as containing Authoring20. See [[AUTHORING20_READINESS]].
 
 October 25: two verified Noble normal APKs staged in executable/. Both matrix builds compiled but inspection caught x86 retained by React Native pickFirst rules. ABI-scoped pickFirst correction passes real AGP/84-library regression; CI rerun required. Owner requests all completed APKs in executable/. See [[NOBLE_ANDROID_REBRAND]].
 
