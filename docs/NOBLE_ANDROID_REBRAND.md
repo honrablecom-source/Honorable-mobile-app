@@ -99,3 +99,9 @@ room for real APK copies. Local LFS storage is `/tmp/noble-lfs-storage`.
 Git pack files were temporarily relocated, SHA256 verified and restored to
 `.git/objects/pack`; `git fsck --connectivity-only --no-dangling` passes. No Git
 object storage remains linked into temporary storage.
+
+AGP's variant properties finalize when read, so the callback installs ABI-scoped
+rules directly for the six libraries in pinned React Native 0.87/Hermes rather
+than reading and then replacing the SetProperty. The real-AGP/84-path regression
+passes for this final form too. CI run for c7b9ea0 is superseded before full build
+by this configuration correction; it is not a successful matrix result.
