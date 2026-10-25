@@ -105,6 +105,9 @@ jobs:
           else
             echo "::notice::Sign-in is not configured; device sign-in cannot be validated with these APKs."
           fi
+      - name: Validate Noble matrix variant configuration before compilation
+        working-directory: Honorable-mobile-app-main/mobile-react-native/android
+        run: bash gradlew --no-daemon --max-workers=2 --stacktrace -PnobleAbiSplits=true -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64 :app:help
       - name: Build developer and self-contained internal APKs
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         shell: bash
