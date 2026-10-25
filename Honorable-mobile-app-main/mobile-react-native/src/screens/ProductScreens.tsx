@@ -113,7 +113,7 @@ export function ProductPage({
     <SafeAreaView style={s.safe}>
       <WorkspaceHeader
         title={title}
-        section="honorable / membership"
+        section="Noble / membership"
         onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       />
       <ScrollView contentContainerStyle={s.content}>{children}</ScrollView>

@@ -45,9 +45,9 @@ function Editor() {
     } catch (error) { setBusy(false); setStatus(error.message || 'Image creation failed. Your drawing is retained.'); }
   };
   return <main>
-    <header><strong>honorable <span>draw</span></strong><button onClick={save} disabled={busy}>Save draft</button><button className="primary" onClick={useImage} disabled={busy}>{busy ? 'Preparing...' : 'Use image'}</button></header>
+    <header><strong>Noble <span>draw</span></strong><button onClick={save} disabled={busy}>Save draft</button><button className="primary" onClick={useImage} disabled={busy}>{busy ? 'Preparing...' : 'Use image'}</button></header>
     <section className="canvas" aria-label="Offline drawing workspace">
-      <Excalidraw excalidrawAPI={value => { api.current = value; }} theme="light" langCode="en" name="Honorable drawing" isCollaborating={false}
+      <Excalidraw excalidrawAPI={value => { api.current = value; }} theme="light" langCode="en" name="Noble drawing" isCollaborating={false}
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}

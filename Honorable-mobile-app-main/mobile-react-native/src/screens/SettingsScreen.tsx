@@ -68,7 +68,7 @@ export function SettingsScreen() {
         <AccountPanel />
         <Text style={s.section}>Your library</Text>
         <View style={s.group}>
-          {row('Photo & video access', 'Choose what Honorable can access', () =>
+          {row('Photo & video access', 'Choose what Noble can access', () =>
             Linking.openSettings(),
           )}
           {row('Storage & indexing', 'Manage your local library', () =>
@@ -95,7 +95,7 @@ export function SettingsScreen() {
             () => navigation.navigate('BetaFeedback'),
           )}
         </View>
-        <Text style={s.section}>About Honorable</Text>
+        <Text style={s.section}>About Noble</Text>
         <View style={s.group}>
           {row('Terms of Service', 'Product disclosure', () =>
             navigation.navigate('TermsOfService'),

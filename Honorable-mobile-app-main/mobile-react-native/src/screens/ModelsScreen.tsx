@@ -88,7 +88,7 @@ export function ModelsScreen() {
       />
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.subtitle}>
-          Choose how Honorable understands your memories.
+          Choose how Noble understands your memories.
         </Text>
         {!state && !error ? (
           <ActivityIndicator color={colors.textPrimary} style={s.loading} />
@@ -174,7 +174,7 @@ export function ModelsScreen() {
               })}
             </View>
             <Text style={s.authority}>
-              Access is verified by Honorable's trusted native entitlement
+              Access is verified by Noble's trusted native entitlement
               system. Search mode remains a separate per-query control.
             </Text>
           </>

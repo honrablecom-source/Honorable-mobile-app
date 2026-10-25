@@ -145,7 +145,7 @@ const native = NativeModules.HonorableSearchModule as
   | undefined;
 function boundary(): NativeBoundary {
   if (!native)
-    throw new Error(`Honorable native engine is unavailable on ${Platform.OS}`);
+    throw new Error(`Noble native engine is unavailable on ${Platform.OS}`);
   return native;
 }
 export const honorableNative = {

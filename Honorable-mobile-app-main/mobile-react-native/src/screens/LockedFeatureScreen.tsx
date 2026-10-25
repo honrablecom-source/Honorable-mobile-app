@@ -14,7 +14,7 @@ export function LockedFeatureScreen({
   return (
     <HonorableScreen
       title={route.params.feature}
-      subtitle={`${route.params.feature} is available with Honorable ${route.params.requiredPlan}.`}
+      subtitle={`${route.params.feature} is available with Noble ${route.params.requiredPlan}.`}
     >
       <HonorableSection>
         <Text style={styles.status}>COMING_SOON</Text>

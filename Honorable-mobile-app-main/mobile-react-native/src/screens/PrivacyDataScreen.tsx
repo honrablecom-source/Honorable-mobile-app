@@ -33,7 +33,7 @@ function Shell({
     <SafeAreaView style={s.safe}>
       <WorkspaceHeader
         title={title}
-        section="honorable / privacy"
+        section="Noble / privacy"
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={s.content}>{children}</ScrollView>
@@ -122,7 +122,7 @@ export function PrivacyDataScreen() {
         </View>
         <Text style={s.programCopy}>
           Separate opt-in contribution program. It is never required to use
-          Honorable.
+          Noble.
         </Text>
       </View>
       <View style={s.rows}>
@@ -174,8 +174,8 @@ export function SeranConsentScreen() {
   return (
     <Shell title="Help improve Seran">
       <Text style={s.lead}>
-        If you choose to participate, Honorable may securely send eligible media
-        and associated analysis data to Honorable to help improve future Seran
+        If you choose to participate, Noble may securely send eligible media
+        and associated analysis data to Noble to help improve future Seran
         models.
       </Text>
       <Text style={s.body}>

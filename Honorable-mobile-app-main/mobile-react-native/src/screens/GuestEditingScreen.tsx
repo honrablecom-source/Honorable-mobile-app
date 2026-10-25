@@ -24,7 +24,7 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.wordmark}>honorable</Text>
+        <Text style={s.wordmark}>Noble</Text>
         <Text accessibilityRole="header" style={s.title}>
           {'Your ideas.\nYour studio.'}
         </Text>

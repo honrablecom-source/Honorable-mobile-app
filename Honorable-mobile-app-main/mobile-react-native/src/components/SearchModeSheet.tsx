@@ -64,7 +64,7 @@ export function SearchModeSheet({
           <View>
             <Text className="text-[20px] font-semibold">Search mode</Text>
             <Text variant="muted" className="mt-1">
-              Choose how Honorable searches this device.
+              Choose how Noble searches this device.
             </Text>
           </View>
           <Pressable

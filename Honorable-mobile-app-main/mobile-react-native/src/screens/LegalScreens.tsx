@@ -20,7 +20,7 @@ function Shell({
     <SafeAreaView style={styles.safe}>
       <WorkspaceHeader
         title={title}
-        section="honorable / privacy"
+        section="Noble / privacy"
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
@@ -41,7 +41,7 @@ export function AboutLegalScreen() {
   return (
     <Shell title="About & legal">
       <Text variant="muted" className="mb-6 mt-2">
-        Honorable keeps normal search and indexing on your device.
+        Noble keeps normal search and indexing on your device.
       </Text>
       <View style={styles.group}>
         <LinkRow
@@ -68,7 +68,7 @@ function DraftDisclosure() {
         Seran Improvement Program
       </Text>
       <Text variant="muted" className="mt-3 leading-6">
-        Honorable's normal media indexing and search run locally on your device.
+        Noble's normal media indexing and search run locally on your device.
         If you separately choose to participate, eligible media and minimized
         analysis data may be securely contributed to research, train, evaluate,
         and improve future Seran models.

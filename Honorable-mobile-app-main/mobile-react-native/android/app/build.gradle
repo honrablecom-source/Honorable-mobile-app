@@ -107,6 +107,15 @@ android {
         buildConfigField "String", "HONORABLE_GOOGLE_WEB_CLIENT_ID", JsonOutput.toJson(googleWebClientId)
         buildConfigField "String", "HONORABLE_ACCOUNT_API_URL", JsonOutput.toJson(accountApiUrl)
     }
+    // Opt-in distribution matrix; normal developer/internal output paths stay stable.
+    splits {
+        abi {
+            enable providers.gradleProperty("nobleAbiSplits").orNull == "true"
+            reset()
+            include "arm64-v8a", "armeabi-v7a", "x86_64"
+            universalApk true
+        }
+    }
     buildFeatures { buildConfig true }
     sourceSets {
         // Keep the standalone Compose UI out of the React Native Kotlin compile.

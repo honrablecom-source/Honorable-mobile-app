@@ -1,3 +1,5 @@
+Noble branding/ABI packaging work: see [[NOBLE_ANDROID_REBRAND]] for current verified evidence and build limitations. Earlier entries below are historical.
+
 # Resume Honorable
 
 Updated October 24, 2026. Work solo; no subagents without owner authorization. No computer-use tools. Follow the newly adopted ordered task in [[OWNER_TASK_2026-10-24]].

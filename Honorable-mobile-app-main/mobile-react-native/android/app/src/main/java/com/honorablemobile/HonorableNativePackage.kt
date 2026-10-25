@@ -95,7 +95,7 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
         }
         val activity = context.currentActivity
         if (activity == null) {
-            promise.reject("NO_ACTIVITY", "Open Honorable before choosing a file")
+            promise.reject("NO_ACTIVITY", "Open Noble before choosing a file")
             return
         }
         activity.runOnUiThread {

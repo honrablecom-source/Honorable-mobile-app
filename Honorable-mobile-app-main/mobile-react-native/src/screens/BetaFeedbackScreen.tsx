@@ -152,7 +152,7 @@ export function BetaFeedbackScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }}>
       <WorkspaceHeader
         title="Beta feedback"
-        section="honorable / support"
+        section="Noble / support"
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.page}>

@@ -6,7 +6,7 @@ import { colors } from './tokens';
 /** Shared phone workspace chrome. Back is explicit so tab roots never show a dead control. */
 export function WorkspaceHeader({
   title,
-  section = 'honorable',
+  section = 'Noble',
   onBack,
   action,
 }: {
@@ -31,7 +31,7 @@ export function WorkspaceHeader({
         <Text accessibilityRole="header" style={s.title}>
           {title}
         </Text>
-        {section !== 'honorable' && !section.startsWith('honorable /') && (
+        {section !== 'Noble' && !section.startsWith('Noble /') && (
           <Text style={s.section}>{section}</Text>
         )}
       </View>

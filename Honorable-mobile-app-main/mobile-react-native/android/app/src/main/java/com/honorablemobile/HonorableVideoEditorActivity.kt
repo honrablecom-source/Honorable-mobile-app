@@ -916,7 +916,7 @@ class HonorableVideoEditorActivity : Activity() {
         try {
             startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE);type="audio/mp4"
-                putExtra(Intent.EXTRA_TITLE,"Honorable-audio-copy.m4a")
+                putExtra(Intent.EXTRA_TITLE,"Noble-audio-copy.m4a")
             },27)
         }catch(error:Exception){pendingAudio=null;importing=false;start.isEnabled=true;end.isEnabled=true;status.text="No app is available to save audio"}
     }
@@ -953,7 +953,7 @@ class HonorableVideoEditorActivity : Activity() {
             startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "video/mp4"
-                putExtra(Intent.EXTRA_TITLE, "Honorable-video-copy.mp4")
+                putExtra(Intent.EXTRA_TITLE, "Noble-video-copy.mp4")
             }, 22)
         } catch (error: Exception) {
             pendingRange = null
@@ -1241,7 +1241,7 @@ class HonorableVideoEditorActivity : Activity() {
         val bytes=runCatching{VideoCaptions.exportSrt(effective)}.getOrElse{status.text=it.message?:"Add captions first";return}
         current.trim(selectedClip,from,to);showClip()
         pendingSubtitleBytes=bytes;pendingSubtitleOriginals=sourceUris().values.toSet();importing=true
-        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="application/x-subrip";putExtra(Intent.EXTRA_TITLE,"Honorable-captions-copy.srt")},26)}
+        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="application/x-subrip";putExtra(Intent.EXTRA_TITLE,"Noble-captions-copy.srt")},26)}
         catch(error:Exception){importing=false;pendingSubtitleBytes=null;pendingSubtitleOriginals=null;status.text="No app is available to save subtitles."}
     }
 

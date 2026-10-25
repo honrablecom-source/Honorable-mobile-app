@@ -87,7 +87,7 @@ export function StorageScreen() {
   const reindex = () =>
     Alert.alert(
       'Reindex library?',
-      'This rebuilds only Honorable’s private search index. Your original photos and videos will never be deleted.',
+      'This rebuilds only Noble’s private search index. Your original photos and videos will never be deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -170,7 +170,7 @@ export function StorageScreen() {
               <Action
                 icon={<RefreshCw color={p.white} size={16} />}
                 title={refreshing ? 'Reindexing…' : 'Reindex library'}
-                detail="Rebuild Honorable’s search index only"
+                detail="Rebuild Noble’s search index only"
                 onPress={refreshing ? undefined : reindex}
               />
               <Action
@@ -187,7 +187,7 @@ export function StorageScreen() {
               <View style={s.safeCopy}>
                 <Text style={s.safeTitle}>Your originals stay safe</Text>
                 <Text style={s.safeDetail}>
-                  Honorable never deletes photos or videos.
+                  Noble never deletes photos or videos.
                 </Text>
               </View>
               <Text style={s.cache}>Cache not measured</Text>

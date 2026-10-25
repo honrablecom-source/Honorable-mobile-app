@@ -1,4 +1,4 @@
-# Honorable
+# Noble
 
 Privacy-first native Android and iOS assistant. Memories AI indexes and searches
 device media locally; Terms AI explains agreements on-device. Media, OCR,

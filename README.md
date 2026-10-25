@@ -1,4 +1,4 @@
-# Honorable
+# Noble
 
 Privacy-first photo/video search, editing and local creation. This repository preserves the original app and its native on-device search architecture.
 

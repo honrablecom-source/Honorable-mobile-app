@@ -1,3 +1,5 @@
+Noble branding/ABI packaging work: see [[NOBLE_ANDROID_REBRAND]] for current verified evidence and build limitations. Earlier entries below are historical.
+
 # Current owner task
 
 ## Twenty-tool batch October 24

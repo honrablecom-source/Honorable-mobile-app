@@ -330,7 +330,7 @@ class PhotoEditorActivity:Activity(){
    if(!canFinish())return@setItems
    exportEncoding=if(i==0)SafePhotoCopy.Encoding.PNG else SafePhotoCopy.Encoding.JPEG;exportQuality=listOf(100,70,85,95)[i]
    exportEdit=edit;waitingForPicker=true
-   try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=exportEncoding.mime;putExtra(Intent.EXTRA_TITLE,"Honorable-copy.${exportEncoding.extension}")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}
+   try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=exportEncoding.mime;putExtra(Intent.EXTRA_TITLE,"Noble-copy.${exportEncoding.extension}")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}
   }.setNegativeButton("Cancel",null).show()
  }
  private fun chooseBackground(){

@@ -166,7 +166,7 @@ export function HomeScreen() {
         <View style={styles.utility}>
           <View style={styles.wordmarkRow}>
             <Text accessibilityRole="header" style={styles.wordmark}>
-              honorable
+              Noble
             </Text>
           </View>
           <Pressable

@@ -1,6 +1,6 @@
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
-# Honorable React Native migration shell
+# Noble React Native migration shell
 
 This is the side-by-side React Native 0.87.0 TypeScript presentation foundation. It does not replace or modify `../android-app`, and search/media/index/auth/billing are intentionally disconnected. All routes are `UI_ONLY` until a native interface and parity tests prove otherwise.
 

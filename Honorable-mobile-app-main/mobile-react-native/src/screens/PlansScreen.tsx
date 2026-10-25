@@ -17,7 +17,7 @@ export function PlansScreen() {
       <Text style={styles.coming}>PRICES · COMING SOON</Text>
       {planPresentation.map(plan => (
         <HonorableSection key={plan.tier}>
-          <Text style={styles.tier}>HONORABLE {plan.tier}</Text>
+          <Text style={styles.tier}>Noble {plan.tier}</Text>
           <Text style={styles.heading}>{plan.tagline}</Text>
           <Text style={styles.body}>
             {plan.storage} · {plan.video}

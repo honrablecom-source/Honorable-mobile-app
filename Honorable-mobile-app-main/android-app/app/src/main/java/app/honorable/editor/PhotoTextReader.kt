@@ -50,7 +50,7 @@ object PhotoTextReader {
                                 .setView(ScrollView(activity).apply { addView(body) })
                                 .setNegativeButton("Close", null)
                                 .setPositiveButton("Copy text") { _, _ ->
-                                    val clip = ClipData.newPlainText("Text from Honorable", text)
+                                    val clip = ClipData.newPlainText("Text from Noble", text)
                                     if (Build.VERSION.SDK_INT >= 33) {
                                         clip.description.extras = PersistableBundle().apply {
                                             putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)

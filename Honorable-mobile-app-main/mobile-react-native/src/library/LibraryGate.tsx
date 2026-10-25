@@ -61,7 +61,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
           <Text style={s.kicker}>PRIVATE PHOTO SEARCH</Text>
           <Text style={s.title}>Find anything{`\n`}you remember.</Text>
           <Text style={s.copy}>
-            Choose the photos and videos Honorable can search. Your media stays
+            Choose the photos and videos Noble can search. Your media stays
             on this device.
           </Text>
           <Pressable
@@ -95,7 +95,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
           </Text>
           <Text style={s.copy}>
             {indexing
-              ? 'Honorable is analyzing accessible media on this device.'
+              ? 'Noble is analyzing accessible media on this device.'
               : 'Build a private index of the photos and videos you selected.'}
           </Text>
           <Pressable

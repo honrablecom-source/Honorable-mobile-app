@@ -31,7 +31,7 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
   if (auth.status === 'restoring' || auth.status === 'signing-in')
     return (
       <View style={styles.launch}>
-        <Text style={styles.wordmark}>honorable</Text>
+        <Text style={styles.wordmark}>Noble</Text>
         <ActivityIndicator color={colors.textSecondary} />
         <Text style={styles.small}>Opening your memories…</Text>
       </View>
@@ -39,7 +39,7 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.wordmark}>honorable</Text>
+        <Text style={styles.wordmark}>Noble</Text>
         <Image
           source={require('./welcome.png')}
           style={styles.photo}

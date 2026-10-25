@@ -1,6 +1,6 @@
-# Honorable offline drawing
+# Noble offline drawing
 
-Excalidraw 0.18.1 (MIT) is embedded as a local touch drawing editor. Honorable provides white/black chrome, bounded local draft save/restore, offline asset delivery, and PNG transfer into the existing Android photo editor. This is manual drawing, not AI image generation or a replacement for the native photo/video engines.
+Excalidraw 0.18.1 (MIT) is embedded as a local touch drawing editor. Noble provides white/black chrome, bounded local draft save/restore, offline asset delivery, and PNG transfer into the existing Android photo editor. This is manual drawing, not AI image generation or a replacement for the native photo/video engines.
 
 Rebuild with Node 22: `npm ci`, `npm test`, `npm run build` from this folder. The generated `android/app/src/main/assets/drawing/` bundle is committed so ordinary Android builds do not need another web build. Package versions and integrity hashes are locked. Third-party code and font notices are retained in THIRD_PARTY and the generated bundle.
 
