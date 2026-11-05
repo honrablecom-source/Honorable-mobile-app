@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-82 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+83 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -121,3 +121,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C082** — Make differently personalized editable copies from selected artwork and local value rows, retaining independent groups/bindings, originals, Undo and project/image/vector exports.
 
 - **C083** — Save private named video title appearances and reuse them across local projects with explicit Apply and Undo.
+
+- **C084** — Find and open Studio sources beyond the first page with bounded pagination and local loaded-filename filtering. One workflow; 168 Jest tests and actual-component RN Web checked. Android/device/full-app integration pending.

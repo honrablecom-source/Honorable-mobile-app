@@ -9,7 +9,7 @@ const mockPhotoVideo = jest.fn();
 const mockProjects = jest.fn();
 const mockVideoProjects = jest.fn();
 const mockEdit = jest.fn();
-const mockItems = [
+const initialItems = [
   {
     mediaId: 1,
     mediaUri: 'content://fixture/photo1',
@@ -29,8 +29,17 @@ const mockItems = [
     displayName: 'Clip.mp4',
   },
 ];
+let mockItems = initialItems;
+let mockTotal = initialItems.length;
+const mockLoadMore = jest.fn();
 jest.mock('../src/library/LibraryContext', () => ({
-  useLibrary: () => ({ items: mockItems, loading: false, error: '' }),
+  useLibrary: () => ({
+    items: mockItems,
+    total: mockTotal,
+    loading: false,
+    error: '',
+    loadMore: mockLoadMore,
+  }),
 }));
 jest.mock('../src/native/openWorkspace', () => ({
   useOpenWorkspace: () => ({
@@ -78,6 +87,9 @@ const button = (label: string) =>
   )[0];
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockItems = initialItems;
+  mockTotal = initialItems.length;
+  mockLoadMore.mockResolvedValue(undefined);
   mockEdit.mockResolvedValue({ opened: true });
   for (const action of [
     mockOpen,
@@ -94,6 +106,138 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await act(async () => tree.unmount());
+});
+
+const filterInput = () =>
+  tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === 'Filter loaded source filenames' &&
+      typeof node.props.onChangeText === 'function',
+  )[0];
+async function updateLibrary() {
+  await act(async () => tree.update(<StudioScreen />));
+}
+test('loaded sources beyond the first twelve become selectable without another native page', async () => {
+  mockItems = Array.from({ length: 25 }, (_, index) => ({
+    ...initialItems[0],
+    mediaId: index + 10,
+    mediaUri: `content://synthetic/${index}`,
+    displayName: `Source ${index}.jpg`,
+  }));
+  mockTotal = 25;
+  await updateLibrary();
+  expect(button('Edit Source 12.jpg')).toBeUndefined();
+  await act(async () => button('Next loaded sources').props.onPress());
+  expect(button('Edit Source 12.jpg')).toBeDefined();
+  expect(button('Edit Source 0.jpg')).toBeUndefined();
+  const cards = new Set(
+    tree.root
+      .findAll(
+        node =>
+          typeof node.props.onPress === 'function' &&
+          node.props.accessibilityLabel?.startsWith('Edit Source '),
+      )
+      .map(node => node.props.accessibilityLabel),
+  );
+  expect(cards.size).toBe(12);
+  await act(async () => button('Next loaded sources').props.onPress());
+  await act(async () => button('Edit Source 24.jpg').props.onPress());
+  expect(mockEdit).toHaveBeenCalledWith({
+    id: '34',
+    mediaUri: 'content://synthetic/24',
+    type: 'IMAGE',
+  });
+  expect(mockLoadMore).not.toHaveBeenCalled();
+  await act(async () => button('Previous loaded sources').props.onPress());
+  await act(async () => button('Previous loaded sources').props.onPress());
+  expect(button('Edit Source 0.jpg')).toBeDefined();
+  expect(button('Previous loaded sources')).toBeUndefined();
+  await act(async () => button('Next loaded sources').props.onPress());
+  mockItems = mockItems.slice(0, 3);
+  mockTotal = 3;
+  await updateLibrary();
+  expect(button('Edit Source 0.jpg')).toBeDefined();
+  expect(button('Previous loaded sources')).toBeUndefined();
+});
+test('filename filtering finds loaded media outside the visible page and clear restores the bounded list', async () => {
+  mockItems = Array.from({ length: 20 }, (_, index) => ({
+    ...initialItems[0],
+    mediaId: index + 10,
+    displayName: index === 19 ? 'TARGET.jpg' : `Other ${index}.jpg`,
+  }));
+  mockTotal = 20;
+  await updateLibrary();
+  expect(button('Edit TARGET.jpg')).toBeUndefined();
+  await act(async () => filterInput().props.onChangeText('  target  '));
+  expect(button('Edit TARGET.jpg')).toBeDefined();
+  expect(button('Edit Other 0.jpg')).toBeUndefined();
+  await act(async () => button('Clear source filter').props.onPress());
+  expect(button('Edit Other 0.jpg')).toBeDefined();
+  expect(button('Edit TARGET.jpg')).toBeUndefined();
+  expect(mockLoadMore).not.toHaveBeenCalled();
+  await act(async () => filterInput().props.onChangeText('Other'));
+  await act(async () => button('Video workspace').props.onPress());
+  expect(filterInput().props.value).toBe('');
+  expect(button('Edit Other 0.jpg')).toBeUndefined();
+});
+test('loading another library page preserves filename/type filtering and admits same-tick taps once', async () => {
+  mockTotal = 5;
+  await updateLibrary();
+  await act(async () => button('Video workspace').props.onPress());
+  await act(async () => filterInput().props.onChangeText('Later'));
+  let finish!: () => void;
+  mockLoadMore.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        finish = resolve;
+      }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    const more = button('Load more library sources');
+    pending = more.props.onPress();
+    more.props.onPress();
+  });
+  expect(mockLoadMore).toHaveBeenCalledTimes(1);
+  expect(button('Load more library sources').props.disabled).toBe(true);
+  mockItems = [
+    ...initialItems,
+    { ...initialItems[0], mediaId: 4, displayName: 'Later photo.jpg' },
+    {
+      ...initialItems[2],
+      mediaId: 5,
+      mediaUri: 'content://synthetic/later-video',
+      displayName: 'Later video.mp4',
+    },
+  ];
+  await act(async () => {
+    finish();
+    await pending;
+    tree.update(<StudioScreen />);
+  });
+  expect(filterInput().props.value).toBe('Later');
+  expect(button('Edit Later photo.jpg')).toBeUndefined();
+  expect(button('Load more library sources')).toBeUndefined();
+  await act(async () => button('Edit Later video.mp4').props.onPress());
+  expect(mockEdit).toHaveBeenCalledWith({
+    id: '5',
+    mediaUri: 'content://synthetic/later-video',
+    type: 'VIDEO',
+  });
+});
+test('page failure remains retryable and direct import stays available with no filename matches', async () => {
+  mockTotal = 10;
+  await updateLibrary();
+  await act(async () => filterInput().props.onChangeText('No match'));
+  mockLoadMore.mockRejectedValueOnce(new Error('Synthetic page failure'));
+  await act(async () => button('Load more library sources').props.onPress());
+  expect(JSON.stringify(tree.toJSON())).toContain('Synthetic page failure');
+  expect(button('Load more library sources').props.disabled).toBe(false);
+  await act(async () => button('Load more library sources').props.onPress());
+  expect(mockLoadMore).toHaveBeenCalledTimes(2);
+  expect(JSON.stringify(tree.toJSON())).not.toContain('Synthetic page failure');
+  await act(async () => button('Import another source').props.onPress());
+  expect(mockOpen).toHaveBeenCalledWith('IMAGE');
 });
 
 test('opening a selected photo passes that source, not the first library item', async () => {

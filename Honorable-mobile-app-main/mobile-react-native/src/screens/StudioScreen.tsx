@@ -1,5 +1,5 @@
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -38,7 +39,7 @@ import { editMemory } from '../native/editMemory';
 export function StudioScreen() {
   const reduceMotion = useReducedMotion();
   const { width } = useWindowDimensions();
-  const { items, loading, error } = useLibrary();
+  const { items, total, loading, error, loadMore } = useLibrary();
   const {
     busy: importing,
     open,
@@ -54,7 +55,54 @@ export function StudioScreen() {
   const [inspectorTab, setInspectorTab] = useState<'tools' | 'source'>('tools');
   const [opening, setOpening] = useState(false);
   const pending = useRef(false);
-  const assets = items.filter(item => item.mediaType === mode).slice(0, 12);
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [sourceStart, setSourceStart] = useState(0);
+  const [browsing, setBrowsing] = useState(false);
+  const [sourcePageError, setSourcePageError] = useState('');
+  const sourcePending = useRef(false),
+    sourceActive = useRef(true);
+  useEffect(() => {
+    sourceActive.current = true;
+    return () => {
+      sourceActive.current = false;
+    };
+  }, []);
+  const loadedSources = items.filter(item => item.mediaType === mode);
+  const query = sourceFilter.trim().toLocaleLowerCase();
+  const matches = loadedSources.filter(
+    item => !query || item.displayName.toLocaleLowerCase().includes(query),
+  );
+  const pageStart = Math.min(
+    sourceStart,
+    Math.max(0, Math.floor((matches.length - 1) / 12) * 12),
+  );
+  const assets = matches.slice(pageStart, pageStart + 12);
+  const moreLoaded = pageStart + 12 < matches.length;
+  const moreLibrary = items.length < total;
+  const filterSources = (value: string) => {
+    setSourceFilter(value);
+    setSourceStart(0);
+    setSelectedId(undefined);
+  };
+  const loadSources = async () => {
+    if (sourcePending.current || busy || !moreLibrary) return;
+    sourcePending.current = true;
+    setBrowsing(true);
+    setSourcePageError('');
+    try {
+      await loadMore();
+    } catch (reason) {
+      if (sourceActive.current)
+        setSourcePageError(
+          reason instanceof Error
+            ? reason.message
+            : 'Sources could not load. Try again.',
+        );
+    } finally {
+      sourcePending.current = false;
+      if (sourceActive.current) setBrowsing(false);
+    }
+  };
   const selected =
     assets.find(item => item.mediaId === selectedId) ?? assets[0];
   const busy = importing || opening;
@@ -248,6 +296,7 @@ export function StudioScreen() {
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={s.content}
       >
         <View style={s.sourceActions}>
@@ -343,6 +392,8 @@ export function StudioScreen() {
               onPress={() => {
                 setMode(kind);
                 setSelectedId(undefined);
+                setSourceFilter('');
+                setSourceStart(0);
               }}
               style={[s.modeTab, mode === kind && s.modeActive]}
             >
@@ -352,6 +403,43 @@ export function StudioScreen() {
             </Pressable>
           ))}
         </View>
+        <View style={s.sourceFilterRow}>
+          <TextInput
+            accessibilityLabel="Filter loaded source filenames"
+            placeholder={`Filter loaded ${kindName}s by filename`}
+            placeholderTextColor={colors.textTertiary}
+            value={sourceFilter}
+            onChangeText={filterSources}
+            editable={!busy}
+            maxLength={120}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            style={s.sourceFilterInput}
+          />
+          {!!sourceFilter && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear source filter"
+              disabled={busy}
+              onPress={() => filterSources('')}
+              style={s.sourceFilterClear}
+            >
+              <X size={18} color={colors.textPrimary} />
+            </Pressable>
+          )}
+        </View>
+        <Text accessibilityLiveRegion="polite" style={s.sourceCount}>
+          {query
+            ? `${matches.length ? pageStart + 1 : 0}–${
+                pageStart + assets.length
+              } of ${matches.length} matches · ${
+                loadedSources.length
+              } loaded ${kindName}s`
+            : `${matches.length ? pageStart + 1 : 0}–${
+                pageStart + assets.length
+              } of ${loadedSources.length} loaded ${kindName}s`}
+        </Text>
         {loading ? (
           <ActivityIndicator color={colors.textPrimary} />
         ) : assets.length ? (
@@ -362,6 +450,7 @@ export function StudioScreen() {
             {assets.length > 1 && (
               <ScrollView
                 horizontal
+                keyboardShouldPersistTaps="handled"
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={s.sourceStrip}
               >
@@ -372,9 +461,15 @@ export function StudioScreen() {
         ) : (
           <View style={s.empty}>
             <Photo size={26} color={colors.textSecondary} />
-            <Text style={s.emptyTitle}>Choose a {kindName} to begin</Text>
+            <Text style={s.emptyTitle}>
+              {query
+                ? `No loaded ${kindName}s match`
+                : `Choose a ${kindName} to begin`}
+            </Text>
             <Text style={s.emptyText}>
-              Import from your device or allow access to your library.
+              {query
+                ? 'Try another filename, clear the filter, or choose a file directly.'
+                : 'Import from your device or allow access to your library.'}
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -387,6 +482,72 @@ export function StudioScreen() {
               <Text style={s.emptyButtonText}>Choose {kindName}</Text>
             </Pressable>
           </View>
+        )}
+        {!loading && (pageStart > 0 || moreLoaded || moreLibrary) && (
+          <View style={s.sourcePaging}>
+            {pageStart > 0 && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Previous loaded sources"
+                disabled={busy || browsing}
+                onPress={() => {
+                  setSourceStart(Math.max(0, pageStart - 12));
+                  setSelectedId(undefined);
+                }}
+                style={s.sourcePagingButton}
+              >
+                <Text style={s.emptyButtonText}>Previous loaded sources</Text>
+              </Pressable>
+            )}
+            {(moreLoaded || moreLibrary) && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    moreLoaded
+                      ? 'Next loaded sources'
+                      : 'Load more library sources'
+                  }
+                  accessibilityState={{
+                    disabled: busy || browsing,
+                    busy: browsing,
+                  }}
+                  disabled={busy || browsing}
+                  onPress={
+                    moreLoaded
+                      ? () => {
+                          setSourceStart(pageStart + 12);
+                          setSelectedId(undefined);
+                        }
+                      : loadSources
+                  }
+                  style={s.sourcePagingButton}
+                >
+                  {browsing ? (
+                    <ActivityIndicator
+                      accessibilityLabel="Loading more library sources"
+                      color={colors.textPrimary}
+                    />
+                  ) : (
+                    <Text style={s.emptyButtonText}>
+                      {moreLoaded
+                        ? 'Next loaded sources'
+                        : 'Load more library sources'}
+                    </Text>
+                  )}
+                </Pressable>
+              </>
+            )}
+            <Text style={s.sourcePagingNote}>
+              Filename filtering covers loaded items only. Choosing a file opens
+              any source without loading more of the library.
+            </Text>
+          </View>
+        )}
+        {!!sourcePageError && (
+          <Text accessibilityRole="alert" style={s.error}>
+            {sourcePageError}
+          </Text>
         )}
         {busy && (
           <ActivityIndicator
@@ -512,7 +673,12 @@ export function StudioScreen() {
   );
 }
 const s = StyleSheet.create({
-  creationSection: { gap: 10, marginTop: 22, marginBottom: 12, marginHorizontal: 16 },
+  creationSection: {
+    gap: 10,
+    marginTop: 22,
+    marginBottom: 12,
+    marginHorizontal: 16,
+  },
   creationHeading: {
     color: colors.textPrimary,
     fontSize: 17,
@@ -661,6 +827,50 @@ const s = StyleSheet.create({
     fontSize: 11,
     lineHeight: 17,
     color: colors.textTertiary,
+  },
+  sourceFilterRow: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sourceFilterInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  sourceFilterClear: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sourceCount: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  sourcePaging: { marginHorizontal: 16, marginTop: 16, gap: 8 },
+  sourcePagingButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  sourcePagingNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingBottom: 24 },
