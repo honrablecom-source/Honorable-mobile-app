@@ -13,7 +13,7 @@ class VideoQuietAdmissionTest {
         return instance
     }
     private fun set(instance:Any,name:String,value:Any){instance.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(instance,value)}
-    private fun invoke(instance:Any){for(name in listOf("quietPauseOptions","sourceAudioLevels"))instance.javaClass.getDeclaredMethod(name).apply{isAccessible=true}.invoke(instance)}
+    private fun invoke(instance:Any){for(name in listOf("quietPauseOptions","sourceAudioLevels","savedTitleStyles"))instance.javaClass.getDeclaredMethod(name).apply{isAccessible=true}.invoke(instance)}
     @Test fun pausedEditorRefusesBeforeSourceOrWidgetsAreRead(){val instance=activity();invoke(instance);assertNull(instance.javaClass.getDeclaredField("quietAudioCancellation").apply{isAccessible=true}.get(instance))}
     @Test fun busyEditorRefusesBeforeAndroidOrSourceAccess(){val instance=activity();set(instance,"workspaceActive",true);set(instance,"importing",true);invoke(instance);assertTrue(instance.javaClass.getDeclaredField("importing").apply{isAccessible=true}.getBoolean(instance))}
 }

@@ -40,6 +40,7 @@ class HonorableVideoEditorActivity : Activity() {
     // Shared ownership for original-source audio analysis jobs and their dialogs.
     private var quietAudioCancellation:AtomicBoolean?=null
     private var quietAudioGeneration=0L
+    private var titleStyleShelf:VideoTitleStyleShelf?=null
     private var quietAudioDialog:android.app.AlertDialog?=null
     @Volatile private var guestProjectRequest = 0L
     private lateinit var source: Uri
@@ -293,6 +294,7 @@ class HonorableVideoEditorActivity : Activity() {
         } },LinearLayout.LayoutParams(0,-2,1f))
         creativeTools.addView(creative)
         creativeTools.addView(Button(this).apply{text="Title style";setOnClickListener{titleStyle()}})
+        creativeTools.addView(Button(this).apply{text="Saved title styles";setOnClickListener{savedTitleStyles()}})
         creativeTools.addView(Button(this).apply{text="Captions";setOnClickListener{captionOptions()}})
         creativeTools.addView(Button(this).apply { text = "Script to captions"; setOnClickListener { scriptCaptionOptions() } })
         val music = LinearLayout(this)
@@ -610,7 +612,7 @@ class HonorableVideoEditorActivity : Activity() {
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
-            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
             "Project" to (listOf(t("Build a montage"){montageOptions()},t("Timeline report"){timelineReport()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
@@ -1153,6 +1155,30 @@ class HonorableVideoEditorActivity : Activity() {
             }
         }.setNegativeButton("Cancel",null).show()
     }
+    private fun savedTitleStyles(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments;val index=selectedClip
+        val clip=clips.getOrNull(index)?:return;val music=current.soundtrack;val mode=accessMode
+        titleStyleShelf?.close()
+        video.pause();previewPlayer?.pause()
+        lateinit var shelf:VideoTitleStyleShelf
+        shelf=VideoTitleStyleShelf(this,mode,clip.titleStyle,
+            isCurrent={editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode},
+            busy={value->if(titleStyleShelf===shelf)draftBusy=value},
+            message={text->status.text=text},
+            apply={style,all->
+                val proposed=clips.mapIndexed{i,value->if(all||i==index)style.applyTo(value)else value}
+                val result=runCatching{current.applyDraft(proposed,soundtrack=music)}
+                if(result.isFailure)status.text=result.exceptionOrNull()?.message?:"Title appearance could not be applied."
+                else {
+                    status.text="Saved title appearance applied. Project Undo restores the previous style."
+                    runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}
+                        .onFailure{status.text="Title appearance applied; preview unavailable. Project Undo is available."}
+                }
+            })
+        titleStyleShelf=shelf;shelf.open()
+    }
+
     private fun titleStyle(){
         if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
         VideoInspectorControls.title(this,clip.titleStyle){style->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setTitleStyle(index,style);showClip();previewComposition(listOf(current.segments[index]),index)}}
@@ -1319,8 +1345,9 @@ class HonorableVideoEditorActivity : Activity() {
         val from=maxOf(start.progress*1000L,clip.startMs)
         val to=minOf(end.progress*1000L,clip.endMs)
         if(to<=from){status.text="End must be after start";return}
-        current.trim(selectedClip,from,to)
-        pendingAudio=PendingAudio(current.segments.toList(),sourceUris().toMap(),sourceDurations().toMap(),current.soundtrack)
+        val exportClips=runCatching{VideoExportSnapshot.clips(current.segments,selectedClip,from,to)}
+            .getOrElse{status.text=it.message?:"Choose a valid audio range";return}
+        pendingAudio=PendingAudio(exportClips,sourceUris().toMap(),sourceDurations().toMap(),current.soundtrack)
         importing=true;video.pause();stopProjectPreview()
         start.isEnabled=false;end.isEnabled=false
         try {
@@ -1355,8 +1382,8 @@ class HonorableVideoEditorActivity : Activity() {
         val from = maxOf(start.progress * 1000L, current.startMs)
         val to = minOf(end.progress * 1000L, current.endMs)
         if (to <= from) { status.text = "End must be after start"; return }
-        project?.trim(selectedClip, from, to)
-        pendingSegments = project?.segments?.toList()
+        pendingSegments = runCatching{VideoExportSnapshot.clips(requireNotNull(project).segments,selectedClip,from,to)}
+            .getOrElse{status.text=it.message?:"Choose a valid video range";return}
         pendingRange = from to to
         start.isEnabled = false; end.isEnabled = false
         try {
@@ -2197,8 +2224,9 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick)}
-    override fun onPause() { quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        titleStyleShelf?.close();titleStyleShelf=null
         quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null
         framePhotoCancellation?.set(true)
         guestProjectRequest++

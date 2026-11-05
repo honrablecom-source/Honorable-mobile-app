@@ -1,0 +1,19 @@
+# C083 — Private saved video title appearance
+
+Status: implemented experimental source, focused checks passed; recorded as C083 in the82-outcome shared source register. One cross-project appearance-reuse workflow, no separate preset/button/platform counts. No full app build or device acceptance.
+
+Video creative tools and the searchable inspector expose Saved title styles. Save the selected clip's four existing title appearance settings under a name, then explicitly apply a saved appearance to the selected clip or all clips. Names and appearance stay in the app's private no-backup guest/account shelf. Title words, captions, media, source identifiers and timing are absent from the binary format. Blank titles stay blank. This uses the existing title renderer; captions have their own rendering and are unaffected.
+
+Apply uses one existing project history operation. The proposal changes only titleStyle and preserves the current soundtrack. Save does not change the timeline. Delete requires confirmation and offers shelf-local Undo; restoring a deletion refuses a changed shelf or another owner. Closing the shelf loses that temporary deletion Undo token.
+
+The catalog bounds names to40 Unicode code points/160UTF8 bytes and20 entries. NFKC and root-case comparison rejects colliding names. The immutable catalog's versioned8192-byte envelope checks SHA256, lengths, UTF8, style bounds, boolean flags, version and trailing bytes. Damaged/oversized existing files block mutations rather than becoming an empty shelf.
+
+All shelf file and account reads run on one controller worker. A process-wide store lock serializes read/modify/write. Writes use a same-directory pending file, fsync, a current-owner/cancellation check before rename, then readback. Only the operation's own pending file is removed. The caller resolves the trusted Android parent before shelf construction; shelf/file symlinks are refused. Cancellation after a write has committed does not roll it back.
+
+The Activity refuses busy or paused entry before reading source/widgets. Project identity, clip snapshot, soundtrack, selection, access mode and foreground state are checked before presenting/applying results. Closing/pausing/destroying closes the controller permanently, cancels its worker and dismisses its dialog; stale completions cannot clear a newer controller's busy state. Preview failure after applying reports that the edit exists and Undo remains available.
+
+Validation:34 host tests pass:9 title model/codec/real temporary file tests,8 audio-level tests,15 quiet-cut regressions and2 constructor-free actual Activity admission cases covering quiet cuts, audio levels and saved title styles. Current Activity/controller/store/models/shared helper API compilation passes against restored exact-hash API34 dependencies. Evidence: `.context/noble-fast-title-styles/checks.json`, compile/test logs and source hashes. `git diff --check` passes.
+
+These checks do not execute actual Android dialogs, keyboard/accessibility, no-backup path/account lifecycle, framework file providers, title rendering, preview/export, codec or device behavior. They do not prove configured SDK37/full Gradle integration, packaged assets, APK availability or store readiness. Full app/native/APK builds remain deferred under the owner's batch cadence. Main C082 work is separate and preserved.
+
+Subsequent core cleanup: video/audio export now prepares a separate range proposal rather than trimming the working timeline before the save picker. Current combined37 host tests and Activity API compilation pass, including3 export proposal/history cases; `.context/noble-fast-export-snapshot/verification.json` contains the current Activity hash. This is one correctness fix, zero additional features. The original34-test title milestone remains preserved. Android picker/provider execution remains pending.
