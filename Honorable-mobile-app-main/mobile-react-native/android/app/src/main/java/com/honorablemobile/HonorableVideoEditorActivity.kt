@@ -62,6 +62,11 @@ class HonorableVideoEditorActivity : Activity() {
     private var importing = false
     private var sourceReady = false
     private var recoveryBytes: ByteArray? = null
+    private var recoveryBlocked=false
+    private var recoveryChecking=false
+    private var recoveryRequest=0L
+    private lateinit var recoveryPanel:LinearLayout
+    private var recoveryDiscardDialog:android.app.AlertDialog?=null
     private var saving = false
     private var analyzing = false
     private var draftBusy = false
@@ -102,7 +107,7 @@ class HonorableVideoEditorActivity : Activity() {
         accessMode = runCatching { EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA)) }.getOrElse { finish(); return }
         val restoreMode=savedInstanceState?.getString(EditorAccessMode.EXTRA)
         val sameMode=restoreMode==accessMode.name||(restoreMode==null&&accessMode==EditorAccessMode.ACCOUNT)
-        recoveryBytes = if(sameMode)savedInstanceState?.getByteArray("multiSourceProject")else null
+        recoveryBytes = if(sameMode)savedInstanceState?.getByteArray("multiSourceProject")?.copyOf()else null
         source = Uri.parse(intent.getStringExtra("uri") ?: run { finish(); return })
         if(savedInstanceState==null&&intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)) {
             val owned=runCatching {
@@ -112,7 +117,7 @@ class HonorableVideoEditorActivity : Activity() {
                 require(PhotoVideoProjectCodec.validId(id)&&source==store.sourceUri(id,0)&&store.ownsReadableSource(source))
                 requireNotNull(intent.getByteArrayExtra(PhotoVideoProjectsActivity.DRAFT_EXTRA)).also{require(it.size<=GuestVideoProjectCodec.MAX_BYTES)}
             }.getOrElse{finish();return}
-            recoveryBytes=owned
+            recoveryBytes=owned.copyOf()
         }
         window.statusBarColor = Color.WHITE
         window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) Color.WHITE else Color.BLACK
@@ -138,6 +143,15 @@ class HonorableVideoEditorActivity : Activity() {
         val exportButton = Button(this).apply { text = "Export"; contentDescription = "Export video as a new copy"; setOnClickListener { saveCopy() } }
         header.addView(exportButton, LinearLayout.LayoutParams(dp(88), dp(48)))
         root.addView(header)
+        recoveryPanel=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL;visibility=View.GONE
+            addView(label("Session recovery is kept. Retry after restoring document access, or start from the original.",12f))
+            val actions=LinearLayout(this@HonorableVideoEditorActivity)
+            actions.addView(Button(this@HonorableVideoEditorActivity).apply{text="Retry recovery";setOnClickListener{retryRecovery()}},LinearLayout.LayoutParams(0,dp(48),1f))
+            actions.addView(Button(this@HonorableVideoEditorActivity).apply{text="Start from original";setOnClickListener{confirmDiscardRecovery()}},LinearLayout.LayoutParams(0,dp(48),1f))
+            addView(actions)
+        }
+        root.addView(recoveryPanel)
         fun divider() = View(this).apply { setBackgroundColor(Color.rgb(225,225,225)) }
         root.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)))
 
@@ -364,37 +378,19 @@ class HonorableVideoEditorActivity : Activity() {
             primaryDurationMs = durationMs.toLong()
             val current = VideoEditProject(primaryDurationMs)
             project = current
+            if(recoveryBytes!=null){
+                draftBusy=true
+                runCatching{showClip()}
+                retryRecovery()
+                return@setOnPreparedListener
+            }
+            // Preserve lifecycle compatibility with the earlier single-source editor.
+            readSegments(if(sameMode)savedInstanceState else null, "project")?.let { runCatching { current.restore(it) } }
+            selectedClip = (savedInstanceState?.getInt("selectedClip") ?: 0).coerceIn(0, current.segments.lastIndex)
             showClip()
-            val saved = recoveryBytes?.let { VideoDraftCodec.decode(it, primaryDurationMs) }
-            if(saved==null&&recoveryBytes!=null&&intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)) {
-                android.widget.Toast.makeText(this,"Photo video timeline could not be restored. Saved files were kept.",android.widget.Toast.LENGTH_LONG).show()
-                finish();return@setOnPreparedListener
-            }
-            if(saved != null) {
-                draftBusy = true
-                status.text = "Checking restored video sources..."
-                draftWorker.execute {
-                    val checked = runCatching { validateSavedMedia(saved) }
-                    runOnUiThread {
-                        draftBusy = false
-                        if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
-                        recoveryBytes = null
-                        checked.onSuccess { runCatching { applySavedDraft(current, saved, false) }
-                            .onSuccess { previewReady -> status.text=if(previewReady)"Project recovered. Preview before exporting." else "Project recovered; preview is unavailable. Your restored edits are kept." }
-                            .onFailure { status.text = "Project recovery unavailable. The original video remains open."; if(intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA))finish() } }
-                            .onFailure { status.text = "A restored video is unavailable or changed. Reopen its document and try the saved draft."; if(intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)){android.widget.Toast.makeText(this,status.text,android.widget.Toast.LENGTH_LONG).show();finish()} }
-                    }
-                }
-            } else {
-                recoveryBytes = null
-                // Preserve lifecycle compatibility with the earlier single-source editor.
-                readSegments(if(sameMode)savedInstanceState else null, "project")?.let { runCatching { current.restore(it) } }
-                selectedClip = (savedInstanceState?.getInt("selectedClip") ?: 0).coerceIn(0, current.segments.lastIndex)
-                showClip()
-                pendingSeekMs = savedInstanceState?.getLong("previewPositionMs") ?: intent.getLongExtra("timestampMs", 0L)
-                video.seekTo(pendingSeekMs.coerceIn(0L, primaryDurationMs-1).toInt())
-                syncSourcePlayhead()
-            }
+            pendingSeekMs = savedInstanceState?.getLong("previewPositionMs") ?: intent.getLongExtra("timestampMs", 0L)
+            video.seekTo(pendingSeekMs.coerceIn(0L, primaryDurationMs-1).toInt())
+            syncSourcePlayhead()
         }
         val listener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) { if (fromUser) showRange() }
@@ -1412,6 +1408,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(holdRecoveryResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
         if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
         if(requestCode == 25) { finishCaptionImport(resultCode,data); return }
@@ -1959,7 +1956,7 @@ class HonorableVideoEditorActivity : Activity() {
         val clips = requireNotNull(project).segments
         val clip = clips[selectedClip]
         return VideoDraft(primaryDurationMs, clips.toList(), selectedClip,
-            (if(previewPlayer != null) runCatching { splitPosition() }.getOrDefault(clip.startMs) else if(sourceReady) video.currentPosition.toLong() else pendingSeekMs).coerceIn(0L, sourceDuration(clip.sourceId)-1),
+            (if(previewPlayer != null) runCatching { splitPosition() }.getOrDefault(clip.startMs) else if(sourceReady) runCatching{video.currentPosition.toLong()}.getOrDefault(pendingSeekMs) else pendingSeekMs).coerceIn(0L, sourceDuration(clip.sourceId)-1),
             maxOf(start.progress*1000L, clip.startMs), minOf(end.progress*1000L, clip.endMs), importedSources.values.toList(), project?.soundtrack)
     }
     private fun inspectSource(uri: Uri): Long {
@@ -2238,11 +2235,11 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(EditorAccessMode.EXTRA,accessMode.name)
-        if (::start.isInitialized) outState.putInt("startProgress", start.progress)
-        if (::end.isInitialized) outState.putInt("endProgress", end.progress)
-        if (::video.isInitialized) outState.putLong("previewPositionMs", video.currentPosition.toLong())
+        recoveryStateBytes()?.let { outState.putByteArray("multiSourceProject", it) }
+        if (::start.isInitialized) runCatching{outState.putInt("startProgress", start.progress)}
+        if (::end.isInitialized) runCatching{outState.putInt("endProgress", end.progress)}
+        if (::video.isInitialized) runCatching{outState.putLong("previewPositionMs", video.currentPosition.toLong())}
         outState.putInt("selectedClip", selectedClip)
-        (recoveryBytes ?: runCatching { VideoDraftCodec.encode(currentDraft()) }.getOrNull())?.let { outState.putByteArray("multiSourceProject", it) }
     }
 
     private fun writeSegments(state: Bundle, key: String, clips: List<VideoSegment>) {
@@ -2259,6 +2256,84 @@ class HonorableVideoEditorActivity : Activity() {
         }.getOrNull()
     }
 
+    private fun recoveryStateBytes():ByteArray? {
+        recoveryBytes?.let{return it.copyOf()}
+        return runCatching{VideoDraftCodec.encode(currentDraft())}.recoverCatching {
+            val current=requireNotNull(project);val clips=current.segments
+            val index=selectedClip.coerceIn(clips.indices);val clip=clips[index]
+            VideoDraftCodec.encode(VideoDraft(primaryDurationMs,clips.toList(),index,
+                pendingSeekMs.coerceIn(clip.startMs,clip.endMs-1),clip.startMs,clip.endMs,
+                importedSources.values.toList(),current.soundtrack))
+        }.getOrNull()
+    }
+    private fun blockRecovery(message:String) {
+        recoveryBlocked=true;recoveryChecking=false;draftBusy=true
+        if(::recoveryPanel.isInitialized)recoveryPanel.visibility=View.VISIBLE
+        if(::status.isInitialized)status.text="$message Recovery data is kept. Retry recovery or explicitly start from the original."
+    }
+    private fun applyPendingRecovery(current:VideoEditProject,saved:VideoDraft):Boolean {
+        check(project===current){"Recovery target changed"}
+        val previewReady=applySavedDraft(current,saved,false)
+        recoveryBytes=null;recoveryBlocked=false;recoveryChecking=false;draftBusy=false
+        if(::recoveryPanel.isInitialized)recoveryPanel.visibility=View.GONE
+        return previewReady
+    }
+    private fun retryRecovery() {
+        if(!workspaceActive||isDestroyed||isFinishing||recoveryChecking)return
+        val current=project?:return;val bytes=recoveryBytes?:return
+        val duration=primaryDurationMs
+        val saved=runCatching{VideoDraftCodec.decode(bytes,duration)}.getOrNull()
+        if(saved==null){blockRecovery("Session recovery is damaged or incompatible.");return}
+        val primary=source.toString();val request=++recoveryRequest
+        recoveryChecking=true;recoveryBlocked=false;draftBusy=true
+        if(::recoveryPanel.isInitialized)recoveryPanel.visibility=View.GONE
+        status.text="Checking recovered video sources. Recovery data is kept until restored."
+        runCatching{video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        try{draftWorker.execute {
+            val checked=runCatching{validateSavedMedia(saved)}
+            runOnUiThread {
+                if(request!=recoveryRequest||isDestroyed||isFinishing||project!==current||source.toString()!=primary||primaryDurationMs!=duration)return@runOnUiThread
+                recoveryChecking=false
+                if(!workspaceActive){blockRecovery("Recovery paused while the editor was away.");return@runOnUiThread}
+                checked.onSuccess {
+                    runCatching{applyPendingRecovery(current,saved)}
+                        .onSuccess{ready->status.text=if(ready)"Project recovered. Preview before exporting." else "Project recovered; preview is unavailable. Your restored edits are kept."}
+                        .onFailure{blockRecovery("The recovered timeline could not be applied.")}
+                }.onFailure{blockRecovery("A recovered original is unavailable or changed.")}
+            }
+        }}catch(_:java.util.concurrent.RejectedExecutionException){blockRecovery("Recovery could not start.")}
+    }
+    private fun discardRecovery(current:VideoEditProject,expected:ByteArray):Boolean {
+        if(!recoveryBlocked||recoveryChecking||project!==current||primaryDurationMs<=0||recoveryBytes?.contentEquals(expected)!=true)return false
+        val fresh=VideoEditProject(primaryDurationMs)
+        recoveryRequest++;recoveryBytes=null;recoveryBlocked=false;recoveryChecking=false;draftBusy=false
+        project=fresh;importedSources.clear();selectedClip=0;pendingSeekMs=0
+        return true
+    }
+    private fun confirmDiscardRecovery() {
+        if(!workspaceActive||isDestroyed||isFinishing||!recoveryBlocked||recoveryChecking||recoveryDiscardDialog?.isShowing==true)return
+        val current=project?:return;val expected=recoveryBytes?.copyOf()?:return
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Start from original?")
+            .setMessage("Discard this session's recovery data and start a fresh timeline from the original video. Saved projects and original media are kept. This cannot be undone.")
+            .setNegativeButton("Keep recovery",null).setPositiveButton("Discard recovery"){_,_->
+                if(recoveryDiscardDialog!==dialog||!workspaceActive||isDestroyed||isFinishing||!discardRecovery(current,expected))return@setPositiveButton
+                if(::recoveryPanel.isInitialized)recoveryPanel.visibility=View.GONE
+                runCatching{showClip()}
+                status.text="Recovery discarded by your choice. The original video is open; saved projects are kept."
+            }.create()
+        recoveryDiscardDialog=dialog
+        dialog.setOnDismissListener{if(recoveryDiscardDialog===dialog)recoveryDiscardDialog=null}
+        dialog.show()
+    }
+    private fun holdRecoveryResult(requestCode:Int):Boolean {
+        if(recoveryBytes==null||requestCode !in 22..28)return false
+        pendingRange=null;pendingSegments=null;pendingAudio=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
+        captionImportTarget=null;captionImportProject=null;voiceoverTarget=null;importing=false
+        if(::status.isInitialized)status.text="Finish session recovery before importing or saving again. Check Files for an empty or partial copy."
+        return true
+    }
+
     private fun closeState():VideoCloseState {
         val current=project;val clip=current?.segments?.getOrNull(selectedClip)
         val from=if(clip!=null&&::start.isInitialized)maxOf(start.progress*1000L,clip.startMs)else null
@@ -2272,11 +2347,13 @@ class HonorableVideoEditorActivity : Activity() {
         if(!captured.needsConfirmation()){finish();return}
         runCatching { if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview) }
         val working=!editorIdle()
-        val message=if(working)"An operation is in progress. Leaving may interrupt it; check Files for an empty or partial copy. Existing saved projects and original media are kept."
+        val message=if(recoveryBytes!=null)"Session recovery is still pending. Leaving discards this in-memory recovery. Saved projects and original media are kept."
+            else if(working)"An operation is in progress. Leaving may interrupt it; check Files for an empty or partial copy. Existing saved projects and original media are kept."
             else "Current timeline edits may be lost when you leave. Keep editing to save a project or draft first. Existing saved projects, exported copies and original media are kept."
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Leave video editor?").setMessage(message)
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Leave video editor?").setMessage(message)
             .setNegativeButton("Keep editing",null).setPositiveButton("Leave editor"){_,_->
-                if(!workspaceActive||isDestroyed||isFinishing)return@setPositiveButton
+                if(closeDialog!==dialog||!workspaceActive||isDestroyed||isFinishing)return@setPositiveButton
                 if(!captured.stillMatches(closeState())){status.text="Video or operation changed. Review it before closing again.";return@setPositiveButton}
                 finish()
             }.create()
@@ -2287,9 +2364,11 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Legacy Back path for Android versions before the platform callback API")
     override fun onBackPressed(){requestClose()}
 
-    override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick)}
-    override fun onPause() { runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
+    override fun onPause() { runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        recoveryRequest++
+        runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null
         runCatching{releaseEditorBack?.invoke()};releaseEditorBack=null
         runCatching{closeDialog?.dismiss()};closeDialog=null
         titleStyleShelf?.close();titleStyleShelf=null
