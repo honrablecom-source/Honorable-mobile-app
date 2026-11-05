@@ -5,4 +5,10 @@ async function projectView(page, view) {
   if (await button.getAttribute('aria-pressed') !== 'true') await button.click();
 }
 async function withProjectView(page, view, action) { await projectView(page, view); return action(); }
-module.exports = { projectView, withProjectView };
+async function confirmProjectOpen(page) {
+  const review = page.getByRole('region', { name: 'Review drawing replacement', exact: true });
+  await review.waitFor();
+  await review.getByRole('button', { name: 'Replace current drawing', exact: true }).click();
+  await page.waitForFunction(() => !window.honorableDrawingBusy);
+}
+module.exports = { projectView, withProjectView, confirmProjectOpen };

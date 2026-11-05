@@ -1,4 +1,4 @@
-const { withProjectView } = require('./project-navigation.cjs');
+const { withProjectView, confirmProjectOpen } = require('./project-navigation.cjs');
 // Real local editor in an isolated browser, with synthetic scenes only. No Android/device claim.
 const { chromium } = require('../../../ui-previews/node_modules/playwright');
 const assert = require('node:assert/strict');
@@ -45,7 +45,7 @@ const fixture = [shape('first',0,0,110,100,'#dddddd'),shape('second',160,40,100,
   await page.screenshot({path:path.join(output,'01-projects-phone.png')});
   await withProjectView(page, 'saved', () => page.getByRole('button',{name:'Delete Workspace study',exact:true}).click());
   await withProjectView(page, 'saved', () => page.getByRole('button',{name:'Undo delete Workspace study',exact:true}).click());
-  await withProjectView(page, 'saved', () => page.getByRole('button',{name:'Open Workspace study',exact:true}).click());
+  await withProjectView(page, 'saved', () => page.getByRole('button',{name:'Open Workspace study',exact:true}).click());await confirmProjectOpen(page);
   await page.getByRole('button',{name:'Objects',exact:true}).click();
   await page.locator('.object-row').first().getByRole('button',{name:'Hide',exact:true}).click();
   await page.locator('.object-row').first().getByRole('button',{name:'Show',exact:true}).waitFor();
@@ -126,6 +126,7 @@ const fixture = [shape('first',0,0,110,100,'#dddddd'),shape('second',160,40,100,
   fs.writeFileSync(path.join(output,'synthetic-composition.svg'),svg);
   await withProjectView(page, 'advanced', () => page.getByLabel('Project JSON',{exact:true}).fill(JSON.stringify({...exported,name:'Imported composition'})));
   await withProjectView(page, 'advanced', () => page.getByRole('button',{name:'Import project JSON',exact:true}).click());
+  await confirmProjectOpen(page);
   assert.equal(await withProjectView(page, 'saved', () => page.getByLabel('Project name',{exact:true}).inputValue()),'Imported composition');
   await page.getByRole('button',{name:'Save draft',exact:true}).click();
   const persisted=await page.evaluate(()=>localStorage.getItem('honorable-drawing-v1'));

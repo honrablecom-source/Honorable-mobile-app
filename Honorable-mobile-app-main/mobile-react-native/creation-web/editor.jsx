@@ -54,6 +54,8 @@ function Editor() {
   const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', parts: 'Reusable parts', advanced: 'Advanced transfer' };
   const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
   const [preparedProjectFile, setPreparedProjectFile] = useState(null);
+  const [pendingOpen, setPendingOpen] = useState(null);
+  const openReviewHeading = useRef(null);
   const bindEditor = useCallback(value => { api.current = value; setReady(Boolean(value) && !value.getAppState().isLoading); }, []);
   const [{ data: restored, error: restoreError }] = useState(initial);
   const preservedDraft = useRef(restoreError);
@@ -62,6 +64,7 @@ function Editor() {
   const canvasRegion = useRef(null);
   const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Start a new drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
   const [busy, setBusy] = useState(false), [panel, setPanel] = useState(null);
+  useEffect(() => { if (pendingOpen && panel === 'projects') openReviewHeading.current?.focus(); }, [pendingOpen, panel]);
   const [framingTarget, setFramingTarget] = useState(null);
   const [rectifyTarget, setRectifyTarget] = useState(null);
   const [wandTarget,setWandTarget]=useState(null);
@@ -253,10 +256,11 @@ function Editor() {
   const closePanel = () => {
     if (busyRef.current) return;
     const trigger = document.querySelector(`[data-panel-trigger="${panel}"]`);
-    setPanel(null);
+    setPendingOpen(null); setPanel(null);
     trigger?.focus({ preventScroll: true });
   };
   const showPanel = value => {
+    setPendingOpen(null);
     if (panel === value) { setPanel(null); return; }
     if (value === 'objects' || value === 'arrange') setObjects(api.current.getSceneElements());
     if (value === 'projects') {
@@ -382,6 +386,7 @@ function Editor() {
   const prepareShelfSave = kind => {
     try {
       if (busyRef.current) return;
+      setPendingOpen(null);
       const key = kind === 'component' ? COMPONENT_KEY : PROJECT_KEY, requestedName = kind === 'component' ? componentName : name;
       const before = localStorage.getItem(key), previous = readProjects(before), data = shelfSource(kind);
       const next = saveProject(previous, requestedName, ...data), candidate = next[next.length - 1];
@@ -393,15 +398,28 @@ function Editor() {
     } catch (failure) { error(failure); }
   };
   const saveNamed = () => prepareShelfSave('project');
-  const loadScene = async (data, projectName) => {
+  const loadScene = async (data, projectName, reviewedSnapshot = null) => {
     if (!beginBusy()) return;
     const editor = api.current;
     try {
       const graph = validateProjectGraph(data.elements);
+      setPendingSave(null);
       if (!save(false)) return;
+      const snapshot = encodeDraft(...scene());
+      if (reviewedSnapshot !== null && reviewedSnapshot !== snapshot) {
+        setPendingOpen(null);
+        throw Error('Your drawing changed after the review. Open the project again to review this version.');
+      }
+      if (reviewedSnapshot === null && editor.getSceneElements().some(element => !element.isDeleted)) {
+        setPendingOpen({ data, name: projectName, snapshot }); setPanel('projects');
+        setStatus('Review before replacing your drawing. Your current work stays here until you choose Replace current drawing.');
+        return;
+      }
+      setPendingOpen(null);
       const elements = restoreElements(graph, null), incoming = filesForElements(elements, data.files);
       const files = mergePhotoFiles(editor.getFiles(), incoming);
       await verifyPhotoCopies(incoming);
+      if (!mounted.current || api.current !== editor || encodeDraft(...scene()) !== snapshot) throw Error('Your drawing changed while opening the project. Open it again.');
       publishPhotoScene(editor, elements, { ...data.appState, selectedElementIds: {} }, files);
       editor.scrollToContent(elements, { fitToContent: true });
       setName(projectName); setStatus('Composition loaded. Undo returns to the previous drawing.');
@@ -698,8 +716,8 @@ function Editor() {
   };
   const chooseProjectView = value => {
     if (busyRef.current || value === projectTool || !Object.prototype.hasOwnProperty.call(projectViews, value)) return;
-    if (pendingSave) setStatus('Replacement review dismissed. Saved work is unchanged.');
-    setPendingSave(null); setProjectTool(value);
+    if (pendingSave || pendingOpen) setStatus('Replacement review dismissed. Your drawing and saved work are unchanged.');
+    setPendingOpen(null); setPendingSave(null); setProjectTool(value);
   };
   const foundObjects = panel === 'objects' ? findArtwork(objects, objectQuery, objectType) : [];
   return <main>
@@ -752,6 +770,7 @@ function Editor() {
       {panel === 'framing' && framingTarget && <PhotoFramingPreview target={framingTarget} isCurrent={() => framingCurrent(framingTarget)} onApply={applyFraming} onCancel={closePanel} />}
       {panel === 'arrange' && <><div className="tool-grid layout-tools" role="group" aria-label="Arrangement tool">{[['align','Align & space'],['photos','Photo sheet'],['blend','Shape blend'],['grid','Grid repeat'],['personalize','Personalized copies'],['ring','Ring repeat'],['recolor','Recolor']].map(([value,label]) => <button key={value} aria-pressed={arrangeTool === value} onClick={() => setArrangeTool(value)}>{label}</button>)}</div>{arrangeTool === 'personalize' && <PersonalizeTool captureSource={capturePersonalization} onApply={insertPersonalization} />}{arrangeTool === 'photos' && <><h3>Photo contact sheet</h3><p>Fit 2–8 existing photos into equal cells without cropping. Order follows the drawing’s back-to-front object list, left to right then down. Unlock, ungroup and straighten photos first. Other artwork stays in place.</p><label className="check-label"><input type="checkbox" checked={sheetAll} onChange={event => setSheetAll(event.target.checked)} />Use all visible unlocked photos</label><p>{sheetAll ? 'All eligible photos will move and resize.' : 'Select only the photos to arrange on the canvas first.'}</p><div className="number-fields"><label>Photo sheet columns<input inputMode="numeric" maxLength={1} value={sheetColumns} onChange={event => setSheetColumns(event.target.value)} /></label><label>Photo cell size<input inputMode="numeric" maxLength={4} value={sheetCell} onChange={event => setSheetCell(event.target.value)} /></label><label>Photo sheet gap<input inputMode="decimal" maxLength={5} value={sheetGap} onChange={event => setSheetGap(event.target.value)} /></label></div><button onClick={arrangePhotos}>Arrange photos as contact sheet</button></>}{arrangeTool === 'align' && <><p>Select objects on the canvas first. Unlock and ungroup them before arranging.</p><h3>Align selected objects</h3><div className="tool-grid">{['left', 'center', 'right', 'top', 'middle', 'bottom'].map(operation => <button key={operation} onClick={() => arrange(operation)}>{operation}</button>)}</div><h3>Space three or more objects evenly</h3><div className="tool-grid"><button onClick={() => arrange('horizontal')}>Horizontal spacing</button><button onClick={() => arrange('vertical')}>Vertical spacing</button></div></>}{arrangeTool === 'blend' && <><h3>Blend endpoint shapes</h3><p>Select exactly two matching rectangle, ellipse or diamond shapes. Insert editable intermediate positions, sizes, rotations and colors; endpoint shapes stay unchanged.</p><label>Blend intermediate steps<input inputMode="numeric" maxLength={2} value={blendSteps} onChange={event => setBlendSteps(event.target.value)} /></label><button onClick={() => repeatSelection('blend')}>Blend selected endpoint shapes</button></>}{arrangeTool === 'grid' && <><h3>Editable grid repeat</h3><p>Repeat the selected composition as independent objects. The original is the first grid placement.</p><div className="number-fields"><label>Grid columns<input inputMode="numeric" maxLength={2} value={gridColumns} onChange={event => setGridColumns(event.target.value)} /></label><label>Grid rows<input inputMode="numeric" maxLength={2} value={gridRows} onChange={event => setGridRows(event.target.value)} /></label><label>Grid gap<input inputMode="decimal" maxLength={5} value={gridGap} onChange={event => setGridGap(event.target.value)} /></label></div><button onClick={() => repeatSelection('grid')}>Create editable grid copies</button></>}{arrangeTool === 'ring' && <><h3>Editable ring repeat</h3><p>Add upright copies around the selected composition. The original stays at the center.</p><div className="number-fields"><label>Ring copies<input inputMode="numeric" maxLength={2} value={ringCount} onChange={event => setRingCount(event.target.value)} /></label><label>Ring radius<input inputMode="decimal" maxLength={5} value={ringRadius} onChange={event => setRingRadius(event.target.value)} /></label></div><button onClick={() => repeatSelection('ring')}>Create editable ring copies</button></>}{arrangeTool === 'recolor' && <><h3>Replace a composition color</h3><p>Change matching strokes and fills together. Locked and hidden objects stay protected unless included.</p><label>Source composition color<select value={sourceColor} onChange={event => setSourceColor(event.target.value)}>{!compositionColors(objects).some(entry => entry.color === sourceColor) && <option value={sourceColor}>{sourceColor} · no matches</option>}{compositionColors(objects).map(entry => <option key={entry.color} value={entry.color}>{entry.color} · {entry.count} uses</option>)}</select></label><label>Replacement hex color<input value={targetColor} maxLength={9} onChange={event => setTargetColor(event.target.value)} /></label><label className="check-label"><input type="checkbox" checked={includeLocked} onChange={event => setIncludeLocked(event.target.checked)} />Include locked and hidden objects</label><button onClick={recolor}>Replace matching colors</button></>}</>}
       {panel === 'projects' && <>
+        {pendingOpen && <section className="object-row" aria-label="Review drawing replacement"><h3 ref={openReviewHeading} tabIndex={-1}>Open “{pendingOpen.name}” instead?</h3><p>This replaces your current drawing and its local draft. To keep both, choose Keep current drawing, then save a named design or project file first. Undo restores the previous drawing only during this session.</p><div className="tool-grid"><button disabled={busy} onClick={() => { setPendingOpen(null); projectTaskHeading.current?.focus(); setStatus('Current drawing kept. The project was not opened.'); }}>Keep current drawing</button><button disabled={busy} onClick={() => loadScene(pendingOpen.data, pendingOpen.name, pendingOpen.snapshot)}>Replace current drawing</button></div></section>}
         {pendingSave && <section className="object-row" aria-label="Review saved replacement"><h3 ref={saveReviewHeading} tabIndex={-1}>Replace saved {pendingSave.kind === 'component' ? 'component' : 'composition'} “{pendingSave.savedName}”?</h3><p>The saved version will be replaced. Undo is available in this session until another shelf change; use a different name if you need to keep both versions. Your current drawing stays open.</p><div className="tool-grid"><button disabled={busy} onClick={() => { try { applyShelfSave(pendingSave); } catch (failure) { error(failure); } }}>Replace saved version</button><button disabled={busy} onClick={() => { dismissSaveReview(pendingSave.kind); setStatus('Saved version kept. Your current drawing is unchanged.'); }}>Keep saved version</button></div></section>}
 
         <div role="group" aria-label="Project tasks" className="tool-grid layout-tools project-tools">{Object.entries(projectViews).map(([value, label]) => <button key={value} aria-pressed={projectTool === value} aria-controls="project-task-view" disabled={busy} onClick={() => chooseProjectView(value)}>{label}</button>)}</div>
