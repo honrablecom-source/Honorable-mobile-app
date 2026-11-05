@@ -375,6 +375,7 @@ class HonorableVideoEditorActivity : Activity() {
                         if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
                         recoveryBytes = null
                         checked.onSuccess { runCatching { applySavedDraft(current, saved, false) }
+                            .onSuccess { previewReady -> status.text=if(previewReady)"Project recovered. Preview before exporting." else "Project recovered; preview is unavailable. Your restored edits are kept." }
                             .onFailure { status.text = "Project recovery unavailable. The original video remains open."; if(intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA))finish() } }
                             .onFailure { status.text = "A restored video is unavailable or changed. Reopen its document and try the saved draft."; if(intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)){android.widget.Toast.makeText(this,status.text,android.widget.Toast.LENGTH_LONG).show();finish()} }
                     }
@@ -1502,7 +1503,11 @@ class HonorableVideoEditorActivity : Activity() {
                         require(GuestVideoProjectMedia.originals(primary,saved).all{value->hasDurableGuestRead(value)}){"Original document access changed"}
                         applySavedDraft(current,saved,true)
                     }
-                    status.text=if(applied.isSuccess)"Guest project restored. Preview before exporting. Undo restores prior clip edits." else "Guest project sources conflict or access changed. Current edits are preserved."
+                    status.text=when {
+                        applied.isFailure -> "Guest project sources conflict or access changed. Current edits are preserved."
+                        applied.getOrDefault(false) -> "Guest project restored. Preview before exporting. Undo restores prior clip edits."
+                        else -> "Guest project restored; preview is unavailable. Undo restores prior clip edits."
+                    }
                 }else status.text=when(action){GuestProjectAction.SAVE->"Guest project saved locally. Reopen this same original, then Restore project. Media is not copied.";GuestProjectAction.RESTORE->"No guest project is saved for this original video.";else->"Guest save deleted. Source media and account drafts are unchanged."}
             }
         }
@@ -1545,7 +1550,8 @@ class HonorableVideoEditorActivity : Activity() {
                 if (restore && saved != null) {
                     val applied = runCatching { applySavedDraft(current, saved, true) }
                     if(applied.isFailure) { status.text = "Draft sources conflict with the current project. Current edits preserved."; return@runOnUiThread }
-                    status.text = "Draft restored. Preview before saving a copy. Undo restores prior clip edits."
+                    status.text = if(applied.getOrDefault(false)) "Draft restored. Preview before saving a copy. Undo restores prior clip edits."
+                        else "Draft restored; preview is unavailable. Undo restores prior clip edits."
                 } else status.text = if (restore) "No compatible draft is saved for this video and account."
                     else "Draft saved on this device. Your original is unchanged."
             }
@@ -2141,7 +2147,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun validateSources(sources: List<VideoSource>) {
         sources.forEach { require(inspectSource(Uri.parse(it.uri)) == it.durationMs) { "Imported source changed or unavailable" } }
     }
-    private fun applySavedDraft(current: VideoEditProject, saved: VideoDraft, undoable: Boolean) {
+    private fun applySavedDraft(current: VideoEditProject, saved: VideoDraft, undoable: Boolean):Boolean {
         val merged = importedSources + saved.sources.associateBy { it.id }
         require(saved.sources.all { importedSources[it.id]?.let { old -> old == it } ?: true })
         require(merged.size <= 31 && merged.values.map { it.uri }.distinct().size == merged.size)
@@ -2149,12 +2155,16 @@ class HonorableVideoEditorActivity : Activity() {
         if(undoable) current.applyDraft(saved.segments, durations, saved.soundtrack) else current.restore(saved.segments, durations, saved.soundtrack)
         importedSources.putAll(merged)
         selectedClip = saved.selectedClip
-        showClip()
-        start.progress = (saved.trimStartMs/1000).toInt()
-        end.progress = ((saved.trimEndMs+999)/1000).toInt().coerceAtMost(end.max)
+        // The canonical restore has committed. A preview failure must not be reported as a rejected edit.
+        val previewReady=runCatching {
+            showClip()
+            start.progress = (saved.trimStartMs/1000).toInt()
+            end.progress = ((saved.trimEndMs+999)/1000).toInt().coerceAtMost(end.max)
+            video.seekTo(saved.previewPositionMs.toInt())
+            syncSourcePlayhead()
+        }.isSuccess
         pendingSeekMs = saved.previewPositionMs
-        video.seekTo(saved.previewPositionMs.toInt())
-        syncSourcePlayhead()
+        return previewReady
     }
     private fun importVideo() {
         if(project == null || saving || analyzing || draftBusy || importing || pendingRange != null) return
