@@ -25,7 +25,34 @@ class SecureAccountStore(context: Context, private val name:String="honorable-ac
    init(KeyGenParameterSpec.Builder("honorable-account",KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
   }.generateKey()
  }
- fun read():JSONObject? {if(!file.baseFile.exists())return null;return try{val data=JSONObject(file.openRead().bufferedReader().use{it.readText()});val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,Base64.decode(data.getString("iv"),Base64.NO_WRAP)));JSONObject(String(cipher.doFinal(Base64.decode(data.getString("data"),Base64.NO_WRAP)),Charsets.UTF_8))}catch(_:Exception){clear();null}}
+ fun read():JSONObject? = readStored(false)
+ /** Drafts must retain unreadable data; authentication keeps its existing destructive-invalid-read policy. */
+ fun readPreserving():JSONObject? = readStored(true)
+ private fun readStored(preserve:Boolean):JSONObject? {
+  if(!file.baseFile.exists())return null
+  return try {
+   val encoded=if(preserve)file.openRead().use { input ->
+    val output=java.io.ByteArrayOutputStream()
+    val buffer=ByteArray(4096)
+    while(true){
+     val remaining=1_048_577-output.size()
+     check(remaining>0){"Stored local data is too large"}
+     val count=input.read(buffer,0,minOf(buffer.size,remaining))
+     if(count<0)break
+     output.write(buffer,0,count)
+     check(output.size()<=1_048_576){"Stored local data is too large"}
+    }
+    output.toString("UTF-8")
+   }else file.openRead().bufferedReader().use{it.readText()}
+   val data=JSONObject(encoded)
+   val cipher=Cipher.getInstance("AES/GCM/NoPadding")
+   cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,Base64.decode(data.getString("iv"),Base64.NO_WRAP)))
+   JSONObject(String(cipher.doFinal(Base64.decode(data.getString("data"),Base64.NO_WRAP)),Charsets.UTF_8))
+  }catch(error:Exception){
+   if(preserve)throw IOException("Saved local data could not be opened. Existing file was kept.",error)
+   clear();null
+  }
+ }
  fun write(value:JSONObject){val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key());val data=JSONObject().put("iv",Base64.encodeToString(cipher.iv,Base64.NO_WRAP)).put("data",Base64.encodeToString(cipher.doFinal(value.toString().toByteArray(Charsets.UTF_8)),Base64.NO_WRAP));val output=file.startWrite();try{output.write(data.toString().toByteArray());file.finishWrite(output)}catch(error:Exception){file.failWrite(output);throw error}}
  fun clear(){file.delete()}
 }

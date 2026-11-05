@@ -1538,8 +1538,11 @@ class HonorableVideoEditorActivity : Activity() {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 draftBusy = false
                 start.isEnabled = true; end.isEnabled = true
-                if (result.isFailure || runCatching { requireNotNull(persistence).requireCurrentOwner() }.isFailure) {
-                    status.text = "Draft unavailable. Check your account and try again."
+                val ownerCurrent=runCatching { requireNotNull(persistence).requireCurrentOwner() }.isSuccess
+                if (result.isFailure || !ownerCurrent) {
+                    status.text = if(ownerCurrent && result.exceptionOrNull() is VideoDraftRecordException)
+                        "Saved draft could not be opened or is incompatible. Saved data and current edits were kept. Try reopening the original document."
+                    else "Draft unavailable. Check your account, storage and original document access."
                     return@runOnUiThread
                 }
                 if (project !== current || primaryDurationMs != sourceDuration) {
@@ -1552,7 +1555,7 @@ class HonorableVideoEditorActivity : Activity() {
                     if(applied.isFailure) { status.text = "Draft sources conflict with the current project. Current edits preserved."; return@runOnUiThread }
                     status.text = if(applied.getOrDefault(false)) "Draft restored. Preview before saving a copy. Undo restores prior clip edits."
                         else "Draft restored; preview is unavailable. Undo restores prior clip edits."
-                } else status.text = if (restore) "No compatible draft is saved for this video and account."
+                } else status.text = if (restore) "No draft is saved for this video and account on this device."
                     else "Draft saved on this device. Your original is unchanged."
             }
         }

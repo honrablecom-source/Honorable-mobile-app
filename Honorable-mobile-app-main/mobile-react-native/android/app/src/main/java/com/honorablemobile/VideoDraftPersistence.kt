@@ -31,8 +31,25 @@ internal class VideoDraftPersistence(private val context: Context, sourceUri: St
 
     fun load(durationMs: Long): VideoDraft? = synchronized(draftLock) {
         requireCurrentOwner()
-        val encoded = store.read()?.optString("draft") ?: return@synchronized null
-        if (encoded.length > 350_000) return@synchronized null
-        runCatching { VideoDraftCodec.decode(Base64.decode(encoded, Base64.NO_WRAP), durationMs) }.getOrNull()
+        val record=try { store.readPreserving() } catch (_:java.io.IOException) { throw VideoDraftRecordException() }
+        VideoAccountDraftRecord.decode(record,durationMs)
+    }
+}
+
+/** Only an absent record is absent; invalid saved data must never look like an empty shelf. */
+internal class VideoDraftRecordException : IllegalArgumentException(
+    "Saved draft could not be opened or is incompatible. Saved data and current edits were kept."
+)
+
+internal object VideoAccountDraftRecord {
+    private const val MAX_ENCODED_CHARS = 350_000
+    fun decode(record:JSONObject?,durationMs:Long):VideoDraft? {
+        if(record==null)return null
+        val encoded=record.opt("draft")
+        if(encoded !is String || encoded.length !in 1..MAX_ENCODED_CHARS)throw VideoDraftRecordException()
+        return try {
+            VideoDraftCodec.decode(Base64.decode(encoded,Base64.NO_WRAP),durationMs)
+                ?: throw VideoDraftRecordException()
+        } catch (_:IllegalArgumentException) { throw VideoDraftRecordException() }
     }
 }
