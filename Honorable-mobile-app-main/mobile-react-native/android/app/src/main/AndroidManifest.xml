@@ -2,6 +2,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
@@ -36,6 +38,11 @@
       </provider>
       <activity android:name=".HonorableDrawingActivity" android:exported="false" android:theme="@style/AppTheme" />
       <activity android:name=".HonorableVideoEditorActivity" android:exported="false" android:theme="@style/AppTheme" />
+      <activity android:name=".VoiceoverRecorderActivity" android:exported="false" android:theme="@style/AppTheme" />
+      <provider android:name=".VoiceoverProvider" android:authorities="${applicationId}.voiceovers" android:exported="false" android:grantUriPermissions="false" />
+    <activity android:name="app.honorable.editor.CanvasProjectsActivity" android:exported="false" />
     <activity android:name="app.honorable.editor.PhotoEditorActivity" android:exported="false" />
+        <activity android:name=".PhotoVideoCreatorActivity" android:exported="false" />
+        <activity android:name=".PhotoVideoProjectsActivity" android:exported="false" />
     </application>
 </manifest>

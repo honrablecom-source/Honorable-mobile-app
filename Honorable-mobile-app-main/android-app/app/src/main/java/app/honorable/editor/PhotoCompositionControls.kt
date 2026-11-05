@@ -19,7 +19,7 @@ object PhotoCompositionControls {
         }
         fun check(name:String,current:Boolean,update:(Boolean)->Unit){p.addView(CheckBox(a).apply{text=name;isChecked=current;setTextColor(Color.BLACK);setOnCheckedChangeListener{_,on->update(on)}})}
         var color:EditText?=null;var text:EditText?=null
-        fun colorField(current:Int){note("Output color · six-digit hex");color=EditText(a).apply{setText(String.format(java.util.Locale.ROOT,"%06X",current and 0xFFFFFF));isSingleLine=true;filters=arrayOf(InputFilter.LengthFilter(6));contentDescription="Output color";setTextColor(Color.BLACK);p.addView(this)}}
+        fun colorField(current:Int){note("Output color · #RRGGBB");color=EditText(a).apply{setText(PhotoEffectColors.format(current));isSingleLine=true;filters=arrayOf(InputFilter.LengthFilter(7));contentDescription="Output color";setTextColor(Color.BLACK);p.addView(this)}}
         when(tool){
             PhotoCompositionTool.CANVAS->{slider("Padding percent",(value.padding*100).toInt(),40){value=value.copy(padding=it/100f)};check("Transparent canvas",value.canvasColor ushr 24==0){value=value.copy(canvasColor=if(it)0 else -1)};colorField(value.canvasColor);note("Adds solid or transparent space. No generated fill. The photo may scale down to stay within its export pixel budget.")}
             PhotoCompositionTool.FRAME->{slider("Frame percent",(value.frame*100).toInt(),12){value=value.copy(frame=it/100f)};colorField(value.frameColor)}
@@ -41,8 +41,7 @@ object PhotoCompositionControls {
             }
             d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener{
                 val field=color
-                if(field!=null && !field.text.toString().matches(Regex("[A-Fa-f0-9]{6}"))){field.error="Use six hexadecimal digits";return@setOnClickListener}
-                val rgb=field?.text?.toString()?.toInt(16)
+                val rgb=field?.let{runCatching{PhotoEffectColors.parse(it.text.toString()) and 0xffffff}.getOrElse{field.error="Use #RRGGBB or six HEX digits";return@setOnClickListener}}
                 if(rgb!=null)value=when(tool){PhotoCompositionTool.CANVAS->value.copy(canvasColor=if(value.canvasColor ushr 24==0)0 else rgb or -0x1000000);PhotoCompositionTool.FRAME->value.copy(frameColor=rgb or -0x1000000);PhotoCompositionTool.COLOR_KEY->value.copy(keyColor=if(value.keyColor==null)null else rgb);else->value}
                 val result=runCatching{value.copy(watermark=text?.text?.toString()?:value.watermark)}
                 if(result.isFailure){text?.error="Use up to 60 characters / 180 UTF-8 bytes, without control characters";return@setOnClickListener}

@@ -6,6 +6,24 @@ docs/.trash/
 
 # Local compressed code context; never a release artifact
 .context/
+.tools/
 
 # Local Obsidian graph display state
 docs/.obsidian/graph.json
+
+# Local drawing preview dependency directory (may be a temporary-disk symlink).
+/Honorable-mobile-app-main/mobile-react-native/creation-web/node_modules
+
+# Local mobile UI preview dependency link
+/Honorable-mobile-app-main/mobile-react-native/workspace-preview/node_modules
+
+# Generated Android outputs may be symlinked to temporary disk locally.
+/Honorable-mobile-app-main/mobile-react-native/android/build
+/Honorable-mobile-app-main/mobile-react-native/android/.gradle
+/Honorable-mobile-app-main/mobile-react-native/android/app/build
+/Honorable-mobile-app-main/mobile-react-native/android/app/.cxx
+
+# Standalone Compose generated outputs may also use temporary disk.
+/Honorable-mobile-app-main/android-app/build
+/Honorable-mobile-app-main/android-app/.gradle
+/Honorable-mobile-app-main/android-app/app/build

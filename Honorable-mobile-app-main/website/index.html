@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f7f5">
+  <meta name="description" content="Honorable: private photo and video search, editing, and creative tools on your device.">
+  <title>Honorable — Your memories, your studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="#top" aria-label="Honorable home">
+      <span class="brand-mark">H</span>
+      <span>Honorable</span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#features">Features</a>
+      <a href="#studio">Studio</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Build preview</p>
+        <h1>Your memories.<br>Your studio.</h1>
+        <p class="hero-detail">Find moments in your photo and video library, then edit, caption, and create from the same device.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#features">Explore features</a>
+          <button class="button button-secondary" type="button" data-open-preview>View app preview</button>
+        </div>
+      </div>
+
+      <div class="phone-stage" aria-label="Honorable app preview">
+        <div class="phone">
+          <div class="phone-bar"><span>9:41</span><span class="phone-status">● ●</span></div>
+          <div class="phone-tabs">
+            <button class="phone-tab active" type="button" data-tab="search">Search</button>
+            <button class="phone-tab" type="button" data-tab="studio">Studio</button>
+            <button class="phone-tab" type="button" data-tab="library">Library</button>
+          </div>
+          <div class="phone-screen">
+            <img id="phone-image" src="../ui-previews/01-home.png" alt="Honorable app interface preview">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-label="Core product areas">
+      <div><strong>Private search</strong><span>Find photos and moments on your device</span></div>
+      <div><strong>Photo studio</strong><span>Light, color, crop, text, and local tools</span></div>
+      <div><strong>Video studio</strong><span>Trim, captions, titles, color, and export</span></div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="section-heading">
+        <p class="eyebrow">One library. Two studios.</p>
+        <h2>Built around what you can actually create.</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature feature-large" data-preview="search">
+          <div class="feature-copy">
+            <span class="feature-number">01</span>
+            <h3>Find a memory</h3>
+            <p>Search your photos and videos by objects, scenes, visible text, color, place, or a remembered moment.</p>
+          </div>
+          <img src="../ui-rebuild/previews/05-results.png" alt="On-device photo search preview">
+        </article>
+
+        <article class="feature" data-preview="photo">
+          <div class="feature-copy">
+            <span class="feature-number">02</span>
+            <h3>Shape a photo</h3>
+            <p>Adjust crop, rotation, exposure, color, shadows, detail, text, saved looks, and background tools.</p>
+          </div>
+          <img src="../ui-rebuild/previews/13-photo-editor.png" alt="Photo editor preview">
+        </article>
+
+        <article class="feature" data-preview="video">
+          <div class="feature-copy">
+            <span class="feature-number">03</span>
+            <h3>Build a video</h3>
+            <p>Trim, split, reorder, speed, add titles and captions, grade clips, mix audio, and preview a project.</p>
+          </div>
+          <img src="../ui-rebuild/previews/18-video-editor.png" alt="Video editor preview">
+        </article>
+      </div>
+    </section>
+
+    <section class="section studio" id="studio">
+      <div class="studio-tabs" role="tablist" aria-label="Studio preview">
+        <button role="tab" aria-selected="true" class="studio-tab active" type="button" data-studio="photo">Photo</button>
+        <button role="tab" aria-selected="false" class="studio-tab" type="button" data-studio="video">Video</button>
+        <button role="tab" aria-selected="false" class="studio-tab" type="button" data-studio="drawing">Drawing</button>
+      </div>
+      <div class="studio-showcase">
+        <div class="studio-copy">
+          <p class="eyebrow" id="studio-eyebrow">Photo workspace</p>
+          <h2 id="studio-title">More control, less clutter.</h2>
+          <p id="studio-detail">A compact editor with the canvas first and adjustments close at hand.</p>
+          <ul id="studio-list">
+            <li>Crop and transform</li>
+            <li>Light, color, curves, and white balance</li>
+            <li>Sharpen, vignette, text, and saved looks</li>
+          </ul>
+        </div>
+        <div class="studio-canvas">
+          <img id="studio-image" src="../ui-rebuild/previews/25-desktop-photo-editor.png" alt="Honorable photo workspace preview">
+        </div>
+      </div>
+    </section>
+
+    <section class="section privacy" id="privacy">
+      <div>
+        <p class="eyebrow">Private by direction</p>
+        <h2>Your original media stays yours.</h2>
+      </div>
+      <div class="privacy-copy">
+        <p>Honorable is designed to keep search and editing connected to the device. This showcase is a development preview, not a published store release.</p>
+        <a href="#top">Back to top</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#top"><span class="brand-mark">H</span><span>Honorable</span></a>
+    <p>Development preview</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

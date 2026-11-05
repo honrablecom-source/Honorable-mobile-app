@@ -6,10 +6,16 @@ internal data class VideoTimelinePosition(val clipIndex: Int, val sourceId: Stri
 internal object VideoTimeline {
     fun soundtrackRepeatCount(clips: List<VideoSegment>, track: VideoSoundtrack): Long {
         require(clips.isNotEmpty())
-        val duration=clips.sumOf { it.durationUs }
-        val count=(duration-1)/(track.durationMs*1000)+1
+        val duration=VideoPlaybackTime.durationUs(clips)
+        if(!track.loop)return 1
+        val count=(duration-1)/(track.playbackDurationMs*1000)+1
         require(count <= 1000) { "Choose a longer soundtrack; up to 1000 repeats are supported" }
         return count
+    }
+    fun soundtrackEndUs(clips:List<VideoSegment>,track:VideoSoundtrack):Long {
+        val duration=VideoPlaybackTime.durationUs(clips)
+        val length=if(track.loop)track.playbackDurationMs*1000 else minOf(duration,track.playbackDurationMs*1000)
+        return track.startMs*1000+length
     }
     fun locate(clips: List<VideoSegment>, positionUs: Long): VideoTimelinePosition {
         require(clips.isNotEmpty())

@@ -136,7 +136,7 @@ test('source detail icon opens the source inspector rather than the tools tab', 
 });
 
 test('Studio launch imports the requested media kind without changing an existing selection', async () => {
-  await act(async () => button('Create a new video').props.onPress());
+  await act(async () => button('Choose a video to edit').props.onPress());
   expect(mockOpen).toHaveBeenLastCalledWith('VIDEO');
   await act(async () => button('Choose a photo to edit').props.onPress());
   expect(mockOpen).toHaveBeenLastCalledWith('IMAGE');
@@ -146,4 +146,40 @@ test('Studio launch imports the requested media kind without changing an existin
     mediaUri: 'content://fixture/photo1',
     type: 'IMAGE',
   });
+});
+
+test('a same-tick library tap cannot launch an editor while Studio import is pending', async () => {
+  let complete!: () => void;
+  mockOpen.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+  await act(async () => {
+    button('Import media').props.onPress();
+    button('Edit Second.jpg').props.onPress();
+  });
+  try {
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+    expect(mockEdit).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => complete());
+  }
+  await act(async () => button('Edit Second.jpg').props.onPress());
+  expect(mockEdit).toHaveBeenCalledTimes(1);
+});
+
+test('a same-tick import tap cannot compete with a pending library editor', async () => {
+  let complete!: () => void;
+  mockEdit.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+  await act(async () => {
+    button('Edit Second.jpg').props.onPress();
+    button('Import media').props.onPress();
+    button('Choose a video to edit').props.onPress();
+    button('Choose a photo to edit').props.onPress();
+  });
+  try {
+    expect(mockEdit).toHaveBeenCalledTimes(1);
+    expect(mockOpen).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => complete());
+  }
+  await act(async () => button('Import media').props.onPress());
+  expect(mockOpen).toHaveBeenCalledTimes(1);
 });

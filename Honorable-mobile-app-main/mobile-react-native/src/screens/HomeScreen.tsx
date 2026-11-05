@@ -1,3 +1,4 @@
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -44,6 +45,7 @@ function duration(ms?: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 export function HomeScreen() {
+  const reduceMotion = useReducedMotion();
   const { busy: openingEditor, open } = useOpenWorkspace();
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const {
@@ -67,6 +69,20 @@ export function HomeScreen() {
   const [selected, setSelected] = useState<MediaItem>();
   const [modeOpen, setModeOpen] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const smartSearches = [
+    'sunset beach',
+    'photos of people',
+    'documents with text',
+    'red flowers',
+    'videos at night',
+    'family photos',
+    'pets',
+    'mountain views',
+    'screenshots',
+    'food photos',
+    'cars',
+    'city at night',
+  ];
   const refreshHistory = () =>
     honorableNative
       .getSearchHistory()
@@ -256,10 +272,34 @@ export function HomeScreen() {
           <ShieldCheck size={12} color={colors.textTertiary} />
           <Text style={styles.privacyText}>Search runs on your device</Text>
         </View>
+        {!response && !loading && (
+          <View style={styles.history}>
+            <Text variant="muted" className="text-[11px] font-semibold">
+              Try a memory search
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.historyItems}
+            >
+              {smartSearches.map(item => (
+                <Pressable
+                  key={item}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search for ${item}`}
+                  onPress={() => search(item)}
+                  style={styles.historyChip}
+                >
+                  <Text className="text-[11px]">{item}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
         <Modal
           visible={modeOpen}
           transparent
-          animationType="slide"
+          animationType={reduceMotion ? 'none' : 'slide'}
           onRequestClose={() => setModeOpen(false)}
         >
           <View

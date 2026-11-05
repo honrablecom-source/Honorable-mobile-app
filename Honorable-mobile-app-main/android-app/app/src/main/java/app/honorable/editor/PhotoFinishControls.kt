@@ -7,6 +7,15 @@ import android.content.res.ColorStateList
 import android.widget.*
 import android.text.InputFilter
 
+/** Preserve valid imported/saved caption geometry until the user selects an explicit replacement. */
+internal object PhotoCaptionChoices {
+    private fun retain(values:List<Float>,current:Float)=if(current in values)values else values+current
+    fun positions(initial:PhotoCaption?)=retain(listOf(.15f,.5f,.85f),initial?.y?:.85f)
+    fun sizes(initial:PhotoCaption?)=retain(listOf(.035f,.06f,.10f),initial?.size?:.06f)
+    fun updated(initial:PhotoCaption?,text:String,y:Float,size:Float,light:Boolean,plate:Boolean)=
+        PhotoCaption(text,x=initial?.x?:.5f,y=y,size=size,light=light,plate=plate)
+}
+
 object PhotoFinishControls {
     private fun panel(a:Activity)=LinearLayout(a).apply{orientation=LinearLayout.VERTICAL;setPadding(24,16,24,16)}
     fun adjust(a:Activity,title:String,initial:PhotoFinish,kind:Int,commit:(PhotoFinish)->Unit){
@@ -30,14 +39,16 @@ object PhotoFinishControls {
     fun caption(a:Activity,initial:PhotoCaption?,commit:(PhotoCaption?)->Unit){
         val p=panel(a);val text=EditText(a).apply{setText(initial?.text.orEmpty());hint="Add text";setTextColor(Color.BLACK);filters=arrayOf(InputFilter.LengthFilter(120));maxLines=3};p.addView(text)
         fun choices(label:String,items:List<String>,selected:Int):Spinner {p.addView(TextView(a).apply{this.text=label;setTextColor(Color.BLACK)});return Spinner(a).also{it.adapter=ArrayAdapter(a,android.R.layout.simple_spinner_dropdown_item,items);it.setSelection(selected);p.addView(it)}}
-        val positions=listOf(.15f,.5f,.85f);val sizes=listOf(.035f,.06f,.10f)
-        val position=choices("Position",listOf("Top","Center","Bottom"),positions.indexOf(initial?.y?:.85f).coerceAtLeast(0))
-        val size=choices("Size",listOf("Small","Medium","Large"),sizes.indexOf(initial?.size?:.06f).coerceAtLeast(0))
+        val positions=PhotoCaptionChoices.positions(initial);val sizes=PhotoCaptionChoices.sizes(initial)
+        val positionLabels=listOf("Top","Center","Bottom")+positions.drop(3).map{String.format(java.util.Locale.ROOT,"Keep current (%.1f%%)",it*100)}
+        val sizeLabels=listOf("Small","Medium","Large")+sizes.drop(3).map{String.format(java.util.Locale.ROOT,"Keep current (%.1f%%)",it*100)}
+        val position=choices("Position",positionLabels,positions.indexOf(initial?.y?:.85f))
+        val size=choices("Size",sizeLabels,sizes.indexOf(initial?.size?:.06f))
         val light=CheckBox(a).apply{this.text="White text";isChecked=initial?.light?:true;setTextColor(Color.BLACK)};p.addView(light)
         val plate=CheckBox(a).apply{this.text="Contrast backplate";isChecked=initial?.plate?:true;setTextColor(Color.BLACK)};p.addView(plate)
         val d=AlertDialog.Builder(a).setTitle("Photo text").setView(ScrollView(a).apply{addView(p)}).setNegativeButton("Cancel",null).setNeutralButton("Remove"){_,_->commit(null)}.setPositiveButton("Apply",null).create()
         d.setOnShowListener{d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            runCatching{PhotoCaption(text.text.toString(),y=positions[position.selectedItemPosition],size=sizes[size.selectedItemPosition],light=light.isChecked,plate=plate.isChecked)}
+            runCatching{PhotoCaptionChoices.updated(initial,text.text.toString(),positions[position.selectedItemPosition],sizes[size.selectedItemPosition],light.isChecked,plate.isChecked)}
                 .onSuccess{commit(it);d.dismiss()}.onFailure{text.error="Use 1–120 characters and up to three lines."}
         }};d.show()
     }

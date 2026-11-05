@@ -58,4 +58,19 @@ class VideoEditProjectTest {
     fun restoreRejectsRangesBeyondSource() {
         VideoEditProject(1_000).restore(listOf(VideoSegment(0, 2_000)))
     }
+    @Test fun manySpeedAdjustedClipsKeepFractionalRemainders() {
+        val project=VideoEditProject(1000)
+        project.restore(List(1000){VideoSegment(0,1000,speed=1.5f)})
+        assertEquals(666_666L,project.totalDurationMs)
+    }
+    @Test fun overflowingTimelineRestoreIsRejectedBeforeSourceCatalogOrHistoryChanges() {
+        val project=VideoEditProject(1000)
+        val before=project.segments
+        val huge=VideoSegment(0,Long.MAX_VALUE,sourceId="huge")
+        assertTrue(runCatching{project.restore(listOf(huge,huge),mapOf("huge" to Long.MAX_VALUE))}.isFailure)
+        assertEquals(before,project.segments);assertFalse(project.canUndo)
+        project.appendSource("huge",2000)
+        assertEquals(2000L,project.segments.last().endMs)
+    }
+
 }

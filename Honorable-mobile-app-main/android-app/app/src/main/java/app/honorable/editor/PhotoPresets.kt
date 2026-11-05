@@ -23,6 +23,8 @@ data class PhotoAdjustmentPreset(
     val sharpen: Float = 0f,
     val creative: PhotoCreative = PhotoCreative(),
     val effects: PhotoEffects = PhotoEffects(),
+    val selectiveColor: PhotoSelectiveColor = PhotoSelectiveColor(),
+    val monochrome: PhotoMonochrome = PhotoMonochrome(),
 ) {
     init {
         // Use precisely the same bounds as the existing editor/render model.
@@ -34,14 +36,14 @@ data class PhotoAdjustmentPreset(
     /** Replace adjustment values, retaining this photo's framing, local light, people and text. */
     fun applyTo(target: PhotoEdit): PhotoEdit = target.copy(
         brightness = brightness, contrast = contrast, saturation = saturation, exposure = exposure,
-        curve = curve, creative = creative, effects = effects, finish = target.finish.copy(warmth = warmth, tint = tint, shadows = shadows,
+        curve = curve, creative = creative, effects = effects, selectiveColor=selectiveColor, monochrome=monochrome, finish = target.finish.copy(warmth = warmth, tint = tint, shadows = shadows,
             highlights = highlights, vignette = vignette, sharpen = sharpen),
     )
 
     companion object {
         fun capture(edit: PhotoEdit) = PhotoAdjustmentPreset(edit.brightness, edit.contrast,
             edit.saturation, edit.exposure, edit.curve, edit.finish.warmth, edit.finish.tint,
-            edit.finish.shadows, edit.finish.highlights, edit.finish.vignette, edit.finish.sharpen, edit.creative, edit.effects)
+            edit.finish.shadows, edit.finish.highlights, edit.finish.vignette, edit.finish.sharpen, edit.creative, edit.effects, edit.selectiveColor, edit.monochrome)
     }
 }
 
@@ -75,16 +77,16 @@ class PhotoPresetCatalog(entries: List<NamedPhotoPreset> = emptyList()) {
     companion object { const val MAX_ENTRIES = 20 }
 }
 
-/** Bounded format; reads legacy v1, creative v2 and effects v3 without partial acceptance. */
+/** Bounded format; reads legacy v1, creative v2,effects v3,selective-color v4 and channel-mix v5 without partial acceptance. */
 object PhotoPresetCodec {
     const val MAX_BYTES = 8192
     private const val MAGIC = 0x48505031
-    private const val VERSION = 3
+    private const val VERSION = 5
 
     fun encode(catalog: PhotoPresetCatalog): ByteArray {
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
-            val version=if(catalog.entries.any{it.adjustments.effects!=PhotoEffects()})VERSION else if(catalog.entries.any{!it.adjustments.creative.isIdentity})2 else 1
+            val version=if(catalog.entries.any{it.adjustments.monochrome!=PhotoMonochrome()})5 else if(catalog.entries.any{it.adjustments.selectiveColor!=PhotoSelectiveColor()})4 else if(catalog.entries.any{it.adjustments.effects!=PhotoEffects()})3 else if(catalog.entries.any{!it.adjustments.creative.isIdentity})2 else 1
             out.writeInt(MAGIC); out.writeInt(version); out.writeInt(catalog.entries.size)
             catalog.entries.forEach { preset ->
                 val name = preset.name.toByteArray(Charsets.UTF_8)
@@ -95,6 +97,8 @@ object PhotoPresetCodec {
                         .forEach(out::writeFloat)
                     if(version>=2)creative.write(out)
                     if(version>=3)effects.write(out)
+                    if(version>=4)selectiveColor.write(out)
+                    if(version>=5)monochrome.write(out)
                 }
             }
         }
@@ -119,7 +123,9 @@ object PhotoPresetCodec {
                     input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat())
                 val creative=if(version>=2)PhotoCreative.read(input)else PhotoCreative()
                 val effects=if(version>=3)PhotoEffects.read(input)else PhotoEffects()
-                NamedPhotoPreset(name,adjustments.copy(creative=creative,effects=effects))
+                val selective=if(version>=4)PhotoSelectiveColor.read(input)else PhotoSelectiveColor()
+                val monochrome=if(version>=5)PhotoMonochrome.read(input)else PhotoMonochrome()
+                NamedPhotoPreset(name,adjustments.copy(creative=creative,effects=effects,selectiveColor=selective,monochrome=monochrome))
             }
             require(input.available() == 0)
             return PhotoPresetCatalog(entries)

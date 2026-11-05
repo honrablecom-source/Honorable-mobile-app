@@ -13,3 +13,22 @@ test('object and payload bounds prevent oversized stored scenes',()=>{assert.thr
 test('non-finite or extreme coordinates are rejected',()=>{for(const x of [NaN,Infinity,1e8])assert.throws(()=>encodeDraft([{...box,x}]));});
 test('external content and overlong text are not persisted',()=>{assert.throws(()=>encodeDraft([{...box,type:'image',fileId:'remote'}]));assert.throws(()=>encodeDraft([{...box,type:'text',text:'x'.repeat(2001)}]));});
 test('colors and text survive a supported local draft',()=>{const text={...box,type:'text',text:'A local idea',fontFamily:2};assert.equal(decodeDraft(encodeDraft([text])).elements[0].text,'A local idea');});
+
+test('malformed nested drawing geometry is refused before renderer restore', () => {
+  const line = { ...box, type: 'line', points: [[0, 0], [100, 80]] };
+  for (const points of ['bad', {}, [[0]], [[0, 0, 1]], [[0, Infinity]], [[0, NaN]], [[0, 1e8]], [null], Array.from({ length: 20001 }, () => [0, 0])]) {
+    assert.throws(() => encodeDraft([{ ...line, points }]), /points/);
+  }
+  const raw = JSON.stringify({ version: 1, elements: [{ ...line, points: [[0, null]] }] });
+  assert.throws(() => decodeDraft(raw), /points/);
+});
+
+test('freehand pressure validation preserves supported real and simulated strokes', () => {
+  const stroke = { ...box, type: 'freedraw', points: [[0, 0], [100, 80]], pressures: [0.2, 0.8], simulatePressure: false };
+  assert.deepEqual(decodeDraft(encodeDraft([stroke])).elements[0], stroke);
+  const simulated = { ...stroke, pressures: [], simulatePressure: true };
+  assert.deepEqual(decodeDraft(encodeDraft([simulated])).elements[0], simulated);
+  for (const pressures of ['bad', [0.5], [-0.1, 0.8], [0.2, 1.1], [0.2, Infinity], [null, 0.8]]) {
+    assert.throws(() => encodeDraft([{ ...stroke, pressures }]), /pressure/);
+  }
+});

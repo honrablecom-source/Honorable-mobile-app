@@ -1,3 +1,4 @@
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors } from '../design-system/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
@@ -24,6 +25,7 @@ export function MediaViewer({
   item?: MediaItem;
   onClose: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [chrome, setChrome] = useState(true);
@@ -38,7 +40,11 @@ export function MediaViewer({
       })
       .catch(() => undefined);
   return (
-    <Modal visible animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible
+      animationType={reduceMotion ? 'none' : 'fade'}
+      onRequestClose={onClose}
+    >
       <StatusBar hidden />
       <Pressable onPress={() => setChrome(v => !v)} style={styles.canvas}>
         {crop === undefined && item.uri ? (

@@ -1,3 +1,4 @@
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import {
@@ -50,11 +51,12 @@ export function SearchModeSheet({
   onClose: () => void;
   onSelect: (mode: SearchModeId) => void;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType={reduceMotion ? 'none' : 'slide'}
       onRequestClose={onClose}
     >
       <Pressable style={styles.scrim} onPress={onClose} />

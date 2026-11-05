@@ -122,12 +122,29 @@ type NativeBoundary = {
   getSearchHistory(): Promise<{ queries: string[] }>;
   clearSearchHistory(): Promise<{ cleared: boolean }>;
   editPhoto(uri: string): Promise<{ opened: boolean }>;
+  editPhotoWithLook(
+    uri: string,
+    look: string,
+  ): Promise<{ opened: boolean }>;
   editVideo(uri: string): Promise<{ opened: boolean }>;
   editPhotoGuest(uri: string): Promise<{ opened: boolean }>;
+  editPhotoGuestWithLook(
+    uri: string,
+    look: string,
+  ): Promise<{ opened: boolean }>;
+  editPhotoWithQuickStart(
+    uri: string,
+    preset: string,
+  ): Promise<{ opened: boolean }>;
   editVideoGuest(uri: string): Promise<{ opened: boolean }>;
+  createPhotoVideoGuest(): Promise<{ opened: boolean }>;
+  openPhotoVideoProjectsGuest(): Promise<{ opened: boolean }>;
+  openCanvasProjectsGuest(): Promise<{ opened: boolean }>;
   createDrawingGuest(): Promise<{ opened: boolean }>;
+  canvasSetups(action: 'list' | 'save' | 'delete', name: string, width: number, height: number, background: string): Promise<string>;
+  createCustomImageGuest(width: number, height: number, background: 'white' | 'black' | 'transparent'): Promise<{ opened: boolean }>;
   createImageGuest(
-    format: 'square' | 'portrait' | 'landscape',
+    format: 'square' | 'portrait' | 'landscape' | 'feed_portrait' | 'story' | 'reels' | 'ultrawide' | 'postcard' | 'banner' | 'poster' | 'cover' | 'wallpaper',
   ): Promise<{ opened: boolean }>;
   editVideoAtMoment(
     uri: string,
@@ -182,14 +199,25 @@ export const honorableNative = {
   getSearchHistory: () => boundary().getSearchHistory(),
   clearSearchHistory: () => boundary().clearSearchHistory(),
   editPhoto: (uri: string) => boundary().editPhoto(uri),
+  editPhotoWithLook: (uri: string, look: string) =>
+    boundary().editPhotoWithLook(uri, look),
+  editPhotoWithQuickStart: (uri: string, preset: string) =>
+    boundary().editPhotoWithQuickStart(uri, preset),
+  editPhotoGuestWithLook: (uri: string, look: string) =>
+    boundary().editPhotoGuestWithLook(uri, look),
   editVideo: (uri: string, timestampMs?: number) =>
     timestampMs === undefined
       ? boundary().editVideo(uri)
       : boundary().editVideoAtMoment(uri, timestampMs),
   editPhotoGuest: (uri: string) => boundary().editPhotoGuest(uri),
   editVideoGuest: (uri: string) => boundary().editVideoGuest(uri),
+  canvasSetups: (action: 'list' | 'save' | 'delete', name: string, width: number, height: number, background: string) => boundary().canvasSetups(action, name, width, height, background),
+  createPhotoVideoGuest: () => boundary().createPhotoVideoGuest(),
+  openPhotoVideoProjectsGuest: () => boundary().openPhotoVideoProjectsGuest(),
+  openCanvasProjectsGuest: () => boundary().openCanvasProjectsGuest(),
   createDrawingGuest: () => boundary().createDrawingGuest(),
-  createImageGuest: (format: 'square' | 'portrait' | 'landscape') =>
+  createCustomImageGuest: (width: number, height: number, background: 'white' | 'black' | 'transparent') => boundary().createCustomImageGuest(width, height, background),
+  createImageGuest: (format: 'square' | 'portrait' | 'landscape' | 'feed_portrait' | 'story' | 'reels' | 'ultrawide' | 'postcard' | 'banner' | 'poster' | 'cover' | 'wallpaper') =>
     boundary().createImageGuest(format),
   openMedia: (item: {
     mediaUri: string;

@@ -30,6 +30,20 @@ export function MemoriesScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
   const [selected, setSelected] = useState<MediaItem>();
+  const smartCollections = [
+    { label:'All photos', query:'', filter:'Photos' as Filter },
+    { label:'All videos', query:'', filter:'Videos' as Filter },
+    { label:'Screenshots', query:'screenshot', filter:'Screenshots' as Filter },
+    { label:'Camera photos', query:'IMG_', filter:'Photos' as Filter },
+    { label:'Camera videos', query:'VID_', filter:'Videos' as Filter },
+    { label:'Scanned files', query:'scan', filter:'All' as Filter },
+    { label:'Burst photos', query:'burst', filter:'Photos' as Filter },
+    { label:'Panoramas', query:'pano', filter:'Photos' as Filter },
+    { label:'Self portraits', query:'selfie', filter:'Photos' as Filter },
+    { label:'Screen recordings', query:'screenrecord', filter:'Videos' as Filter },
+    { label:'Downloads', query:'download', filter:'All' as Filter },
+    { label:'Exported media', query:'honorable', filter:'All' as Filter },
+  ];
 
   const sections = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
@@ -83,6 +97,13 @@ export function MemoriesScreen() {
         />
         <View style={{ height: 8 }} />
         <FilterTabs items={filters} value={filter} onChange={setFilter} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collections}>
+          {smartCollections.map(collection => (
+            <Pressable key={collection.label} accessibilityRole="button" accessibilityLabel={`Show ${collection.label}`} onPress={() => {setFilter(collection.filter);setQuery(collection.query)}} style={styles.collectionChip}>
+              <Text className="text-[11px] font-semibold">{collection.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
         <View style={{ height: 16 }} />
         {sections.length === 0 ? (
           <View style={styles.empty}>
@@ -128,6 +149,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filters: { paddingHorizontal: 12, paddingVertical: 12, gap: 6 },
+  collections: { gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  collectionChip: { minHeight: 40, paddingHorizontal: 12, justifyContent:'center', borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceRaised },
   section: { marginBottom: 20 },
   empty: {
     margin: 16,

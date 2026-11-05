@@ -1,3 +1,4 @@
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -34,6 +35,7 @@ import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
 
 export function StudioScreen() {
+  const reduceMotion = useReducedMotion();
   const { width } = useWindowDimensions();
   const { items, loading, error } = useLibrary();
   const { busy: importing, open } = useOpenWorkspace();
@@ -48,6 +50,16 @@ export function StudioScreen() {
     assets.find(item => item.mediaId === selectedId) ?? assets[0];
   const busy = importing || opening;
   const kindName = mode === 'IMAGE' ? 'photo' : 'video';
+  // Import and library routes share one synchronous guard, including same-frame taps.
+  const importMedia = async (kind: WorkspaceKind) => {
+    if (pending.current || importing) return;
+    pending.current = true;
+    try {
+      await open(kind);
+    } finally {
+      pending.current = false;
+    }
+  };
   const editSelected = async (source = selected) => {
     if (!source || pending.current || importing) return;
     setSelectedId(source.mediaId);
@@ -196,7 +208,7 @@ export function StudioScreen() {
             accessibilityRole="button"
             accessibilityLabel="Import media"
             disabled={busy}
-            onPress={() => open(mode)}
+            onPress={() => importMedia(mode)}
             style={creativeStyles.iconButton}
           >
             <Plus size={22} color={colors.textPrimary} />
@@ -210,20 +222,20 @@ export function StudioScreen() {
         <View style={s.sourceActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Create a new video"
+            accessibilityLabel="Choose a video to edit"
             disabled={busy}
-            onPress={() => open('VIDEO')}
+            onPress={() => importMedia('VIDEO')}
             style={[s.sourceAction, s.sourcePrimary, busy && s.disabled]}
           >
             <Film size={22} strokeWidth={1.8} color={colors.textPrimary} />
-            <Text style={s.sourcePrimaryText}>New video</Text>
+            <Text style={s.sourcePrimaryText}>Edit video</Text>
             <ArrowUpRight size={16} color={colors.textSecondary} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Choose a photo to edit"
             disabled={busy}
-            onPress={() => open('IMAGE')}
+            onPress={() => importMedia('IMAGE')}
             style={[s.sourceAction, busy && s.disabled]}
           >
             <Photo size={21} color={colors.textPrimary} />
@@ -291,7 +303,7 @@ export function StudioScreen() {
               accessibilityRole="button"
               accessibilityLabel="Import another source"
               disabled={busy}
-              onPress={() => open(mode)}
+              onPress={() => importMedia(mode)}
               style={s.emptyButton}
             >
               <Plus size={17} color={colors.textPrimary} />
@@ -299,9 +311,9 @@ export function StudioScreen() {
             </Pressable>
           </View>
         )}
-        {opening && (
+        {busy && (
           <ActivityIndicator
-            accessibilityLabel="Opening editor"
+            accessibilityLabel={opening ? 'Opening editor' : 'Choosing media'}
             color={colors.textPrimary}
           />
         )}
@@ -317,7 +329,7 @@ export function StudioScreen() {
       <Modal
         visible={details}
         transparent
-        animationType="slide"
+        animationType={reduceMotion ? 'none' : 'slide'}
         onRequestClose={() => setDetails(false)}
       >
         <View style={s.overlay}>

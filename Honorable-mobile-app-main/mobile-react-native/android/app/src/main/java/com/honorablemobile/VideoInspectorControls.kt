@@ -5,6 +5,13 @@ import android.app.AlertDialog
 import android.graphics.Color
 import android.widget.*
 
+internal object VideoTitleSizeChoices {
+    fun values(style:VideoTitleStyle):List<Float>{
+        val presets=listOf(.035f,.055f,.08f)
+        return if(style.size in presets)presets else presets+style.size
+    }
+}
+
 internal object VideoInspectorControls {
     private fun panel(a:Activity)=LinearLayout(a).apply{orientation=LinearLayout.VERTICAL;setPadding(24,16,24,16)}
     private fun choices(a:Activity,p:LinearLayout,label:String,items:List<String>,selected:Int):Spinner{
@@ -21,8 +28,9 @@ internal object VideoInspectorControls {
     fun title(a:Activity,initial:VideoTitleStyle,commit:(VideoTitleStyle)->Unit){
         val p=panel(a)
         val position=choices(a,p,"Position",listOf("Top","Center","Bottom"),initial.position)
-        val sizes=listOf(.035f,.055f,.08f)
-        val size=choices(a,p,"Text size",listOf("Small","Medium","Large"),sizes.indexOf(initial.size).coerceAtLeast(0))
+        val sizes=VideoTitleSizeChoices.values(initial)
+        val sizeLabels=listOf("Small","Medium","Large")+sizes.drop(3).map{String.format(java.util.Locale.ROOT,"Keep current (%.1f%%)",it*100)}
+        val size=choices(a,p,"Text size",sizeLabels,sizes.indexOf(initial.size))
         val light=CheckBox(a).apply{text="White text";isChecked=initial.light;setTextColor(Color.BLACK)};p.addView(light)
         val plate=CheckBox(a).apply{text="Contrast backplate";isChecked=initial.plate;setTextColor(Color.BLACK)};p.addView(plate)
         AlertDialog.Builder(a).setTitle("Title style").setView(p).setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->commit(VideoTitleStyle(position.selectedItemPosition,sizes[size.selectedItemPosition],light.isChecked,plate.isChecked))}.show()

@@ -31,10 +31,13 @@ object PhotoEffectsControls {
                 val check=enabled("Enable solarize",value.solarize>=0){value=value.copy(solarize=if(it)cut else -1f)}
                 amount("Threshold",cut){cut=it;if(check.isChecked)value=value.copy(solarize=cut)}}
             PhotoEffectTool.SEPIA->amount("Sepia",value.sepia){value=value.copy(sepia=it)}
-            PhotoEffectTool.DUOTONE->{amount("Strength",value.duotone){value=value.copy(duotone=it)}
+            PhotoEffectTool.DUOTONE->{
+                panel.addView(TextView(a).apply{text="Map photo brightness between dark and light colors. Strength blends with the original colors; 0% disables it. Paste a HEX swatch with or without #. Transparency is kept. Applies before later monochrome, background, local regions, captions and objects. Apply updates the preview as one Undo edit; Cancel keeps current settings.";setTextColor(Color.DKGRAY)})
+                amount("Strength",value.duotone){value=value.copy(duotone=it)}
                 for((name,color) in listOf("Dark color" to value.dark,"Light color" to value.light)){
-                    panel.addView(TextView(a).apply{text="$name · six-digit hex";setTextColor(Color.BLACK)})
-                    colors.add(EditText(a).apply{setText(String.format(java.util.Locale.ROOT,"%06X",color and 0xFFFFFF));contentDescription=name;isSingleLine=true;filters=arrayOf(InputFilter.LengthFilter(6));setTextColor(Color.BLACK);panel.addView(this)})}}
+                    panel.addView(TextView(a).apply{text="$name · #RRGGBB";setTextColor(Color.BLACK)})
+                    colors.add(EditText(a).apply{setText(PhotoEffectColors.format(color));contentDescription="$name HEX";isSingleLine=true;filters=arrayOf(InputFilter.LengthFilter(7));setTextColor(Color.BLACK);panel.addView(this)})}
+                panel.addView(Button(a).apply{text="Swap colors";setOnClickListener{val dark=colors[0].text.toString();colors[0].setText(colors[1].text.toString());colors[1].setText(dark)}})}
             PhotoEffectTool.GAMMA->slider("Gamma",(value.gamma*100).toInt()-40,210,{String.format(java.util.Locale.ROOT,"%.2f",(it+40)/100f)}){value=value.copy(gamma=(it+40)/100f)}
             PhotoEffectTool.PIXELATE->{var size=value.pixelate.takeIf{it>0}?:12
                 val check=enabled("Enable pixelate",value.pixelate>0){value=value.copy(pixelate=if(it)size else 0)}
@@ -52,10 +55,10 @@ object PhotoEffectsControls {
         val dialog=AlertDialog.Builder(a).setTitle(tool.title).setView(ScrollView(a).apply{addView(panel)})
             .setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
         dialog.setOnShowListener{dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(a.isDestroyed||a.isFinishing){dialog.dismiss();return@setOnClickListener}
             if(colors.isNotEmpty()){
-                val invalid=colors.firstOrNull{!it.text.toString().matches(Regex("[A-Fa-f0-9]{6}"))}
-                if(invalid!=null){invalid.error="Use six hexadecimal digits, for example 14243A";return@setOnClickListener}
-                value=value.copy(dark=Color.parseColor("#"+colors[0].text),light=Color.parseColor("#"+colors[1].text))
+                val parsed=colors.map{field->runCatching{PhotoEffectColors.parse(field.text.toString())}.getOrElse{field.error="Use #RRGGBB or six HEX digits";return@setOnClickListener}}
+                value=value.copy(dark=parsed[0],light=parsed[1])
             }
             commit(value);dialog.dismiss()
         }};dialog.show()

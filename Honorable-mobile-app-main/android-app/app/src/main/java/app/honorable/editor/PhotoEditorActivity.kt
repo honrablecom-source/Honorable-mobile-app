@@ -19,17 +19,29 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 
 /** Local, non-destructive raster editor. Exports through CREATE_DOCUMENT; never writes source URI. */
 class PhotoEditorActivity:Activity(){
+ companion object {
+  const val START_LOOK_EXTRA="app.honorable.editor.START_LOOK"
+  const val CANVAS_PROJECT_EXTRA="app.honorable.editor.CANVAS_PROJECT"
+  const val QUICK_START_EXTRA="app.honorable.editor.QUICK_START"
+ }
  private var accessMode:EditorAccessMode?=null
+ private var startLook:PhotoLook?=null
+ private var quickStart:PhotoQuickStart?=null
  private var protectedOriginals:List<Uri> = emptyList()
  private var guestInstance:String?=null
+ private var canvasProjectId:String?=null
+ private var canvasProjectName="Untitled image"
  private var renderedEdit:PhotoEdit?=null
  private var placingLight:PhotoRadialLight?=null
  private var placingOn:PhotoEdit?=null
+ private var placingScope:String?=null
  private var activeTool=-1
  private var restoredSession:PhotoSessionSnapshot?=null
  private var pendingDestination:Uri?=null
  private var exportEncoding=SafePhotoCopy.Encoding.PNG
  private var exportQuality=95
+ @Volatile private var activityClosed=false
+ @Volatile private var photoProjectBusy=false
  private var exportInProgress=false
  private var waitingForPicker=false
  private var loadedScope:String?=null
@@ -61,8 +73,13 @@ class PhotoEditorActivity:Activity(){
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState)
  accessMode=runCatching{EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA))}.getOrElse{finish();return}
  if(accessMode==EditorAccessMode.GUEST_BASIC)guestInstance=savedInstanceState?.getString("guestEditorInstance")?.takeIf{it.matches(Regex("[0-9a-f-]{36}"))}?:java.util.UUID.randomUUID().toString()
- source=Uri.parse(intent.getStringExtra("uri")?:run{finish();return})
- protectedOriginals=runCatching{ImportedPhotoOriginals.validate(intent.getStringArrayListExtra(ImportedPhotoOriginals.EXTRA)?.toList()?:emptyList()).map(Uri::parse)}.getOrElse{finish();return}
+ val recoveredCanvasSource=if(accessMode==EditorAccessMode.GUEST_BASIC&&savedInstanceState?.getString("canvasProjectId")!=null)savedInstanceState?.getString("canvasSourceUri")else null
+ source=Uri.parse(recoveredCanvasSource?:intent.getStringExtra("uri")?:run{finish();return})
+ canvasProjectId=(savedInstanceState?.getString("canvasProjectId")?:intent.getStringExtra(CANVAS_PROJECT_EXTRA))?.also{if(!CanvasProjectCodec.validId(it)||accessMode!=EditorAccessMode.GUEST_BASIC){finish();return}}
+ canvasProjectName=savedInstanceState?.getString("canvasProjectName")?:"Untitled image"
+ startLook=runCatching{(if(savedInstanceState?.containsKey("pendingStartLook")==true)savedInstanceState.getString("pendingStartLook") else intent.getStringExtra(START_LOOK_EXTRA))?.let{PhotoLook.valueOf(it)}}.getOrNull()
+ quickStart=runCatching{(if(savedInstanceState?.containsKey("pendingQuickStart")==true)savedInstanceState.getString("pendingQuickStart") else intent.getStringExtra(QUICK_START_EXTRA))?.let{PhotoQuickStart.valueOf(it)}}.getOrNull()
+ protectedOriginals=runCatching{ImportedPhotoOriginals.validate(((intent.getStringArrayListExtra(ImportedPhotoOriginals.EXTRA)?.toList()?:emptyList())+(savedInstanceState?.getStringArrayList("protectedPhotoOriginals")?.toList()?:emptyList())).distinct()).map(Uri::parse)}.getOrElse{finish();return}
  restoredSession=runCatching{val bytes=savedInstanceState?.getByteArray("photoSession")?:return@runCatching null
   PhotoSessionCodec.decode(bytes,currentScope()?:return@runCatching null)}.getOrNull()
  exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
@@ -72,7 +89,7 @@ class PhotoEditorActivity:Activity(){
  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(16.dp(),4.dp(),16.dp(),8.dp())}
  fun row(parent:LinearLayout=root)=LinearLayout(this).also{parent.addView(it)}
  fun button(parent:LinearLayout,label:String,action:()->Unit):Button {
-  val control=Button(this).apply{text=label;contentDescription=label;EditorChrome.style(this);setOnClickListener{action()}}
+  val control=Button(this).apply{text=label;contentDescription=label;EditorChrome.style(this);setOnClickListener{if(!photoProjectBusy)action()}}
   parent.addView(control,LinearLayout.LayoutParams(0,48.dp(),1f).apply{setMargins(2.dp(),2.dp(),2.dp(),2.dp())})
   return control
  }
@@ -86,29 +103,36 @@ class PhotoEditorActivity:Activity(){
  root.addView(image,LinearLayout.LayoutParams(-1,0,1f))
  image.setOnTouchListener { _,event ->
   val light=placingLight
-  if(light==null)false else {
-   if(event.action==android.view.MotionEvent.ACTION_UP){
+  if(light==null&&pickingObjectOn==null){placementTap?.cancel();false} else {
+   if(event.actionMasked==android.view.MotionEvent.ACTION_CANCEL){clearObjectPick();placingLight=null;placingOn=null;placingScope=null}
+   val released=placementTapReleased(event)
+   if(light==null){if(released)pickObjectTouch(event);true} else {
+   if(released){
     val input=bitmap;val shown=rendered
-    if(placingOn!=edit||before||exportEdit!=null){placingLight=null;placingOn=null;note.text="Photo changed. Open local light again."}
+    if(!canFinish()||isDestroyed||placingOn!=edit||before||placingScope==null||loadedScope!=placingScope||!runCatching{currentScope()==placingScope}.getOrDefault(false)){placingLight=null;placingOn=null;placingScope=null;note.text="Photo changed. Open local light again."}
     else if(input!=null&&shown!=null&&renderedEdit==edit){
      val inverse=Matrix();val point=floatArrayOf(event.x-image.paddingLeft,event.y-image.paddingTop)
      if(image.imageMatrix.invert(inverse)){
       inverse.mapPoints(point)
-      if(point[0] in 0f..shown.width.toFloat() && point[1] in 0f..shown.height.toFloat()){
-       val center=PhotoToneGeometry(input.width,input.height,edit).normalizedSourcePoint(point[0],point[1])
-       tool("local_light");change(edit.copy(radialLight=light.copy(centerX=center.x,centerY=center.y)))
+      val bounds=image.drawable?.bounds
+      val mapped=bounds?.takeIf{it.width()>0&&it.height()>0}?.let{PhotoPreviewCoordinates.bitmapPoint(shown.width,shown.height,it.width(),it.height(),point[0]-it.left,point[1]-it.top)}
+      if(mapped!=null){
+       val center=PhotoLightPlacement.normalizedSourcePoint(input.width,input.height,edit,mapped.x,mapped.y)
+       if(center==null)note.text="Tap the photo content, outside added frames and margins."
+       else {tool("local_light");change(edit.copy(radialLight=light.copy(centerX=center.x,centerY=center.y)))}
       }else note.text="Tap inside the photo to place the light."
      }
     }else note.text="Wait for the edited preview, then tap again."
     image.performClick()
    }
    true
+   }
   }
  }
  val transport=row()
- button(transport,"Compare"){before=!before;preview()}
- button(transport,"Undo"){if(undo.isNotEmpty()){tool("undo");redo.add(edit);edit=undo.removeAt(undo.lastIndex);preview()}}
- button(transport,"Redo"){if(redo.isNotEmpty()){tool("redo");undo.add(edit);edit=redo.removeAt(redo.lastIndex);preview()}}
+ button(transport,"Compare"){clearObjectPick();placingLight=null;placingOn=null;placingScope=null;before=!before;preview()}
+ button(transport,"Undo"){if(undo.isNotEmpty()){tool("undo");navigateHistory(false)}}
+ button(transport,"Redo"){if(redo.isNotEmpty()){tool("redo");navigateHistory(true)}}
  note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…";textSize=11f;maxLines=2;setPadding(4.dp(),8.dp(),4.dp(),8.dp());accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE};root.addView(note)
  val tray=FrameLayout(this);root.addView(tray,LinearLayout.LayoutParams(-1,140.dp()))
  val categories=linkedMapOf<String,LinearLayout>()
@@ -123,8 +147,8 @@ class PhotoEditorActivity:Activity(){
  val groups=mutableListOf<LinearLayout>()
  fun adjust(name:String,max:Int,value:Int,update:(Int)->PhotoEdit){
   val group=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;visibility=View.GONE};groups.add(group);panel.addView(group)
-  val label=TextView(this).apply{text="$name   0";setTextColor(Color.BLACK);textSize=14f};group.addView(label)
-  group.addView(SeekBar(this).apply{this.max=max;progress=value;contentDescription=name;sliders.add(this);progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){label.text="$name   ${v-value}"};override fun onStopTrackingTouch(s:SeekBar){tool(name.lowercase());change(update(s.progress))}})},LinearLayout.LayoutParams(-1,48.dp()))
+  val label=TextView(this).apply{text="$name: ${adjustmentValue(name,value)}";setTextColor(Color.BLACK);textSize=14f};group.addView(label)
+  group.addView(SeekBar(this).apply{this.max=max;progress=value;contentDescription=name;sliders.add(this);progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);if(android.os.Build.VERSION.SDK_INT>=30)stateDescription=adjustmentValue(name,value);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){label.text="$name: ${adjustmentValue(name,v)}";if(android.os.Build.VERSION.SDK_INT>=30)s.stateDescription=adjustmentValue(name,v)};override fun onStopTrackingTouch(s:SeekBar){tool(name.lowercase());change(update(s.progress))}})},LinearLayout.LayoutParams(-1,48.dp()))
  }
  adjust("Brightness",200,100){edit.copy(brightness=(it-100)*1.28f)};adjust("Contrast",200,100){edit.copy(contrast=it/100f)};adjust("Saturation",200,100){edit.copy(saturation=it/100f)};adjust("Exposure",400,200){edit.copy(exposure=(it-200)/100f)}
  val toolScroll=HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false};val rail=LinearLayout(this);toolScroll.addView(rail);adjustments.addView(toolScroll)
@@ -140,7 +164,7 @@ class PhotoEditorActivity:Activity(){
  button(framing,"Mirror"){chooseMirror()}
  val finishRow=row(transforms)
  button(finishRow,"Monochrome"){tool("monochrome");change(edit.copy(saturation=0f))}
- button(finishRow,"Reset"){tool("reset");change(PhotoEdit())}
+ button(finishRow,"Reset"){confirmPhotoReset()}
  val toneRow=row(adjustments)
  button(toneRow,"Tone curve"){showCurve()}
  button(toneRow,"Local light"){showLocalLight()}
@@ -152,6 +176,7 @@ class PhotoEditorActivity:Activity(){
  button(detailTools,"Sharpen"){finishAdjust("Sharpen",3)}
  button(row(adjustments),"Saved looks"){showSavedLooks()}
  button(row(adjustments),"Creative color"){chooseCreative()}
+ button(row(adjustments),"Black-and-white mix"){manageMonochrome()}
  button(row(adjustments),"Photo effects"){chooseEffects()}
  button(row(adjustments),"Create & compose"){chooseComposition()}
  button(row(transforms),"Add text"){editCaption()}
@@ -171,7 +196,7 @@ class PhotoEditorActivity:Activity(){
   "Mirror" to {chooseMirror()}, "Color" to {finishAdjust("White balance",0)},
   "Curves" to {showCurve()}, "Saved looks" to {showSavedLooks()}, "People" to {chooseBackground()}, "Text" to {editCaption()},
   "Framing" to {selectCategory("Transform")}, "AI" to {selectCategory("Assist")}, "More" to {openInspector()})
- directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsOnDeviceAi==true||name !in setOf("AI","People");setOnClickListener{action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
+ directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsOnDeviceAi==true||name !in setOf("AI","People");setOnClickListener{if(!photoProjectBusy)action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
  root.removeView(tabs)
  root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)})
  selectCategory("Adjust");toolButtons.first().performClick()
@@ -179,24 +204,63 @@ class PhotoEditorActivity:Activity(){
  setContentView(root)
  NativeWorkspaceInsets.install(this,root)
  emit("editor_opened",JSONObject().put("mediaType","IMAGE"));
- worker.execute{try{authorizeEditor();val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)emit("performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(!isDestroyed){
-   bitmap=loaded;loadedScope=currentScope()
+ val openingOriginals=protectedOriginals.map{it.toString()}
+ val openingScope=currentScope()?:run{note.text="Session changed. Reopen this photo.";return}
+ worker.execute{try{authorizeEditor();check(photoLoadCurrent(openingScope)){"Photo session changed"};val canvasSaved=canvasProjectId?.let{id->
+   val store=CanvasProjectStore(java.io.File(filesDir,"canvas-projects"))
+   require(accessMode==EditorAccessMode.GUEST_BASIC&&source==androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",store.sourceFile(id))){"Saved project source is unavailable"}
+   store.load(id){check(photoLoadCurrent(openingScope)){"Photo session changed"}}
+  };val loadedOriginals=ImportedPhotoOriginals.validate((openingOriginals+(canvasSaved?.protectedOriginals?:emptyList())).distinct());check(photoLoadCurrent(openingScope)){"Photo session changed"};val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)emit("performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(photoLoadCurrent(openingScope)){
+   protectedOriginals=loadedOriginals.map(Uri::parse)
+   bitmap=loaded;loadedScope=openingScope
+   canvasSaved?.let{edit=it.edit;canvasProjectName=it.name}
    restoredSession?.takeIf{it.scope==loadedScope}?.let{saved->edit=saved.edit;undo.addAll(saved.undo);redo.addAll(saved.redo);before=saved.compareOriginal;activeTool=saved.activeTool
     if(activeTool in toolButtons.indices)toolButtons[activeTool].performClick()}
    if(restoredSession!=null&&restoredSession?.scope!=loadedScope){exportEdit=null;pendingDestination=null;note.text="Previous edits belong to another session."}
    restoredSession=null;preview();resumePendingExport()
-  }else loaded.recycle()}}catch(e:Exception){runOnUiThread{if(!isDestroyed)note.text="Unable to open this image. Check access and try again."}}catch(e:OutOfMemoryError){runOnUiThread{if(!isDestroyed)note.text="Not enough memory to open this photo. Try a smaller image."}}}
+   startLook?.let{look->startLook=null;enhanceScene(look)}
+   quickStart?.let{preset->quickStart=null;tool("quick_${preset.name.lowercase()}");change(PhotoQuickStart.apply(edit,preset))}
+  }else{loaded.recycle();if(!activityClosed&&!isFinishing&&!isDestroyed)note.text="Session changed. Reopen this photo."}}}catch(e:Exception){runOnUiThread{if(!isDestroyed)note.text="Unable to open this image. Check access and try again."}}catch(e:OutOfMemoryError){runOnUiThread{if(!isDestroyed)note.text="Not enough memory to open this photo. Try a smaller image."}}}
  }
  private fun Int.dp()=(this*resources.displayMetrics.density).toInt()
- private fun change(next:PhotoEdit){placingLight=null;placingOn=null;undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
- private fun decode(limit:Int):Bitmap{val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true};contentResolver.openInputStream(source).use{BitmapFactory.decodeStream(it,null,bounds)};require(bounds.outWidth>0){"Unsupported image"};val runtime=Runtime.getRuntime();val headroom=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory());require(headroom>8L*1024*1024){"Not enough memory. Close other tools and try again."};val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;val maxPixels=(headroom/24).coerceAtMost(if(low)1_500_000L else 6_000_000L);val sample=PhotoDecodeBudget.sampleSize(bounds.outWidth,bounds.outHeight,limit,maxPixels);val options=BitmapFactory.Options().apply{inSampleSize=sample};val decoded=contentResolver.openInputStream(source).use{BitmapFactory.decodeStream(it,null,options)}?:error("Unable to decode image");val orientation=runCatching{contentResolver.openInputStream(source).use{android.media.ExifInterface(requireNotNull(it)).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1)}}.getOrDefault(1);val matrix=Matrix();when(orientation){2->matrix.setScale(-1f,1f);3->matrix.setRotate(180f);4->matrix.setScale(1f,-1f);5->{matrix.setRotate(90f);matrix.postScale(-1f,1f)};6->matrix.setRotate(90f);7->{matrix.setRotate(-90f);matrix.postScale(-1f,1f)};8->matrix.setRotate(-90f)};if(orientation==1)return decoded;val oriented=Bitmap.createBitmap(decoded,0,0,decoded.width,decoded.height,matrix,true);if(oriented!==decoded)decoded.recycle();return oriented}
+ private fun change(next:PhotoEdit){if(photoProjectBusy){note.text="Wait for the photo project operation to finish.";return};clearObjectPick();placingLight=null;placingOn=null;placingScope=null;if(next==edit){before=false;preview();return};undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
+ private fun adjustmentValue(name:String,progress:Int):String=when(name){
+  "Exposure"->String.format(java.util.Locale.ROOT,"%+.2f EV",(progress-200)/100.0)
+  "Contrast","Saturation"->"$progress%"
+  else->String.format(java.util.Locale.ROOT,"%+d",progress-100)
+ }
+ private fun confirmPhotoReset(){
+  if(!canFinish()||isDestroyed)return
+  val snapshot=edit;val original=source
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  if(snapshot==PhotoEdit()){note.text="This photo already has no edits to reset.";return}
+  android.app.AlertDialog.Builder(this).setTitle("Reset photo edits?")
+   .setMessage("Removes adjustments, crop, rotation, mirroring, cutout, transparency fade, composition, captions and added objects from this edit. Returns to the source image for this workspace. Original media and saved projects are kept. Undo restores the previous edit.")
+   .setNegativeButton("Keep editing",null).setPositiveButton("Reset edits"){_,_->
+    if(!canFinish()||isDestroyed||edit!=snapshot||source!=original||loadedScope!=scope||!runCatching{currentScope()==scope}.getOrDefault(false)){
+     if(!isDestroyed&&!isFinishing)note.text="Photo or session changed. Open Reset again."
+     return@setPositiveButton
+    }
+    tool("reset");change(PhotoEdit());note.text="Photo edits reset. Undo restores the previous edit."
+   }.show()
+ }
+ private fun navigateHistory(forward:Boolean){
+  if(photoProjectBusy)return
+  val from=if(forward)redo else undo
+  if(from.isEmpty())return
+  clearObjectPick();placingLight=null;placingOn=null;placingScope=null;before=false
+  val to=if(forward)undo else redo
+  to.add(edit);if(to.size>50)to.removeAt(0)
+  edit=from.removeAt(from.lastIndex);preview()
+ }
+ private fun decode(limit:Int):Bitmap=PhotoSourceDecoder.decode(this,source,limit)
  private fun render(input:Bitmap,e:PhotoEdit):Bitmap=PhotoRasterRenderer.render(input,e,personMask)
  private fun preview() {
   listOf((edit.brightness/1.28f+100).toInt(),(edit.contrast*100).toInt(),(edit.saturation*100).toInt(),(edit.exposure*100+200).toInt()).forEachIndexed{i,v->sliders.getOrNull(i)?.progress=v}
   val input=bitmap?:return
   val state=if(before)PhotoEdit()else edit
   if(state.needsPersonMask&&personMask==null){note.text="Restoring person cutout on this device…";cutOutPerson(true);return}
-  image.background=if(state.personCutout)TransparencyGridDrawable(12.dp())else null
+  image.background=if(state.personCutout||state.alphaGradient.enabled)TransparencyGridDrawable(12.dp())else null
   val request=++revision
   val started=System.currentTimeMillis()
   worker.execute {
@@ -208,7 +272,7 @@ class PhotoEditorActivity:Activity(){
       val old=rendered;rendered=result
       if(accessMode==EditorAccessMode.ACCOUNT)SafeBetaTelemetry.duration(this,"EDITOR_RESPONSE",started)
       image.setImageBitmap(result);renderedEdit=state;old?.recycle()
-      if(!readingText&&!cuttingOut&&exportEdit==null)note.text=if(before)"Original preview" else if(state.background!=null)"Person background · check hair and edges before saving a copy" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
+      if(!photoProjectBusy&&!readingText&&!cuttingOut&&exportEdit==null)note.text=if(placingLight!=null&&placingOn==state)"Tap the edited photo to place the local light." else if(pickingObjectOn==state)"Tap a visible shape or text box. Front object wins; text uses its box." else if(before)"Original preview" else if(state.background!=null)"Person background · check hair and edges before saving a copy" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
      }else result.recycle()
     }
    }catch(e:OutOfMemoryError){
@@ -216,22 +280,289 @@ class PhotoEditorActivity:Activity(){
    }
   }
  }
+ private var placementTap:PhotoTapTracker?=null
+ private fun placementTapReleased(event:android.view.MotionEvent):Boolean {
+  val tracker=placementTap?:PhotoTapTracker(android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat()).also{placementTap=it}
+  if(event.pointerCount!=1){tracker.cancel();return false}
+  val pointer=event.getPointerId(0)
+  if(event.actionMasked!=android.view.MotionEvent.ACTION_DOWN)for(index in 0 until event.historySize)tracker.move(event.getHistoricalX(0,index),event.getHistoricalY(0,index),pointer)
+  return when(event.actionMasked){
+   android.view.MotionEvent.ACTION_DOWN->{tracker.down(event.x,event.y,pointer);false}
+   android.view.MotionEvent.ACTION_MOVE->{tracker.move(event.x,event.y,pointer);false}
+   android.view.MotionEvent.ACTION_UP->tracker.up(event.x,event.y,pointer)
+   else->{tracker.cancel();false}
+  }
+ }
+ private var pickingObjectOn:PhotoEdit?=null
+ private var pickingObjectScope:String?=null
+ private fun clearObjectPick(){pickingObjectOn=null;pickingObjectScope=null;placementTap?.cancel()}
+ private fun armObjectPick(){
+  if(!canFinish())return
+  if(edit.layers.objects.isEmpty()){note.text="Add a text or shape object first.";return}
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  placementTap?.cancel();placingLight=null;placingOn=null;placingScope=null;before=false;preview()
+  pickingObjectOn=edit;pickingObjectScope=scope
+  note.text="Tap a visible shape or text box. The front object wins; locked objects can be unlocked."
+ }
+ private fun pickObjectTouch(event:android.view.MotionEvent):Boolean{
+  if(event.action==android.view.MotionEvent.ACTION_CANCEL){clearObjectPick();return true}
+  if(event.action!=android.view.MotionEvent.ACTION_UP)return true
+  val state=pickingObjectOn;val scope=pickingObjectScope
+  fun current()=state!=null&&scope!=null&&canFinish()&&!isDestroyed&&!before&&edit==state&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  if(!current()){clearObjectPick();if(!activityClosed&&!isDestroyed&&!isFinishing)note.text="Photo or session changed. Open Pick object again.";return true}
+  val shown=rendered
+  if(shown==null||renderedEdit!=state){note.text="Wait for the edited preview, then tap again.";return true}
+  val inverse=Matrix();val point=floatArrayOf(event.x-image.paddingLeft,event.y-image.paddingTop)
+  if(!image.imageMatrix.invert(inverse)){note.text="Preview is not ready. Tap again.";return true}
+  inverse.mapPoints(point)
+  val bounds=image.drawable?.bounds
+  if(bounds==null||bounds.width()<=0||bounds.height()<=0){note.text="Preview is not ready. Tap again.";return true}
+  val picked=PhotoObjectHitTest.pickDrawable(requireNotNull(state).layers,shown.width,shown.height,bounds.width(),bounds.height(),point[0]-bounds.left,point[1]-bounds.top)
+  if(picked==null){note.text="No object here. Tap a visible shape or text box, or use the object list.";image.performClick();return true}
+  clearObjectPick();image.performClick();note.text="Object selected. Review its controls."
+  PhotoLayerControls.showObject(this,state.layers,picked.id){next->
+   require(current()){"Photo or account changed. Pick the object again."}
+   if(next!=state.layers){tool("composition_objects");change(state.copy(layers=next))}
+  }
+  return true
+ }
+ private var previewAnalysisRunning=false
+ private fun showHistogram()=inspectPreview({preview->
+  val stats=PhotoHistogramAccumulator();val row=IntArray(preview.width)
+  for(y in 0 until preview.height){preview.getPixels(row,0,preview.width,0,y,preview.width,1);stats.add(row)}
+  stats.snapshot()
+ }){width,height,result,_->PhotoHistogramControls.show(this,width,height,result)}
+ private fun showPalette()=inspectPreview({preview->
+  val colors=PhotoPaletteAccumulator();val row=IntArray(preview.width)
+  for(y in 0 until preview.height){preview.getPixels(row,0,preview.width,0,y,preview.width,1);colors.add(row)}
+  colors.snapshot()
+ }){width,height,result,canCopy->PhotoPaletteControls.show(this,width,height,result,canCopy)}
+ private fun <T> inspectPreview(measure:(Bitmap)->T,present:(Int,Int,T,()->Boolean)->Unit){
+  if(!canFinish()||previewAnalysisRunning)return
+  val state=edit
+  if(before||renderedEdit!=state){note.text="Wait for the edited preview, then open this tool again.";return}
+  val preview=rendered?:return
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  val owned=runCatching{requireNotNull(preview.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory to measure the preview.";return}
+  previewAnalysisRunning=true
+  note.text="Measuring edited preview on this device…"
+  fun current()=!activityClosed&&!isFinishing&&!isDestroyed&&edit==state&&!before&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  try{worker.execute{
+   try{
+    val width=owned.width;val height=owned.height
+    val result=measure(owned)
+    runOnUiThread{previewAnalysisRunning=false;if(current()&&canFinish()){present(width,height,result){current()&&canFinish()};note.text="Preview measured locally. Original preserved."}}
+   }catch(failure:Exception){runOnUiThread{previewAnalysisRunning=false;if(current()&&canFinish())note.text="Unable to measure this preview. Try again."}}
+   catch(failure:OutOfMemoryError){runOnUiThread{previewAnalysisRunning=false;if(current()&&canFinish())note.text="Not enough memory to measure this preview."}}
+   finally{owned.recycle()}
+  }}catch(failure:Exception){previewAnalysisRunning=false;owned.recycle();if(current())note.text="Unable to measure this preview. Try again."}
+ }
+ private fun createComparison(){
+  val scope=photoControlScope()?:return
+  val input=bitmap?:return;val state=edit;val original=source
+  if(state.needsPersonMask&&personMask==null){before=false;preview();note.text="Wait for the person preview, then create the comparison again.";return}
+  val origins=runCatching{PhotoComparisonFiles.originals(original.toString(),protectedOriginals.map{it.toString()})}.getOrElse{note.text="This comparison cannot safely carry all original sources. Existing edits were kept.";return}
+  fun current()=!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  android.app.AlertDialog.Builder(this).setTitle("Create before/after image?")
+   .setMessage("Creates a labelled PNG from the original and edited views at editor preview resolution, up to 2024 pixels per edge. Both views fit without cropping; small images may be enlarged. Transparency uses white. Cropped or composed edits may show a different framing. The two panels become one flattened image. Opens a separate local guest photo workspace with no account draft or privileges transferred. Save an image project or export a copy there to keep it; its starting PNG is temporary. Your original photo, current edits and Undo history are kept.")
+   .setNegativeButton("Cancel",null).setPositiveButton("Choose layout"){_,_->
+    if(!current()||!canFinish()){note.text="Photo or session changed. Open comparison again.";return@setPositiveButton}
+    android.app.AlertDialog.Builder(this).setTitle("Comparison layout").setNegativeButton("Cancel",null).setItems(arrayOf("Side by side","Stacked")){_,which->
+    if(!current()||!canFinish()){note.text="Photo or session changed. Open comparison again.";return@setItems}
+    val layout=PhotoComparisonLayout.entries[which]
+    clearObjectPick();placingLight=null;placingOn=null;placingScope=null
+    photoProjectBusy=true;note.text="Creating a local comparison image…"
+    worker.execute{
+     val prepared=runCatching{
+      fun requireCurrent(){check(current()){"Photo session changed"}}
+      requireCurrent()
+      var edited:Bitmap?=null;var proof:Bitmap?=null
+      try{
+       val rendered=render(input,state);edited=rendered;requireCurrent()
+       val comparison=PhotoComparisonRenderer.render(input,rendered,layout);proof=comparison;requireCurrent()
+       PhotoComparisonFiles.write(cacheDir,::requireCurrent){file->java.io.FileOutputStream(file).use{stream->check(comparison.compress(Bitmap.CompressFormat.PNG,100,stream)){"Comparison encoding failed"};stream.fd.sync()}}
+      }finally{proof?.recycle();edited?.recycle()}
+     }
+     runOnUiThread{
+      val unchanged=current();photoProjectBusy=false
+      prepared.onSuccess{file->
+       if(!unchanged){file.delete();if(!activityClosed&&!isDestroyed&&!isFinishing)note.text="Comparison cancelled. Current edits were kept.";return@onSuccess}
+       runCatching{
+        val uri=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+        startActivity(Intent(this,PhotoEditorActivity::class.java).putExtra("uri",uri.toString()).putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name).putStringArrayListExtra(ImportedPhotoOriginals.EXTRA,ArrayList(origins)))
+       }.onSuccess{note.text="Comparison opened separately. Current edits and originals were kept."}.onFailure{file.delete();note.text="Could not open the comparison. Current edits were kept."}
+      }.onFailure{if(!activityClosed&&!isDestroyed&&!isFinishing)note.text="Could not create the comparison. Try a smaller photo or free some storage; current edits were kept."}
+     }
+    }
+    }.show()
+   }.show()
+ }
  private fun openInspector(){
   if(!canFinish())return
   fun t(label:String,run:()->Unit)=NativeInspectorPanel.Tool(label,run)
   NativeInspectorPanel.show(this,"Photo inspector","${bitmap?.width} × ${bitmap?.height} px · ${edit.rotation}° · edits save as a new copy",listOf(
    "Framing" to listOf(t("Aspect ratio"){chooseRatio()},t("Mirror"){chooseMirror()}),
-   "Color & light" to listOf(t("White balance"){finishAdjust("White balance",0)},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
-   "Finish" to listOf(t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
+   "Color & light" to listOf(t("Preview tonal histogram"){showHistogram()},t("Extract preview palette"){showPalette()},t("White balance"){finishAdjust("White balance",0)},t("Selective color range"){manageSelectiveColor()},t("Black-and-white mix"){manageMonochrome()},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
+   "Finish" to listOf(t("Fade to transparency"){manageAlphaGradient()},t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
    "Creative color" to PhotoCreativeTool.values().map{kind->t(kind.title){creativeAdjust(kind)}},
    "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
+   "Composition objects" to listOf(t("Text and shape objects"){manageObjects()},t("Pick object on photo"){armObjectPick()},t("Local effect regions"){manageRegions()},t("Local region recipes"){manageRegionRecipes()}),
    "Create & compose" to PhotoCompositionTool.values().map{kind->t(kind.title){compositionAdjust(kind)}},
+   "Editable project" to listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){photoProjectOperation("restore")},t("Delete saved photo edits"){deletePhotoProject()}),
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
     "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
-   "Output" to listOf(t("Export PNG / JPEG"){chooseExport()})
+   "Output" to listOf(t("Export PNG / JPEG"){chooseExport()},t("Create before/after image"){createComparison()})
    ).filter{it.second.isNotEmpty()})
  }
- private fun canFinish()=bitmap!=null&&exportEdit==null&&!enhancing&&!cuttingOut&&!isFinishing
+ private fun deletePhotoProject(){
+  if(!canFinish())return
+  android.app.AlertDialog.Builder(this).setTitle("Delete saved photo edits?").setMessage("Deletes the saved editable project for this original in the current local guest or account shelf. The original photo and current edits are kept.")
+   .setNegativeButton("Cancel",null).setPositiveButton("Delete saved edits"){_,_->photoProjectOperation("delete")}.show()
+ }
+ private fun photoProjectOperation(action:String){
+  if(!canFinish())return
+  val namespace=currentPresetNamespace()?:run{note.text="Session changed. Reopen the photo.";return}
+  if(currentScope()!=loadedScope){note.text="Session changed. Reopen the photo.";return}
+  if(source.authority==packageName+".creation"){
+   when(action){"save"->saveCanvasProject();"restore"->restoreCanvasProject();else->note.text="Close this editor, then use Saved image projects to delete a canvas project and its source copy."}
+   return
+  }
+  val base=edit;val original=source;val store=PhotoProjectStore(java.io.File(noBackupFilesDir,"photo-projects"),namespace,original.toString())
+  photoProjectBusy=true;note.text=when(action){"save"->"Saving editable photo edits…";"restore"->"Checking original and restoring saved edits…";else->"Deleting saved photo edits…"}
+  fun current()=!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&currentPresetNamespace()==namespace&&currentScope()==loadedScope
+  fun hasDurableRead():Boolean {
+   if(contentResolver.persistedUriPermissions.any{it.uri==original&&it.isReadPermission})return true
+   if(original.authority!="media")return false
+   val permission=if(android.os.Build.VERSION.SDK_INT>=33)android.Manifest.permission.READ_MEDIA_IMAGES else android.Manifest.permission.READ_EXTERNAL_STORAGE
+   return checkSelfPermission(permission)==android.content.pm.PackageManager.PERMISSION_GRANTED
+  }
+  fun requireCurrent(){check(current()){"Photo or session changed. Reopen the project controls."}}
+  worker.execute{
+   val result=runCatching{
+    requireCurrent()
+    if(action=="delete"){store.delete(::requireCurrent);null}else{
+     PhotoProjectAccess.withDurableRead(
+      hasRead=::hasDurableRead,
+      takeRead={runCatching{contentResolver.takePersistableUriPermission(original,Intent.FLAG_GRANT_READ_URI_PERMISSION)}.getOrElse{error("This original needs durable Files access. Reopen it through Files and try again.")}},
+      releaseRead={contentResolver.releasePersistableUriPermission(original,Intent.FLAG_GRANT_READ_URI_PERMISSION)},
+      requireCurrent=::requireCurrent
+     ){
+      val fingerprint=contentResolver.openInputStream(original).use{PhotoProjectCodec.fingerprint(requireNotNull(it){"The original photo cannot be read"},::requireCurrent)}
+      requireCurrent()
+      if(action=="save"){store.save(fingerprint,base,::requireCurrent);null}else store.load(fingerprint)
+     }
+    }
+   }
+   runOnUiThread{
+    val unchanged=current();photoProjectBusy=false
+    if(isDestroyed||isFinishing)return@runOnUiThread
+    if(!unchanged){note.text="Photo or session changed. Current edits were kept.";return@runOnUiThread}
+    result.onSuccess{saved->
+     if(action=="restore"&&saved!=null){change(saved);note.text="Saved editable photo restored. Undo returns to the previous edit."}
+     else note.text=when(action){"save"->"Editable edits saved privately. Reopen this same original through Files, then choose Restore editable photo edits.";"restore"->"No saved editable project exists for this original.";else->"Saved edits deleted. Original photo and current edit kept."}
+    }.onFailure{note.text=it.message?:"Photo project operation failed. Current edits were kept."}
+   }
+  }
+ }
+ private fun saveCanvasProject(){
+  if(!canFinish()||accessMode!=EditorAccessMode.GUEST_BASIC)return
+  val base=edit;val original=source;val origins=protectedOriginals.map{it.toString()}
+  val field=EditText(this).apply{setText(canvasProjectName);contentDescription="Image project name";isSingleLine=true;filters=arrayOf(android.text.InputFilter.LengthFilter(40));setTextColor(Color.BLACK)}
+  val dialog=android.app.AlertDialog.Builder(this).setTitle("Save editable image project").setMessage("Keeps a private source copy and editable object/adjustment state on this device. Export a PNG separately to share a finished image.").setView(field).setNegativeButton("Cancel",null).setPositiveButton("Save project",null).create()
+  dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+   if(!canFinish()||edit!=base||source!=original||protectedOriginals.map{it.toString()}!=origins){field.error="Editor changed. Reopen Save project.";return@setOnClickListener}
+   val name=field.text.toString().trim()
+   if(name.isEmpty()||name.length>40||name.any{it.isISOControl()}){field.error="Use a name of 1–40 characters";return@setOnClickListener}
+   dialog.dismiss();photoProjectBusy=true;note.text="Saving image project and its private source…"
+   fun valid()=!activityClosed&&photoProjectBusy&&!isDestroyed&&!isFinishing&&accessMode==EditorAccessMode.GUEST_BASIC&&edit==base&&source==original&&protectedOriginals.map{it.toString()}==origins
+   fun requireCurrent(){check(valid()){"Editor changed. Current edits were kept."}}
+   worker.execute{val store=CanvasProjectStore(java.io.File(filesDir,"canvas-projects"));val saved=runCatching{
+    val id=canvasProjectId
+    if(id==null)contentResolver.openInputStream(original).use{store.create(name,requireNotNull(it){"Created image source is unavailable"},base,origins,::requireCurrent)}else store.update(id,name,base,origins,::requireCurrent)
+   }
+    runOnUiThread{val unchanged=valid();photoProjectBusy=false;if(isDestroyed||isFinishing)return@runOnUiThread
+     if(!unchanged){note.text="Editor changed. Current edits were kept.";return@runOnUiThread}
+     saved.onSuccess{project->
+      val durable=runCatching{androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",store.sourceFile(project.id))}.getOrElse{note.text="Project data was saved, but its private source could not reopen. Current edits were kept.";return@onSuccess}
+      canvasProjectId=project.id;canvasProjectName=project.name;protectedOriginals=project.protectedOriginals.map(Uri::parse)
+      source=durable
+      intent.putExtra("uri",source.toString());intent.putExtra(CANVAS_PROJECT_EXTRA,project.id);intent.putStringArrayListExtra(ImportedPhotoOriginals.EXTRA,ArrayList(project.protectedOriginals));loadedScope=currentScope()
+      note.text="Editable image project saved. Reopen it from Saved image projects after leaving the editor."
+     }.onFailure{note.text=it.message?:"Image project could not be saved. Current edits were kept."}
+    }
+   }
+  }};dialog.show()
+ }
+ private fun restoreCanvasProject(){
+  if(!canFinish()||accessMode!=EditorAccessMode.GUEST_BASIC)return
+  val id=canvasProjectId?:run{note.text="Save this image project first, or reopen one from Saved image projects.";return}
+  val base=edit;val origins=protectedOriginals.map{it.toString()};photoProjectBusy=true;note.text="Checking saved image project…"
+  worker.execute{val saved=runCatching{CanvasProjectStore(java.io.File(filesDir,"canvas-projects")).load(id){check(!isDestroyed&&!isFinishing&&edit==base&&accessMode==EditorAccessMode.GUEST_BASIC)}.let{it to ImportedPhotoOriginals.validate((origins+it.protectedOriginals).distinct())}}
+   runOnUiThread{photoProjectBusy=false;if(isDestroyed||isFinishing)return@runOnUiThread
+    if(edit!=base||accessMode!=EditorAccessMode.GUEST_BASIC||protectedOriginals.map{it.toString()}!=origins){note.text="Editor changed. Current edits were kept.";return@runOnUiThread}
+    saved.onSuccess{(project,restoredOriginals)->canvasProjectName=project.name;protectedOriginals=restoredOriginals.map(Uri::parse);intent.putStringArrayListExtra(ImportedPhotoOriginals.EXTRA,ArrayList(restoredOriginals));change(project.edit);note.text="Saved image project restored. Undo returns to the previous edit."}.onFailure{note.text=it.message?:"Saved project could not be restored. Current edits were kept."}
+   }
+  }
+ }
+ private fun manageAlphaGradient(){
+  val scope=photoControlScope()?:return;val snapshot=edit
+  PhotoAlphaGradientControls.show(this,snapshot.alphaGradient){value->
+   require(photoControlUnchanged(snapshot,scope)){"Photo or session changed. Open transparency fade again."}
+   if(value!=snapshot.alphaGradient){tool("alpha_gradient");change(snapshot.copy(alphaGradient=value))}
+  }
+ }
+ private fun manageMonochrome(){
+  if(!canFinish())return
+  val snapshot=edit
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  PhotoMonochromeControls.show(this,snapshot.monochrome){value->
+   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Photo or account changed. Open black-and-white mix again."}
+   if(value!=snapshot.monochrome){tool("monochrome_channel_mix");change(snapshot.copy(monochrome=value))}
+  }
+ }
+ private fun manageSelectiveColor(){
+  if(!canFinish())return
+  val snapshot=edit
+  val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  PhotoSelectiveColorControls.show(this,snapshot.selectiveColor){value->
+   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Photo or account changed. Open selective color again."}
+   tool("selective_color_range");change(snapshot.copy(selectiveColor=value))
+  }
+ }
+ private fun manageRegionRecipes(){
+  if(!canFinish())return
+  val snapshot=edit
+  val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  val namespace=currentPresetNamespace()?:return
+  fun requireCurrent(){require(canFinish()&&edit==snapshot&&loadedScope==scope&&currentPresetNamespace()==namespace&&runCatching{currentScope()==scope}.getOrDefault(false)){"Photo or account changed. Open region recipes again."}}
+  val store=PhotoRegionPresetStore(java.io.File(noBackupFilesDir,"photo-region-recipes"),namespace)
+  PhotoRegionPresetControls.show(this,snapshot,store,::requireCurrent){next->requireCurrent();tool("apply_region_recipe");change(next)}
+ }
+ private fun manageRegions(){
+  if(!canFinish())return
+  val snapshot=edit
+  val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  PhotoRegionControls.show(this,snapshot.regions){next->
+   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Editor or account changed. Reopen local effect regions."}
+   tool("local_effect_regions");change(snapshot.copy(regions=next))
+  }
+ }
+ private fun manageObjects(){
+  if(!canFinish())return
+  val snapshot=edit
+  val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  PhotoLayerControls.show(this,snapshot.layers){next->
+   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Editor or account changed. Reopen the object controls."}
+   tool("composition_objects");change(snapshot.copy(layers=next))
+  }
+ }
+ private fun photoLoadCurrent(scope:String)=!activityClosed&&!isFinishing&&!isDestroyed&&runCatching{currentScope()==scope}.getOrDefault(false)
+ private fun photoControlScope():String? {
+  if(!canFinish()||isDestroyed)return null
+  return loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";null}
+ }
+ private fun photoControlUnchanged(base:PhotoEdit,scope:String)=canFinish()&&!isDestroyed&&edit==base&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+ private fun canFinish()=!activityClosed&&!photoProjectBusy&&bitmap!=null&&exportEdit==null&&!readingText&&!enhancing&&!cuttingOut&&!isFinishing
  private fun chooseCreative(){if(!canFinish())return
   val tools=PhotoCreativeTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Creative color").setItems(tools.map{it.title}.toTypedArray()){_,index->creativeAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
@@ -240,26 +571,26 @@ class PhotoEditorActivity:Activity(){
   val tools=PhotoCompositionTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Create & compose").setItems(tools.map{it.title}.toTypedArray()){_,index->compositionAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
  }
- private fun compositionAdjust(kind:PhotoCompositionTool){if(!canFinish())return;val base=edit
+ private fun compositionAdjust(kind:PhotoCompositionTool){val scope=photoControlScope()?:return;val base=edit
   PhotoCompositionControls.show(this,kind,base.composition){value->
-   if(edit==base&&canFinish()){if(value!=base.composition){tool("composition_${kind.name.lowercase()}");change(base.copy(composition=value))}}
-   else note.text="Photo changed. Open the composition tool again."
+   if(photoControlUnchanged(base,scope)){if(value!=base.composition){tool("composition_${kind.name.lowercase()}");change(base.copy(composition=value))}}
+   else note.text="Photo or session changed. Open the composition tool again."
   }
  }
  private fun chooseEffects(){if(!canFinish())return
   val tools=PhotoEffectTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Photo effects").setItems(tools.map{it.title}.toTypedArray()){_,index->effectAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
  }
- private fun effectAdjust(kind:PhotoEffectTool){if(!canFinish())return;val base=edit
+ private fun effectAdjust(kind:PhotoEffectTool){val scope=photoControlScope()?:return;val base=edit
   PhotoEffectsControls.show(this,kind,base.effects){value->
-   if(edit==base&&canFinish()){if(value!=base.effects){tool("effect_${kind.name.lowercase()}");change(base.copy(effects=value))}}
-   else note.text="Photo changed. Open the effect again."
+   if(photoControlUnchanged(base,scope)){if(value!=base.effects){tool("effect_${kind.name.lowercase()}");change(base.copy(effects=value))}}
+   else note.text="Photo or session changed. Open the effect again."
   }
  }
- private fun creativeAdjust(kind:PhotoCreativeTool){if(!canFinish())return;val base=edit
+ private fun creativeAdjust(kind:PhotoCreativeTool){val scope=photoControlScope()?:return;val base=edit
   PhotoCreativeControls.show(this,kind,base.creative){value->
-   if(edit==base&&canFinish()){if(value!=base.creative){tool("creative_${kind.name.lowercase()}");change(base.copy(creative=value))}}
-   else note.text="Photo changed. Open the tool again."
+   if(photoControlUnchanged(base,scope)){if(value!=base.creative){tool("creative_${kind.name.lowercase()}");change(base.copy(creative=value))}}
+   else note.text="Photo or session changed. Open the tool again."
   }
  }
  private fun currentPresetNamespace():String?=runCatching {
@@ -289,7 +620,7 @@ class PhotoEditorActivity:Activity(){
   val(namespace,store)=presetShelf()?:return
   val base=edit;val adjustments=PhotoAdjustmentPreset.capture(base)
   val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(20.dp(),12.dp(),20.dp(),12.dp())}
-  panel.addView(TextView(this).apply{text="Save light, color, curves and finishing for another photo. Framing, local light, people and text are excluded. Looks stay in this local guest or account shelf.";setTextColor(Color.DKGRAY)})
+  panel.addView(TextView(this).apply{text="Save light, color, selective color, curves and finishing for another photo. Framing, local light, effect regions, people and text are excluded. Looks stay in this local guest or account shelf.";setTextColor(Color.DKGRAY)})
   val name=EditText(this).apply{hint="Look name";contentDescription="Saved look name";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(40))};panel.addView(name)
   val dialog=android.app.AlertDialog.Builder(this).setTitle("Save photo look").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create()
   dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
@@ -325,38 +656,39 @@ class PhotoEditorActivity:Activity(){
    }.show()
   }.setNegativeButton("Cancel",null).show()
  }
- private fun chooseRatio(){if(!canFinish())return;val base=edit
-  android.app.AlertDialog.Builder(this).setTitle("Photo aspect ratio").setItems(arrayOf("Original","Square 1:1","Portrait 4:5","Wide 16:9","Vertical 9:16")){_,i->if(edit==base&&canFinish())change(edit.copy(finish=edit.finish.copy(ratio=listOf(0f,1f,.8f,16f/9,9f/16)[i])))}.setNegativeButton("Cancel",null).show()
+ private fun chooseRatio(){val scope=photoControlScope()?:return;val base=edit
+  android.app.AlertDialog.Builder(this).setTitle("Photo aspect ratio").setItems(arrayOf("Original","Square 1:1","Portrait 4:5","Wide 16:9","Vertical 9:16")){_,i->if(photoControlUnchanged(base,scope))change(base.copy(finish=base.finish.copy(ratio=listOf(0f,1f,.8f,16f/9,9f/16)[i])))}.setNegativeButton("Cancel",null).show()
  }
- private fun chooseMirror(){if(!canFinish())return;val base=edit
-  android.app.AlertDialog.Builder(this).setTitle("Mirror photo").setItems(arrayOf("Flip horizontally","Flip vertically","Reset mirrors")){_,i->if(edit==base&&canFinish())change(edit.copy(finish=when(i){0->edit.finish.copy(mirrorX=!edit.finish.mirrorX);1->edit.finish.copy(mirrorY=!edit.finish.mirrorY);else->edit.finish.copy(mirrorX=false,mirrorY=false)}))}.setNegativeButton("Cancel",null).show()
+ private fun chooseMirror(){val scope=photoControlScope()?:return;val base=edit
+  android.app.AlertDialog.Builder(this).setTitle("Mirror photo").setItems(arrayOf("Flip horizontally","Flip vertically","Reset mirrors")){_,i->if(photoControlUnchanged(base,scope))change(base.copy(finish=when(i){0->base.finish.copy(mirrorX=!base.finish.mirrorX);1->base.finish.copy(mirrorY=!base.finish.mirrorY);else->base.finish.copy(mirrorX=false,mirrorY=false)}))}.setNegativeButton("Cancel",null).show()
  }
- private fun finishAdjust(title:String,kind:Int){if(!canFinish())return;val base=edit
-  PhotoFinishControls.adjust(this,title,base.finish,kind){f->if(edit==base&&canFinish())change(edit.copy(finish=f))else note.text="Photo changed. Open the tool again."}
+ private fun finishAdjust(title:String,kind:Int){val scope=photoControlScope()?:return;val base=edit
+  PhotoFinishControls.adjust(this,title,base.finish,kind){f->if(photoControlUnchanged(base,scope))change(base.copy(finish=f))else note.text="Photo or session changed. Open the tool again."}
  }
- private fun editCaption(){if(!canFinish())return;val base=edit
-  PhotoFinishControls.caption(this,base.finish.caption){caption->if(edit==base&&canFinish())change(edit.copy(finish=edit.finish.copy(caption=caption)))else note.text="Photo changed. Open text again."}
+ private fun editCaption(){val scope=photoControlScope()?:return;val base=edit
+  PhotoFinishControls.caption(this,base.finish.caption){caption->if(photoControlUnchanged(base,scope))change(base.copy(finish=base.finish.copy(caption=caption)))else note.text="Photo or session changed. Open text again."}
  }
- private fun chooseExport(){if(!canFinish())return
+ private fun chooseExport(){val scope=photoControlScope()?:return;val base=edit
   android.app.AlertDialog.Builder(this).setTitle("Export photo").setItems(arrayOf("PNG · transparency","JPEG · compact (70%)","JPEG · balanced (85%)","JPEG · high quality (95%)")){_,i->
-   if(!canFinish())return@setItems
+   if(!photoControlUnchanged(base,scope)){note.text="Photo or session changed. Open export again.";return@setItems}
    exportEncoding=if(i==0)SafePhotoCopy.Encoding.PNG else SafePhotoCopy.Encoding.JPEG;exportQuality=listOf(100,70,85,95)[i]
-   exportEdit=edit;waitingForPicker=true
+   exportEdit=base;waitingForPicker=true
    try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=exportEncoding.mime;putExtra(Intent.EXTRA_TITLE,"Noble-copy.${exportEncoding.extension}")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}
   }.setNegativeButton("Cancel",null).show()
  }
  private fun chooseBackground(){
    if(!allowOnDeviceAi())return
-  if(bitmap==null||exportEdit!=null||cuttingOut||enhancing||readingText)return
+  val scope=photoControlScope()?:return
   val base=edit;val request=revision
   fun commit(background:PhotoBackground?){
-   if(edit!=base||request!=revision||exportEdit!=null){note.text="Photo changed. Open person background again.";return}
-   if(background==null){tool("person_background");change(edit.copy(personCutout=false,background=null))}else cutOutPerson(background=background)
+   if(!photoControlUnchanged(base,scope)||request!=revision){note.text="Photo or session changed. Open person background again.";return}
+   if(background==null){tool("person_background");change(base.copy(personCutout=false,background=null))}else cutOutPerson(background=background)
   }
   val names=arrayOf("Blur background","White background","Black background","Gray background","Restore original background")
   android.app.AlertDialog.Builder(this).setTitle("AI person background · beta").setItems(names){_,which->
+   if(!photoControlUnchanged(base,scope)||request!=revision){note.text="Photo or session changed. Open person background again.";return@setItems}
    when(which){
-    0->{var strength=edit.background?.strength?:45
+    0->{var strength=base.background?.strength?:45
      val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(20.dp(),12.dp(),20.dp(),12.dp())}
      val label=TextView(this).apply{text="Blur strength: $strength%";setTextColor(Color.BLACK)};panel.addView(label)
      panel.addView(TextView(this).apply{text="People only · processed on this device. Check hair and edges before exporting.";setTextColor(Color.DKGRAY)})
@@ -374,7 +706,12 @@ class PhotoEditorActivity:Activity(){
  private fun cutOutPerson(recover:Boolean=false,background:PhotoBackground?=null) {
    if(!allowOnDeviceAi())return
   val input=bitmap?:return
-  if(cuttingOut||readingText||enhancing||(!recover&&exportEdit!=null)||isFinishing)return
+  if(photoProjectBusy||activityClosed||cuttingOut||readingText||enhancing||(!recover&&exportEdit!=null)||isFinishing||isDestroyed)return
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  val initial=edit;val pending=exportEdit
+  fun sourceUnchanged()=!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  fun cancelRecovery(){if(recover&&exportEdit==pending){exportEdit=null;pendingDestination=null}}
+  fun discardStale(){cancelRecovery();if(!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&loadedScope==scope)note.text="Session changed. Reopen this photo."}
   fun applyPersonEdit(){tool(if(background==null)"person_cutout" else "person_background");change(edit.copy(personCutout=background==null,background=background))}
   if(personMask!=null){if(recover){preview();resumePendingExport()}else applyPersonEdit();return}
   cuttingOut=true
@@ -386,82 +723,93 @@ class PhotoEditorActivity:Activity(){
     val proxy=Bitmap.createScaledBitmap(input,(input.width*scale).toInt().coerceAtLeast(1),(input.height*scale).toInt().coerceAtLeast(1),true)
     val owned=if(proxy===input)requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))else proxy
     runOnUiThread {
-     if(isDestroyed||isFinishing){owned.recycle();return@runOnUiThread}
+     if(!sourceUnchanged()){owned.recycle();cuttingOut=false;discardStale();return@runOnUiThread}
      runCatching {
       cutoutJob=PersonCutoutProcessor.start(owned){result->
        cutoutJob=null;cuttingOut=false
        val mask=result.getOrNull()
-       if(isDestroyed||isFinishing){mask?.recycle();return@start}
-       if(mask==null){if(recover){exportEdit=null;pendingDestination=null};note.text=if(result.exceptionOrNull() is PersonMaskAlpha.NoClearPerson)"No clear person boundary found. Try a photo with a person." else "Person cutout unavailable. Try again.";return@start}
-       personMask=mask
+       if(!sourceUnchanged()){mask?.recycle();discardStale();return@start}
+       if(mask==null){cancelRecovery();note.text=if(result.exceptionOrNull() is PersonMaskAlpha.NoClearPerson)"No clear person boundary found. Try a photo with a person." else "Person cutout unavailable. Try again.";return@start}
+       val oldMask=personMask;personMask=mask;if(oldMask!==mask)oldMask?.recycle()
        if(recover){preview();resumePendingExport()}
-       else if(request==revision)applyPersonEdit()
+       else if(edit==initial&&request==revision)applyPersonEdit()
        else note.text="Person mask ready. Open the person tools to apply it to your current edit."
       }
-     }.onFailure{owned.recycle();cuttingOut=false;if(recover){exportEdit=null;pendingDestination=null};note.text="Person cutout unavailable. Try again."}
+     }.onFailure{owned.recycle();cuttingOut=false;cancelRecovery();if(sourceUnchanged())note.text="Person cutout unavailable. Try again." else discardStale()}
     }
-   }catch(error:Throwable){runOnUiThread{cuttingOut=false;if(recover){exportEdit=null;pendingDestination=null};if(!isDestroyed)note.text="Not enough resources for person cutout. Try a smaller photo."}}
+   }catch(error:Throwable){runOnUiThread{cuttingOut=false;cancelRecovery();if(sourceUnchanged())note.text="Not enough resources for person cutout. Try a smaller photo." else discardStale()}}
   }
  }
  private fun showCurve(){
-  if(bitmap==null||exportEdit!=null||enhancing||cuttingOut)return
+  if(!canFinish()||isDestroyed)return
   val base=edit;val request=revision
-  PhotoToneControls.curve(this,base.curve){curve->if(edit==base&&request==revision){tool("tone_curve");change(edit.copy(curve=curve))}else note.text="Photo changed. Open the curve tool again."}
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  fun unchanged()=canFinish()&&!isDestroyed&&edit==base&&request==revision&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  PhotoToneControls.curve(this,base.curve){curve->if(unchanged()){tool("tone_curve");change(base.copy(curve=curve))}else note.text="Photo or session changed. Open the curve tool again."}
  }
  private fun showLocalLight(){
-  if(bitmap==null||exportEdit!=null||enhancing||cuttingOut)return
+  if(!canFinish())return
   val base=edit;val request=revision
-  fun unchanged()=edit==base&&request==revision&&exportEdit==null
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  fun unchanged()=canFinish()&&!isDestroyed&&edit==base&&request==revision&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
   PhotoToneControls.light(this,base.radialLight,{light->if(unchanged()){tool("local_light");change(edit.copy(radialLight=light))}else note.text="Photo changed. Open local light again."},{light->
-   if(unchanged()){before=false;preview();placingLight=light;placingOn=edit;note.text="Tap the edited photo to place the local light."}
+   if(unchanged()){clearObjectPick();before=false;preview();placingLight=light;placingOn=edit;placingScope=scope;note.text="Tap the edited photo to place the local light."}
   })
  }
  private fun chooseLook(){
-   if(!allowOnDeviceAi())return
-  if(bitmap==null||enhancing||cuttingOut||exportEdit!=null)return
+  if(!canFinish()||isDestroyed)return
+  if(!allowOnDeviceAi())return
   val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
   android.app.AlertDialog.Builder(this).setTitle("AI-assisted photo look").setItems(names){_,which->enhanceScene(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
  }
  private fun enhanceScene(look:PhotoLook=PhotoLook.AUTO) {
-   if(!allowOnDeviceAi())return
+  if(!canFinish()||isDestroyed)return
+  if(!allowOnDeviceAi())return
   val input=bitmap?:return
-  if(enhancing||cuttingOut||exportEdit!=null||isFinishing)return
-  val owned=runCatching{requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory for scene analysis.";return}
+  if(photoProjectBusy||readingText||enhancing||cuttingOut||exportEdit!=null||isFinishing)return
   val initial=edit;val request=revision
+  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  fun sourceUnchanged()=!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  fun unchanged()=!photoProjectBusy&&exportEdit==null&&edit==initial&&request==revision&&sourceUnchanged()
+  val owned=runCatching{requireNotNull(input.copy(Bitmap.Config.ARGB_8888,false))}.getOrNull()?:run{note.text="Not enough memory for scene analysis.";return}
+  if(!unchanged()){owned.recycle();return}
   enhancing=true;note.text="Analyzing this photo on your device…"
   val labeler=ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
   try{labeler.process(InputImage.fromBitmap(owned,0))
    .addOnSuccessListener { labels ->
     if(isDestroyed||isFinishing)return@addOnSuccessListener
-    if(request!=revision){note.text="Photo changed during analysis. Run scene enhance again.";return@addOnSuccessListener}
+    if(!unchanged()){if(sourceUnchanged()&&!photoProjectBusy&&exportEdit==null)note.text="Photo changed during analysis. Run scene enhance again.";return@addOnSuccessListener}
     val scene=labels.filter{it.confidence>=.55f}.map{it.text.lowercase()}
     val pixels=IntArray(32*32){index->owned.getPixel(((index%32+.5f)*owned.width/32).toInt().coerceAtMost(owned.width-1),((index/32+.5f)*owned.height/32).toInt().coerceAtMost(owned.height-1))}
     val next=runCatching{PhotoAutoLook.apply(initial,PhotoLightStats.measure(pixels),scene.toSet(),look)}.getOrElse{note.text="No visible photo content to analyze. Try manual adjustments.";return@addOnSuccessListener}
+    if(!unchanged()){if(sourceUnchanged()&&!photoProjectBusy&&exportEdit==null)note.text="Photo changed during analysis. Run scene enhance again.";return@addOnSuccessListener}
     tool("ai_scene_enhance");change(next)
     note.text="Scene-aware tone and color look applied on device. Compare before saving a copy."
    }
-   .addOnFailureListener { if(!isDestroyed)note.text="Scene analysis failed. Try manual adjustments." }
+   .addOnFailureListener { if(unchanged())note.text="Scene analysis failed. Try manual adjustments." }
    .addOnCompleteListener { enhancing=false;labeler.close();owned.recycle() }
-  }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();note.text="Scene analysis failed. Try manual adjustments."}
+  }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();if(unchanged())note.text="Scene analysis failed. Try manual adjustments."}
  }
  private fun readText() {
    if(!allowOnDeviceAi())return
   val input=bitmap?:return
-  if(readingText||cuttingOut||isFinishing)return
-  readingText=true
+  val scope=photoControlScope()?:return
   val state=edit
+  fun current()=!activityClosed&&!isDestroyed&&!isFinishing&&!photoProjectBusy&&exportEdit==null&&bitmap===input&&edit==state&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  readingText=true
   note.text="Reading text on this device…"
   worker.execute {
    try {
+    if(!current()){runOnUiThread{readingText=false};return@execute}
     val snapshot=render(input,state)
     runOnUiThread {
-     if(isFinishing||isDestroyed){snapshot.recycle();return@runOnUiThread}
-     PhotoTextReader.read(this,snapshot){message->readingText=false;note.text=message}
+     if(!current()){snapshot.recycle();readingText=false;return@runOnUiThread}
+     PhotoTextReader.read(this,snapshot,::current){message->readingText=false;if(message!=null&&current())note.text=message}
     }
    } catch(e:Exception) {
-    runOnUiThread{readingText=false;if(!isDestroyed)note.text="Unable to read this photo. Try again."}
+    runOnUiThread{readingText=false;if(current())note.text="Unable to read this photo. Try again."}
    } catch(e:OutOfMemoryError) {
-    runOnUiThread{readingText=false;if(!isDestroyed)note.text="Not enough memory to read this photo. Try a smaller image."}
+    runOnUiThread{readingText=false;if(current())note.text="Not enough memory to read this photo. Try a smaller image."}
    }
   }
  }
@@ -506,6 +854,10 @@ class PhotoEditorActivity:Activity(){
  }
  override fun onSaveInstanceState(outState:Bundle){
   super.onSaveInstanceState(outState)
+  outState.putString("canvasProjectId",canvasProjectId);outState.putString("canvasProjectName",canvasProjectName)
+  if(canvasProjectId!=null&&::source.isInitialized)outState.putString("canvasSourceUri",source.toString())
+  outState.putStringArrayList("protectedPhotoOriginals",ArrayList(protectedOriginals.map{it.toString()}))
+  outState.putString("pendingStartLook",startLook?.name);outState.putString("pendingQuickStart",quickStart?.name)
    if(accessMode==EditorAccessMode.GUEST_BASIC)guestInstance?.let{outState.putString("guestEditorInstance",it)}
   outState.putInt("photoEncoding",exportEncoding.ordinal);outState.putInt("photoQuality",exportQuality)
   runCatching {
@@ -518,5 +870,5 @@ class PhotoEditorActivity:Activity(){
   }
  }
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
- override fun onDestroy(){emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onDestroy(){activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }

@@ -1,0 +1,7 @@
+{
+  "description": "Review browser mirrors when these authoritative Kotlin sources change. This is a drift guard, not Android pixel acceptance.",
+  "sources": {
+    "EditorChrome.kt": "1cb682af35e882fad8e2233c058ad6b5a1e58281fa70d6439fddab0e50411744",
+    "PhotoSelectiveColor.kt": "23211d218d12bf3106f148e8d21a5cc98eb2782120b74b1003c6c6b942237f02"
+  }
+}

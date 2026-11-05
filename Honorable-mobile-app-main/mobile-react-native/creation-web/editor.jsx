@@ -1,61 +1,650 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Excalidraw, MainMenu, exportToBlob } from '@excalidraw/excalidraw';
+import { Excalidraw, MainMenu, exportToBlob, exportToSvg, newElementWith, restoreElements, convertToExcalidrawElements, CaptureUpdateAction, getCommonBounds } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
-import { decodeDraft, encodeDraft } from './scene.mjs';
+import { decodeDraft, encodeDraft, MAX_ELEMENTS } from './scene.mjs';
+import { arrangeObjects, layerPatch, reorderObject, repeatGrid, repeatRing, captureComponent, insertComponent, compositionColors, replaceCompositionColor, blendShapes } from './composition.mjs';
+import { PROJECT_KEY, readProjects, writeProjects, saveProject, exportProject, importProject, renameProject, duplicateProject, requireSavedVersion, MAX_PORTABLE_BYTES } from './projects.mjs';
+import { filesForElements, mergePhotoFiles, photoBytes } from './image-assets.mjs';
+import { prepareLocalPhoto, prepareNativePhoto, verifyPhotoCopies } from './photo-import.mjs';
+import { chartPlan, calendarPlan, storyboardPlan } from './layouts.mjs';
+import { palettePlan } from './palette.mjs';
+import { qrPlan } from './qr.mjs';
+import { tablePlan } from './table.mjs';
+import { starterPlan } from './starters.mjs';
+import { StarterPreview } from './StarterPreview.jsx';
+import { imageArtwork } from './image-export.mjs';
+import { projectFilename, decodeProjectFile, sendProjectFile, receiveProjectFile, projectFileArtwork, recoveryFile, sendRecoveryFile } from './project-files.mjs';
+import { findArtwork } from './object-finder.mjs';
+import { TextContrastReview } from './TextContrastReview.jsx';
+import { mergeProjectElements, validateProjectGraph } from './merge-project.mjs';
+import { photoSheet } from './photo-sheet.mjs';
+import { replaceablePhoto, replacementPatch } from './photo-replace.mjs';
+import { dependencyPlan } from './dependencies.mjs';
 import './honorable.css';
 
 const KEY = 'honorable-drawing-v1';
+const COMPONENT_KEY = 'noble-drawing-components-v1';
+const svgStamp = elements => JSON.stringify(elements.filter(element => !element.isDeleted).map(element => [element.id, element.version, element.versionNonce]));
+const makeObjectId = () => Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, '0')).join('');
 function initial() {
-  try { return { data: decodeDraft(localStorage.getItem(KEY)), error: false }; } catch { return { data: null, error: true }; }
+  try {
+    const data = decodeDraft(localStorage.getItem(KEY));
+    if (data) validateProjectGraph(data.elements);
+    return { data, error: false };
+  } catch { return { data: null, error: true }; }
 }
 function Editor() {
-  const api = useRef(null), timer = useRef(null), latest = useRef(null);
+  const api = useRef(null), timer = useRef(null), latest = useRef(null), portable = useRef(null), panelHeading = useRef(null);
+  const photoInput = useRef(null), photoRequest = useRef(0), photoTarget = useRef(null), busyRef = useRef(false), mounted = useRef(true);
+  const [ready, setReady] = useState(false);
+  const [transparentImage, setTransparentImage] = useState(false);
+  const [selectionFile, setSelectionFile] = useState(false);
+  const [projectTool, setProjectTool] = useState('saved');
+  const projectTaskHeading = useRef(null), previousProjectTool = useRef('saved');
+  const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', parts: 'Reusable parts', advanced: 'Advanced transfer' };
+  const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
+  const [preparedProjectFile, setPreparedProjectFile] = useState(null);
+  const bindEditor = useCallback(value => { api.current = value; setReady(Boolean(value) && !value.getAppState().isLoading); }, []);
   const [{ data: restored, error: restoreError }] = useState(initial);
-  const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Choose New drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
-  const [busy, setBusy] = useState(false);
-  const save = () => {
-    try {
-      if (!latest.current) return;
-      if (restoreError) { setStatus('Saved draft is preserved. Choose New drawing before saving another draft.'); return; }
-      localStorage.setItem(KEY, encodeDraft(...latest.current));
-      setStatus('Drawing saved on this device.');
-    } catch { setStatus('Could not save this drawing. Use a smaller scene or export it.'); }
+  const preservedDraft = useRef(restoreError);
+  const [hasArtwork, setHasArtwork] = useState(Boolean(restored?.elements?.some(element => !element.isDeleted)));
+  const [startDismissed, setStartDismissed] = useState(false);
+  const canvasRegion = useRef(null);
+  const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Start a new drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
+  const [busy, setBusy] = useState(false), [panel, setPanel] = useState(null);
+  useEffect(() => { if (restoreError) { setPanel('projects'); setProjectTool('files'); } }, [restoreError]);
+  useEffect(() => {
+    const changed = previousProjectTool.current !== projectTool; previousProjectTool.current = projectTool;
+    if (changed && panel === 'projects') projectTaskHeading.current?.focus();
+  }, [projectTool, panel]);
+  useEffect(() => { if (panel) panelHeading.current?.focus({ preventScroll: true }); }, [panel]);
+  const [objects, setObjects] = useState([]), [projects, setProjects] = useState([]);
+  const [objectQuery, setObjectQuery] = useState(''), [objectType, setObjectType] = useState('all');
+  const [contrastOpen, setContrastOpen] = useState(false), [contrastBackground, setContrastBackground] = useState('#ffffff');
+  const [name, setName] = useState('Untitled composition'), [json, setJson] = useState('');
+  projectJson.current = json;
+  const [svg, setSvg] = useState('');
+  const svgSource = useRef(null);
+  const [pendingSave, setPendingSave] = useState(null);
+  const saveReviewHeading = useRef(null);
+  useEffect(() => { if (pendingSave && panel === 'projects') saveReviewHeading.current?.focus(); }, [pendingSave, panel]);
+  const [layoutTitle, setLayoutTitle] = useState('My chart'), [chartRows, setChartRows] = useState('First | 12\nSecond | 24\nThird | 18');
+  const [dependencyTitle, setDependencyTitle] = useState('My workflow'), [dependencyRows, setDependencyRows] = useState('Idea -> Draft\nDraft -> Review\nReview -> Publish');
+  const [paletteTitle, setPaletteTitle] = useState('Artwork color key');
+  const [layoutTool, setLayoutTool] = useState('chart');
+  const [starterStyle, setStarterStyle] = useState('quote'), [starterHeadline, setStarterHeadline] = useState('Make room for your next idea');
+  const [starterDetails, setStarterDetails] = useState('Start small. Make something that feels like you.'), [starterSignoff, setStarterSignoff] = useState('Made with Noble');
+  const [tableTitle, setTableTitle] = useState('Compare options'), [tableRows, setTableRows] = useState('Option | Price | Notes\nBasic | 10 | A simple start\nPlus | 20 | More room');
+  const [arrangeTool, setArrangeTool] = useState('align');
+  const [qrText, setQrText] = useState(''), [qrCaption, setQrCaption] = useState('QR code');
+  const [calendarMonth, setCalendarMonth] = useState('2026-11'), [mondayFirst, setMondayFirst] = useState(true);
+  const [storyTitle, setStoryTitle] = useState('My storyboard'), [storyBriefs, setStoryBriefs] = useState('Opening scene\nA closer look\nClosing scene');
+  const [gridColumns, setGridColumns] = useState('3'), [gridRows, setGridRows] = useState('2'), [gridGap, setGridGap] = useState('20');
+  const [blendSteps, setBlendSteps] = useState('5');
+  const [sheetAll, setSheetAll] = useState(true), [sheetColumns, setSheetColumns] = useState('2'), [sheetCell, setSheetCell] = useState('240'), [sheetGap, setSheetGap] = useState('20');
+  const [ringCount, setRingCount] = useState('6'), [ringRadius, setRingRadius] = useState('160');
+  const [deletedProject, setDeletedProject] = useState(null);
+  const [managed, setManaged] = useState(null), [nextName, setNextName] = useState('');
+  const [projectUndo, setProjectUndo] = useState(null);
+  const [components, setComponents] = useState([]), [componentName, setComponentName] = useState('My component');
+  const [componentUndo, setComponentUndo] = useState(null);
+  const [sourceColor, setSourceColor] = useState('#111111'), [targetColor, setTargetColor] = useState('#333333'), [includeLocked, setIncludeLocked] = useState(false);
+  const error = failure => setStatus(failure.message || 'This action could not complete. Your drawing is retained.');
+  const beginBusy = () => {
+    if (busyRef.current || !api.current) return false;
+    busyRef.current = true; window.honorableDrawingBusy = true; setBusy(true); return true;
   };
+  const finishBusy = () => { photoTarget.current = null; busyRef.current = false; window.honorableDrawingBusy = false; if (mounted.current) setBusy(false); };
+  const save = (announce = true) => {
+    try {
+      if (!latest.current) return true;
+      if (preservedDraft.current) throw Error(restoreError ? 'The saved draft is preserved but could not be safely opened. It has not been replaced.' : 'The complete drawing is preserved in your saved draft. Reopen the drawing to restore it.');
+      localStorage.setItem(KEY, encodeDraft(...latest.current));
+      if (announce) setStatus('Drawing saved on this device.');
+      return true;
+    } catch (failure) { error(failure); return false; }
+  };
+  // Native back/lifecycle hooks always read current refs. Clear delayed work on teardown.
   window.honorableDrawingBusy = busy;
-  window.honorableSaveDraft = save;
-  window.honorableExportResult = message => { setBusy(false); setStatus(message); };
-  const useImage = async () => {
-    if (!api.current || busy) return;
-    setBusy(true); setStatus('Preparing image...');
+  window.honorableSaveDraft = () => save(false);
+  window.honorableExportResult = message => { finishBusy(); setStatus(message); };
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; photoRequest.current++; clearTimeout(timer.current); }; }, []);
+  const scene = () => [api.current.getSceneElements(), api.current.getAppState(), api.current.getFiles()];
+  const commit = elements => {
+    if (busyRef.current) throw Error('Wait for the current image operation to finish.');
+    encodeDraft(elements, api.current.getAppState(), api.current.getFiles());
+    api.current.updateScene({ elements, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+    setStatus('Composition updated. Undo restores the previous arrangement.');
+  };
+  const patchObjects = patches => {
+    const byId = new Map(patches.map(patch => [patch.id, patch]));
+    commit(api.current.getSceneElementsIncludingDeleted().map(element => {
+      const patch = byId.get(element.id);
+      if (!patch) return element;
+      const { id, ...changes } = patch;
+      return newElementWith(element, changes);
+    }));
+  };
+  const closePanel = () => {
+    if (busyRef.current) return;
+    const trigger = document.querySelector(`[data-panel-trigger="${panel}"]`);
+    setPanel(null);
+    trigger?.focus({ preventScroll: true });
+  };
+  const showPanel = value => {
+    if (panel === value) { setPanel(null); return; }
+    if (value === 'objects' || value === 'arrange') setObjects(api.current.getSceneElements());
+    if (value === 'projects') {
+      try { setProjects(readProjects(localStorage.getItem(PROJECT_KEY))); setComponents(readProjects(localStorage.getItem(COMPONENT_KEY))); } catch (failure) { error(failure); }
+    }
+    setPanel(value);
+  };
+  const storeProjects = (previous, next, label) => {
+    const raw = writeProjects(next);
+    localStorage.setItem(PROJECT_KEY, raw);
+    setProjectUndo({ previous, after: raw, label });
+    setProjects(next);
+  };
+  const publishPhotoScene = (editor, elements, state, files) => {
+    if (!mounted.current || api.current !== editor) throw Error('The drawing was closed.');
+    const raw = encodeDraft(elements, state, files);
+    localStorage.setItem(KEY, raw); // Durable before renderer mutation; quota failure leaves the current drawing untouched.
+    clearTimeout(timer.current);
+    try {
+      editor.addFiles(Object.values(files));
+      editor.updateScene({ elements, appState: state, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+      latest.current = [elements, state, files];
+    } catch {
+      preservedDraft.current = true;
+      throw Error('The complete drawing is in your saved draft. Reopen the drawing to restore it.');
+    }
+  };
+  const addPhoto = async (source, native = false) => {
+    if (!native && !beginBusy()) return;
+    const editor = api.current, target = photoTarget.current;
+    try {
+      if (target && encodeDraft(...scene()) !== target.scene) throw Error('The drawing changed. Choose Replace photo again.');
+      if (preservedDraft.current) throw Error('Reopen the preserved drawing before adding a photo.');
+      const original = encodeDraft(...scene()), previous = editor.getSceneElementsIncludingDeleted(), state = editor.getAppState();
+      if (!target && previous.filter(element => !element.isDeleted).length >= MAX_ELEMENTS) throw Error('Remove an object before adding another photo.');
+      const objectId = target ? target.id : makeObjectId(); let proposed;
+      const accepts = file => {
+        if (!mounted.current || api.current !== editor) throw Error('The drawing was closed.');
+        const info = photoBytes(file.dataURL), files = mergePhotoFiles(editor.getFiles(), { [file.id]: file });
+        const factor = Math.min(1, Math.min(480, Math.max(80, state.width * 0.75)) / Math.max(info.width, info.height));
+        const width = info.width * factor, height = info.height * factor;
+        const [added] = restoreElements([{ id: objectId, type: 'image', x: state.width / 2 / state.zoom.value - state.scrollX - width / 2, y: state.height / 2 / state.zoom.value - state.scrollY - height / 2,
+          width, height, angle: 0, opacity: 100, strokeColor: 'transparent', backgroundColor: 'transparent', strokeWidth: 0, roughness: 0,
+          fileId: file.id, scale: [1, 1], status: 'saved', crop: null, groupIds: [], boundElements: null, link: null, locked: false }], null);
+        const changes = target ? replacementPatch(previous, target.id, file.id, info.width, info.height) : null;
+        const image = target ? newElementWith(replaceablePhoto(previous, target.id), changes) : added;
+        const elements = (target ? previous.map(element => element.id === target.id ? image : element) : [...previous, image]).map(element => newElementWith(element, {}, true));
+        try { encodeDraft(elements, state, files); }
+        catch (failure) { if (failure.message === 'Drawing draft is too large.') return false; throw failure; }
+        proposed = { elements, image, files, info }; return true;
+      };
+      setStatus('Preparing a local photo copy…');
+      if (native) await prepareNativePhoto(source, accepts); else await prepareLocalPhoto(source, accepts);
+      if (!mounted.current || api.current !== editor || encodeDraft(...scene()) !== original) throw Error('The drawing changed. Add the photo again.');
+      publishPhotoScene(editor, proposed.elements, { ...state, selectedElementIds: { [objectId]: true } }, proposed.files);
+      setPanel(null);
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) editor.scrollToContent([proposed.image], { fitToViewport: true, viewportZoomFactor: 0.85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); }));
+      setStatus(`Photo ${target ? 'replaced' : 'added'} as a local ${proposed.info.width} × ${proposed.info.height} copy. Original preserved.`);
+    } catch (failure) { if (mounted.current) error(failure); }
+    finally { finishBusy(); }
+  };
+  const choosePhoto = (targetId = null) => {
+    if (busyRef.current || !api.current) return;
+    try {
+      photoTarget.current = targetId ? { id: replaceablePhoto(api.current.getSceneElements(), targetId).id, scene: encodeDraft(...scene()) } : null;
+    } catch (failure) { photoTarget.current = null; error(failure); return; }
+    if (window.HonorableDrawing?.choosePhoto) {
+      if (!beginBusy()) return;
+      const request = ++photoRequest.current;
+      setStatus('Choose a photo. Its original stays unchanged.');
+      try { window.HonorableDrawing.choosePhoto(request); } catch { finishBusy(); setStatus('The photo picker could not open. Try again.'); }
+    } else photoInput.current?.click();
+  };
+  window.honorablePhotoImportResult = result => {
+    if (!mounted.current || !busyRef.current || result?.requestId !== photoRequest.current) return;
+    if (result.cancelled) { finishBusy(); setStatus('Photo selection cancelled. Drawing unchanged.'); return; }
+    if (result.error || typeof result.dataURL !== 'string') { finishBusy(); setStatus(result.error || 'The photo could not be prepared.'); return; }
+    addPhoto(result.dataURL, true);
+  };
+  const undoProjectChange = () => {
+    try {
+      if (localStorage.getItem(PROJECT_KEY) !== projectUndo.after) throw Error('Saved projects changed elsewhere. Reopen Projects before editing.');
+      localStorage.setItem(PROJECT_KEY, writeProjects(projectUndo.previous));
+      setProjects(projectUndo.previous); setProjectUndo(null); setDeletedProject(null); setManaged(null);
+      setStatus('Previous saved project state restored.');
+    } catch (failure) { error(failure); }
+  };
+  const manageSaved = operation => {
+    try {
+      const previous = readProjects(localStorage.getItem(PROJECT_KEY));
+      requireSavedVersion(previous, projects.find(project => project.name === managed));
+      const next = (operation === 'rename' ? renameProject : duplicateProject)(previous, managed, nextName);
+      storeProjects(previous, next, operation);
+      setManaged(null); setDeletedProject(null);
+      setStatus(operation === 'rename' ? 'Saved project renamed.' : 'Independent editable project copy saved.');
+    } catch (failure) { error(failure); }
+  };
+  const shelfSource = kind => kind === 'component' ? [captureComponent(api.current.getSceneElements(), api.current.getAppState().selectedElementIds, getCommonBounds), {}, api.current.getFiles()] : scene();
+  const dismissSaveReview = kind => {
+    setPendingSave(null);
+    document.querySelector(`[data-shelf-save="${kind}"]`)?.focus();
+  };
+  const applyShelfSave = change => {
+    if (busyRef.current) throw Error('Wait for the current image operation to finish.');
+    if (localStorage.getItem(change.key) !== change.before) { dismissSaveReview(change.kind); throw Error('Saved work changed elsewhere. Save again to review the latest version.'); }
+    if ((change.kind === 'component' ? componentName : name) !== change.requestedName || encodeDraft(...shelfSource(change.kind)) !== change.source) { dismissSaveReview(change.kind); throw Error('The drawing, selection or name changed. Save again to review this version.'); }
+    if (change.kind === 'component') {
+      const after = writeProjects(change.next);
+      localStorage.setItem(COMPONENT_KEY, after); setComponents(change.next); setComponentUndo({ previous: change.previous, after });
+      setStatus('Reusable component saved. Undo component change restores the previous shelf during this session.');
+    } else {
+      storeProjects(change.previous, change.next, 'save'); setDeletedProject(null);
+      setStatus('Named composition saved. Undo project save restores the previous shelf during this session.');
+    }
+    dismissSaveReview(change.kind);
+  };
+  const prepareShelfSave = kind => {
+    try {
+      if (busyRef.current) return;
+      const key = kind === 'component' ? COMPONENT_KEY : PROJECT_KEY, requestedName = kind === 'component' ? componentName : name;
+      const before = localStorage.getItem(key), previous = readProjects(before), data = shelfSource(kind);
+      const next = saveProject(previous, requestedName, ...data), candidate = next[next.length - 1];
+      const existing = previous.find(project => project.name.toLowerCase() === candidate.name.toLowerCase());
+      if (existing && existing.scene === candidate.scene && existing.name === candidate.name) { setPendingSave(null); setStatus('This saved version is already up to date.'); return; }
+      const change = { kind, key, before, previous, next, requestedName, source: encodeDraft(...data), savedName: existing?.name };
+      if (existing) { setPendingSave(change); setStatus('Review replacement before changing saved work.'); }
+      else applyShelfSave(change);
+    } catch (failure) { error(failure); }
+  };
+  const saveNamed = () => prepareShelfSave('project');
+  const loadScene = async (data, projectName) => {
+    if (!beginBusy()) return;
+    const editor = api.current;
+    try {
+      const graph = validateProjectGraph(data.elements);
+      if (!save(false)) return;
+      const elements = restoreElements(graph, null), incoming = filesForElements(elements, data.files);
+      const files = mergePhotoFiles(editor.getFiles(), incoming);
+      await verifyPhotoCopies(incoming);
+      publishPhotoScene(editor, elements, { ...data.appState, selectedElementIds: {} }, files);
+      editor.scrollToContent(elements, { fitToContent: true });
+      setName(projectName); setStatus('Composition loaded. Undo returns to the previous drawing.');
+    } catch (failure) { if (mounted.current) error(failure); }
+    finally { finishBusy(); }
+  };
+  const insertProject = async data => {
+    if (!beginBusy()) return;
+    const editor = api.current;
+    try {
+      if (preservedDraft.current) throw Error('Reopen the preserved drawing before inserting artwork.');
+      const original = encodeDraft(...scene()), previous = editor.getSceneElementsIncludingDeleted(), state = editor.getAppState();
+      const graph = validateProjectGraph(data.elements);
+      if (!graph.length) throw Error('This project has no artwork to insert.');
+      const incomingElements = restoreElements(graph, null), incoming = filesForElements(incomingElements, data.files);
+      await verifyPhotoCopies(incoming);
+      if (!mounted.current || api.current !== editor || encodeDraft(...scene()) !== original) throw Error('The drawing changed. Insert the project again.');
+      const files = mergePhotoFiles(editor.getFiles(), incoming), visible = incomingElements.filter(element => !element.isDeleted && element.opacity !== 0);
+      const [left, top, right, bottom] = getCommonBounds(visible.length ? visible : incomingElements);
+      const existingVisible = previous.filter(element => !element.isDeleted && element.opacity !== 0);
+      const existingBounds = existingVisible.length ? getCommonBounds(existingVisible) : null;
+      const x = existingBounds ? existingBounds[2] + 40 - left : state.width / 2 / state.zoom.value - state.scrollX - (left + right) / 2;
+      const y = existingBounds ? existingBounds[1] - top : state.height / 2 / state.zoom.value - state.scrollY - (top + bottom) / 2;
+      const merged = mergeProjectElements(previous, incomingElements, x, y, makeObjectId), ids = new Set(merged.insertedIds);
+      const elements = merged.elements.map(element => newElementWith(element, {}, true));
+      const selectedElementIds = Object.fromEntries(elements.filter(element => ids.has(element.id) && element.opacity !== 0 && !element.locked).map(element => [element.id, true]));
+      publishPhotoScene(editor, elements, { ...state, selectedElementIds, selectedGroupIds: {}, editingGroupId: null }, files);
+      setPanel(null);
+      if (visible.length) requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) editor.scrollToContent(elements.filter(element => ids.has(element.id) && element.opacity !== 0), { fitToViewport: true, viewportZoomFactor: 0.85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); }));
+      setStatus(visible.length ? 'Project artwork inserted. Existing drawing kept; Undo removes this insertion.' : 'Project artwork inserted but hidden. Use Objects to show it; Undo removes this insertion.');
+    } catch (failure) { if (mounted.current) error(failure); }
+    finally { finishBusy(); }
+  };
+  const removeProject = projectName => {
+    try {
+      const previous = readProjects(localStorage.getItem(PROJECT_KEY));
+      const removed = requireSavedVersion(previous, projects.find(project => project.name === projectName));
+      const next = previous.filter(project => project.name !== projectName);
+      storeProjects(previous, next, 'delete');
+      setDeletedProject(removed); setStatus('Saved project removed. Undo delete is available until the next save or deletion.');
+    } catch (failure) { error(failure); }
+  };
+  const undoDelete = () => {
+    try {
+      const current = readProjects(localStorage.getItem(PROJECT_KEY));
+      if (current.some(project => project.name.toLowerCase() === deletedProject.name.toLowerCase())) throw Error('A project with that name already exists.');
+      const next = [...current, deletedProject];
+      localStorage.setItem(PROJECT_KEY, writeProjects(next));
+      setProjects(next); setDeletedProject(null); setProjectUndo(null); setStatus('Saved project restored.');
+    } catch (failure) { error(failure); }
+  };
+  const arrange = operation => {
+    try { patchObjects(arrangeObjects(api.current.getSceneElements(), api.current.getAppState().selectedElementIds, operation)); } catch (failure) { error(failure); }
+  };
+  const arrangePhotos = () => {
+    try {
+      const patches = photoSheet(api.current.getSceneElements(), sheetAll ? null : api.current.getAppState().selectedElementIds, Number(sheetColumns), Number(sheetCell), Number(sheetGap));
+      patchObjects(patches);
+      setPanel(null);
+      const changed = new Set(patches.map(patch => patch.id));
+      requestAnimationFrame(() => requestAnimationFrame(() => api.current?.scrollToContent(api.current.getSceneElements().filter(element => changed.has(element.id)), { fitToViewport: true, viewportZoomFactor: 1, canvasOffsets: { top: 80, bottom: 80, left: 8, right: 40 } })));
+      setStatus('Photo contact sheet arranged. Proportions and photo copies kept; Undo restores the previous layout.');
+    } catch (failure) { error(failure); }
+  };
+  const repeatSelection = kind => {
+    try {
+      const elements = api.current.getSceneElementsIncludingDeleted(), ids = api.current.getAppState().selectedElementIds;
+      const makeId = makeObjectId;
+      const next = kind === 'blend' ? blendShapes(elements, ids, Number(blendSteps), makeId) : kind === 'grid' ? repeatGrid(elements, ids, Number(gridColumns), Number(gridRows), Number(gridGap), makeId) : repeatRing(elements, ids, Number(ringCount), Number(ringRadius), makeId);
+      commit(next.map(element => newElementWith(element, {}, true)));
+      if (kind === 'blend') {
+        setPanel(null);
+        api.current.updateScene({ appState: { selectedElementIds: {} }, captureUpdate: CaptureUpdateAction.NEVER });
+        requestAnimationFrame(() => requestAnimationFrame(() => api.current?.scrollToContent(next.filter(element => !element.isDeleted), { fitToViewport: true, viewportZoomFactor: 1, canvasOffsets: { top: 80, bottom: 80, left: 8, right: 40 } })));
+      }
+      setStatus('Editable copies created. Each object can be edited independently; Undo removes this repeat.');
+    } catch (failure) { error(failure); }
+  };
+  const insertLayout = kind => {
+    try {
+      const skeleton = kind === 'starter' ? starterPlan(starterStyle, starterHeadline, starterDetails, starterSignoff) : kind === 'table' ? tablePlan(tableTitle, tableRows) : kind === 'qr' ? qrPlan(qrText, qrCaption) : kind === 'dependencies' ? dependencyPlan(dependencyTitle, dependencyRows) : kind === 'palette' ? palettePlan(api.current.getSceneElements(), paletteTitle) : kind === 'chart' ? chartPlan(layoutTitle, chartRows) : kind === 'calendar' ? calendarPlan(calendarMonth, mondayFirst) : storyboardPlan(storyTitle, storyBriefs);
+      const state = api.current.getAppState(), previous = api.current.getSceneElementsIncludingDeleted();
+      const x = state.width / 2 / state.zoom.value - state.scrollX, y = state.height / 2 / state.zoom.value - state.scrollY;
+      let created = convertToExcalidrawElements(skeleton.map(shape => ({ ...shape, x: shape.x + x, y: shape.y + y })));
+      if (kind === 'qr' || kind === 'starter') {
+        const group = makeObjectId();
+        created = created.map(element => ({ ...element, groupIds: [group] }));
+      }
+      commit([...previous, ...created].map(element => newElementWith(element, {}, true)));
+      setPanel(null);
+      requestAnimationFrame(() => requestAnimationFrame(() => api.current?.scrollToContent(created, { fitToViewport: true, viewportZoomFactor: 1, canvasOffsets: { top: 80, bottom: 80, left: 8, right: 40 } })));
+      setStatus('Editable layout inserted. Edit its shapes and text on the canvas; Undo removes this insertion.');
+    } catch (failure) { error(failure); }
+  };
+  const recolor = () => {
+    try { patchObjects(replaceCompositionColor(api.current.getSceneElementsIncludingDeleted(), sourceColor, targetColor, includeLocked)); } catch (failure) { error(failure); }
+  };
+  const saveComponent = () => prepareShelfSave('component');
+  const useComponent = async component => {
+    if (!beginBusy()) return;
+    const editor = api.current;
+    try {
+      const original = encodeDraft(...scene()), elements = editor.getSceneElementsIncludingDeleted(), state = editor.getAppState();
+      const data = decodeDraft(component.scene), componentElements = data.elements;
+      const incoming = filesForElements(componentElements, data.files), files = mergePhotoFiles(editor.getFiles(), incoming);
+      await verifyPhotoCopies(incoming);
+      if (!mounted.current || api.current !== editor || encodeDraft(...scene()) !== original) throw Error('The drawing changed. Insert the component again.');
+      const next = insertComponent(elements, componentElements, state.width / 2 / state.zoom.value - state.scrollX, state.height / 2 / state.zoom.value - state.scrollY, makeObjectId, getCommonBounds);
+      const inserted = new Set(next.slice(elements.length).map(element => element.id));
+      const selectedElementIds = Object.fromEntries(next.filter(element => inserted.has(element.id) && element.opacity !== 0 && !element.locked).map(element => [element.id, true]));
+      publishPhotoScene(editor, next.map(element => newElementWith(element, {}, true)), { ...state, selectedElementIds, selectedGroupIds: {}, editingGroupId: null }, files);
+      setPanel(null);
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) { const visible = editor.getSceneElements().filter(element => inserted.has(element.id) && element.opacity !== 0); if (visible.length) editor.scrollToContent(visible, { fitToViewport: true, viewportZoomFactor: 0.85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); } }));
+      setStatus('Editable component inserted. Groups and internal connections kept; Undo removes this insertion.');
+    } catch (failure) { if (mounted.current) error(failure); }
+    finally { finishBusy(); }
+  };
+  const deleteComponent = component => {
+    try {
+      const previous = readProjects(localStorage.getItem(COMPONENT_KEY));
+      requireSavedVersion(previous, component);
+      const next = previous.filter(saved => saved.name !== component.name), after = writeProjects(next);
+      localStorage.setItem(COMPONENT_KEY, after); setComponents(next); setComponentUndo({ previous, after });
+      setStatus('Reusable component deleted. Undo component change can restore it.');
+    } catch (failure) { error(failure); }
+  };
+  const undoComponentChange = () => {
+    try {
+      if (localStorage.getItem(COMPONENT_KEY) !== componentUndo.after) throw Error('Components changed elsewhere. Reopen Projects before editing.');
+      localStorage.setItem(COMPONENT_KEY, writeProjects(componentUndo.previous));
+      setComponents(componentUndo.previous); setComponentUndo(null); setStatus('Previous component shelf restored.');
+    } catch (failure) { error(failure); }
+  };
+  const objectAction = (id, action) => {
+    try {
+      const elements = api.current.getSceneElementsIncludingDeleted();
+      // updateScene normalizes indices in place; detach all objects from the current history snapshot.
+      if (['front', 'back', 'up', 'down'].includes(action)) commit(reorderObject(elements, id, action).map(element => newElementWith(element, {}, true)));
+      else patchObjects([{ id, ...layerPatch(elements.find(element => element.id === id), action) }]);
+    } catch (failure) { error(failure); }
+  };
+  const locateObject = id => {
+    try {
+      if (busyRef.current) return;
+      const editor = api.current, element = editor.getSceneElements().find(item => item.id === id && !item.isDeleted);
+      if (!element) throw Error('This object is no longer available.');
+      if (element.opacity === 0 || element.customData?.nobleHidden) throw Error('Show this object before locating it on the canvas.');
+      editor.updateScene({ appState: { selectedElementIds: {}, selectedGroupIds: {}, editingGroupId: null }, captureUpdate: CaptureUpdateAction.NEVER });
+      closePanel();
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) editor.scrollToContent([element], { fitToViewport: true, viewportZoomFactor: 0.85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); }));
+      setStatus(element.locked ? 'Locked object located. Unlock it in Objects before editing.' : 'Object located on the canvas. Artwork unchanged.');
+    } catch (failure) { error(failure); }
+  };
+  const invalidatePreparedSvg = (elements, files) => {
+    const source = svgSource.current;
+    if (!source) return;
+    const stamp = svgStamp(elements);
+    if (stamp === source.stamp && files === source.files) return;
+    try {
+      // Full validation/serialization is only needed after a document revision, never for ordinary pan/zoom.
+      if (encodeDraft(elements, {}, files) === source.raw) { source.stamp = stamp; source.files = files; return; }
+    } catch { /* Invalid new artwork must never leave an old export available to copy. */ }
+    svgSource.current = null; setSvg('');
+  };
+  const prepareVector = async () => {
+    if (!beginBusy()) return;
+    const editor = api.current;
+    svgSource.current = null; setSvg('');
+    try {
+      const [elements, appState, files] = scene();
+      encodeDraft(elements, appState, files);
+      const raw = encodeDraft(elements, {}, files);
+      const visible = elements.filter(element => element.opacity !== 0);
+      if (!visible.length) throw Error('Add a visible object first.');
+      const result = await exportToSvg({ elements: visible, files: filesForElements(visible, files), appState: { ...appState, exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false, exportEmbedScene: false }, exportPadding: 10 });
+      const value = result.outerHTML;
+      if (new TextEncoder().encode(value).length > 2 * 1024 * 1024) throw Error('Vector output is too large. Simplify the composition.');
+      if (!mounted.current || api.current !== editor || encodeDraft(editor.getSceneElements(), {}, editor.getFiles()) !== raw) throw Error('The drawing changed while preparing SVG. Prepare it again.');
+      svgSource.current = { raw, stamp: svgStamp(editor.getSceneElements()), files: editor.getFiles() };
+      setSvg(value); setStatus('Vector SVG ready. Editing the drawing clears this output; prepare it again after changes.');
+    } catch (failure) { error(failure); } finally { finishBusy(); }
+  };
+  const useImage = async (selectionOnly = false) => {
+    if (!beginBusy()) return;
+    setStatus('Preparing image...');
     try {
       const elements = api.current.getSceneElements();
-      encodeDraft(elements, api.current.getAppState()); // Apply the same scene bounds before rasterizing.
-      if (!elements.some(element => !element.isDeleted)) throw Error('Draw something first.');
-      save();
-      const blob = await exportToBlob({ elements, files: {}, appState: { ...api.current.getAppState(), exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false }, mimeType: 'image/png', maxWidthOrHeight: 2048 });
+      const files = api.current.getFiles();
+      const artwork = imageArtwork(elements, files, selectionOnly ? (api.current.getAppState().selectedElementIds || {}) : null, getCommonBounds);
+      if (!save(false)) { finishBusy(); return; }
+      const blob = await exportToBlob({ elements: artwork.elements, files: artwork.files, appState: { ...api.current.getAppState(), exportBackground: !transparentImage, viewBackgroundColor: '#ffffff', exportWithDarkMode: false }, mimeType: 'image/png', maxWidthOrHeight: 2048 });
       if (!blob || blob.size > 8 * 1024 * 1024) throw Error('The image is too large. Use a smaller drawing.');
       const reader = new FileReader();
-      reader.onerror = () => { setBusy(false); setStatus('Could not prepare the image.'); };
+      reader.onerror = () => { finishBusy(); if (mounted.current) setStatus('Could not prepare the image.'); };
       reader.onload = () => {
-        if (!window.HonorableDrawing?.usePng) { setBusy(false); setStatus('Open this workspace in the Android app to use the image.'); return; }
-        window.HonorableDrawing.usePng(String(reader.result));
+        if (!mounted.current) return;
+        if (!window.HonorableDrawing?.usePng) { finishBusy(); setStatus('Open this workspace in the Android app to use the image.'); return; }
+        try { window.HonorableDrawing.usePng(String(reader.result)); }
+        catch (failure) { finishBusy(); if (mounted.current) error(failure); }
       };
       reader.readAsDataURL(blob);
-    } catch (error) { setBusy(false); setStatus(error.message || 'Image creation failed. Your drawing is retained.'); }
+    } catch (failure) { finishBusy(); if (mounted.current) error(failure); }
   };
+  const stageProjectFile = (value, previous) => {
+    if (projectJson.current !== previous) throw Error('Project text changed. Choose the file again to keep your changes.');
+    setJson(value.raw); setPreparedProjectFile({ name: value.project.name, raw: value.raw }); setPendingSave(null); setProjectTool('files'); setPanel('projects');
+    setStatus(`Project file ready: ${value.project.name}. Your drawing is unchanged. Choose Open chosen project or Insert chosen artwork.`);
+  };
+  window.honorableProjectFileResult = result => {
+    const pending = pendingProjectFile.current;
+    if (!mounted.current || !pending || result?.requestId !== pending.id) return;
+    try {
+      if (result.cancelled) { setStatus('Project file selection cancelled. Your drawing is unchanged.'); return; }
+      if (result.error) throw Error(result.error);
+      if (pending.kind === 'open') stageProjectFile(receiveProjectFile(window.HonorableDrawing, pending.id, result.length), pending.previous);
+      else if (result.saved === true) setStatus(pending.kind === 'recovery' ? 'Recovery copy saved. The original stored draft is unchanged. Keep the copy for repair before starting fresh.' : 'Editable project file saved. Your drawing stays here.');
+      else throw Error('The project file operation did not complete. Try again.');
+    } catch (failure) { error(failure); }
+    finally { pendingProjectFile.current = null; finishBusy(); }
+  };
+  const saveProjectFile = () => {
+    if (preservedDraft.current) { error(Error('Cannot export this canvas while the stored draft is preserved and not safely open. No project file was created.')); return; }
+    if (!beginBusy()) return;
+    try {
+      const raw = projectFileArtwork(name, ...scene(), selectionFile ? (api.current.getAppState().selectedElementIds || {}) : null, getCommonBounds);
+      if (window.HonorableDrawing?.beginProjectFileSave) {
+        const id = projectFileRequest.current = projectFileRequest.current % 1000000000 + 1;
+        pendingProjectFile.current = { id, kind: 'save' };
+        setStatus('Choose where to keep your editable project file.');
+        sendProjectFile(window.HonorableDrawing, id, name, raw);
+      } else {
+        if (location.hostname === 'honorable-drawing.local') throw Error('Update Noble to use project files. Your editable drawing stays here.');
+        const url = URL.createObjectURL(new Blob([raw], { type: 'application/json;charset=utf-8' }));
+        const link = document.createElement('a'); link.href = url; link.download = projectFilename(name); document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        finishBusy(); setStatus('Editable project download requested. Check your browser downloads; your drawing stays here.');
+      }
+    } catch (failure) { pendingProjectFile.current = null; finishBusy(); error(failure); }
+  };
+  const keepRecoveryFile = () => {
+    if (!preservedDraft.current || !beginBusy()) return;
+    try {
+      const raw = recoveryFile(localStorage.getItem(KEY));
+      if (window.HonorableDrawing?.beginProjectFileSave) {
+        const id = projectFileRequest.current = projectFileRequest.current % 1000000000 + 1;
+        pendingProjectFile.current = { id, kind: 'recovery' };
+        setStatus('Choose where to keep the preserved drawing recovery copy. The original stays unchanged.');
+        sendRecoveryFile(window.HonorableDrawing, id, raw);
+      } else {
+        if (location.hostname === 'honorable-drawing.local') throw Error('Update Noble to keep a recovery file. The stored draft is unchanged.');
+        const url = URL.createObjectURL(new Blob([raw], { type: 'application/json;charset=utf-8' }));
+        const link = document.createElement('a'); link.href = url; link.download = projectFilename('Preserved drawing recovery'); document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        finishBusy(); setStatus('Recovery download requested. Check Downloads before clearing the stored draft. This copy is for repair, not an editable project yet.');
+      }
+    } catch (failure) { pendingProjectFile.current = null; finishBusy(); error(failure); }
+  };
+  const chooseProjectFile = () => {
+    if (busyRef.current) return;
+    if (window.HonorableDrawing?.chooseProjectFile) {
+      if (!beginBusy()) return;
+      const id = projectFileRequest.current = projectFileRequest.current % 1000000000 + 1;
+      pendingProjectFile.current = { id, kind: 'open', previous: projectJson.current };
+      setStatus('Choose a Noble project file. Your drawing stays unchanged until you open or insert it.');
+      try { window.HonorableDrawing.chooseProjectFile(id); }
+      catch (failure) { pendingProjectFile.current = null; finishBusy(); error(failure); }
+    } else if (location.hostname === 'honorable-drawing.local') error(Error('Update Noble to choose project files.'));
+    else projectFileInput.current?.click();
+  };
+  const readBrowserProject = async file => {
+    if (!file || !beginBusy()) return;
+    const previous = projectJson.current;
+    try {
+      if (file.size > MAX_PORTABLE_BYTES) throw Error('Project file is too large.');
+      const value = decodeProjectFile(await file.arrayBuffer());
+      if (mounted.current) stageProjectFile(value, previous);
+    } catch (failure) { if (mounted.current) error(failure); }
+    finally { finishBusy(); }
+  };
+  const usePreparedProject = insert => {
+    try {
+      if (!preparedProjectFile || projectJson.current !== preparedProjectFile.raw) throw Error('Project text changed. Choose the file again.');
+      const value = importProject(preparedProjectFile.raw);
+      if (insert) insertProject(value); else loadScene(value, value.name);
+    } catch (failure) { error(failure); }
+  };
+  const chooseProjectView = value => {
+    if (busyRef.current || value === projectTool || !Object.prototype.hasOwnProperty.call(projectViews, value)) return;
+    if (pendingSave) setStatus('Replacement review dismissed. Saved work is unchanged.');
+    setPendingSave(null); setProjectTool(value);
+  };
+  const foundObjects = panel === 'objects' ? findArtwork(objects, objectQuery, objectType) : [];
   return <main>
-    <header><strong>Noble <span>draw</span></strong><button onClick={save} disabled={busy}>Save draft</button><button className="primary" onClick={useImage} disabled={busy}>{busy ? 'Preparing...' : 'Use image'}</button></header>
-    <section className="canvas" aria-label="Offline drawing workspace">
-      <Excalidraw excalidrawAPI={value => { api.current = value; }} theme="light" langCode="en" name="Noble drawing" isCollaborating={false}
+    <header><strong>Noble <span>draw</span></strong><button onClick={() => save()} disabled={busy || !ready}>Save draft</button><button className="primary" onClick={() => useImage()} disabled={busy || !ready}>{busy ? 'Preparing...' : 'Use image'}</button></header>
+    <nav aria-label="Composition tools">{['objects', 'arrange', 'layouts', 'projects'].map(value => <button key={value} data-panel-trigger={value} aria-expanded={panel === value} aria-controls="workspace-panel" onClick={() => showPanel(value)} disabled={busy || !ready}>{value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
+    <input ref={photoInput} aria-label="Choose a local photo" type="file" accept="image/png,image/jpeg" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) addPhoto(file); }} />
+    <input ref={projectFileInput} aria-label="Choose a Noble project file" type="file" accept="application/json,.json" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; readBrowserProject(file); }} />
+    {ready && !hasArtwork && !startDismissed && !preservedDraft.current && !panel && <section className="first-design" aria-label="Start creating">
+      <strong>What would you like to make?</strong><p>Start with editable words and shapes, or add your own photo. Everything stays on this device.</p>
+      <div><button className="primary" disabled={busy} onClick={() => { if (busyRef.current) return; setLayoutTool('starter'); showPanel('layouts'); }}>Start a design</button><button disabled={busy} onClick={() => choosePhoto()}>Choose a photo</button><button disabled={busy} onClick={() => { if (busyRef.current) return; setStartDismissed(true); canvasRegion.current?.focus({ preventScroll: true }); }}>Explore canvas</button></div>
+    </section>}
+    <section ref={canvasRegion} tabIndex={-1} className="canvas" aria-label="Offline drawing workspace" onDragOverCapture={event => event.preventDefault()} onDropCapture={event => { event.preventDefault(); event.stopPropagation(); setStatus('Use Add photo to import a local copy.'); }}>
+      <button className="photo-add" onClick={() => choosePhoto()} disabled={busy || !ready}>Add photo</button>
+      <Excalidraw excalidrawAPI={bindEditor} theme="light" langCode="en" name="Noble drawing" isCollaborating={false} viewModeEnabled={busy}
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}
-        onChange={(elements, state) => { latest.current = [elements, state]; clearTimeout(timer.current); timer.current = setTimeout(save, 700); }}>
+        onChange={(elements, state, files) => { setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
         <MainMenu><MainMenu.ItemCustom><small>Offline creation powered by Excalidraw.<br/>MIT and font notices are bundled.</small></MainMenu.ItemCustom></MainMenu>
       </Excalidraw>
     </section>
-    <footer role="status">{status}<small>Local draft on this device. Use image opens the photo editor; export a copy there to keep the PNG.</small></footer>
+    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePanel(); } }} aria-label={`${panel} panel`} onClickCapture={event => { if (busyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
+      <div className="panel-title"><h2 ref={panelHeading} tabIndex={-1}>{panel[0].toUpperCase() + panel.slice(1)}</h2><button disabled={busy} onClick={closePanel}>Close panel</button></div>
+      {panel === 'layouts' && <><p>Choose what to make. Each result stays editable, and Undo removes one insertion.</p>
+        <div role="group" aria-label="Layout tools" className="tool-grid layout-tools">{[["starter","Starter design"],["table","Table"],["qr","QR artwork"],["dependencies","Dependency diagram"],["palette","Artwork color key"],["chart","Data chart"],["calendar","Month calendar"],["storyboard","Storyboard sheet"]].map(([key,label]) => <button key={key} aria-pressed={layoutTool === key} onClick={() => setLayoutTool(key)}>{label}</button>)}</div>
+        {layoutTool === 'starter' && <><h3>Make a design your own</h3><p>Choose a starting layout and personalize its words. Creates a grouped white card with editable text and shapes. Double-tap a text block to edit it; Ungroup lets you rearrange individual parts. Nothing is uploaded.</p><label>Starter design style<select aria-label="Starter design style" value={starterStyle} onChange={event => setStarterStyle(event.target.value)}><option value="quote">Quote card</option><option value="announcement">Announcement</option><option value="flyer">Simple flyer</option></select></label><label>Design headline<input maxLength={120} value={starterHeadline} onChange={event => setStarterHeadline(event.target.value)} /></label><label>Design details<textarea aria-label="Design details" rows={3} maxLength={360} value={starterDetails} onChange={event => setStarterDetails(event.target.value)} /></label><label>Design sign-off<input maxLength={120} value={starterSignoff} onChange={event => setStarterSignoff(event.target.value)} /></label><p>Headline and sign-off: up to 60 characters each. Optional details: up to 180 characters across 3 lines. Long lines wrap. Insert keeps your existing artwork; Undo removes the new design.</p><StarterPreview style={starterStyle} headline={starterHeadline} details={starterDetails} signoff={starterSignoff} /><button onClick={() => insertLayout('starter')}>Insert editable starter design</button></>}
+        {layoutTool === 'table' && <><h3>Editable comparison table</h3><p>Paste tab-separated cells from a spreadsheet, or separate cells with |. The first row is the header. Use 2–6 columns and 2–10 rows, up to 64 characters per cell. Creates editable cells and bound text; formulas and links remain plain text.</p><label>Table title<input maxLength={60} value={tableTitle} onChange={event => setTableTitle(event.target.value)} /></label><label>Table rows<textarea aria-label="Table rows" rows={5} maxLength={4096} value={tableRows} onChange={event => setTableRows(event.target.value)} /></label><button onClick={() => insertLayout('table')}>Insert editable table</button></>}
+        {layoutTool === 'qr' && <><h3>QR artwork</h3><p>Turn a short link or message into grouped QR shapes with a white border. Generated on your device; no link is opened or uploaded.</p><label>QR link or text<textarea aria-label="QR link or text" rows={2} maxLength={192} placeholder="Paste a short link or write a message" value={qrText} onChange={event => setQrText(event.target.value)} /></label><label>QR caption<input maxLength={60} value={qrCaption} onChange={event => setQrCaption(event.target.value)} /></label><button onClick={() => insertLayout('qr')}>Insert editable QR code</button></>}
+        {layoutTool === 'dependencies' && <><h3>Dependency diagram</h3><p>Write one Label -&gt; Label connection per line, or a standalone label. Up to 20 nodes and 32 connections; return cycles are rejected. Creates editable connected nodes from left to right, entirely on your device.</p><label>Dependency diagram title<input maxLength={60} value={dependencyTitle} onChange={event => setDependencyTitle(event.target.value)} /></label><label>Dependency rows<textarea aria-label="Dependency rows" rows={4} maxLength={4096} value={dependencyRows} onChange={event => setDependencyRows(event.target.value)} /></label><button onClick={() => insertLayout('dependencies')}>Insert editable dependency diagram</button></>}
+        {layoutTool === 'palette' && <><h3>Artwork color key</h3><p>Create editable swatches and hex labels from visible stroke and fill colors, up to 32 colors. Includes object opacity; this reads assigned colors, not rendered pixels. Hidden objects are excluded.</p><label>Color-key title<input maxLength={60} value={paletteTitle} onChange={event => setPaletteTitle(event.target.value)} /></label><button onClick={() => insertLayout('palette')}>Insert editable color key</button></>}
+        {layoutTool === 'chart' && <><h3>Data chart</h3><label>Chart title<input maxLength={60} value={layoutTitle} onChange={event => setLayoutTitle(event.target.value)} /></label>
+        <label>Chart rows<textarea aria-label="Chart rows" rows={4} maxLength={1600} value={chartRows} onChange={event => setChartRows(event.target.value)} /></label><p>One label | number per line, up to 12 rows. Positive and negative bars use one linear scale from zero.</p><button onClick={() => insertLayout('chart')}>Insert editable chart</button></>}
+        {layoutTool === 'calendar' && <><h3>Month calendar</h3><label>Calendar month<input type="month" min="1900-01" max="2299-12" value={calendarMonth} onChange={event => setCalendarMonth(event.target.value)} /></label><label className="check-label"><input type="checkbox" checked={mondayFirst} onChange={event => setMondayFirst(event.target.checked)} />Monday starts the week</label><button onClick={() => insertLayout('calendar')}>Insert editable calendar</button></>}
+        {layoutTool === 'storyboard' && <><h3>Storyboard sheet</h3><label>Storyboard title<input maxLength={60} value={storyTitle} onChange={event => setStoryTitle(event.target.value)} /></label><label>Scene briefs<textarea aria-label="Scene briefs" rows={4} maxLength={1600} value={storyBriefs} onChange={event => setStoryBriefs(event.target.value)} /></label><p>One scene brief per line, up to 12 scenes. Empty frames are ready for your own artwork. This creates a planning sheet.</p><button onClick={() => insertLayout('storyboard')}>Insert editable storyboard</button></>}
+      </>}
+      {panel === 'objects' && <><TextContrastReview elements={objects} expanded={contrastOpen} onToggle={() => setContrastOpen(value => !value)} background={contrastBackground} onBackgroundChange={setContrastBackground} onLocate={locateObject} /><label>Find artwork<input type="search" maxLength={100} value={objectQuery} onChange={event => setObjectQuery(event.target.value)} placeholder="Text or object type" /></label><label>Object type<select aria-label="Object type" value={objectType} onChange={event => setObjectType(event.target.value)}><option value="all">All objects</option><option value="text">Text</option><option value="photos">Photos</option><option value="shapes">Shapes, lines & frames</option></select></label><p>{foundObjects.length} of {objects.length} objects. Searches this drawing only; hidden objects must be shown before locating.</p>{!!(objectQuery || objectType !== 'all') && <button onClick={() => { setObjectQuery(''); setObjectType('all'); }}>Clear object filters</button>}{!!objects.length && !foundObjects.length && <p>No matching objects. Try another word or clear the filters.</p>}<p>Top objects appear in front. Changes share the drawing Undo control. Replace photo fits a new local copy inside the old photo’s box, keeping its center, rotation and flip; any old crop is cleared. Originals stay unchanged.</p>{!objects.length && <p>Add a shape or text to start a composition.</p>}
+        {foundObjects.map(({ element, number, hidden, label }) => <article key={element.id} className="object-row"><strong>{label}{hidden ? ' · hidden' : element.locked ? ' · locked' : ''}</strong><div className="tool-grid"><button disabled={hidden} aria-label={`Find object ${number} on canvas`} onClick={() => locateObject(element.id)}>Find on canvas</button>
+          {element.type === 'image' && <button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Replace photo ${number}`} onClick={() => choosePhoto(element.id)}>Replace photo</button>}
+          <button onClick={() => objectAction(element.id, 'visibility')}>{element.customData?.nobleHidden ? 'Show' : 'Hide'}</button>
+          <button disabled={!!element.customData?.nobleHidden} onClick={() => objectAction(element.id, 'lock')}>{element.locked ? 'Unlock' : 'Lock'}</button>
+          <button disabled={element.locked} onClick={() => objectAction(element.id, 'up')}>Forward</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'down')}>Backward</button>
+          <button disabled={element.locked} onClick={() => objectAction(element.id, 'front')}>To front</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'back')}>To back</button>
+        </div></article>)}</>}
+      {panel === 'arrange' && <><div className="tool-grid layout-tools" role="group" aria-label="Arrangement tool">{[['align','Align & space'],['photos','Photo sheet'],['blend','Shape blend'],['grid','Grid repeat'],['ring','Ring repeat'],['recolor','Recolor']].map(([value,label]) => <button key={value} aria-pressed={arrangeTool === value} onClick={() => setArrangeTool(value)}>{label}</button>)}</div>{arrangeTool === 'photos' && <><h3>Photo contact sheet</h3><p>Fit 2–8 existing photos into equal cells without cropping. Order follows the drawing’s back-to-front object list, left to right then down. Unlock, ungroup and straighten photos first. Other artwork stays in place.</p><label className="check-label"><input type="checkbox" checked={sheetAll} onChange={event => setSheetAll(event.target.checked)} />Use all visible unlocked photos</label><p>{sheetAll ? 'All eligible photos will move and resize.' : 'Select only the photos to arrange on the canvas first.'}</p><div className="number-fields"><label>Photo sheet columns<input inputMode="numeric" maxLength={1} value={sheetColumns} onChange={event => setSheetColumns(event.target.value)} /></label><label>Photo cell size<input inputMode="numeric" maxLength={4} value={sheetCell} onChange={event => setSheetCell(event.target.value)} /></label><label>Photo sheet gap<input inputMode="decimal" maxLength={5} value={sheetGap} onChange={event => setSheetGap(event.target.value)} /></label></div><button onClick={arrangePhotos}>Arrange photos as contact sheet</button></>}{arrangeTool === 'align' && <><p>Select objects on the canvas first. Unlock and ungroup them before arranging.</p><h3>Align selected objects</h3><div className="tool-grid">{['left', 'center', 'right', 'top', 'middle', 'bottom'].map(operation => <button key={operation} onClick={() => arrange(operation)}>{operation}</button>)}</div><h3>Space three or more objects evenly</h3><div className="tool-grid"><button onClick={() => arrange('horizontal')}>Horizontal spacing</button><button onClick={() => arrange('vertical')}>Vertical spacing</button></div></>}{arrangeTool === 'blend' && <><h3>Blend endpoint shapes</h3><p>Select exactly two matching rectangle, ellipse or diamond shapes. Insert editable intermediate positions, sizes, rotations and colors; endpoint shapes stay unchanged.</p><label>Blend intermediate steps<input inputMode="numeric" maxLength={2} value={blendSteps} onChange={event => setBlendSteps(event.target.value)} /></label><button onClick={() => repeatSelection('blend')}>Blend selected endpoint shapes</button></>}{arrangeTool === 'grid' && <><h3>Editable grid repeat</h3><p>Repeat the selected composition as independent objects. The original is the first grid placement.</p><div className="number-fields"><label>Grid columns<input inputMode="numeric" maxLength={2} value={gridColumns} onChange={event => setGridColumns(event.target.value)} /></label><label>Grid rows<input inputMode="numeric" maxLength={2} value={gridRows} onChange={event => setGridRows(event.target.value)} /></label><label>Grid gap<input inputMode="decimal" maxLength={5} value={gridGap} onChange={event => setGridGap(event.target.value)} /></label></div><button onClick={() => repeatSelection('grid')}>Create editable grid copies</button></>}{arrangeTool === 'ring' && <><h3>Editable ring repeat</h3><p>Add upright copies around the selected composition. The original stays at the center.</p><div className="number-fields"><label>Ring copies<input inputMode="numeric" maxLength={2} value={ringCount} onChange={event => setRingCount(event.target.value)} /></label><label>Ring radius<input inputMode="decimal" maxLength={5} value={ringRadius} onChange={event => setRingRadius(event.target.value)} /></label></div><button onClick={() => repeatSelection('ring')}>Create editable ring copies</button></>}{arrangeTool === 'recolor' && <><h3>Replace a composition color</h3><p>Change matching strokes and fills together. Locked and hidden objects stay protected unless included.</p><label>Source composition color<select value={sourceColor} onChange={event => setSourceColor(event.target.value)}>{!compositionColors(objects).some(entry => entry.color === sourceColor) && <option value={sourceColor}>{sourceColor} · no matches</option>}{compositionColors(objects).map(entry => <option key={entry.color} value={entry.color}>{entry.color} · {entry.count} uses</option>)}</select></label><label>Replacement hex color<input value={targetColor} maxLength={9} onChange={event => setTargetColor(event.target.value)} /></label><label className="check-label"><input type="checkbox" checked={includeLocked} onChange={event => setIncludeLocked(event.target.checked)} />Include locked and hidden objects</label><button onClick={recolor}>Replace matching colors</button></>}</>}
+      {panel === 'projects' && <>
+        {pendingSave && <section className="object-row" aria-label="Review saved replacement"><h3 ref={saveReviewHeading} tabIndex={-1}>Replace saved {pendingSave.kind === 'component' ? 'component' : 'composition'} “{pendingSave.savedName}”?</h3><p>The saved version will be replaced. Undo is available in this session until another shelf change; use a different name if you need to keep both versions. Your current drawing stays open.</p><div className="tool-grid"><button disabled={busy} onClick={() => { try { applyShelfSave(pendingSave); } catch (failure) { error(failure); } }}>Replace saved version</button><button disabled={busy} onClick={() => { dismissSaveReview(pendingSave.kind); setStatus('Saved version kept. Your current drawing is unchanged.'); }}>Keep saved version</button></div></section>}
+
+        <div role="group" aria-label="Project tasks" className="tool-grid layout-tools project-tools">{Object.entries(projectViews).map(([value, label]) => <button key={value} aria-pressed={projectTool === value} aria-controls="project-task-view" disabled={busy} onClick={() => chooseProjectView(value)}>{label}</button>)}</div>
+        <section id="project-task-view" key={projectTool} className="project-task-view" aria-label={projectViews[projectTool]}>
+          <h3 id="project-task-heading" ref={projectTaskHeading} tabIndex={-1}>{projectViews[projectTool]}</h3>
+        {projectTool === 'saved' && <>
+        <label>Project name<input value={name} maxLength={40} onChange={event => setName(event.target.value)} /></label>
+        <button className="primary" data-shelf-save="project" onClick={saveNamed}>Save named composition</button><p>Up to 12 editable projects on this device. Saving an existing name asks you to review replacement first.</p>
+        {projects.map(project => <div className="project-row" key={project.name}><button onClick={() => { try { loadScene(decodeDraft(project.scene), project.name); } catch (failure) { error(failure); } }}>Open {project.name}</button><button aria-label={`Manage ${project.name}`} onClick={() => { setManaged(project.name); setNextName(`${project.name} copy`.slice(0, 40)); }}>Manage</button><button aria-label={`Delete ${project.name}`} onClick={() => removeProject(project.name)}>Delete</button></div>)}
+        {managed && <div className="object-row"><strong>Manage {managed}</strong><label>New saved project name<input value={nextName} maxLength={40} onChange={event => setNextName(event.target.value)} /></label><div className="tool-grid"><button onClick={() => manageSaved('rename')}>Rename saved project</button><button onClick={() => manageSaved('duplicate')}>Duplicate saved project</button><button onClick={() => setManaged(null)}>Cancel changes</button></div></div>}
+        {projectUndo && <button onClick={undoProjectChange}>Undo project {projectUndo.label}</button>}
+        {deletedProject && <button onClick={undoDelete}>Undo delete {deletedProject.name}</button>}
+        </>}
+        {projectTool === 'files' && <>
+        {preservedDraft.current && <section className="object-row" aria-label="Preserved draft recovery"><strong>Keep the stored drawing before starting fresh</strong><p>The stored draft could not be safely opened. A recovery copy keeps its exact text, including any stored photo data and metadata, for repair. It does not repair or open the drawing automatically. Choose where to keep it; the original stays here.</p><button disabled={busy || !ready} onClick={keepRecoveryFile}>Keep recovery copy</button></section>}
+        <label>Project name for file<input value={name} maxLength={40} onChange={event => setName(event.target.value)} /></label>
+        <label className="check-label"><input type="checkbox" aria-label="Save selected artwork only" checked={selectionFile} disabled={busy} onChange={event => { if (!busyRef.current) setSelectionFile(event.target.checked); }} />Save selected artwork only</label><p>{selectionFile ? 'Select on the canvas first. Attached labels, frame contents and hidden children stay editable; their photo copies travel with the file. The rest of your drawing stays here.' : 'Save includes the whole editable drawing, including hidden objects and embedded photo copies.'}</p>
+        <p>Save a file to keep your objects and imported photo copies editable. Choose a Noble project file to review it first; your drawing changes only when you choose Open or Insert. The file includes any embedded photo copies, so choose where to keep it.</p><div className="tool-grid"><button onClick={saveProjectFile}>Save project file</button><button onClick={chooseProjectFile}>Choose project file</button></div>
+        {preparedProjectFile && preparedProjectFile.raw === json && <section className="object-row" aria-label="Chosen project file"><strong>{preparedProjectFile.name}</strong><p>Your current drawing is unchanged. Open replaces it with recoverable Undo; Insert adds this artwork beside it.</p><div className="tool-grid"><button onClick={() => usePreparedProject(false)}>Open chosen project</button><button onClick={() => usePreparedProject(true)}>Insert chosen artwork</button></div></section>}
+        </>}
+        {projectTool === 'images' && <>
+        <label className="check-label"><input type="checkbox" aria-label="Use transparent image background" checked={transparentImage} disabled={busy} onChange={event => { if (!busyRef.current) setTransparentImage(event.target.checked); }} />Use transparent image background</label><p>{transparentImage ? 'Empty canvas areas stay transparent. Photos and filled shapes keep their backgrounds. Choose PNG when exporting from the photo editor to keep transparency.' : 'Empty canvas areas become white. Turn on transparency for artwork you want to place over another image.'} This choice applies to both image buttons for this session; SVG and editable project saves keep their own settings.</p><p>Select artwork on the canvas, then open only that part in the photo editor. Attached labels and selected frame contents are included; hidden objects are excluded. Outside connections are detached in the image copy. Your editable drawing stays here. The header Use image button includes the whole visible drawing.</p><button onClick={() => useImage(true)}>Use selected artwork</button>
+        </>}
+        {projectTool === 'parts' && <>
+        <p>Select artwork on the canvas, then save a component. Attached labels and frame contents travel with the selection. Connections to unselected objects are detached; the original stays unchanged. Keep up to 12 local components. Inserted groups and internal connections stay editable.</p><label>Component name<input value={componentName} maxLength={40} onChange={event => setComponentName(event.target.value)} /></label><button data-shelf-save="component" onClick={saveComponent}>Save selected as component</button>
+        {components.map(component => <div className="project-row" key={component.name}><button onClick={() => useComponent(component)}>Insert {component.name}</button><button aria-label={`Delete component ${component.name}`} onClick={() => deleteComponent(component)}>Delete</button></div>)}
+        {componentUndo && <button onClick={undoComponentChange}>Undo component change</button>}
+        </>}
+        {projectTool === 'advanced' && <>
+        <h3>Editable project transfer</h3><p>Project JSON includes editable objects and any imported photo copies. Original file names, original URIs and account data are excluded.</p><p>Import opens the saved composition. Insert project artwork places its objects beside your visible drawing and selects the movable ones. Undo restores the previous drawing in either case.</p>
+        <div className="tool-grid"><button onClick={() => { try { setJson(exportProject(name, ...scene())); setStatus('Project JSON ready. Select and copy it to keep a portable editable copy.'); } catch (failure) { error(failure); } }}>Export project JSON</button><button onClick={() => { try { const imported = importProject(json); loadScene(imported, imported.name); } catch (failure) { error(failure); } }}>Import project JSON</button><button onClick={() => { try { insertProject(importProject(json)); } catch (failure) { error(failure); } }}>Insert project artwork</button></div>
+        <h3>Scalable vector artwork</h3><p>Export the visible composition as SVG. Hidden objects are excluded. Editing clears prepared output; prepare it again after changes. Keep project JSON separately for editing in Noble.</p><button onClick={prepareVector}>Prepare vector SVG</button>
+        {!!svg && <><label htmlFor="vector-svg">Vector SVG</label><textarea id="vector-svg" value={svg} readOnly spellCheck={false} onFocus={event => event.target.select()} /></>}
+        <label htmlFor="portable-project-json">Project JSON</label><textarea id="portable-project-json" ref={portable} value={json} maxLength={MAX_PORTABLE_BYTES} spellCheck={false} onChange={event => setJson(event.target.value)} /><button onClick={() => { portable.current.focus(); portable.current.select(); }}>Select JSON to copy</button>        </>}
+        </section>
+      </>}
+    </section>}
+    <footer role="status" aria-live="polite">{status}<small>Local draft on this device. Use image opens the photo editor; export a copy there to keep the PNG.</small></footer>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<Editor />);

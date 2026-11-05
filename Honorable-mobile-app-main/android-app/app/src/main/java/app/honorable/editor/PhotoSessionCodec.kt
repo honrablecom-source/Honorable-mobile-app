@@ -43,7 +43,7 @@ object PhotoSessionCodec {
         val bytes=ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
             val all=listOf(s.edit)+s.undo+s.redo+listOfNotNull(s.pendingExport)
-            val version=if(all.any{it.composition!=PhotoComposition()})7 else if(all.any{it.effects!=PhotoEffects()})6 else if(all.any{!it.creative.isIdentity})5 else if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
+            val version=if(all.any{it.alphaGradient!=PhotoAlphaGradient()})13 else if(all.any{it.monochrome!=PhotoMonochrome()})12 else if(all.any{it.selectiveColor!=PhotoSelectiveColor()})11 else if(all.any{it.regions.values.isNotEmpty()})10 else if(all.any{e->e.layers.objects.any{it.curve.toBits()!=0||it.textStyle!=PhotoTextStyle()}})9 else if(all.any{it.layers.objects.isNotEmpty()})8 else if(all.any{it.composition!=PhotoComposition()})7 else if(all.any{it.effects!=PhotoEffects()})6 else if(all.any{!it.creative.isIdentity})5 else if(all.any{!it.finish.isIdentity})4 else if(all.any{it.background!=null})3 else if(all.any{!it.curve.isIdentity || it.radialLight!=null})2 else 1
             out.writeInt(MAGIC);out.writeInt(version);out.writeUTF(s.scope);writeEdit(out,s.edit,version)
             for(history in listOf(s.undo,s.redo)){out.writeInt(history.size);history.forEach{writeEdit(out,it,version)}}
             out.writeBoolean(s.compareOriginal);out.writeInt(s.activeTool)
@@ -54,7 +54,7 @@ object PhotoSessionCodec {
     fun decode(bytes:ByteArray,expectedScope:String):PhotoSessionSnapshot {
         require(bytes.size in 1..MAX_BYTES)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..7)
+            require(input.readInt()==MAGIC);val version=input.readInt();require(version in 1..13)
             val scope=input.readUTF();require(scope==expectedScope && scope.matches(Regex("[0-9a-f]{64}")))
             val edit=readEdit(input,version)
             fun history():List<PhotoEdit>{val count=input.readInt();require(count in 0..50);return List(count){readEdit(input,version)}}
@@ -80,6 +80,11 @@ object PhotoSessionCodec {
         if(version>=5)e.creative.write(out)
         if(version>=6)e.effects.write(out)
         if(version>=7)e.composition.write(out)
+        if(version>=8)e.layers.write(out,version)
+        if(version>=10)e.regions.write(out)
+        if(version>=11)e.selectiveColor.write(out)
+        if(version>=12)e.monochrome.write(out)
+        if(version>=13)e.alphaGradient.write(out)
     }
     private fun readEdit(input:DataInputStream,version:Int):PhotoEdit {
         val base=PhotoEdit(input.readInt(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readFloat(),input.readBoolean())
@@ -99,6 +104,11 @@ object PhotoSessionCodec {
         val creative=if(version>=5)PhotoCreative.read(input)else PhotoCreative()
         val effects=if(version>=6)PhotoEffects.read(input)else PhotoEffects()
         val composition=if(version>=7)PhotoComposition.read(input)else PhotoComposition()
-        return base.copy(curve=curve,radialLight=radial,background=background,finish=finish,creative=creative,effects=effects,composition=composition)
+        val layers=if(version>=8)PhotoLayers.read(input,version)else PhotoLayers()
+        val regions=if(version>=10)PhotoRegions.read(input)else PhotoRegions()
+        val selective=if(version>=11)PhotoSelectiveColor.read(input)else PhotoSelectiveColor()
+        val monochrome=if(version>=12)PhotoMonochrome.read(input)else PhotoMonochrome()
+        val alphaGradient=if(version>=13)PhotoAlphaGradient.read(input)else PhotoAlphaGradient()
+        return base.copy(alphaGradient=alphaGradient,monochrome=monochrome,selectiveColor=selective,regions=regions,layers=layers,curve=curve,radialLight=radial,background=background,finish=finish,creative=creative,effects=effects,composition=composition)
     }
 }

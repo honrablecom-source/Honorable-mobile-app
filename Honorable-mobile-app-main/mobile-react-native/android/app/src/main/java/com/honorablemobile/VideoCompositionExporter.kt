@@ -91,15 +91,19 @@ internal class VideoCompositionExporter(private val context: Context) {
             }else EditedMediaItemSequence.withAudioAndVideoFrom(items)
             val sequences = mutableListOf(mainSequence)
             soundtrack?.let { track ->
-                val audio = EditedMediaItem.Builder(MediaItem.fromUri(Uri.parse(track.uri)))
+                val media=MediaItem.Builder().setUri(Uri.parse(track.uri)).apply{
+                    if(track.hasExcerpt||!track.loop)setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(track.startMs).setEndPositionUs(VideoTimeline.soundtrackEndUs(clips,track)).build())
+                }.build()
+                val audio = EditedMediaItem.Builder(media)
                     .setDurationUs(track.durationMs*1000).setRemoveVideo(true)
                     .setEffects(Effects(listOf(GainProcessor(DefaultGainProvider.Builder(track.volume).build())),emptyList())).build()
-                sequences.add(EditedMediaItemSequence.withAudioFrom(listOf(audio)).buildUpon().setIsLooping(true).build())
+                sequences.add(EditedMediaItemSequence.withAudioFrom(listOf(audio)).buildUpon().setIsLooping(track.loop).build())
             }
             return Composition.Builder(sequences).apply {
                 val audio=if(clips.first().audioFade)listOf(GainProcessor(VideoProjectAudioFade(clips.sumOf{it.durationUs})))else emptyList()
                 val visual=mutableListOf<Effect>()
                 if(!audioOnly) {
+                    if(clips.any{!it.motion.isIdentity})visual.add(VideoMotionEffect(clips))
                     if(clips.any{it.fadeEdges})visual.add(VideoTimelineFade(clips.toList()))
                     val captions=VideoCaptions.resolve(clips)
                     if(captions.isNotEmpty())visual.add(OverlayEffect(listOf(VideoCaptionOverlay(captions))))
@@ -190,7 +194,7 @@ internal class VideoCompositionExporter(private val context: Context) {
         }
 
         private fun verifyOutput(context: Context, sources: Map<String, Uri>, destination: Uri, clips: List<VideoSegment>) {
-            val expectedDurationMs = clips.sumOf { it.durationMs }
+            val expectedDurationMs = VideoPlaybackTime.durationMs(clips)
             val source = requireNotNull(sources[clips.first().sourceId])
             val sourceExtractor = MediaExtractor()
             val outputExtractor = MediaExtractor()

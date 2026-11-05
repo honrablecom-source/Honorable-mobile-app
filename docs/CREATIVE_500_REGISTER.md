@@ -1,0 +1,93 @@
+# Noble creative expansion register
+
+67 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+
+See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
+
+- **C001** — Search canvas formats.
+- **C002** — Choose custom bounded canvas dimensions.
+- **C003** — Choose custom canvas backgrounds.
+- **C004** — Save named canvas setups.
+- **C005** — Edit independent native photo shape objects.
+- **C006** — Edit multiple native photo text objects.
+- **C007** — Manage object visibility, locking and order.
+- **C008** — Save and reopen durable native image compositions.
+- **C009** — Save multiple named drawing compositions.
+- **C010** — Transfer editable drawing projects as JSON.
+- **C011** — Rename saved drawing compositions.
+- **C012** — Duplicate saved drawing compositions independently.
+- **C013** — Undo saved drawing project operations.
+- **C014** — Export visible drawing artwork as SVG.
+- **C015** — Generate independently editable grid repeats.
+- **C016** — Generate independently editable ring repeats.
+- **C017** — Reuse selected composition components.
+- **C018** — Replace a composition color while protecting locked objects.
+- **C019** — Sort whole timeline clips.
+- **C020** — Remove exactly duplicate timeline clips.
+- **C021** — Join compatible contiguous source cuts.
+- **C022** — Extend caption holds without overlap.
+- **C023** — Change caption letter case.
+- **C024** — Inspect timeline settings and coverage.
+- **C025** — Save and restore editable edits for an existing photo original.
+- **C026** — Curve editable photo text along a circular path.
+- **C027** — Style photo text with built-in fonts, tracking, alignment, outlines and shadows.
+
+- **C028** — Create an editable local video timeline from selected photos.
+- **C029** — Create editable data charts from labeled numeric rows.
+- **C030** — Create editable month calendars with correct day placement.
+- **C031** — Create editable storyboard sheets from scene briefs.
+- **C032** — Blend endpoint shapes into graduated editable intermediates.
+- **C033** — Apply bounded feathered regional photo effects while preserving originals.
+- **C034** — Reuse named local photo-effect region recipes across photos.
+- **C035** — Adjust a selected photo hue range while preserving other colors and neutrals.
+- **C036** — Generate an editable artwork color-key sheet from visible drawing colors.
+- **C037** — Copy a clip chapter list with edited playback timestamps and current titles.
+
+C036 browser evidence: the actual drawing editor passes editable swatches/combined alpha, hidden-color exclusion, visual source preservation, one-step Undo/Redo, reload/editable JSON, SVG alpha and filled-swatch PNG pixel checks, plus320/390/844px with no external/page/CSP errors. Maintained regression: `mobile-react-native/creation-web/test/palette-preview.cjs`; artifacts/digests: `.context/palette-runtime-review/`. This is browser evidence, not native WebView, APK or device acceptance. Counts unchanged.
+- **C038** — Generate a local editable dependency diagram from bounded node-and-connection text.
+- **C039** — Find and replace literal caption text across a selected clip or the project.
+- **C040** — Reuse named private local video color looks across projects.
+
+- **C041** — Generate local editable QR-code artwork from short links or text. Pinned MIT encoder, test-only independent decoder, grouped vector modules/quiet border, optional caption, existing one-step Undo/recovery/export. Actual PNG and SVG decode the exact Unicode content. Source/browser checked; native bundle/device pending.
+
+C038 browser evidence now passes actual conversion with reciprocal rectangle/label/arrow bindings, invalid-cycle preservation, Undo/Redo, reload/editable JSON/SVG/PNG and independent IDs on repeated insertion at320/390/844px without page/CSP/external errors. Drag behavior and Android runtime remain unverified. Maintained regression: `creation-web/test/dependencies-preview.cjs`.
+
+C041 evidence:48 focused drawing tests pass; actual browser verifies grouped insertion, source preservation, single Undo/Redo, reload/JSON and independent decode of actual PNG/SVG exports, plus MIT notice and phone widths. `creation-web/test/qr.test.mjs`, `creation-web/test/qr-preview.cjs`, `.context/qr-feature/`. Native/APK builds remain deferred under BUILD_CADENCE.md. No added count for the selected-tool Layouts usability refinement.
+- **C042** — Save private source-time video moment notes and jump to them across projects.
+
+Human-readable entries reconciled with the authoritative JSON register November 5; source entries below do not imply full-app or device acceptance. Detailed evidence and limitations remain in the work log.
+
+- **C043** — Record, review and privately keep local voiceovers for a video soundtrack.
+- **C044** — Compose local photos with editable text and shapes, with embedded-copy recovery and export.
+- **C045** — Review speed-aware caption readability hints on the edited video timeline.
+- **C046** — Open a selected source video frame as an independent local photo workspace.
+- **C047** — Choose and loop or play once a source-audio excerpt for the video soundtrack.
+- **C048** — Fit existing photos into an editable contact sheet while preserving proportions and embedded copies.
+- **C049** — Find visible caption text across the edited video and jump to or edit matching cues.
+- **C050** — Replace a composed photo with a local copy while retaining layout identity and recoverable Undo.
+- **C051** — Create a labelled visual storyboard proof from representative frames of the edited video timeline.
+- **C052** — Turn pasted tab or pipe rows into an editable comparison table with local recovery and export.
+- **C053** — Find drawing objects by local text or type and locate them on canvas without editing artwork.
+- **C054** — Review drawing text colors against a chosen solid background and locate weak-contrast text.
+- **C055** — Slip a selected clip to different same-length source footage without retiming the surrounding video.
+- **C056** — Roll a cut between neighboring clips while preserving their combined video playback length.
+- **C057** — Insert a portable project beside existing artwork with independent bindings/groups and embedded photos.
+- **C058** — Assemble editable video highlight excerpts from chosen private saved source moment notes.
+
+- **C059** — Create custom black-and-white photo tonal separation with normalized RGB contributions and preserved alpha. Native source/kernel/codec/API checked;Android bitmap/UI/device and browser adapter remain unverified.
+
+- **C060** — Personalize local quote/announcement/flyer starter designs as grouped editable cards, with existing project recovery and image/vector export. One workflow;browser checked,Android/device acceptance pending.
+
+- **C061** — Use selected drawing artwork as a local image while retaining the whole editable canvas. Browser grouped-label PNG pixels/source/reload checked;Android/device acceptance pending.
+
+- **C062** — Save and choose editable drawing project files,stage them for explicit Open/Insert andkeep existing artwork recoverable. Browser file/embedded-photo/Undo/quota-recovery andscoped native policy/API checks pass;Android SAF/device acceptance pending.
+
+- **C063** — Inspect an edited-preview tonal histogram and RGB endpoint counts locally. Pure model/API checked; native pixels/UI/lifecycle/device pending. C062 is reserved by noble-main and is counted only after its completion.
+
+- **C064** — Derive up to eight approximate HEX swatches from edited photo pixels, with opacity-weighted coverage and explicit copy. Pure model/API checked; native pixels/swatches/clipboard/lifecycle/device pending.
+
+- **C065** — Create a labelled original/edited comparison image in a separate local guest photo workspace. Side-by-side/stacked are one workflow;preview resolution/white transparency/flattened panels. Pure layout/file/provenance and API checked;Android pixels/PNG/handoff/save/export/device pending.
+
+- **C066** — Fade the framed photo/person background directionally to transparency with editable stops/reverse and session/project recovery. Scalar kernel/codecs and isolated photo/video callers checked;native alpha/grid/UI/PNG/JPEG/device pending. Global saved looks retain the target photo fade.
+
+- **C067** — Keep an exact local repair archive of an unreadable preserved drawing draft without changing the stored original. Browser download/no-write/error/reload and model bounds/chunk checks pass;archive does not repair/reopen and Android SAF/device acceptance remains pending.

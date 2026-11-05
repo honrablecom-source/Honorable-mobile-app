@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="created_images" path="created-images/" />
+    <files-path name="canvas_projects" path="canvas-projects/" />
+    <files-path name="photo_video_projects" path="photo-video-projects/" />
 </paths>

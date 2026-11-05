@@ -15,6 +15,7 @@ internal data class VideoSegment(
     val audioFade:Boolean=false,
     val captions: List<VideoCaption> = emptyList(),
     val captionSourceUri: String? = null,
+    val motion:VideoMotion=VideoMotion(),
 ) {
     init {
         VideoCaptions.validate(captions)
@@ -43,15 +44,17 @@ internal class VideoEditProject(durationMs: Long) {
     var segments: List<VideoSegment> = original
         private set
 
-    private fun validate(clips: List<VideoSegment>, sources: Map<String, Long>) {
-        VideoDraftCodec.requireRecoverableCaptions(clips)
+    private fun validate(clips: List<VideoSegment>, sources: Map<String, Long>, music:VideoSoundtrack?=soundtrack) {
+        VideoDraftCodec.requireRecoverableCaptions(clips,music?.loop==false,music?.hasExcerpt==true)
         require(clips.mapNotNull { it.captionSourceUri }.distinct().size <= 32) { "Use up to 32 subtitle source documents" }
         require(clips.sumOf { it.title.toByteArray(Charsets.UTF_8).size } <= 128_000) { "Project title text limit reached" }
         require(clips.sumOf { it.captions.size } <= VideoCaptions.MAX_PROJECT_CUES) { "Project caption count limit reached" }
         require(clips.sumOf { clip -> clip.captions.sumOf { it.text.toByteArray(Charsets.UTF_8).size } } <= VideoCaptions.MAX_PROJECT_TEXT_BYTES) { "Project caption text limit reached" }
         require(clips.all { clip -> clip.captions.all { it.endMs <= (sources[clip.sourceId] ?: 0) } }) { "Caption exceeds original source duration" }
         require(clips.size in 1..1000 && sources.size in 1..32)
+        VideoPlaybackTime.durationUs(clips)
         require(sources.all { (id, duration) -> id.matches(Regex("[A-Za-z0-9_-]{1,64}")) && duration > 0 })
+        require(clips.all{it.motion==VideoMotion()||it.motion.anchorEndMs<=(sources[it.sourceId]?:0)}){"Motion timing exceeds original source duration"}
         require(clips.all { it.endMs <= (sources[it.sourceId] ?: 0) }) { "Unknown source or clip outside its source" }
     }
     private fun mergedSources(extra: Map<String, Long>): Map<String, Long> {
@@ -68,7 +71,7 @@ internal class VideoEditProject(durationMs: Long) {
     }
     fun restore(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null) {
         val catalog = mergedSources(sources)
-        validate(clips, catalog)
+        validate(clips, catalog, soundtrack)
         sourceDurations.putAll(catalog)
         segments = clips.toList(); this.soundtrack = soundtrack
         undo.clear()
@@ -77,19 +80,19 @@ internal class VideoEditProject(durationMs: Long) {
 
     fun applyDraft(clips: List<VideoSegment>, sources: Map<String, Long> = emptyMap(), soundtrack: VideoSoundtrack? = null) {
         val catalog = mergedSources(sources)
-        validate(clips, catalog)
+        validate(clips, catalog, soundtrack)
         sourceDurations.putAll(catalog)
         change(clips.toList(), soundtrack)
     }
 
-    val totalDurationMs: Long get() = segments.sumOf { it.durationMs }
+    val totalDurationMs: Long get() = VideoPlaybackTime.durationMs(segments)
     fun soundtrackUris(): Set<String> = (undo.toList() + redo.toList() + state()).mapNotNull { it.soundtrack?.uri }.toSet()
     fun captionSourceUris(): Set<String> = (undo.toList() + redo.toList() + state()).flatMap { state -> state.clips.mapNotNull { it.captionSourceUri } }.toSet()
     val canUndo: Boolean get() = undo.isNotEmpty()
     val canRedo: Boolean get() = redo.isNotEmpty()
 
     private fun change(next: List<VideoSegment>, music: VideoSoundtrack? = soundtrack) {
-        validate(next, sourceDurations)
+        validate(next, sourceDurations, music)
         if (next == segments && music == soundtrack) return
         undo.addLast(state())
         if (undo.size > 50) undo.removeFirst()
@@ -105,6 +108,17 @@ internal class VideoEditProject(durationMs: Long) {
             add(index, clip.copy(startMs = sourceTimeMs, captions = clip.captions.filter { it.endMs > sourceTimeMs && it.startMs < clip.endMs }))
             add(index, clip.copy(endMs = sourceTimeMs, captions = clip.captions.filter { it.startMs < sourceTimeMs && it.endMs > clip.startMs }))
         })
+    }
+
+    fun rollCut(index:Int,deltaPlaybackMs:Long) {
+        change(VideoRollCut.propose(segments,index,deltaPlaybackMs,sourceDurations))
+    }
+
+    fun slipSourceWindow(index:Int,startMs:Long) {
+        require(index in segments.indices)
+        val clip=segments[index]
+        val moved=VideoClipWindow.move(clip,startMs,sourceDurations.getValue(clip.sourceId))
+        change(segments.toMutableList().apply{set(index,moved)})
     }
 
     fun trim(index: Int, startMs: Long, endMs: Long) {
@@ -129,6 +143,7 @@ internal class VideoEditProject(durationMs: Long) {
     fun setGrade(index: Int, grade: VideoGrade) = change(segments.toMutableList().apply { set(index, get(index).copy(grade = grade)) })
     fun setLayout(index:Int,layout:VideoLayout)=change(segments.toMutableList().apply{set(index,get(index).copy(layout=layout))})
     fun setTitleStyle(index:Int,style:VideoTitleStyle)=change(segments.toMutableList().apply{set(index,get(index).copy(titleStyle=style))})
+    fun setMotion(index:Int,motion:VideoMotion)=change(segments.mapIndexed{i,clip->if(i==index)clip.copy(motion=motion)else clip}.also{require(index in segments.indices)})
     fun setFormat(ratio:Int,crop:Boolean)=change(segments.map{it.copy(layout=it.layout.copy(ratio=ratio,crop=crop))})
     fun setProjectAudioFade(enabled:Boolean)=change(segments.map{it.copy(audioFade=enabled)})
     fun applyGradeToAll(index:Int)=change(segments.map{it.copy(grade=segments[index].grade)})

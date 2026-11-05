@@ -172,14 +172,73 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @ReactMethod fun getSearchHistory(promise:Promise)=work.execute{guarded(promise){Arguments.createMap().apply{putArray("queries",Arguments.fromList(searchHistory()))}}}
     @ReactMethod fun clearSearchHistory(promise:Promise)=work.execute{guarded(promise){context.getSharedPreferences("honorable-ui",0).edit().remove("search-history").apply();Arguments.createMap().apply{putBoolean("cleared",true)}}}
     @ReactMethod fun editPhoto(uri:String,promise:Promise)=work.execute{guarded(promise){accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"));context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri)});Arguments.createMap().apply{putBoolean("opened",true)}}}
+    @ReactMethod fun editPhotoWithQuickStart(uri:String,preset:String,promise:Promise)=openPhotoWithOption(uri,preset,true,false,promise)
+    @ReactMethod fun editPhotoWithLook(uri:String,look:String,promise:Promise)=openPhotoWithOption(uri,look,false,false,promise)
+    @ReactMethod fun editPhotoGuestWithLook(uri:String,look:String,promise:Promise)=openPhotoWithOption(uri,look,false,true,promise)
+    private fun openPhotoWithOption(uri:String,value:String,quick:Boolean,guest:Boolean,promise:Promise)=work.execute{guarded(promise){
+        if(quick) app.honorable.editor.PhotoQuickStart.valueOf(value) else app.honorable.editor.PhotoLook.valueOf(value)
+        val selected=Uri.parse(uri)
+        require(selected.scheme=="content" && context.contentResolver.getType(selected)?.startsWith("image/")==true) { "Choose a local photo" }
+        context.contentResolver.openFileDescriptor(selected,"r").use{requireNotNull(it){"The selected photo could not be opened"}}
+        if(!guest)accountSession.action("/v1/beta/authorize",JSONObject().put("flag","studio_enabled"))
+        context.startActivity(Intent(context,app.honorable.editor.PhotoEditorActivity::class.java).apply{
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra("uri",uri)
+            putExtra(if(quick)app.honorable.editor.PhotoEditorActivity.QUICK_START_EXTRA else app.honorable.editor.PhotoEditorActivity.START_LOOK_EXTRA,value)
+            if(guest)putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)
+        })
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
     @ReactMethod fun editPhotoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"image/",app.honorable.editor.PhotoEditorActivity::class.java,promise)
     @ReactMethod fun editVideoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"video/",HonorableVideoEditorActivity::class.java,promise)
+    @ReactMethod fun createPhotoVideoGuest(promise:Promise)=work.execute{guarded(promise){
+        context.startActivity(Intent(context,PhotoVideoCreatorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
+    @ReactMethod fun openPhotoVideoProjectsGuest(promise:Promise)=work.execute{guarded(promise){
+        context.startActivity(Intent(context,PhotoVideoProjectsActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
+    @ReactMethod fun openCanvasProjectsGuest(promise:Promise)=work.execute{guarded(promise){
+        context.startActivity(Intent(context,app.honorable.editor.CanvasProjectsActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
+        Arguments.createMap().apply{putBoolean("opened",true)}
+    }}
     @ReactMethod fun createDrawingGuest(promise:Promise)=work.execute{guarded(promise){
         context.startActivity(Intent(context,HonorableDrawingActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
         Arguments.createMap().apply{putBoolean("opened",true)}
     }}
     @ReactMethod fun createImageGuest(format:String,promise:Promise)=work.execute{guarded(promise){
         openGuestEditor(CreatedPhotoCanvas.create(context,format).toString(),"image/",app.honorable.editor.PhotoEditorActivity::class.java)
+    }}
+    // Private guest setups contain dimensions and a background only; never media or account state.
+    @ReactMethod fun canvasSetups(action:String,name:String,width:Double,height:Double,background:String,promise:Promise)=work.execute{guarded(promise){
+        synchronized(this) {
+            val preferences=context.getSharedPreferences("noble-canvas-setups-v1",android.content.Context.MODE_PRIVATE)
+            val raw=preferences.getString("setups","[]") ?: "[]"
+            require(raw.length<=16384) { "Saved setups are too large" }
+            val setups=JSONArray(raw)
+            require(setups.length()<=20) { "Too many saved setups" }
+            require(action in listOf("list","save","delete")) { "Unknown setup action" }
+            if(action!="list") {
+                val label=name.trim()
+                require(label.isNotEmpty() && label.length<=40 && label.none{it.isISOControl()}) { "Use a setup name of 1–40 characters" }
+                val next=JSONArray()
+                for(i in 0 until setups.length()) {val item=setups.getJSONObject(i);if(item.getString("name")!=label) next.put(item)}
+                if(action=="save") {
+                    require(width.isFinite() && height.isFinite() && width==width.toInt().toDouble() && height==height.toInt().toDouble()) { "Use whole-number dimensions" }
+                    CanvasDimensions.validate(width.toInt(),height.toInt())
+                    require(background in listOf("white","black","transparent")) { "Choose a supported background" }
+                    require(next.length()<20) { "Delete a setup before saving another. Limit: 20." }
+                    next.put(JSONObject().put("name",label).put("width",width.toInt()).put("height",height.toInt()).put("background",background))
+                }
+                check(preferences.edit().putString("setups",next.toString()).commit()) { "Could not save canvas setups" }
+                next.toString()
+            } else raw
+        }
+    }}
+    @ReactMethod fun createCustomImageGuest(width:Double,height:Double,background:String,promise:Promise)=work.execute{guarded(promise){
+        require(width.isFinite() && height.isFinite() && width == width.toInt().toDouble() && height == height.toInt().toDouble()) { "Canvas dimensions must be whole numbers" }
+        openGuestEditor(CreatedPhotoCanvas.createSized(context,width.toInt(),height.toInt(),background).toString(),"image/",app.honorable.editor.PhotoEditorActivity::class.java)
     }}
     private fun launchGuestEditor(uri:String,mimePrefix:String,editor:Class<out android.app.Activity>,promise:Promise)=work.execute{guarded(promise){
         openGuestEditor(uri,mimePrefix,editor)
@@ -239,6 +298,6 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     private fun searchHistory(): List<String> = context.getSharedPreferences("honorable-ui",0).getString("search-history","").orEmpty().lineSequence().filter(String::isNotBlank).toList()
     private fun rememberSearch(raw:String){val clean=raw.trim().replace('\n',' ');val history=(listOf(clean)+searchHistory().filterNot{it.equals(clean,true)}).take(12);context.getSharedPreferences("honorable-ui",0).edit().putString("search-history",history.joinToString("\n")).apply()}
     private fun hasMediaPermission()=MediaCapabilityManager(context).current().canReadAny
-    private fun guarded(promise:Promise, block:()->WritableMap) { try { promise.resolve(block()) } catch(error:Throwable) { promise.reject("HONORABLE_NATIVE_ERROR",error.message,error) } }
+    private fun <T> guarded(promise:Promise, block:()->T) { try { promise.resolve(block()) } catch(error:Throwable) { promise.reject("HONORABLE_NATIVE_ERROR",error.message,error) } }
     override fun invalidate() { work.shutdownNow();if(embeddingsDelegate.isInitialized())embeddings.close();if(databaseDelegate.isInitialized())database.close();super.invalidate() }
 }

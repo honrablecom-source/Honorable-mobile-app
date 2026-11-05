@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { honorableNative } from './HonorableNative';
 
@@ -9,9 +9,11 @@ export type WorkspaceAccess = 'account' | 'guest';
 export async function openWorkspace(
   kind: WorkspaceKind,
   access: WorkspaceAccess = 'account',
+  isCurrent: () => boolean = () => true,
 ): Promise<boolean> {
+  if (!isCurrent()) return false;
   const selected = await honorableNative.pickWorkspaceMedia(kind);
-  if (!selected) return false;
+  if (!selected || !isCurrent()) return false;
   if (access === 'guest') {
     const result =
       kind === 'IMAGE'
@@ -28,14 +30,38 @@ export async function openWorkspace(
 
 export function useOpenWorkspace(access: WorkspaceAccess = 'account') {
   const pending = useRef(false);
+  const lifecycle = useRef({ active: false, generation: 0, access });
+  useEffect(() => {
+    const session = lifecycle.current;
+    session.active = true;
+    session.access = access;
+    session.generation++;
+    return () => {
+      session.active = false;
+      session.generation++;
+    };
+  }, [access]);
   const [busy, setBusy] = useState(false);
-  const run = async (action: () => Promise<unknown>) => {
-    if (pending.current) return;
+  const run = async (
+    action: (isCurrent: () => boolean) => Promise<unknown>,
+  ) => {
+    if (
+      pending.current ||
+      !lifecycle.current.active ||
+      lifecycle.current.access !== access
+    )
+      return;
+    const generation = lifecycle.current.generation;
+    const isCurrent = () =>
+      lifecycle.current.active &&
+      lifecycle.current.generation === generation &&
+      lifecycle.current.access === access;
     pending.current = true;
     setBusy(true);
     try {
-      await action();
+      await action(isCurrent);
     } catch (error) {
+      if (!isCurrent()) return;
       Alert.alert(
         'Open workspace',
         error instanceof Error
@@ -44,12 +70,47 @@ export function useOpenWorkspace(access: WorkspaceAccess = 'account') {
       );
     } finally {
       pending.current = false;
-      setBusy(false);
+      if (lifecycle.current.active) setBusy(false);
     }
   };
-  const open = (kind: WorkspaceKind) => run(() => openWorkspace(kind, access));
-  const create = (format: 'square' | 'portrait' | 'landscape') =>
-    run(() => honorableNative.createImageGuest(format));
+  const open = (kind: WorkspaceKind) =>
+    run(isCurrent => openWorkspace(kind, access, isCurrent));
+  const create = (
+    format:
+      | 'square'
+      | 'portrait'
+      | 'landscape'
+      | 'feed_portrait'
+      | 'story'
+      | 'reels'
+      | 'ultrawide'
+      | 'postcard'
+      | 'banner'
+      | 'poster'
+      | 'cover'
+      | 'wallpaper',
+  ) => run(() => honorableNative.createImageGuest(format));
   const draw = () => run(() => honorableNative.createDrawingGuest());
-  return { busy, open, create, draw };
+  const createCustom = (
+    width: number,
+    height: number,
+    background: 'white' | 'black' | 'transparent',
+  ) =>
+    run(() =>
+      honorableNative.createCustomImageGuest(width, height, background),
+    );
+  const projects = () => run(() => honorableNative.openCanvasProjectsGuest());
+  const photoVideo = () => run(() => honorableNative.createPhotoVideoGuest());
+  const videoProjects = () =>
+    run(() => honorableNative.openPhotoVideoProjectsGuest());
+  return {
+    busy,
+    open,
+    create,
+    createCustom,
+    draw,
+    projects,
+    photoVideo,
+    videoProjects,
+  };
 }

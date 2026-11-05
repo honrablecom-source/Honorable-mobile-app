@@ -64,10 +64,29 @@ object PhotoRasterRenderer {
                 PhotoEffectsKernel.applyInPlace(pixels,output.width,output.height,edit.effects)
                 output.setPixels(pixels,0,output.width,0,0,output.width,output.height)
             }
+            if(!edit.selectiveColor.isIdentity){
+                val kernel=PhotoSelectiveColorKernel(edit.selectiveColor);val row=IntArray(output.width)
+                for(y in 0 until output.height){output.getPixels(row,0,row.size,0,y,row.size,1);for(x in row.indices)row[x]=kernel.apply(row[x]);output.setPixels(row,0,row.size,0,y,row.size,1)}
+            }
+            if(edit.monochrome.enabled){
+                val kernel=PhotoMonochromeKernel(edit.monochrome);val row=IntArray(output.width)
+                for(y in 0 until output.height){output.getPixels(row,0,row.size,0,y,row.size,1);for(x in row.indices)row[x]=kernel.apply(row[x]);output.setPixels(row,0,row.size,0,y,row.size,1)}
+            }
             if(edit.background!=null)PhotoBackgroundRenderer.apply(output,requireNotNull(personMask),edit,input.width,input.height)
+            if(edit.alphaGradient.enabled){
+                val kernel=PhotoAlphaGradientKernel(edit.alphaGradient,output.width,output.height);val row=IntArray(output.width)
+                for(y in 0 until output.height){output.getPixels(row,0,row.size,0,y,row.size,1);for(x in row.indices)row[x]=kernel.apply(row[x],x,y);output.setPixels(row,0,row.size,0,y,row.size,1)}
+            }
             val composed=PhotoCompositionRenderer.render(output,edit.composition)
             try {
+                if(edit.regions.values.any{it.enabled}) {
+                    val pixels=IntArray(composed.width*composed.height)
+                    composed.getPixels(pixels,0,composed.width,0,0,composed.width,composed.height)
+                    PhotoRegionKernel.applyInPlace(pixels,composed.width,composed.height,edit.regions)
+                    composed.setPixels(pixels,0,composed.width,0,0,composed.width,composed.height)
+                }
                 PhotoFinishRenderer.caption(composed,edit.finish.caption)
+                PhotoLayersRenderer.draw(composed,edit.layers)
                 if(composed!==output)output.recycle()
                 return composed
             }catch(error:Throwable){if(composed!==output)composed.recycle();throw error}

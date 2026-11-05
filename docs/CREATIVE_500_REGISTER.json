@@ -1,0 +1,548 @@
+{
+  "product": "Noble",
+  "target": 500,
+  "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
+  "source_implemented": 67,
+  "new_apk_built": 0,
+  "device_accepted": 0,
+  "remaining_not_source_complete": 433,
+  "features": [
+    {
+      "id": "C001",
+      "outcome": "Search canvas formats",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C002",
+      "outcome": "Choose custom bounded canvas dimensions",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C003",
+      "outcome": "Choose custom canvas backgrounds",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C004",
+      "outcome": "Save named canvas setups",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C005",
+      "outcome": "Edit independent native photo shape objects",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C006",
+      "outcome": "Edit multiple native photo text objects",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C007",
+      "outcome": "Manage object visibility, locking and order",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C008",
+      "outcome": "Save and reopen durable native image compositions",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C009",
+      "outcome": "Save multiple named drawing compositions",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C010",
+      "outcome": "Transfer editable drawing projects as JSON",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C011",
+      "outcome": "Rename saved drawing compositions",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C012",
+      "outcome": "Duplicate saved drawing compositions independently",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C013",
+      "outcome": "Undo saved drawing project operations",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C014",
+      "outcome": "Export visible drawing artwork as SVG",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C015",
+      "outcome": "Generate independently editable grid repeats",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C016",
+      "outcome": "Generate independently editable ring repeats",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C017",
+      "outcome": "Reuse selected composition components",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C018",
+      "outcome": "Replace a composition color while protecting locked objects",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C019",
+      "outcome": "Sort whole timeline clips",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C020",
+      "outcome": "Remove exactly duplicate timeline clips",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C021",
+      "outcome": "Join compatible contiguous source cuts",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C022",
+      "outcome": "Extend caption holds without overlap",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C023",
+      "outcome": "Change caption letter case",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C024",
+      "outcome": "Inspect timeline settings and coverage",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C025",
+      "outcome": "Save and restore editable edits for an existing photo original",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C026",
+      "outcome": "Curve editable photo text along a circular path",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C027",
+      "outcome": "Style photo text with built-in fonts, tracking, alignment, outlines and shadows",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C028",
+      "outcome": "Create an editable local video timeline from selected photos",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C029",
+      "outcome": "Create editable data charts from labeled numeric rows",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C030",
+      "outcome": "Create editable month calendars with correct day placement",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C031",
+      "outcome": "Create editable storyboard sheets from scene briefs",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C032",
+      "outcome": "Blend endpoint shapes into graduated editable intermediates",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C033",
+      "outcome": "Apply bounded feathered regional photo effects while preserving originals",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "model_kernel_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C034",
+      "outcome": "Reuse named local photo-effect region recipes across photos",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C035",
+      "outcome": "Adjust a selected photo hue range while preserving other colors and neutrals",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C036",
+      "outcome": "Generate an editable artwork color-key sheet from visible drawing colors",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C037",
+      "outcome": "Copy a clip chapter list with edited playback timestamps and current titles",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C038",
+      "outcome": "Generate a local editable dependency diagram from bounded node-and-connection text",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C039",
+      "outcome": "Find and replace literal caption text across a selected clip or the project",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C040",
+      "outcome": "Reuse named private local video color looks across projects",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C041",
+      "outcome": "Generate local editable QR-code artwork from short links or text",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C042",
+      "outcome": "Save private source-time video moment notes and jump to them across projects",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C043",
+      "outcome": "Record, review and privately keep local voiceovers for a video soundtrack",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C044",
+      "outcome": "Compose local photos with editable text and shapes, with embedded-copy recovery and export",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C045",
+      "outcome": "Review speed-aware caption readability hints on the edited video timeline",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C046",
+      "outcome": "Open a selected source video frame as an independent local photo workspace",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C047",
+      "outcome": "Choose and loop or play once a source-audio excerpt for the video soundtrack",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C048",
+      "outcome": "Fit existing photos into an editable contact sheet while preserving proportions and embedded copies",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C049",
+      "outcome": "Find visible caption text across the edited video and jump to or edit matching cues",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C050",
+      "outcome": "Replace a composed photo with a local copy while retaining layout identity and recoverable Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C051",
+      "outcome": "Create a labelled visual storyboard proof from representative frames of the edited video timeline",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C052",
+      "outcome": "Turn pasted tab or pipe rows into an editable comparison table with local recovery and export",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C053",
+      "outcome": "Find drawing objects by local text or type and locate them on canvas without editing artwork",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C054",
+      "outcome": "Review drawing text colors against a chosen solid background and locate weak-contrast text",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C055",
+      "outcome": "Slip a selected clip to different same-length source footage without retiming the surrounding video",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C056",
+      "outcome": "Roll a cut between neighboring clips while preserving their combined video playback length",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C057",
+      "outcome": "Insert a portable project beside existing artwork with independent bindings/groups and embedded photos",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C058",
+      "outcome": "Assemble editable video highlight excerpts from chosen private saved source moment notes",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C059",
+      "outcome": "Create custom black-and-white tonal separation by mixing normalized photo RGB contributions while preserving alpha",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C060",
+      "outcome": "Personalize local starter designs as grouped editable cards with project recovery and image/vector export",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C061",
+      "outcome": "Use selected drawing artwork as a local image while keeping the whole editable canvas",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C062",
+      "outcome": "Keep and reopen editable drawing project files with bounded local transfer and explicit Open or Insert",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C063",
+      "outcome": "Inspect the edited photo preview tonal histogram and RGB endpoint distribution locally",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C064",
+      "outcome": "Derive reusable approximate HEX color swatches from edited photo pixels locally",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C065",
+      "outcome": "Create a labelled before/after photo comparison in a separate local image workspace",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C066",
+      "outcome": "Create editable directional photo fades to transparency with project recovery and PNG output",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C067",
+      "outcome": "Keep an exact local recovery archive of an unreadable preserved drawing draft without overwriting or repairing it",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    }
+  ]
+}

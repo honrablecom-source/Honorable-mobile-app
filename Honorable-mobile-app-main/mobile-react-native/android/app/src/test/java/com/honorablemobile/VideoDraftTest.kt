@@ -26,7 +26,7 @@ class VideoDraftTest {
         assertNull(VideoDraftCodec.decode(bytes, 20_001))
         assertNull(VideoDraftCodec.decode(bytes.copyOf(bytes.size - 1), 20_000))
         assertNull(VideoDraftCodec.decode(bytes + byteArrayOf(1), 20_000))
-        val future = bytes.copyOf().also { ByteBuffer.wrap(it).putInt(4, 2) }
+        val future = bytes.copyOf().also { ByteBuffer.wrap(it).putInt(4, 127) }
         assertNull(VideoDraftCodec.decode(future, 20_000))
         val unbounded = bytes.copyOf().also { ByteBuffer.wrap(it).putInt(44, Int.MAX_VALUE) }
         assertNull(VideoDraftCodec.decode(unbounded, 20_000))

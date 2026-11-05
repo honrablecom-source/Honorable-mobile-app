@@ -34,6 +34,9 @@ import app.honorable.editor.EditorAccessMode
 @UnstableApi
 class HonorableVideoEditorActivity : Activity() {
     private var accessMode = EditorAccessMode.ACCOUNT
+    private data class VoiceoverTarget(val project:VideoEditProject,val clips:List<VideoSegment>,val soundtrack:VideoSoundtrack?,val selected:Int,val mode:EditorAccessMode,val owner:String)
+    private var voiceoverTarget:VoiceoverTarget?=null
+    private var framePhotoCancellation:java.util.concurrent.atomic.AtomicBoolean?=null
     @Volatile private var guestProjectRequest = 0L
     private lateinit var source: Uri
     private lateinit var video: VideoView
@@ -94,6 +97,16 @@ class HonorableVideoEditorActivity : Activity() {
         val sameMode=restoreMode==accessMode.name||(restoreMode==null&&accessMode==EditorAccessMode.ACCOUNT)
         recoveryBytes = if(sameMode)savedInstanceState?.getByteArray("multiSourceProject")else null
         source = Uri.parse(intent.getStringExtra("uri") ?: run { finish(); return })
+        if(savedInstanceState==null&&intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)) {
+            val owned=runCatching {
+                require(accessMode==EditorAccessMode.GUEST_BASIC)
+                val id=requireNotNull(intent.getStringExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA))
+                val store=PhotoVideoProjectStore(this)
+                require(PhotoVideoProjectCodec.validId(id)&&source==store.sourceUri(id,0)&&store.ownsReadableSource(source))
+                requireNotNull(intent.getByteArrayExtra(PhotoVideoProjectsActivity.DRAFT_EXTRA)).also{require(it.size<=GuestVideoProjectCodec.MAX_BYTES)}
+            }.getOrElse{finish();return}
+            recoveryBytes=owned
+        }
         window.statusBarColor = Color.WHITE
         window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) Color.WHITE else Color.BLACK
         window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
@@ -170,7 +183,9 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(label("In point · source seconds",11f)); controls.addView(start,LinearLayout.LayoutParams(-1,dp(36)))
         controls.addView(label("Out point · source seconds",11f)); controls.addView(end,LinearLayout.LayoutParams(-1,dp(36)))
         pictureTools.addView(Button(this).apply{text="Open inspector";setOnClickListener{openInspector()}})
+        pictureTools.addView(Button(this).apply{text="Motion pan and zoom";setOnClickListener{editMotion()}})
         pictureTools.addView(Button(this).apply{text="Color controls";setOnClickListener{editColor()}})
+        pictureTools.addView(Button(this).apply{text="Saved color looks";setOnClickListener{savedColorLooks()}})
         pictureTools.addView(Button(this).apply{text="White balance";setOnClickListener{editColor(true)}})
         pictureTools.addView(Button(this).apply{text="Rotate / mirror";setOnClickListener{transformVideo()}})
         projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
@@ -178,6 +193,7 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
         projectTools.addView(Button(this).apply { text = "Build a montage"; setOnClickListener { montageOptions() } })
         projectTools.addView(Button(this).apply { text = "Batch editing"; setOnClickListener { batchOptions() } })
+        projectTools.addView(Button(this).apply{text="Moment notes";setOnClickListener{momentNotes()}})
         assistTools.addView(Button(this).apply { text = "AI rough cut"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { roughCutOptions() } })
         assistTools.addView(Button(this).apply { text = "AI video looks"; isEnabled=accessMode.allowsOnDeviceAi; setOnClickListener { videoLookOptions() } })
         assistTools.addView(Button(this).apply { text = "Cancel analysis"; setOnClickListener { if(analyzing){analysisCancellation.set(true);status.text="Cancelling analysis..."} } })
@@ -245,7 +261,7 @@ class HonorableVideoEditorActivity : Activity() {
         historyButton("Move right") { moveClip(1) }
         historyButton("Undo") { if (project?.undo() == true) { selectedClip = selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex); showClip() } }
         historyButton("Redo") { if (project?.redo() == true) { selectedClip = selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex); showClip() } }
-        historyButton("Reset") { project?.reset(); selectedClip = 0; showClip() }
+        historyButton("Reset") { confirmProjectReset() }
         projectTools.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(historyActions) })
         for (i in 0 until historyActions.childCount) historyActions.getChildAt(i).layoutParams = LinearLayout.LayoutParams(dp(88), dp(48))
         val audioActions = LinearLayout(this)
@@ -253,19 +269,10 @@ class HonorableVideoEditorActivity : Activity() {
             audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
-        audioButton("Speed") {
-            val clip = project?.segments?.getOrNull(selectedClip) ?: return@audioButton
-            val speeds = listOf(.5f, 1f, 1.5f, 2f)
-            project?.setSpeed(selectedClip, speeds[(speeds.indexOf(clip.speed) + 1) % speeds.size])
-            showClip()
-        }
-        audioButton("Volume") {
-            val clip = project?.segments?.getOrNull(selectedClip) ?: return@audioButton
-            val volumes = listOf(1f, .5f, 0f)
-            project?.setVolume(selectedClip, volumes[(volumes.indexOf(clip.volume) + 1) % volumes.size])
-            showClip()
-        }
+        audioButton("Speed") { chooseClipPlayback(speed=true) }
+        audioButton("Volume") { chooseClipPlayback(speed=false) }
         audioTools.addView(audioActions)
+        audioTools.addView(Button(this).apply{text="Record voiceover";setOnClickListener{recordVoiceover()}})
         audioTools.addView(Button(this).apply{text="Export audio copy";setOnClickListener{saveAudioCopy()}})
         audioTools.addView(Button(this).apply{text="Cancel audio export";setOnClickListener{audioExporter?.cancel()}})
         audioTools.addView(Button(this).apply{text="Project audio fade";setOnClickListener{toggleAudioFade()}})
@@ -289,16 +296,11 @@ class HonorableVideoEditorActivity : Activity() {
             } },LinearLayout.LayoutParams(0,-2,1f))
         }
         musicButton("Add music") { importSoundtrack() }
-        musicButton("Music volume") {
-            val current = project ?: return@musicButton
-            val track = current.soundtrack ?: run { status.text = "Add a soundtrack first."; return@musicButton }
-            val levels = listOf(.25f,.5f,1f,0f)
-            current.setSoundtrack(track.copy(volume=levels[(levels.indexOf(track.volume)+1)%levels.size]))
-            showClip(); status.text = "Soundtrack volume ${(requireNotNull(current.soundtrack).volume*100).toInt()}%. Preview project to check the mix."
-        }
-        musicButton("Remove music") { project?.setSoundtrack(null);showClip();status.text = "Soundtrack removed. Undo restores it." }
+        musicButton("Soundtrack volume") { chooseSoundtrackAudio(remove=false) }
+        musicButton("Remove soundtrack") { chooseSoundtrackAudio(remove=true) }
         audioTools.addView(music)
-        audioTools.addView(label("Soundtrack loops to the video length. Use Preview project to check the mix.",12f))
+        audioTools.addView(Button(this).apply{text="Choose soundtrack excerpt";setOnClickListener{soundtrackExcerpt()}})
+        audioTools.addView(label("Music initially loops; voiceovers initially play once. Choose soundtrack excerpt to change the range or looping. Preview project to check the mix.",12f))
         creativeTools.addView(label("Titles appear throughout the clip. Video fades are up to 0.5s at each edge; audio is unchanged.",12f))
         val drafts = LinearLayout(this)
         val guestProject = accessMode == EditorAccessMode.GUEST_BASIC
@@ -351,6 +353,10 @@ class HonorableVideoEditorActivity : Activity() {
             project = current
             showClip()
             val saved = recoveryBytes?.let { VideoDraftCodec.decode(it, primaryDurationMs) }
+            if(saved==null&&recoveryBytes!=null&&intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)) {
+                android.widget.Toast.makeText(this,"Photo video timeline could not be restored. Saved files were kept.",android.widget.Toast.LENGTH_LONG).show()
+                finish();return@setOnPreparedListener
+            }
             if(saved != null) {
                 draftBusy = true
                 status.text = "Checking restored video sources..."
@@ -361,8 +367,8 @@ class HonorableVideoEditorActivity : Activity() {
                         if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
                         recoveryBytes = null
                         checked.onSuccess { runCatching { applySavedDraft(current, saved, false) }
-                            .onFailure { status.text = "Project recovery unavailable. The original video remains open." } }
-                            .onFailure { status.text = "A restored video is unavailable or changed. Reopen its document and try the saved draft." }
+                            .onFailure { status.text = "Project recovery unavailable. The original video remains open."; if(intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA))finish() } }
+                            .onFailure { status.text = "A restored video is unavailable or changed. Reopen its document and try the saved draft."; if(intent.hasExtra(PhotoVideoProjectsActivity.PROJECT_EXTRA)){android.widget.Toast.makeText(this,status.text,android.widget.Toast.LENGTH_LONG).show();finish()} }
                     }
                 }
             } else {
@@ -597,14 +603,280 @@ class HonorableVideoEditorActivity : Activity() {
         if(!editorIdle())return;val current=project?:return
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
-            "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Color controls"){editColor()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()}),
-            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()}),
-            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
+            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Timeline report"){timelineReport()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
     }
+    private fun chooseSoundtrackAudio(remove:Boolean){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val track=current.soundtrack?:run{status.text="Add a soundtrack first.";return}
+        val clips=current.segments.toList();val mode=accessMode
+        val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video.";return}
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==track&&accessMode==mode&&videoLookNamespace()==owner
+        fun applyVolume(value:Float?){
+            if(!valid()){if(!isDestroyed&&!isFinishing)status.text="Video or soundtrack changed. Open soundtrack controls again.";return}
+            if(value==track.volume)return
+            runCatching{
+                current.setSoundtrack(value?.let{track.copy(volume=it)})
+                showClip()
+                if(value==null)status.text="Soundtrack removed from this edit. Undo restores it."
+                else previewComposition(current.segments,null)
+            }.onFailure{status.text="Could not change the soundtrack. Check project limits and try again."}
+        }
+        if(remove){
+            android.app.AlertDialog.Builder(this).setTitle("Remove soundtrack?")
+                .setMessage("Removes the separate music or voiceover from this edit. Clip source audio and the original audio file are kept. Undo restores the soundtrack and its settings.")
+                .setNegativeButton("Keep soundtrack",null).setPositiveButton("Remove"){_,_->applyVolume(null)}.show()
+            return
+        }
+        val choices=mutableListOf(1f,.5f,.25f,0f)
+        val labels=mutableListOf("100% · source level","50% · half level","25% · quarter level","0% · mute")
+        if(track.volume !in choices){choices.add(track.volume);labels.add(String.format(java.util.Locale.ROOT,"Keep current volume (%.1f%%)",track.volume*100))}
+        val title=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(16),dp(20),dp(8));setBackgroundColor(Color.WHITE)}
+        title.addView(TextView(this).apply{text="Soundtrack volume";textSize=18f;setTextColor(Color.BLACK)})
+        title.addView(TextView(this).apply{text="Changes separate music or voiceover only. Clip source audio is kept. Review the project preview to check the mix.";textSize=13f;setTextColor(Color.DKGRAY);setPadding(0,dp(8),0,0)})
+        android.app.AlertDialog.Builder(this).setCustomTitle(title)
+            .setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(track.volume)){dialog,which->applyVolume(choices[which]);dialog.dismiss()}
+            .setNegativeButton("Cancel",null).show()
+    }
+    private fun confirmProjectReset(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val soundtrack=current.soundtrack
+        val mode=accessMode;val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video.";return}
+        android.app.AlertDialog.Builder(this).setTitle("Reset video edits?")
+            .setMessage("Returns to the full original first video at normal speed and source volume. Removes added clips, titles, captions, color, framing, motion, fades and the separate soundtrack from this edit. Original media and saved projects stay on your device. Undo restores the previous edit.")
+            .setNegativeButton("Keep editing",null).setPositiveButton("Reset edits"){_,_->
+                if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing||project!==current||current.segments!=clips||current.soundtrack!=soundtrack||accessMode!=mode||videoLookNamespace()!=owner){
+                    if(!isDestroyed&&!isFinishing)status.text="Video or session changed. Open Reset again."
+                    return@setPositiveButton
+                }
+                runCatching{current.reset();selectedClip=0;showClip()}
+                    .onSuccess{status.text="Video edits reset. Undo restores the previous edit."}
+                    .onFailure{status.text="Could not reset this edit. Try reopening the video."}
+            }.show()
+    }
+    private fun chooseClipPlayback(speed:Boolean){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips.getOrNull(index)?:return
+        val mode=accessMode;val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video.";return}
+        val before=if(speed)clip.speed else clip.volume
+        val choices=if(speed)mutableListOf(.5f,1f,1.5f,2f)else mutableListOf(1f,.5f,0f)
+        val labels=if(speed)mutableListOf("0.5× · half speed","1× · normal speed","1.5× · faster","2× · double speed")else mutableListOf("100% · source level","50% · half level","0% · mute")
+        if(before !in choices){choices.add(before);labels.add(String.format(java.util.Locale.ROOT,"Keep current volume (%.1f%%)",before*100))}
+        val title=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(16),dp(20),dp(8));setBackgroundColor(Color.WHITE)}
+        title.addView(TextView(this).apply{text="Clip ${index+1} ${if(speed)"speed"else "source volume"}";textSize=18f;setTextColor(Color.BLACK)})
+        title.addView(TextView(this).apply{text=if(speed)"Changes this clip's playback duration. Captions follow edited timing. Review the rendered preview after choosing."else "Changes this clip's source audio if present. Separate soundtrack volume is kept. Review the preview after choosing.";textSize=13f;setTextColor(Color.DKGRAY);setPadding(0,dp(8),0,0)})
+        fun unchanged()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner
+        android.app.AlertDialog.Builder(this).setCustomTitle(title).setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(before)){dialog,which->
+            if(!unchanged()){if(!isDestroyed&&!isFinishing)status.text="Video or session changed. Open these clip controls again.";dialog.dismiss();return@setSingleChoiceItems}
+            val value=choices[which]
+            if(value==before){dialog.dismiss();return@setSingleChoiceItems}
+            runCatching{
+                if(speed)current.setSpeed(index,value)else current.setVolume(index,value)
+                showClip();previewComposition(listOf(current.segments[index]),index)
+            }.onFailure{status.text="Could not change this clip. Check the project limits and try again."}
+            dialog.dismiss()
+        }.setNegativeButton("Cancel",null).show()
+    }
+    private fun editMotion(){
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        VideoMotionControls.show(this,clip){motion->
+            require(!isDestroyed&&!isFinishing&&editorIdle()&&project===current&&selectedClip==index&&current.segments.getOrNull(index)==clip){"Video changed. Open motion again."}
+            current.setMotion(index,motion);showClip();previewComposition(listOf(current.segments[index]),index)
+        }
+    }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
+
+    private fun timelineReport(){
+        if(!editorIdle())return
+        val clips=project?.segments?:return
+        runCatching{VideoRefinementTools.report(clips).text()}.onSuccess{text->
+            android.app.AlertDialog.Builder(this).setTitle("Timeline report").setMessage(text).setPositiveButton("Done",null).show()
+        }.onFailure{status.text=it.message?:"Timeline report is unavailable."}
+    }
+
+    private fun videoLookNamespace():String?=VideoPrivateOwner.namespace(this,accessMode)
+
+    private fun savedColorLooks(){
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return
+        val music=current.soundtrack;val mode=accessMode
+        val namespace=videoLookNamespace()?:run{status.text="Session changed. Reopen the video before using saved looks.";return}
+        val store=VideoColorLookStore(java.io.File(noBackupFilesDir,"video-color-looks"),namespace)
+        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==namespace
+        fun requireCurrent(){require(valid()){"Video or account changed. Open saved looks again."}}
+        fun selectLook(delete:Boolean){
+            val catalog=runCatching{requireCurrent();store.load().also{requireCurrent()}}.getOrElse{status.text=it.message?:"Saved video looks are unavailable.";return}
+            if(catalog.looks.isEmpty()){status.text="No saved video color looks yet. Save this clip's color first.";return}
+            android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete saved color look" else "Apply saved color look")
+                .setItems(catalog.looks.map{it.name}.toTypedArray()){_,chosen->
+                    if(!valid()){status.text="Video or account changed. Open saved looks again.";return@setItems}
+                    val look=catalog.looks[chosen]
+                    android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete ${look.name}?" else "Apply ${look.name}?")
+                        .setMessage(if(delete)"Removes this local color recipe. Current edits and original media stay unchanged." else "Replaces only the selected clip's color and white balance. Timing, captions, motion, framing and audio stay unchanged. Undo restores the previous color.")
+                        .setNegativeButton("Cancel",null).setPositiveButton(if(delete)"Delete look" else "Apply and preview"){_,_->
+                            runCatching{
+                                requireCurrent()
+                                if(delete)store.remove(look){requireCurrent()}
+                                else {
+                                    val proposal=clips.mapIndexed{i,value->if(i==index)look.applyTo(value)else value}
+                                    current.applyDraft(proposal,soundtrack=music);showClip();previewComposition(listOf(current.segments[index]),index)
+                                }
+                            }.onSuccess{status.text=if(delete)"Saved color look deleted. Current edits are unchanged." else "Saved color look applied. Undo restores the previous color."}
+                                .onFailure{status.text=it.message?:"Saved color look could not be used. Existing edits were kept."}
+                        }.show()
+                }.setNegativeButton("Cancel",null).show()
+        }
+        android.app.AlertDialog.Builder(this).setTitle("Saved color looks")
+            .setItems(arrayOf("Save this clip's color","Apply a saved look","Delete a saved look")){_,action->
+                if(!valid()){status.text="Video or account changed. Open saved looks again.";return@setItems}
+                when(action){
+                    0->{
+                        val name=EditText(this).apply{hint="Look name";contentDescription="Video color look name";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(40))}
+                        val dialog=android.app.AlertDialog.Builder(this).setTitle("Save video color look").setView(name).setNegativeButton("Cancel",null).setPositiveButton("Save on this device",null).create()
+                        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                            if(!valid()){status.text="Video or account changed. Open saved looks again.";dialog.dismiss();return@setOnClickListener}
+                            val result=runCatching{store.add(NamedVideoColorLook(name.text.toString().trim(),clip.grade)){requireCurrent()}}
+                            if(result.isFailure){name.error=result.exceptionOrNull()?.message?:"Could not save this look";return@setOnClickListener}
+                            dialog.dismiss();status.text="Video color look saved on this device."
+                        }};dialog.show()
+                    }
+                    1->selectLook(false)
+                    2->selectLook(true)
+                }
+            }.setNegativeButton("Cancel",null).show()
+    }
+
+    private fun momentNotes(){
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return
+        val mode=accessMode;val music=current.soundtrack;val uri=sourceUris()[clip.sourceId]?:return
+        val namespace=videoLookNamespace()?:run{status.text="Session changed. Reopen this video before using notes.";return}
+        val duration=sourceDuration(clip.sourceId)
+        val at=runCatching{if(previewPlayer!=null)splitPosition()else if(sourceReady)video.currentPosition.toLong()else pendingSeekMs}
+            .getOrElse{status.text=it.message?:"Select the playing clip first.";return}.coerceIn(clip.startMs,clip.endMs-1)
+        video.pause();previewPlayer?.pause()
+        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),namespace,uri.toString(),duration)}
+            .getOrElse{status.text="Moment notes need a supported local source video.";return}
+        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==namespace&&sourceUris()[clip.sourceId]==uri
+        fun requireCurrent(){require(valid()){"Video or account changed. Open moment notes again."}}
+        val catalog=runCatching{requireCurrent();store.load().also{requireCurrent()}}.getOrElse{status.text=it.message?:"Moment notes could not be read. Existing notes were kept.";return}
+        fun editNote(before:VideoMomentNote?){
+            val position=before?.sourceMs?:at
+            val label=EditText(this).apply{hint="Moment label";contentDescription="Moment note label";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(80));setText(before?.label?:"Moment "+VideoCaptions.formatTime(position))}
+            val dialog=android.app.AlertDialog.Builder(this).setTitle(if(before==null)"Note this source moment" else "Rename moment note").setView(label).setNegativeButton("Cancel",null).setPositiveButton("Save on this device",null).create()
+            dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                if(!valid()){dialog.dismiss();status.text="Video or account changed. Open notes again.";return@setOnClickListener}
+                val result=runCatching{
+                    val text=label.text.toString().trim()
+                    if(before==null)store.add(VideoMomentNote(position,text)){requireCurrent()}else store.rename(before,text){requireCurrent()}
+                }
+                if(result.isFailure){label.error=result.exceptionOrNull()?.message?:"Could not save this note";return@setOnClickListener}
+                dialog.dismiss();status.text="Moment note saved locally. Video and project edits are unchanged."
+            }};dialog.show()
+        }
+        fun chooseNote(note:VideoMomentNote){
+            if(!valid()){status.text="Video or account changed. Open notes again.";return}
+            val canJump=note.sourceMs>=clip.startMs&&note.sourceMs<clip.endMs
+            val actions=(if(canJump)listOf("Jump to this moment")else emptyList())+listOf("Rename note","Delete note")
+            android.app.AlertDialog.Builder(this).setTitle(note.label).setItems(actions.toTypedArray()){_,action->
+                if(!valid()){status.text="Video or account changed. Open notes again.";return@setItems}
+                when(action-(if(canJump)1 else 0)){
+                    -1->{seekTimeline(VideoFilmstripScale.outputTime(clips,index,note.sourceMs));status.text="Jumped to saved source moment. Project edits are unchanged."}
+                    0->editNote(note)
+                    1->android.app.AlertDialog.Builder(this).setTitle("Delete moment note?").setMessage("Removes this local note only. Original video and project edits stay unchanged.")
+                        .setNegativeButton("Cancel",null).setPositiveButton("Delete note"){_,_->
+                            runCatching{requireCurrent();store.remove(note){requireCurrent()}}
+                                .onSuccess{status.text="Moment note deleted. Video and project edits are unchanged."}
+                                .onFailure{status.text=it.message?:"Note could not be deleted."}
+                        }.show()
+                }
+            }.setNegativeButton("Cancel",null).show()
+        }
+        val visible=catalog.visible(clip.startMs,clip.endMs)
+        val choices=listOf("Add note at current source moment","Manage all source notes","Cut highlights from saved notes")+visible.map{VideoCaptions.formatTime(it.sourceMs)+" · "+it.label}
+        android.app.AlertDialog.Builder(this).setTitle("Moment notes · this clip")
+            .setItems(choices.toTypedArray()){_,choice->
+                if(!valid()){status.text="Video or account changed. Open notes again.";return@setItems}
+                when(choice){
+                    0->editNote(null)
+                    1->{
+                        if(catalog.notes.isEmpty()){status.text="No moment notes saved for this source yet.";return@setItems}
+                        android.app.AlertDialog.Builder(this).setTitle("All notes for source video")
+                            .setItems(catalog.notes.map{VideoCaptions.formatTime(it.sourceMs)+" · "+it.label}.toTypedArray()){_,selected->chooseNote(catalog.notes[selected])}
+                            .setNegativeButton("Close",null).show()
+                    }
+                    2->momentHighlights()
+                    else->chooseNote(visible[choice-3])
+                }
+            }.setNeutralButton("About notes"){_,_->
+                android.app.AlertDialog.Builder(this).setTitle("Private source moments").setMessage("Up to 100 labeled moments per source video, saved privately on this device. Times follow the original source, so trims and speed changes do not move notes. The clip list shows in-range moments; Manage all source notes also renames or deletes out-of-range notes. Notes are not rendered into exports or included in project transfer.").setPositiveButton("Done",null).show()
+            }.setNegativeButton("Close",null).show()
+    }
+
+    private fun momentHighlights(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips.getOrNull(index)?:return
+        val music=current.soundtrack;val mode=accessMode;val namespace=videoLookNamespace()?:return;val uri=sourceUris()[clip.sourceId]?:return
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==namespace&&sourceUris()[clip.sourceId]==uri
+        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),namespace,uri.toString(),sourceDuration(clip.sourceId))}
+            .getOrElse{status.text="Highlights need saved notes for a supported local video.";return}
+        val catalog=runCatching{check(valid());store.load()}.getOrElse{status.text="Saved moments could not be read. Original video and notes were kept.";return}
+        val notes=catalog.visible(clip.startMs,clip.endMs)
+        if(notes.isEmpty()){status.text="Save moment notes inside this clip first, then open Highlights from notes.";return}
+        video.pause();previewPlayer?.pause()
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Choose saved moments from this clip. Source-time handles keep footage around each note;overlapping or touching excerpts merge. The selected clip is replaced by these forward-playing excerpts. Later clips move earlier;the existing soundtrack keeps its settings. Titles,looks,audio and source-anchored motion stay;only captions intersecting retained footage stay visible. Notes and originals are unchanged. Preview after applying;codec cuts are not promised frame-exact.";setTextColor(Color.DKGRAY)})
+        fun field(label:String,initial:String)=EditText(this).apply{hint=label;contentDescription=label;setText(initial);setTextColor(Color.BLACK);setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(8));body.addView(this)}
+        val before=field("Seconds before each source moment","1.000");val after=field("Seconds after each source moment","2.000")
+        val checks=notes.map{note->android.widget.CheckBox(this).apply{text=VideoCaptions.formatTime(note.sourceMs)+" · "+note.label;setTextColor(Color.BLACK);isChecked=true;body.addView(this)}}
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Highlights from saved notes").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Cancel",null).setPositiveButton("Review excerpts",null).create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!valid()){dialog.dismiss();status.text="Project or session changed. Open highlights again.";return@setOnClickListener}
+            val proposal=runCatching{VideoMomentHighlights.propose(clips,index,notes.filterIndexed{i,_->checks[i].isChecked}.map{it.sourceMs},VideoCaptions.seconds(before.text.toString()),VideoCaptions.seconds(after.text.toString()))}
+                .getOrElse{after.error=it.message?:"Choose saved moments and valid source handles.";return@setOnClickListener}
+            if(proposal==clips){status.text="These excerpts retain the whole clip. Choose smaller handles to shorten it.";return@setOnClickListener}
+            val excerpts=proposal.subList(index,proposal.size-(clips.size-index-1))
+            val summary=excerpts.joinToString("\n"){VideoCaptions.formatTime(it.startMs)+" → "+VideoCaptions.formatTime(it.endMs)}
+            val oldSeconds=String.format(java.util.Locale.ROOT,"%.3f",VideoPlaybackTime.durationUs(clips)/1_000_000.0)
+            val newSeconds=String.format(java.util.Locale.ROOT,"%.3f",VideoPlaybackTime.durationUs(proposal)/1_000_000.0)
+            android.app.AlertDialog.Builder(this).setTitle("Review ${excerpts.size} highlight excerpts")
+                .setMessage("Original-source ranges:\n$summary\n\nProject $oldSeconds → $newSeconds seconds. Replace clip ${index+1} as one Undo step,then preview before export. Saved notes and original media stay unchanged.")
+                .setNegativeButton("Back",null).setPositiveButton("Apply and preview"){_,_->
+                    if(!valid()){dialog.dismiss();status.text="Project or session changed. Open highlights again.";return@setPositiveButton}
+                    runCatching{
+                        check(store.load()==catalog){"Saved notes changed. Open highlights again."}
+                        check(valid()){"Project or session changed. Open highlights again."}
+                        current.applyDraft(proposal,soundtrack=music)
+                    }.onSuccess{dialog.dismiss();selectedClip=index;showClip();previewProject();status.text="Saved-note highlights applied. Undo restores the previous timeline;notes and originals are unchanged."}
+                        .onFailure{status.text=it.message?:"Highlights could not be applied. Existing edits were kept."}
+                }.show()
+        }};dialog.show()
+    }
+
+    private fun chapterList(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val mode=accessMode
+        val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video before copying chapters.";return}
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
+        runCatching{VideoChapters.text(clips)}.onSuccess{text->
+            android.app.AlertDialog.Builder(this).setTitle("Clip chapter list").setMessage(text)
+                .setPositiveButton("Copy list"){_,_->
+                    if(!valid()){status.text="Project or session changed. Reopen the chapter list before copying.";return@setPositiveButton}
+                    runCatching{
+                        val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                            ?: error("Clipboard is unavailable")
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Video clip chapters",text))
+                    }.onSuccess{status.text="Chapter list copied. Times refer to edited playback."}
+                        .onFailure{status.text="Could not copy the chapter list. Try again."}
+                }.setNegativeButton("Close",null).show()
+        }.onFailure{status.text=it.message?:"Chapter list is unavailable."}
+    }
 
     private fun batchOptions(){
         if(!editorIdle())return
@@ -640,6 +912,12 @@ class HonorableVideoEditorActivity : Activity() {
                 VideoBatchTool.MERGE_CAPTIONS->"Joins nearby caption phrases up to 160 characters / eight source seconds. Merged text remains visible across the joined gaps."
                 VideoBatchTool.TIMECODES->"Replaces the selected clip's captions with original-source timecode labels. They are visible in preview and burned into exported video."
                 VideoBatchTool.CAPTION_DUCK->"Splits the selected clip at caption boundaries and lowers its original audio while captions are active. The project soundtrack is unchanged."
+                VideoBatchTool.SORT->"Sorts whole clips by playback duration or groups them by source video and original source time. Every clip keeps its edits. The soundtrack follows the reordered timeline."
+                VideoBatchTool.DEDUPLICATE->"Keeps the first of each exactly identical clip, including its source, timing and all edits. Different looks, audio, layout, titles or captions are preserved. This shortens repeated timelines."
+                VideoBatchTool.JOIN_CUTS->"Joins neighboring source-contiguous clips only when their render settings agree and neither has edge or audio fades. Captions and subtitle provenance are retained."
+                VideoBatchTool.CAPTION_HOLDS->"Extends the selected clip's visible captions into nearby gaps, bounded by the clip and gap midpoints. Values use source milliseconds; speech is not analyzed."
+                VideoBatchTool.CAPTION_CASE->"Changes the selected clip's caption text to upper or lower case. Timing, layout and source provenance stay unchanged. Unicode expansion may exceed caption limits and is then refused."
+                VideoBatchTool.CAPTION_REPLACE->"Replaces literal text in captions in the chosen scope. Timing, source provenance, styles and other edits stay unchanged. Case matching is optional. Empty or over-limit cue results are refused before applying."
                 VideoBatchTool.STORYBOARD_TITLES->"Replaces clip titles using one pasted line per clip. Titles remain editable and follow the existing preview/export renderer."
 
             }
@@ -648,7 +926,7 @@ class HonorableVideoEditorActivity : Activity() {
                 .setNegativeButton("Cancel",null).setPositiveButton("Apply and preview"){_,_->
                     if(!valid()){status.text="Project or session changed. Open the batch tool again.";return@setPositiveButton}
                     runCatching{current.applyDraft(proposed,soundtrack=music)}
-                        .onSuccess{selectedClip=if(kind in setOf(VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES))index else 0;showClip();previewProject();status.text="${kind.title} applied. Undo restores the previous project."}
+                        .onSuccess{selectedClip=if(kind in setOf(VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES,VideoBatchTool.CAPTION_HOLDS,VideoBatchTool.CAPTION_CASE,VideoBatchTool.CAPTION_REPLACE))index else 0;showClip();previewProject();status.text="${kind.title} applied. Undo restores the previous project."}
                         .onFailure{status.text=it.message?:"Project limits reached. Existing edits are unchanged."}
                 }.show()
         }
@@ -667,6 +945,26 @@ class HonorableVideoEditorActivity : Activity() {
         }
 
         when(kind){
+            VideoBatchTool.SORT->options(arrayOf("Group by source, then original time","Shortest playback first","Longest playback first")){VideoRefinementTools.sort(snapshot,VideoSortOrder.entries[it])}
+            VideoBatchTool.DEDUPLICATE->review{VideoRefinementTools.removeExactDuplicates(snapshot)}
+            VideoBatchTool.JOIN_CUTS->review{VideoRefinementTools.joinMatchingCuts(snapshot)}
+            VideoBatchTool.CAPTION_HOLDS->{val values=listOf(100L,250L,500L,1000L,2000L);options(values.map{"$it source ms before and after"}.toTypedArray()){VideoRefinementTools.extendCaptionHolds(snapshot,index,values[it],values[it])}}
+            VideoBatchTool.CAPTION_CASE->options(arrayOf("UPPER CASE","lower case")){VideoRefinementTools.captionCase(snapshot,index,CaptionLetterCase.entries[it])}
+            VideoBatchTool.CAPTION_REPLACE->{
+                val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+                panel.addView(TextView(this).apply{text="Replace literal text. Leave replacement empty to remove a match; a caption cannot become blank. Review before applying.";setTextColor(Color.BLACK)})
+                fun field(label:String)=EditText(this).apply{hint=label;contentDescription=label;setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(240));panel.addView(this)}
+                val find=field("Find caption text");val replacement=field("Replacement caption text")
+                val all=android.widget.CheckBox(this).apply{text="All clips in this project";setTextColor(Color.BLACK);panel.addView(this)}
+                val matchCase=android.widget.CheckBox(this).apply{text="Match case";isChecked=true;setTextColor(Color.BLACK);panel.addView(this)}
+                val dialog=android.app.AlertDialog.Builder(this).setTitle(kind.title).setView(android.widget.ScrollView(this).apply{addView(panel)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+                dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                    if(!valid()){dialog.dismiss();return@setOnClickListener}
+                    val proposal=runCatching{VideoCaptionReplace.propose(snapshot,find.text.toString(),replacement.text.toString(),if(all.isChecked)null else index,!matchCase.isChecked)}
+                    if(proposal.isFailure){find.error=proposal.exceptionOrNull()?.message?:"Check this replacement";return@setOnClickListener}
+                    dialog.dismiss();review{proposal.getOrThrow()}
+                }};dialog.show()
+            }
             VideoBatchTool.DIVIDE->{val values=listOf(2,3,4,5,10);options(values.map{"$it pieces"}.toTypedArray()){VideoBatchTools.divide(snapshot,index,values[it])}}
             VideoBatchTool.LIMIT->{val values=listOf(1_000L,2_000L,3_000L,5_000L,10_000L);options(values.map{"${it/1000} seconds per clip"}.toTypedArray()){VideoBatchTools.limitLengths(snapshot,values[it])}}
             VideoBatchTool.REVERSE->review{VideoBatchTools.reverseOrder(snapshot)}
@@ -754,6 +1052,65 @@ class HonorableVideoEditorActivity : Activity() {
                 }.show()
         } }
         dialog.show()
+    }
+
+    private fun rollCut(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        video.pause();previewPlayer?.pause();updateWorkspace()
+        val current=project?:return;val clips=current.segments.toList();val index=selectedClip
+        if(index>=clips.lastIndex){status.text="Select a clip with a following neighbor to roll their cut.";return}
+        val mode=accessMode;val owner=videoLookNamespace()?:return;val music=current.soundtrack;val sources=sourceUris();val durations=sourceDurations()
+        val limits=runCatching{VideoRollCut.bounds(clips,index,durations)}.getOrElse{status.text="Source metadata changed. Reopen this video.";return}
+        if(limits.first==0L&&limits.second==0L){status.text="Trim a boundary first to leave original source footage for rolling this cut.";return}
+        val initial=if(limits.second>0)minOf(500L,limits.second)else maxOf(-500L,limits.first)
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()==sources
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Move the cut between clips ${index+1} and ${index+2} without changing their combined playback length or later clip positions. Positive offsets extend the first clip and shorten the next; negative offsets do the reverse. Each source needs enough original footage at the boundary. Available offset: ${String.format(java.util.Locale.ROOT,"%+.3f",limits.first/1000.0)} to ${String.format(java.util.Locale.ROOT,"%+.3f",limits.second/1000.0)} playback seconds.";setTextColor(Color.DKGRAY)})
+        val offset=EditText(this).apply{hint="Signed cut offset, playback seconds";contentDescription="Signed cut offset, playback seconds";setSingleLine(true);setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED;filters=arrayOf(android.text.InputFilter.LengthFilter(16));setText(String.format(java.util.Locale.ROOT,"%.3f",initial/1000.0));body.addView(this)}
+        body.addView(TextView(this).apply{text="Use 0.002-second steps, for example 0.500 or -0.250. Each side follows its own speed; different speeds may leave a gap or overlap in same-source footage. Clip settings and source-anchored captions/motion remain, so visible cues may change. Video/audio move together. Preview after applying; codec output is not guaranteed frame-exact.";setTextColor(Color.DKGRAY)})
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Roll cut").setView(android.widget.ScrollView(this).apply{addView(body)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!valid()){status.text="Project or session changed. Reopen Roll cut.";dialog.dismiss();return@setOnClickListener}
+            runCatching{val delta=VideoRollCut.offset(offset.text.toString());delta to VideoRollCut.propose(clips,index,delta,durations)}.onSuccess{(delta,proposal)->
+                val left=proposal[index];val right=proposal[index+1]
+                android.app.AlertDialog.Builder(this).setTitle("Move this cut?")
+                    .setMessage("Clip ${index+1}: ${VideoTrimRange.format(left.startMs)}–${VideoTrimRange.format(left.endMs)} source seconds.\nClip ${index+2}: ${VideoTrimRange.format(right.startMs)}–${VideoTrimRange.format(right.endMs)} source seconds.\n\nTheir combined playback length, later clips and project soundtrack stay in place. Existing caption/motion source timestamps stay anchored. Undo restores both ranges.")
+                    .setNegativeButton("Keep editing",null).setPositiveButton("Apply roll cut"){_,_->
+                        if(!valid()){status.text="Project or session changed. Reopen Roll cut.";dialog.dismiss();return@setPositiveButton}
+                        runCatching{current.rollCut(index,delta)}.onSuccess{dialog.dismiss();showClip();status.text="Cut moved with combined playback length kept. Preview project; Undo restores both ranges."}
+                            .onFailure{offset.error="This cut could not be saved. Existing edits were kept."}
+                    }.show()
+            }.onFailure{offset.error=it.message?:"Choose an offset with available source footage"}
+        }};dialog.show()
+    }
+
+    private fun slipSourceWindow(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        video.pause();previewPlayer?.pause();updateWorkspace()
+        val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips[index]
+        val duration=sourceDuration(clip.sourceId);val uri=sourceUris()[clip.sourceId]?:return
+        val latest=runCatching{VideoClipWindow.latestStart(clip,duration)}.getOrElse{status.text="Original source metadata changed. Reopen the video.";return}
+        if(latest==0L){status.text="Trim a shorter clip first to leave alternative source footage.";return}
+        val mode=accessMode;val owner=videoLookNamespace()?:return;val music=current.soundtrack
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()[clip.sourceId]==uri
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Choose different footage from this same original while keeping this clip's length and neighboring playback positions. Current source range ${VideoTrimRange.format(clip.startMs)}–${VideoTrimRange.format(clip.endMs)} seconds. New start: 0–${VideoTrimRange.format(latest)} source seconds.";setTextColor(Color.DKGRAY)})
+        val from=EditText(this).apply{hint="New window start, source seconds";contentDescription="New window start, source seconds";setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(16));setText(VideoTrimRange.format(clip.startMs));setTextColor(Color.BLACK);body.addView(this)}
+        body.addView(TextView(this).apply{text="Source video and its audio move together. Grade, framing, title, volume and fades remain. Captions and motion keep their original-source timestamps, so what is visible may change. Removed cues are not regenerated. Preview after applying; this does not promise frame-exact seeking.";setTextColor(Color.DKGRAY)})
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Slip source window").setView(android.widget.ScrollView(this).apply{addView(body)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!valid()){dialog.dismiss();return@setOnClickListener}
+            runCatching{VideoClipWindow.move(clip,VideoCaptions.seconds(from.text.toString()),duration)}.onSuccess{proposal->
+                android.app.AlertDialog.Builder(this).setTitle("Use this source window?")
+                    .setMessage("${VideoTrimRange.format(proposal.startMs)}–${VideoTrimRange.format(proposal.endMs)} source seconds, same ${String.format(java.util.Locale.ROOT,"%.3f",clip.durationUs/1000000.0)} seconds of playback. Other clips and the project soundtrack stay in place. Existing captions/motion retain source timestamps. Undo restores this window.")
+                    .setNegativeButton("Keep editing",null).setPositiveButton("Apply window"){_,_->
+                        if(!valid()){dialog.dismiss();return@setPositiveButton}
+                        runCatching{current.slipSourceWindow(index,proposal.startMs)}
+                            .onSuccess{dialog.dismiss();showClip();status.text="Source window changed with playback length kept. Preview project; Undo restores the old window."}
+                            .onFailure{from.error="This window could not be saved. Existing edits were kept."}
+                    }.show()
+            }.onFailure{from.error=it.message?:"Choose a start inside the original source"}
+        }};dialog.show()
     }
 
     private fun preciseTrim() {
@@ -1013,6 +1370,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode == 28) { finishVoiceover(resultCode,data); return }
         if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
         if(requestCode == 25) { finishCaptionImport(resultCode,data); return }
         if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
@@ -1059,8 +1417,12 @@ class HonorableVideoEditorActivity : Activity() {
                 .setMessage("Remove every local guest video save, including saves with unavailable originals. Source media, current edits and account drafts stay unchanged.")
                 .setNegativeButton("Cancel",null).setPositiveButton("Delete all guest saves"){_,_->runGuestProjectAction(GuestProjectAction.DELETE_ALL)}.show()}.show()
     }
+    private fun hasDurableGuestRead(value:String):Boolean {
+        val uri=Uri.parse(value)
+        return VoiceoverProvider.ownsReadable(this,uri)||PhotoVideoProjectStore(this).ownsReadableSource(uri)||contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission}
+    }
     private fun validateGuestMedia(primary:String,saved:VideoDraft) {
-        fun hasRead(value:String)=contentResolver.persistedUriPermissions.any{it.uri==Uri.parse(value)&&it.isReadPermission}
+        fun hasRead(value:String)=hasDurableGuestRead(value)
         GuestVideoProjectMedia.validate(primary,saved,::hasRead,{inspectSource(Uri.parse(it))},{inspectSoundtrack(Uri.parse(it))}){value,duration->
             val uri=Uri.parse(value)
             contentResolver.openFileDescriptor(uri,"r").use{input->requireNotNull(input);require(android.system.Os.fstat(input.fileDescriptor).st_ino!=0L){"Subtitle original is unavailable"}}
@@ -1086,7 +1448,7 @@ class HonorableVideoEditorActivity : Activity() {
                     GuestProjectAction.SAVE->{
                         val saved=requireNotNull(snapshot)
                         GuestVideoProjectMedia.withDurableAccess(GuestVideoProjectMedia.originals(primary,saved),
-                            {value->contentResolver.persistedUriPermissions.any{it.uri==Uri.parse(value)&&it.isReadPermission}},
+                            {value->hasDurableGuestRead(value)},
                             {value->contentResolver.takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION)},
                             {value->contentResolver.releasePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION)},::requireCurrent){
                             validateGuestMedia(primary,saved);store.save(saved,::requireCurrent)
@@ -1104,7 +1466,7 @@ class HonorableVideoEditorActivity : Activity() {
                 val saved=result.getOrElse{status.text="Guest project unavailable: ${it.message?:"Check document access and storage"}. Current edits are unchanged.";return@runOnUiThread}
                 if(action==GuestProjectAction.RESTORE&&saved!=null){
                     val applied=runCatching{
-                        require(GuestVideoProjectMedia.originals(primary,saved).all{value->contentResolver.persistedUriPermissions.any{it.uri==Uri.parse(value)&&it.isReadPermission}}){"Original document access changed"}
+                        require(GuestVideoProjectMedia.originals(primary,saved).all{value->hasDurableGuestRead(value)}){"Original document access changed"}
                         applySavedDraft(current,saved,true)
                     }
                     status.text=if(applied.isSuccess)"Guest project restored. Preview before exporting. Undo restores prior clip edits." else "Guest project sources conflict or access changed. Current edits are preserved."
@@ -1196,7 +1558,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun captionOptions() {
         if(!editorIdle()) return
         val current=project?:return;val index=selectedClip;val clip=current.segments[index]
-        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
+        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
         android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
             .setItems(choices.toTypedArray()){_,choice->
                 if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip)return@setItems
@@ -1206,12 +1568,102 @@ class HonorableVideoEditorActivity : Activity() {
                     2->exportSubtitles()
                     3->android.app.AlertDialog.Builder(this).setTitle("Clear clip captions?").setMessage("Removes ${clip.captions.size} captions from this clip. Undo restores them.")
                         .setNegativeButton("Cancel",null).setPositiveButton("Clear"){_,_->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,emptyList());showClip();previewProject()}}.show()
-                    else->editCaption(current,index,clip,choice-4)
+                    4->captionReadability()
+                    5->findCaptionText()
+                    6->copyCaptionText()
+                    else->editCaption(current,index,clip,choice-7)
                 }
             }.setNegativeButton("Close",null).show()
     }
 
-    private fun editCaption(current:VideoEditProject,index:Int,clip:VideoSegment,cueIndex:Int?) {
+    private fun copyCaptionText(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val mode=accessMode;val owner=videoLookNamespace()?:return
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
+        var prepared:VideoCaptionText.Result?=runCatching{VideoCaptionText.create(clips)}.getOrElse{status.text=it.message?:"Caption text could not be prepared.";return}
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        val choice=android.widget.RadioGroup(this).apply{orientation=LinearLayout.HORIZONTAL}
+        val plain=android.widget.RadioButton(this).apply{id=android.view.View.generateViewId();text="Text only";setTextColor(Color.BLACK);choice.addView(this)}
+        val timed=android.widget.RadioButton(this).apply{id=android.view.View.generateViewId();text="Playback times";setTextColor(Color.BLACK);choice.addView(this)}
+        plain.isChecked=true;body.addView(choice)
+        val info=TextView(this).apply{setTextColor(Color.DKGRAY);body.addView(this)}
+        body.addView(TextView(this).apply{text="Existing visible captions only, following edited trims and speed. Adjacent identical cues may merge; repeated clips remain. Times use playback milliseconds rounded outward. Use Export project SRT for numbered subtitle files. Copy writes to the system clipboard only when you tap Copy all text.";setTextColor(Color.DKGRAY)})
+        val preview=TextView(this).apply{setTextColor(Color.BLACK);textSize=14f;setPadding(0,dp(12),0,0);contentDescription="Edited caption text preview";body.addView(this)}
+        fun render(result:VideoCaptionText.Result){info.text="${result.cues} visible playback cues · ${result.text.codePointCount(0,result.text.length)} characters";preview.text=result.preview()}
+        render(requireNotNull(prepared))
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Copy caption text").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Close",null).setPositiveButton("Copy all text"){_,_->
+                if(!valid()){status.text="Project or session changed. Reopen caption text before copying.";return@setPositiveButton}
+                val result=prepared?:return@setPositiveButton
+                runCatching{
+                    val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager?:error("Clipboard unavailable")
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Edited caption text",result.text))
+                }.onSuccess{status.text="Caption text copied. Project edits are unchanged."}.onFailure{status.text="Could not copy caption text. Try again."}
+            }.create()
+        choice.setOnCheckedChangeListener{_,checked->
+            if(!valid()){status.text="Project or session changed. Reopen caption text.";dialog.dismiss();return@setOnCheckedChangeListener}
+            runCatching{VideoCaptionText.create(clips,checked==timed.id)}.onSuccess{prepared=it;render(it);dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled=true}
+                .onFailure{prepared=null;preview.text="";info.text="Caption text could not be prepared. Close and try again.";dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled=false}
+        };dialog.show()
+    }
+
+    private fun findCaptionText(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val mode=accessMode;val owner=videoLookNamespace()?:return
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Find literal text in this project's visible captions. One result per matching cue, including repeated clips. Line breaks match spaces. This searches existing caption text only, on this device; it does not transcribe audio or search video pixels.";setTextColor(Color.DKGRAY)})
+        val query=EditText(this).apply{hint="Caption text to find";contentDescription="Caption text to find";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(160));body.addView(this)}
+        val matchCase=android.widget.CheckBox(this).apply{text="Match letter case";setTextColor(Color.BLACK);body.addView(this)}
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Find caption text").setView(body).setNegativeButton("Close",null).setPositiveButton("Find",null).create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!valid()){dialog.dismiss();return@setOnClickListener}
+            runCatching{VideoCaptionSearch.find(clips,query.text.toString(),matchCase.isChecked)}.onSuccess{matches->
+                if(matches.isEmpty()){query.error="No visible caption matches. Try different text or check the trimmed ranges.";return@onSuccess}
+                android.app.AlertDialog.Builder(this).setTitle("${matches.size} matching captions")
+                    .setItems(matches.map{it.label()}.toTypedArray()){_,position->
+                        if(!valid()){dialog.dismiss();status.text="Project or account changed. Find captions again.";return@setItems}
+                        val match=matches[position]
+                        android.app.AlertDialog.Builder(this).setTitle("Clip ${match.clipIndex+1} · caption ${match.cueIndex+1}")
+                            .setMessage("${match.text}\n\nPlayback ${VideoCaptions.formatTime(match.outputUs/1000)} · original source ${VideoCaptions.formatTime(match.sourceMs)}")
+                            .setNegativeButton("Back",null).setNeutralButton("Jump to cue"){_,_->
+                                if(valid()){dialog.dismiss();jumpToCaption(match)}
+                            }.setPositiveButton("Jump and edit"){_,_->
+                                if(valid()){dialog.dismiss();jumpToCaption(match);editCaption(current,match.clipIndex,clips[match.clipIndex],match.cueIndex){valid()}}
+                            }.show()
+                    }.setNegativeButton("Back to find",null).show()
+            }.onFailure{query.error=it.message?:"Enter valid caption text"}
+        }};dialog.show()
+    }
+    private fun jumpToCaption(match:VideoCaptionSearch.Match){
+        video.pause();stopProjectPreview();selectedClip=match.clipIndex;showClip()
+        pendingSeekMs=match.sourceMs;if(sourceReady)video.seekTo(match.sourceMs.toInt())
+        playheadUs=match.outputUs;timeline.playhead(playheadUs);updateTimecode()
+        status.text="Jumped to clip ${match.clipIndex+1}, caption ${match.cueIndex+1}. Preview project to check the cue; edits are unchanged."
+    }
+
+    private fun captionReadability(){
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val mode=accessMode
+        val owner=videoLookNamespace()?:return
+        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
+        runCatching{VideoCaptionReadability.inspect(clips).text()}.onSuccess{report->
+            val body=TextView(this).apply{text=report;setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12));setTextIsSelectable(true);contentDescription="Caption readability report"}
+            android.app.AlertDialog.Builder(this).setTitle("Caption readability")
+                .setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+                .setPositiveButton("Copy report"){_,_->
+                    if(!valid()){status.text="Project or account changed. Reopen the report before copying.";return@setPositiveButton}
+                    runCatching{
+                        val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager?:error("Clipboard unavailable")
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Caption readability review",report))
+                    }.onSuccess{status.text="Readability report copied. Captions and project edits are unchanged."}
+                        .onFailure{status.text="Could not copy the report. Try again."}
+                }.setNegativeButton("Close",null).show()
+        }.onFailure{status.text="Caption report could not be prepared. Existing captions were kept."}
+    }
+
+    private fun editCaption(current:VideoEditProject,index:Int,clip:VideoSegment,cueIndex:Int?,canApply:()->Boolean={true}) {
+        if(!canApply())return
         val cue=cueIndex?.let{clip.captions[it]}
         val from=cue?.startMs ?: runCatching{splitPosition()}.getOrDefault(clip.startMs).coerceIn(clip.startMs,clip.endMs-1)
         val to=cue?.endMs ?: minOf(from+3000,clip.endMs)
@@ -1222,10 +1674,10 @@ class HonorableVideoEditorActivity : Activity() {
         val text=EditText(this).apply{hint="Caption text";contentDescription="Caption text";setText(cue?.text.orEmpty());maxLines=3;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(240))}
         body.addView(text)
         val builder=android.app.AlertDialog.Builder(this).setTitle(if(cue==null)"Add caption" else "Edit caption").setView(body).setNegativeButton("Cancel",null).setPositiveButton("Apply",null)
-        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,clip.captions.filterIndexed{i,_->i!=cueIndex});showClip();previewProject()}}
+        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(canApply()&&editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,clip.captions.filterIndexed{i,_->i!=cueIndex});showClip();previewProject()}}
         val dialog=builder.create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip){dialog.dismiss();return@setOnClickListener}
+            if(!canApply()||!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip){dialog.dismiss();return@setOnClickListener}
             runCatching{
                 val next=VideoCaption(VideoCaptions.seconds(a.text.toString()),VideoCaptions.seconds(b.text.toString()),text.text.toString().trim())
                 val cues=clip.captions.toMutableList().apply{if(cueIndex==null)add(next)else set(cueIndex,next)}.sortedBy{it.startMs}
@@ -1345,6 +1797,155 @@ class HonorableVideoEditorActivity : Activity() {
             },24)
         } catch(error: Exception) { importing=false;status.text="No audio document picker is available." }
     }
+    private fun soundtrackExcerpt(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList()
+        val track=current.soundtrack?:run{status.text="Add music or a voiceover first.";return}
+        val mode=accessMode;val owner=videoLookNamespace()?:return
+        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==track&&accessMode==mode&&videoLookNamespace()==owner
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Choose source-audio seconds, from 0 to ${String.format(java.util.Locale.ROOT,"%.3f",track.durationMs/1000.0)}. The excerpt starts at project time zero. Original clip audio stays attached; this edits no audio file.";setTextColor(Color.DKGRAY)})
+        fun field(label:String,value:Long)=EditText(this).apply{hint=label;contentDescription=label;setSingleLine(true);setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;setText(String.format(java.util.Locale.ROOT,"%.3f",value/1000.0));body.addView(this)}
+        body.addView(TextView(this).apply{text=runCatching{"Current timing\n"+VideoSoundtrackReport.inspect(clips,track).text()}.getOrElse{"Current soundtrack timing exceeds supported limits. Choose a longer excerpt or turn Loop off."};setTextColor(Color.DKGRAY)})
+        val from=field("Soundtrack excerpt start, source seconds",track.startMs)
+        val to=field("Soundtrack excerpt end, source seconds",track.endMs)
+        val loop=android.widget.CheckBox(this).apply{text="Loop this excerpt to fill the video";setTextColor(Color.BLACK);isChecked=track.loop;body.addView(this)}
+        body.addView(TextView(this).apply{text="When Loop is off, audio plays once and stops at the excerpt end or video end. Looping supports up to 1,000 repeats. Preview project to check cuts and the mix; speech is not analyzed.";setTextColor(Color.DKGRAY)})
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Soundtrack excerpt").setView(android.widget.ScrollView(this).apply{addView(body)})
+            .setNegativeButton("Cancel",null).setNeutralButton("Full audio",null).setPositiveButton("Review",null).create()
+        dialog.setOnShowListener{
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener{from.setText("0.000");to.setText(String.format(java.util.Locale.ROOT,"%.3f",track.durationMs/1000.0))}
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                if(!valid()){dialog.dismiss();return@setOnClickListener}
+                runCatching{
+                    track.copy(startMs=VideoCaptions.seconds(from.text.toString()),endMs=VideoCaptions.seconds(to.text.toString()),loop=loop.isChecked).also{
+                        require(it!=track){"Choose a different range or loop setting"}
+                        VideoTimeline.soundtrackRepeatCount(clips,it)
+                        VideoDraftCodec.requireRecoverableCaptions(clips,!it.loop,it.hasExcerpt)
+                    }
+                }.onSuccess{next->
+                    android.app.AlertDialog.Builder(this).setTitle("Use this soundtrack excerpt?")
+                        .setMessage("${VideoSoundtrackReport.inspect(clips,next).text()}\n\n${VideoCaptions.formatTime(next.startMs)} → ${VideoCaptions.formatTime(next.endMs)} of the original audio, ${if(next.loop)"looping"else "playing once"} from project start. Volume and original clip audio stay unchanged. Undo restores the previous soundtrack range.")
+                        .setNegativeButton("Keep editing",null).setPositiveButton("Apply excerpt"){_,_->
+                            if(!valid()){dialog.dismiss();return@setPositiveButton}
+                            runCatching{current.setSoundtrack(next)}.onSuccess{dialog.dismiss();showClip();status.text="Soundtrack excerpt applied. Preview project to check the mix; Undo restores the previous range."}
+                                .onFailure{to.error="This range cannot be saved within project limits."}
+                        }.show()
+                }.onFailure{to.error=it.message?:"Choose a valid audio range"}
+            }
+        };dialog.show()
+    }
+
+    private fun visualStoryboard(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val sources=sourceUris();val durations=sourceDurations()
+        val mode=accessMode;val owner=videoLookNamespace()?:return
+        val plan=runCatching{VideoStoryboardPlan.create(clips)}.getOrElse{status.text="This timeline cannot be represented within storyboard limits.";return}
+        val provenance=runCatching{app.honorable.editor.ImportedPhotoOriginals.validate(plan.shots.map{requireNotNull(sources[it.request.clip.sourceId]).toString()}.distinct())}.getOrElse{status.text="These originals cannot be safely carried into the photo workspace.";return}
+        fun unchanged()=!isDestroyed&&!isFinishing&&workspaceActive&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()==sources
+        android.app.AlertDialog.Builder(this).setTitle("Create visual storyboard?")
+            .setMessage("Uses ${plan.shots.size} of ${plan.totalClips} clips: ${if(plan.representative)"12 evenly spaced representatives including first and last"else "every clip"}. Each image is the nearest decoded original frame around the middle of its trimmed source range, labelled with clip/title/source and playback time. Very short trims may resolve to a nearby frame. Video effects are excluded. Opens a separate local guest photo workspace; no account draft/privileges transfer. Save an image project or export there to keep the temporary PNG. Original videos and timeline edits are kept.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Create local storyboard"){_,_->
+                if(!editorIdle()||!unchanged())return@setPositiveButton
+                val cancellation=java.util.concurrent.atomic.AtomicBoolean(false);framePhotoCancellation=cancellation
+                importing=true;video.pause();stopProjectPreview();status.text="Preparing local storyboard…"
+                draftWorker.execute{
+                    val result=runCatching{VideoStoryboardSheet.create(this,plan,sources,durations,{
+                        check(!cancellation.get()){ "Storyboard cancelled" };check(VideoPrivateOwner.namespace(this,mode)==owner){"Account changed"}
+                    }){index,total->runOnUiThread{if(framePhotoCancellation===cancellation&&workspaceActive&&!isDestroyed)status.text="Preparing storyboard frame $index/$total · originals kept"}}}
+                    runOnUiThread{
+                        if(framePhotoCancellation===cancellation){framePhotoCancellation=null;importing=false}
+                        result.onSuccess{file->
+                            if(cancellation.get()||!unchanged()){file.delete();if(!isDestroyed&&!isFinishing)status.text="Storyboard cancelled. Original videos and edits were kept.";return@onSuccess}
+                            runCatching{
+                                val image=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+                                startActivity(Intent(this,app.honorable.editor.PhotoEditorActivity::class.java).putExtra("uri",image.toString()).putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)
+                                    .putStringArrayListExtra(app.honorable.editor.ImportedPhotoOriginals.EXTRA,ArrayList(provenance)))
+                            }.onSuccess{status.text="Storyboard opened in the separate local photo workspace. Timeline edits were kept."}
+                                .onFailure{file.delete();status.text="Could not open the storyboard. Original videos and edits were kept."}
+                        }.onFailure{if(!isDestroyed&&!isFinishing)status.text="Storyboard could not be prepared. Try smaller source videos; originals and edits were kept."}
+                    }
+                }
+            }.show()
+    }
+
+    private fun sourceFramePhoto(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips[index]
+        val mode=accessMode;val owner=videoLookNamespace()?:return
+        val source=sourceUris()[clip.sourceId]?:return
+        val sourceDuration=sourceDuration(clip.sourceId)
+        val provenance=runCatching{app.honorable.editor.ImportedPhotoOriginals.validate(listOf(source.toString()))}.getOrElse{status.text="This original cannot be safely carried into the photo workspace.";return}
+        val plan=runCatching{VideoFramePhotoPlan(clip,splitPosition())}.getOrElse{status.text="Seek inside the selected clip before opening a frame photo.";return}
+        fun unchanged()=!isDestroyed&&!isFinishing&&workspaceActive&&project===current&&current.segments==clips&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()[clip.sourceId]==source
+        android.app.AlertDialog.Builder(this).setTitle("Open source frame as photo?")
+            .setMessage("Makes a separate local PNG from the nearest decoded original frame at ${VideoCaptions.formatTime(plan.sourceMs)}, up to 1920 pixels per edge. Video titles, captions, color, crop and motion effects are excluded. Opens the local guest image workspace, with no account draft or account privileges transferred. Save an image project or export a copy there to keep it; the starting PNG is temporary. Original video and timeline edits are kept.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Open local frame photo"){_,_->
+                if(!editorIdle()||!unchanged())return@setPositiveButton
+                val cancellation=java.util.concurrent.atomic.AtomicBoolean(false);framePhotoCancellation=cancellation
+                importing=true;video.pause();stopProjectPreview();status.text="Preparing a local source frame…"
+                draftWorker.execute{
+                    val result=runCatching{VideoFramePhoto.extract(this,source,sourceDuration,plan){
+                        check(!cancellation.get()){ "Frame extraction cancelled" }
+                        check(VideoPrivateOwner.namespace(this,mode)==owner){"Account changed"}
+                    }}
+                    runOnUiThread{
+                        if(framePhotoCancellation===cancellation){framePhotoCancellation=null;importing=false}
+                        result.onSuccess{file->
+                            if(cancellation.get()||!unchanged()){file.delete();if(!isDestroyed&&!isFinishing)status.text="Frame preparation cancelled. Original video and edits were kept.";return@onSuccess}
+                            runCatching{
+                                val image=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+                                startActivity(Intent(this,app.honorable.editor.PhotoEditorActivity::class.java)
+                                    .putExtra("uri",image.toString()).putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)
+                                    .putStringArrayListExtra(app.honorable.editor.ImportedPhotoOriginals.EXTRA,ArrayList(provenance)))
+                            }.onSuccess{status.text="Source frame opened in a separate local photo workspace. Video edits are kept."}
+                                .onFailure{file.delete();status.text="Could not open the frame photo. Original video and edits were kept."}
+                        }.onFailure{if(!isDestroyed&&!isFinishing)status.text="Could not prepare this frame. Seek another moment or try a smaller source video; originals and edits were kept."}
+                    }
+                }
+            }.show()
+    }
+
+    private fun recordVoiceover(){
+        if(!editorIdle()||isDestroyed||isFinishing)return
+        val current=project?:return
+        val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen this video before recording.";return}
+        voiceoverTarget=VoiceoverTarget(current,current.segments,current.soundtrack,selectedClip,accessMode,owner)
+        importing=true;video.pause();stopProjectPreview()
+        try{startActivityForResult(Intent(this,VoiceoverRecorderActivity::class.java).putExtra(EditorAccessMode.EXTRA,accessMode.name),28)}
+        catch(_:Exception){importing=false;voiceoverTarget=null;status.text="Voiceover screen is unavailable. Existing edits were kept."}
+    }
+    private fun finishVoiceover(resultCode:Int,data:Intent?){
+        val target=voiceoverTarget;voiceoverTarget=null;val uri=data?.data
+        if(resultCode!=RESULT_OK||uri==null||target==null||isDestroyed||isFinishing){importing=false;return}
+        fun current()=project===target.project&&target.project.segments==target.clips&&target.project.soundtrack==target.soundtrack&&selectedClip==target.selected&&accessMode==target.mode&&videoLookNamespace()==target.owner
+        if(!current()){importing=false;status.text="Project or account changed. Saved voiceovers were kept.";return}
+        status.text="Checking private voiceover on this device…"
+        draftWorker.execute{
+            val result=runCatching{
+                require(uri==VoiceoverProvider.uri(this,target.owner,uri.lastPathSegment.orEmpty()))
+                VideoPrivateOwner.requireReadable(this,target.owner)
+                VideoSoundtrack(uri.toString(),inspectSoundtrack(uri),loop=false)
+            }
+            runOnUiThread{
+                importing=false
+                if(isDestroyed||isFinishing)return@runOnUiThread
+                if(!current()){status.text="Project or account changed. Saved voiceovers were kept.";return@runOnUiThread}
+                result.onSuccess{track->
+                    fun apply(){
+                        if(!current()){status.text="Project or account changed. Saved voiceover was kept.";return}
+                        runCatching{VideoTimeline.soundtrackRepeatCount(target.clips,track);target.project.setSoundtrack(track)}
+                            .onSuccess{showClip();status.text="Voiceover added once from project start at 25%. Preview the mix; Undo restores the previous audio."}
+                            .onFailure{status.text="Voiceover could not be added within project limits. Saved take and previous audio were kept."}
+                    }
+                    if(target.soundtrack==null)apply()else android.app.AlertDialog.Builder(this).setTitle("Replace project soundtrack?")
+                        .setMessage("This voiceover plays once from the beginning and replaces the current project soundtrack. Original clip audio is kept. Undo restores the previous soundtrack.")
+                        .setNegativeButton("Keep current audio",null).setPositiveButton("Use voiceover"){_,_->apply()}.show()
+                }.onFailure{status.text="Voiceover could not be added. Saved takes and project edits were kept."}
+            }
+        }
+    }
+
     private fun finishSoundtrackImport(resultCode: Int, data: Intent?) {
         val uri = data?.data
         if(resultCode != RESULT_OK || uri == null || isDestroyed || isFinishing) { importing=false;return }
@@ -1455,8 +2056,9 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick)}
-    override fun onPause() { workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        framePhotoCancellation?.set(true)
         guestProjectRequest++
         previewHandler.removeCallbacks(stopPreview)
         previewHandler.removeCallbacks(workspaceTick)

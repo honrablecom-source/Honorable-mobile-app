@@ -1,0 +1,32 @@
+const { withProjectView } = require('./project-navigation.cjs');
+// Keyboard, focus and reduced-motion acceptance against the actual local drawing UI.
+const {chromium}=require('../../../ui-previews/node_modules/playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const output=path.resolve(__dirname,'../../../../.context/panel-usability');fs.mkdirSync(output,{recursive:true});
+const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4177/drawing/',origin=new URL(url).origin;
+(async()=>{const browser=await chromium.launch({args:['--no-sandbox']});let page;try{
+ page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'no-preference'});const errors=[],external=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&m.text().includes('Content Security Policy'))errors.push(m.text());});
+ await page.route('**/*',route=>{const target=route.request().url();if(!target.startsWith(origin)&&!target.startsWith('data:')&&!target.startsWith('blob:')){external.push(target);return route.abort();}return route.continue();});
+ await page.goto(url);await page.getByRole('button',{name:'Layouts',exact:true}).waitFor();
+ const focusIs=selector=>page.evaluate(selector=>document.activeElement?.matches(selector),selector);
+ const keyboardOpen=async name=>{await page.waitForFunction(name=>[...document.querySelectorAll('nav button')].some(button=>button.textContent===name&&!button.disabled),name);await page.getByRole('button',{name,exact:true}).focus();assert.equal(await page.evaluate(()=>document.activeElement?.textContent),name);await page.keyboard.press('Enter');await page.waitForFunction(()=>document.activeElement?.matches('.panel-title h2'));};
+ await keyboardOpen('Layouts');assert(await focusIs('.panel-title h2'));await page.keyboard.press('Tab');assert(await focusIs('.panel-title button'));
+ await page.getByLabel('Chart title',{exact:true}).fill('Retained after navigation');await page.getByLabel('Chart rows',{exact:true}).fill('One | 7\nTwo | 12');
+ const motion=await page.locator('.workspace-panel').evaluate(node=>({name:getComputedStyle(node).animationName,duration:getComputedStyle(node).animationDuration}));assert.equal(motion.name,'noble-panel-enter');assert.equal(motion.duration,'0.16s');
+ await page.keyboard.press('Escape');assert.equal(await page.locator('.workspace-panel').count(),0);assert(await focusIs('[data-panel-trigger="layouts"]'));assert.equal(await page.getByRole('button',{name:'Layouts',exact:true}).getAttribute('aria-expanded'),'false');
+ await keyboardOpen('Arrange');await page.getByRole('button',{name:'Photo sheet',exact:true}).click();await page.locator('.workspace-panel').evaluate(node=>{node.scrollTop=node.scrollHeight;});assert(await page.locator('.workspace-panel').evaluate(node=>node.scrollTop>0));
+ await page.getByRole('button',{name:'Projects',exact:true}).click();await page.waitForFunction(()=>document.activeElement?.matches('.panel-title h2'));assert.equal(await page.locator('.workspace-panel').evaluate(node=>node.scrollTop),0);
+ await withProjectView(page, 'saved', () => page.getByLabel('Project name',{exact:true}).fill('Kept project title'));await page.getByRole('button',{name:'Close panel',exact:true}).click();assert(await focusIs('[data-panel-trigger="projects"]'));
+ await keyboardOpen('Layouts');assert.equal(await page.getByLabel('Chart title',{exact:true}).inputValue(),'Retained after navigation');assert.equal(await page.getByLabel('Chart rows',{exact:true}).inputValue(),'One | 7\nTwo | 12');
+ await page.getByRole('button',{name:'QR artwork',exact:true}).click();await page.getByLabel('QR link or text',{exact:true}).fill('local retained text');await page.keyboard.press('Escape');assert(await focusIs('[data-panel-trigger="layouts"]'));await keyboardOpen('Layouts');assert.equal(await page.getByLabel('QR link or text',{exact:true}).inputValue(),'local retained text');
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.workspace-panel').evaluate(node=>getComputedStyle(node).animationName),'none');assert.equal(await page.locator('[data-panel-trigger="layouts"]').evaluate(node=>getComputedStyle(node).transitionDuration),'0s');
+ for(const width of [320,390,844]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,`panel-${width}.png`)});}
+ await page.keyboard.press('Escape');await keyboardOpen('Projects');assert.equal(await withProjectView(page, 'saved', () => page.getByLabel('Project name',{exact:true}).inputValue()),'Kept project title');
+ // Pending native picker protocol must retain the panel and block Escape/Close until cancelled.
+ await page.evaluate(()=>{window.HonorableDrawing={choosePhoto:id=>{window.__photoRequest=id;}};});
+ await page.getByRole('button',{name:'Add photo',exact:true}).click();await page.locator('.panel-title h2').focus();await page.keyboard.press('Escape');assert.equal(await page.locator('.workspace-panel').count(),1);assert(await page.getByRole('button',{name:'Close panel',exact:true}).isDisabled());
+ await page.evaluate(()=>window.honorablePhotoImportResult({requestId:window.__photoRequest,cancelled:true}));await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(button=>button.textContent==='Close panel'&&!button.disabled));await page.keyboard.press('Escape');assert.equal(await page.locator('.workspace-panel').count(),0);assert(await focusIs('[data-panel-trigger="projects"]'));
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);fs.writeFileSync(path.join(output,'motion.json'),JSON.stringify({normal:motion,reduced:'none',focusAndKeyboard:'passed',widths:[320,390,844]},null,2));
+ console.log('PASS: Enter opens/focuses heading;Tab reaches Close;Escape/Close restore matching trigger;aria-expanded;panel switch resets scroll;busy image protocol blocks Escape/Close until cancellation;chart/QR/project inputs retained;160ms entry motion;reduced motion disables animation/transitions;320/390/844 widths;zero page/CSP/external errors. Browser only;Android/accessibility-service acceptance pending.');
+}catch(error){if(page)await page.screenshot({path:path.join(output,'failure.png')});throw error;}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

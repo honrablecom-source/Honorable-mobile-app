@@ -18,13 +18,16 @@ internal data class VideoSource(val id: String, val uri: String, val durationMs:
     }
 }
 
-/** Project-wide looping soundtrack; imported bytes stay with the document provider. */
-internal data class VideoSoundtrack(val uri: String, val durationMs: Long, val volume: Float = .25f) {
+/** Project-wide soundtrack. Existing music loops; private narration can play once. */
+internal data class VideoSoundtrack(val uri: String, val durationMs: Long, val volume: Float = .25f, val loop: Boolean = true, val startMs:Long=0, val endMs:Long=durationMs) {
     init {
         require(uri.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8) == uri)
         require(uri.startsWith("content://") && uri.toByteArray(Charsets.UTF_8).size <= 2048 && uri.none { it.isISOControl() })
         require(durationMs in 1..Int.MAX_VALUE.toLong() && volume.isFinite() && volume in 0f..1f)
+        require(startMs>=0&&endMs>startMs&&endMs<=durationMs){"Choose an audio excerpt inside the original soundtrack"}
     }
+    val hasExcerpt:Boolean get()=startMs!=0L||endMs!=durationMs
+    val playbackDurationMs:Long get()=endMs-startMs
 }
 
 /** A local draft. No source bytes, account credentials or export destinations. */
@@ -39,7 +42,7 @@ internal data class VideoDraft(
     val soundtrack: VideoSoundtrack? = null,
 ) {
     init {
-        VideoDraftCodec.requireRecoverableCaptions(segments)
+        VideoDraftCodec.requireRecoverableCaptions(segments,soundtrack?.loop==false,soundtrack?.hasExcerpt==true)
         require(segments.mapNotNull { it.captionSourceUri }.distinct().size <= 32)
         require(segments.sumOf { it.captions.size } <= VideoCaptions.MAX_PROJECT_CUES)
         require(segments.sumOf { clip -> clip.captions.sumOf { it.text.toByteArray(Charsets.UTF_8).size } } <= VideoCaptions.MAX_PROJECT_TEXT_BYTES)
@@ -49,6 +52,7 @@ internal data class VideoDraft(
         require(sources.map { it.uri }.distinct().size == sources.size)
         val durations = mapOf("primary" to sourceDurationMs) + sources.associate { it.id to it.durationMs }
         require(segments.all { clip -> clip.endMs <= (durations[clip.sourceId] ?: 0) && clip.captions.all { it.endMs <= (durations[clip.sourceId] ?: 0) } })
+        require(segments.all{it.motion==VideoMotion()||it.motion.anchorEndMs<=durations.getValue(it.sourceId)})
         require(selectedClip in segments.indices)
         require(previewPositionMs in 0 until durations.getValue(segments[selectedClip].sourceId))
         val selected = segments[selectedClip]
@@ -58,24 +62,25 @@ internal data class VideoDraft(
 
 internal object VideoDraftCodec {
     private const val MAGIC = 0x484e5644 // HNVD
-    private const val VERSION = 6
+    private const val VERSION = 9
     private const val MAX_BYTES = 256_000
 
     /** Reserve the largest permitted source catalog, soundtrack and fixed header before accepting edits. */
-    fun requireRecoverableCaptions(clips: List<VideoSegment>) {
-        if(clips.none { it.captions.isNotEmpty() || it.captionSourceUri != null }) return
+    fun requireRecoverableCaptions(clips: List<VideoSegment>, forceVersion8:Boolean=false,forceVersion9:Boolean=false) {
+        val motion=forceVersion8||forceVersion9||clips.any{it.motion!=VideoMotion()}
+        if(!motion&&clips.none { it.captions.isNotEmpty() || it.captionSourceUri != null }) return
         val references=clips.mapNotNull { it.captionSourceUri }.distinct()
         val payload=4L + references.sumOf { 4L + it.toByteArray(Charsets.UTF_8).size } + clips.sumOf { clip ->
-            74L + clip.title.toByteArray(Charsets.UTF_8).size + clip.captions.sumOf { 20L + it.text.toByteArray(Charsets.UTF_8).size }
+            74L + (if(motion)42L else 0L) + clip.title.toByteArray(Charsets.UTF_8).size + clip.captions.sumOf { 20L + it.text.toByteArray(Charsets.UTF_8).size }
         }
         // 48-byte header, 31 maximum-length sources, soundtrack and source-count field.
-        require(payload + 68_024 <= MAX_BYTES) { "Project caption recovery limit reached" }
+        require(payload + 68_024 + (if(forceVersion9)17 else if(forceVersion8)1 else 0) <= MAX_BYTES) { if(motion)"Project editable recovery limit reached"else"Project caption recovery limit reached" }
     }
 
     fun encode(draft: VideoDraft): ByteArray = ByteArrayOutputStream().use { bytes ->
         DataOutputStream(bytes).use { output ->
             output.writeInt(MAGIC)
-            val version = if(draft.segments.any { it.captions.isNotEmpty() || it.captionSourceUri != null }) 6 else if(draft.segments.any{!it.layout.isIdentity||!it.titleStyle.isIdentity||it.audioFade||it.grade.warmth!=0f||it.grade.tint!=0f})5 else if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
+            val version = if(draft.soundtrack?.hasExcerpt==true)9 else if(draft.soundtrack?.loop==false)8 else if(draft.segments.any{it.motion!=VideoMotion()})7 else if(draft.segments.any { it.captions.isNotEmpty() || it.captionSourceUri != null }) 6 else if(draft.segments.any{!it.layout.isIdentity||!it.titleStyle.isIdentity||it.audioFade||it.grade.warmth!=0f||it.grade.tint!=0f})5 else if(draft.segments.any { !it.grade.isIdentity }) 4 else if(draft.soundtrack != null || draft.segments.any { it.title.isNotEmpty() || it.fadeEdges }) 3 else if(draft.sources.isEmpty()) 1 else 2
             output.writeInt(version)
             output.writeLong(draft.sourceDurationMs)
             output.writeInt(draft.selectedClip)
@@ -99,6 +104,7 @@ internal object VideoDraftCodec {
                     output.writeByte(clip.layout.ratio);output.writeBoolean(clip.layout.crop);output.writeByte(clip.layout.rotation/90);output.writeBoolean(clip.layout.mirrorX);output.writeBoolean(clip.layout.mirrorY)
                     output.writeByte(clip.titleStyle.position);output.writeFloat(clip.titleStyle.size);output.writeBoolean(clip.titleStyle.light);output.writeBoolean(clip.titleStyle.plate);output.writeBoolean(clip.audioFade)
                 }
+                if(version >= 7)clip.motion.write(output)
                 if(version >= 6) {
                     output.writeInt(clip.captions.size)
                     clip.captions.forEach { cue -> output.writeLong(cue.startMs); output.writeLong(cue.endMs); writeText(output,cue.text,720) }
@@ -111,7 +117,7 @@ internal object VideoDraftCodec {
             }
             if(version >= 3) {
                 output.writeBoolean(draft.soundtrack != null)
-                draft.soundtrack?.let { writeText(output,it.uri,2048);output.writeLong(it.durationMs);output.writeFloat(it.volume) }
+                draft.soundtrack?.let { writeText(output,it.uri,2048);output.writeLong(it.durationMs);output.writeFloat(it.volume);if(version>=8)output.writeBoolean(it.loop);if(version>=9){output.writeLong(it.startMs);output.writeLong(it.endMs)} }
             }
         }
         bytes.toByteArray().also { require(it.size <= MAX_BYTES) }
@@ -141,12 +147,13 @@ internal object VideoDraftCodec {
                 val titled=if(version >= 3) clip.copy(title = readText(input,360), fadeEdges = input.readBoolean()) else clip
                 val graded=if(version >= 4)titled.copy(grade=VideoGrade(input.readFloat(),input.readFloat(),input.readFloat())) else titled
                 val finished = if(version>=5)graded.copy(grade=graded.grade.copy(warmth=input.readFloat(),tint=input.readFloat()),layout=VideoLayout(input.readUnsignedByte(),input.readBoolean(),input.readUnsignedByte()*90,input.readBoolean(),input.readBoolean()),titleStyle=VideoTitleStyle(input.readUnsignedByte(),input.readFloat(),input.readBoolean(),input.readBoolean()),audioFade=input.readBoolean())else graded
+                val animated=if(version>=7)finished.copy(motion=VideoMotion.read(input))else finished
                 if(version >= 6) {
                     val cueCount = input.readInt(); require(cueCount in 0..VideoCaptions.MAX_PER_CLIP)
                     val cues = List(cueCount) { VideoCaption(input.readLong(),input.readLong(),readText(input,720)) }
                     val reference=input.readInt(); require(reference in -1 until captionReferences.size)
-                    finished.copy(captions=cues,captionSourceUri=if(reference==-1)null else captionReferences[reference])
-                } else finished
+                    animated.copy(captions=cues,captionSourceUri=if(reference==-1)null else captionReferences[reference])
+                } else animated
             }
             val sources = if(version >= 2) {
                 val size = input.readInt(); require(size in (if(version >= 3) 0 else 1)..31)
@@ -154,7 +161,12 @@ internal object VideoDraftCodec {
             } else emptyList()
             val ids = listOf("primary") + sources.map { it.id }
             val segments = raw.mapIndexed { index, clip -> clip.copy(sourceId = ids.getOrNull(indices[index]) ?: error("Unknown clip source")) }
-            val soundtrack = if(version >= 3 && input.readBoolean()) VideoSoundtrack(readText(input,2048),input.readLong(),input.readFloat()) else null
+            val soundtrack = if(version >= 3 && input.readBoolean()) {
+                val uri=readText(input,2048);val duration=input.readLong();val volume=input.readFloat()
+                val loop=if(version>=8)input.readBoolean()else true
+                val from=if(version>=9)input.readLong()else 0L;val to=if(version>=9)input.readLong()else duration
+                VideoSoundtrack(uri,duration,volume,loop,from,to)
+            }else null
             require(input.available() == 0)
             VideoDraft(sourceDurationMs, segments, selected, position, start, end, sources, soundtrack)
         }

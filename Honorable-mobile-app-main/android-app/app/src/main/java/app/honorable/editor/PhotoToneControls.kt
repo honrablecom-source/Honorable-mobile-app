@@ -7,17 +7,20 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.view.View
 import android.widget.*
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Dialog changes are committed once, so Cancel and Undo preserve the previous edit. */
 object PhotoToneControls {
     private fun Activity.dp(v:Int)=(v*resources.displayMetrics.density).toInt()
     private fun panel(a:Activity)=LinearLayout(a).apply{orientation=LinearLayout.VERTICAL;setPadding(a.dp(20),a.dp(12),a.dp(20),a.dp(12))}
-    private fun slider(a:Activity,p:LinearLayout,name:String,max:Int,value:Int,min:Int=0,changed:(Int)->Unit) {
-        val title=TextView(a).apply{text="$name: $value";setTextColor(Color.BLACK);textSize=13f};p.addView(title)
+    private fun slider(a:Activity,p:LinearLayout,name:String,max:Int,value:Int,min:Int=0,format:((Int)->String)?=null,changed:(Int)->Unit) {
+        val title=TextView(a).apply{text="$name: ${format?.invoke(value)?:value.toString()}";setTextColor(Color.BLACK);textSize=13f};p.addView(title)
         p.addView(SeekBar(a).apply{this.max=max;progress=value;contentDescription=name;progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK)
+            if(format!=null&&android.os.Build.VERSION.SDK_INT>=30)stateDescription=format(value)
             setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
                 override fun onStartTrackingTouch(s:SeekBar){};override fun onStopTrackingTouch(s:SeekBar){}
-                override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){if(v<min){s.progress=min;return};title.text="$name: $v";if(user)changed(v)}
+                override fun onProgressChanged(s:SeekBar,v:Int,user:Boolean){if(v<min){s.progress=min;return};title.text="$name: ${format?.invoke(v)?:v.toString()}";if(format!=null&&android.os.Build.VERSION.SDK_INT>=30)s.stateDescription=format(v);if(user)changed(v)}
             })},LinearLayout.LayoutParams(-1,a.dp(48)))
     }
     fun curve(a:Activity,initial:PhotoToneCurve,commit:(PhotoToneCurve)->Unit) {
@@ -48,6 +51,7 @@ object PhotoToneControls {
         AlertDialog.Builder(a).setTitle("RGB tone curve").setView(ScrollView(a).apply{addView(content)})
             .setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->commit(curve)}.show()
     }
+    private fun exposureLabel(progress:Int)=String.format(Locale.ROOT,"%+.2f EV",(progress-200)/100.0)
     fun light(a:Activity,initial:PhotoRadialLight?,commit:(PhotoRadialLight?)->Unit,place:(PhotoRadialLight)->Unit) {
         var light=initial?:PhotoRadialLight(exposure=.35f)
         val content=panel(a)
@@ -56,7 +60,7 @@ object PhotoToneControls {
         slider(a,content,"Center Y (%)",100,(light.centerY*100).toInt()){light=light.copy(centerY=it/100f)}
         slider(a,content,"Radius (%)",100,(light.radius*100).toInt(),min=5){light=light.copy(radius=(it/100f).coerceAtLeast(.05f))}
         slider(a,content,"Feather (%)",100,(light.feather*100).toInt()){light=light.copy(feather=it/100f)}
-        slider(a,content,"Exposure (-2 to +2 EV, zero = 200)",400,(light.exposure*100+200).toInt()){light=light.copy(exposure=(it-200)/100f)}
+        slider(a,content,"Exposure",400,(light.exposure*100+200).roundToInt(),format=::exposureLabel){light=light.copy(exposure=(it-200)/100f)}
         lateinit var dialog:AlertDialog
         if(initial!=null)content.addView(Button(a).apply{text="Remove local light";setOnClickListener{commit(null);dialog.dismiss()}})
         dialog=AlertDialog.Builder(a).setTitle("Local light").setView(ScrollView(a).apply{addView(content)})
