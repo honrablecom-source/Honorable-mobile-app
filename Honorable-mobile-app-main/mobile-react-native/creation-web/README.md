@@ -172,3 +172,9 @@ All 118 model families (5new), `test/photo-framing-preview.cjs` and the existing
 Objects → Straighten photo marks a flat document's corners and previews a locally corrected PNG before inserting a separate copy. Tap corners or enter percentages, then choose an aspect ratio when physical proportions matter. This uses the full source before existing crop/rotation/flip/opacity; the original remains. Keep original only cancels. The copy is flattened, bounded to 1024 px and subject to existing project storage limits. Undo, recovery and exports use the photo pipeline.
 
 Pinned MIT perspective-transform 1.1.3 is adapted to Noble's white/black review panel, with both upstream and bundled Numeric Javascript notices retained. No media is uploaded. See [C072 evidence](../../../docs/FEATURE_C072_PHOTO_RECTIFY.md). Source and isolated browser checks only; no Android asset refresh, full app/APK build or device acceptance.
+
+### Editable weighted word cloud (C074)
+
+Layouts → Word cloud accepts 2–24 unique `word or phrase | weight` rows, with whole-number weights 1–100. Preview locally arranges black text with larger weights at larger sizes. Every word must fit before Insert is allowed. Insert creates grouped ordinary editable text; Undo removes it and Close panel cancels. Ungroup to move or style individual words; later text edits can change spacing. Existing artwork, saved recovery and JSON/SVG/PNG exports are retained. Nothing is uploaded.
+
+Pinned BSD d3-cloud1.2.9 uses Noble's rectangle-mask adapter to reserve editable-text spacing; its notice and the d3-dispatch ISC notice are bundled. See [C074 verification and limits](../../../docs/FEATURE_C074_WORD_CLOUD.md). Source and browser checks only; no Android asset refresh/full app/APK/device acceptance.
