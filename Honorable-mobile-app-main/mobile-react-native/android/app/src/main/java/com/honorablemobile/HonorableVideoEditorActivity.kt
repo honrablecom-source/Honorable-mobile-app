@@ -1913,9 +1913,9 @@ class HonorableVideoEditorActivity : Activity() {
         val clip=current.segments.getOrNull(selectedClip)?:return
         val from=maxOf(start.progress*1000L,clip.startMs);val to=minOf(end.progress*1000L,clip.endMs)
         if(to<=from){status.text="Choose a valid clip range first.";return}
-        val effective=current.segments.toMutableList().apply{set(selectedClip,clip.copy(startMs=from,endMs=to))}
-        val bytes=runCatching{VideoCaptions.exportSrt(effective)}.getOrElse{status.text=it.message?:"Add captions first";return}
-        current.trim(selectedClip,from,to);showClip()
+        val bytes=runCatching{VideoCaptions.exportSrt(VideoExportSnapshot.clips(current.segments,selectedClip,from,to))}
+            .getOrElse{status.text=it.message?:"Add captions first";return}
+        video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)
         pendingSubtitleBytes=bytes;pendingSubtitleOriginals=sourceUris().values.toSet();importing=true
         try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="application/x-subrip";putExtra(Intent.EXTRA_TITLE,"Noble-captions-copy.srt")},26)}
         catch(error:Exception){importing=false;pendingSubtitleBytes=null;pendingSubtitleOriginals=null;status.text="No app is available to save subtitles."}

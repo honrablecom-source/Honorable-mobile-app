@@ -1,3 +1,11 @@
+## November5 — Core subtitle save preparation preserves edits
+
+**0 new features;1 correctness fix;0 scaffolding. Source register remains82/500,batch44 beyond38; broad native/APK target~138.** Subtitle export now uses the existing immutable clip-range snapshot and SRT encoder instead of trimming the working timeline before opening the destination picker. Cancel or an unavailable picker leaves timeline/history untouched; export timing still follows selected trim, speed and project order. Preview is paused without applying an edit.
+
+**54 focused host tests and current Activity/shared API compilation pass**, including4 new subtitle cases: selected-range timing/settings preservation, later-clip output offsets, failed/discarded preparation preserving existing Undo/Redo, and constructor-free actual Activity sourceUris covering video/caption/audio originals retained across current/Undo/Redo. Existing source protection already included those originals and is unchanged; no additional source-protection fix is counted. The redundant proposed helper was removed before publication. All50 prior host regressions remain green. Evidence `.context/noble-fast-subtitle-snapshot/verification.json`; superseded55-case helper review retained as pre-cleanup evidence.
+
+No actual Android destination picker/SAF/provider URI/inode/file-write/playback/lifecycle/accessibility/device execution, configured SDK37/full Gradle/native/APK build or packaged asset refresh. Existing copy writer still requires protected original documents to remain readable. Main drawing-reset source and tests are separate and preserved; source counts and all prior register rows unchanged. Owner priority remains core import/edit/save/reopen cleanup before creative extras.
+
 ## November5 — Core account draft recovery preserves failed reads
 
 **0 new features;1 correctness fix;0 scaffolding. Source register remains82/500,batch44 beyond38; broad native/APK target~138.** Account video draft restore distinguishes a missing decoded record from damaged, future, incompatible, wrongly typed or oversized saved data. It reports saved draft unavailable/incompatible with current edits kept, after rechecking the current owner. Existing valid/historical line-wrapped Base64 drafts remain readable.
