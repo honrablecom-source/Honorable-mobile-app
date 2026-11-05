@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-80 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+81 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -117,3 +117,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C080** — Review and insert a photo as grouped editable colored triangles, preserving original artwork, Undo, recovery and image/vector exports.
 
 - **C081** — Inspect original-source audio RMS energy and jump to selected or largest-energy regions without changing the video timeline.
+
+- **C082** — Make differently personalized editable copies from selected artwork and local value rows, retaining independent groups/bindings, originals, Undo and project/image/vector exports.
