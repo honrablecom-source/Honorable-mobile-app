@@ -1,3 +1,7 @@
+## November 5 — Current drawing core browser acceptance
+
+**0 new features; 0 new fixes; 0 scaffolding.** Source count remains 82, batch 44 beyond baseline 38. After the guarded reset fix, current isolated drawing assets pass real-browser project-file open/insert/export with Undo, exact-text corrupt-draft recovery, and photo replacement/export with a PNG pixel check. Source and all 266 generated files match. These are synthetic browser flows and simulated native callbacks; Android WebView, lifecycle, SAF providers, real media/device and packaged asset/full-build acceptance remain pending. [Evidence and scope](CORE_DRAWING_ACCEPTANCE.md). Full app/native/APK builds remain deferred under the owner's batch cadence.
+
 ## November5 — Core subtitle save preparation preserves edits
 
 **0 new features;1 correctness fix;0 scaffolding. Source register remains82/500,batch44 beyond38; broad native/APK target~138.** Subtitle export now uses the existing immutable clip-range snapshot and SRT encoder instead of trimming the working timeline before opening the destination picker. Cancel or an unavailable picker leaves timeline/history untouched; export timing still follows selected trim, speed and project order. Preview is paused without applying an edit.
