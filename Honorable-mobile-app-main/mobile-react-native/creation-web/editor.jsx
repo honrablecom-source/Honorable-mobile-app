@@ -633,7 +633,7 @@ function Editor() {
   };
   const stageProjectFile = (value, previous) => {
     if (projectJson.current !== previous) throw Error('Project text changed. Choose the file again to keep your changes.');
-    setJson(value.raw); setPreparedProjectFile({ name: value.project.name, raw: value.raw }); setPendingSave(null); setProjectTool('files'); setPanel('projects');
+    setPendingOpen(null); setJson(value.raw); setPreparedProjectFile({ name: value.project.name, raw: value.raw }); setPendingSave(null); setProjectTool('files'); setPanel('projects');
     setStatus(`Project file ready: ${value.project.name}. Your drawing is unchanged. Choose Open chosen project or Insert chosen artwork.`);
   };
   window.honorableProjectFileResult = result => {
@@ -801,10 +801,10 @@ function Editor() {
         </>}
         {projectTool === 'advanced' && <>
         <h3>Editable project transfer</h3><p>Project JSON includes editable objects and any imported photo copies. Original file names, original URIs and account data are excluded.</p><p>Import opens the saved composition. Insert project artwork places its objects beside your visible drawing and selects the movable ones. Undo restores the previous drawing in either case.</p>
-        <div className="tool-grid"><button onClick={() => { try { setJson(exportProject(name, ...scene())); setStatus('Project JSON ready. Select and copy it to keep a portable editable copy.'); } catch (failure) { error(failure); } }}>Export project JSON</button><button onClick={() => { try { const imported = importProject(json); loadScene(imported, imported.name); } catch (failure) { error(failure); } }}>Import project JSON</button><button onClick={() => { try { insertProject(importProject(json)); } catch (failure) { error(failure); } }}>Insert project artwork</button></div>
+        <div className="tool-grid"><button onClick={() => { try { const raw = exportProject(name, ...scene()); setPendingOpen(null); setJson(raw); setStatus('Project JSON ready. Select and copy it to keep a portable editable copy.'); } catch (failure) { error(failure); } }}>Export project JSON</button><button onClick={() => { try { const imported = importProject(json); loadScene(imported, imported.name); } catch (failure) { error(failure); } }}>Import project JSON</button><button onClick={() => { try { insertProject(importProject(json)); } catch (failure) { error(failure); } }}>Insert project artwork</button></div>
         <h3>Scalable vector artwork</h3><p>Export the visible composition as SVG. Hidden objects are excluded. Editing clears prepared output; prepare it again after changes. Keep project JSON separately for editing in Noble.</p><button onClick={prepareVector}>Prepare vector SVG</button>
         {!!svg && <><label htmlFor="vector-svg">Vector SVG</label><textarea id="vector-svg" value={svg} readOnly spellCheck={false} onFocus={event => event.target.select()} /></>}
-        <label htmlFor="portable-project-json">Project JSON</label><textarea id="portable-project-json" ref={portable} value={json} maxLength={MAX_PORTABLE_BYTES} spellCheck={false} onChange={event => setJson(event.target.value)} /><button onClick={() => { portable.current.focus(); portable.current.select(); }}>Select JSON to copy</button>        </>}
+        <label htmlFor="portable-project-json">Project JSON</label><textarea id="portable-project-json" ref={portable} value={json} maxLength={MAX_PORTABLE_BYTES} spellCheck={false} onChange={event => { setPendingOpen(null); setJson(event.target.value); }} /><button onClick={() => { portable.current.focus(); portable.current.select(); }}>Select JSON to copy</button>        </>}
         </section>
       </>}
     </section>}

@@ -1,10 +1,10 @@
 const { chromium } = require('../../../ui-previews/node_modules/playwright');
 const { withProjectView } = require('./project-navigation.cjs');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const output=path.resolve(__dirname,'../../../../.context/project-open-review');fs.mkdirSync(output,{recursive:true});
+const output=process.env.NOBLE_REVIEW_OUTPUT||path.resolve(__dirname,'../../../../.context/project-open-review');fs.mkdirSync(output,{recursive:true});
 const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4196/after/drawing/';
 (async()=>{
- const {saveProject,writeProjects}=await import('../projects.mjs');
+ const {saveProject,writeProjects,exportProject}=await import('../projects.mjs');
  const box=id=>({id,type:'rectangle',x:40,y:40,width:100,height:80,angle:0,opacity:100,strokeColor:'#111111',backgroundColor:'#dddddd',fillStyle:'solid',strokeWidth:1,roughness:0,groupIds:[],boundElements:null,seed:1,version:1,versionNonce:1});
  const original=JSON.stringify({version:1,elements:[box('original')],appState:{viewBackgroundColor:'#ffffff'}}),shelf=writeProjects(saveProject([],'Incoming',[box('incoming')],{}));
  const browser=await chromium.launch({args:['--no-sandbox']});let page;
@@ -22,6 +22,13 @@ const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4196/after/drawing/';
   const savedReview=page.getByRole('region',{name:'Review saved replacement',exact:true});await savedReview.waitFor();assert.equal(await review.count(),0);
   await page.getByRole('button',{name:'Open Incoming',exact:true}).click();await review.waitFor();assert.equal(await savedReview.count(),0);await review.getByRole('button',{name:'Keep current drawing',exact:true}).click();assert.equal(await save(),before);
   await open();await review.waitFor();await withProjectView(page,'files',async()=>{});assert.equal(await review.count(),0);assert.equal(await save(),before);
+  const incoming=exportProject('Incoming',[box('incoming')],{}),newer=exportProject('Newer',[box('newer')],{});
+  await withProjectView(page,'advanced',()=>page.getByLabel('Project JSON',{exact:true}).fill(incoming));await page.getByRole('button',{name:'Import project JSON',exact:true}).click();await review.waitFor();
+  await page.getByLabel('Project JSON',{exact:true}).fill(newer);assert.equal(await review.count(),0,'Editing incoming JSON must dismiss the old review');assert.equal(await save(),before);
+  await page.getByRole('button',{name:'Import project JSON',exact:true}).click();await review.getByRole('heading',{name:'Open “Newer” instead?',exact:true}).waitFor();await page.getByRole('button',{name:'Export project JSON',exact:true}).click();assert.equal(await review.count(),0,'Replacing JSON via export must dismiss the old review');assert.equal(await save(),before);
+  const choose=async raw=>{await withProjectView(page,'files',async()=>{});const picking=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Choose project file',exact:true}).click();await(await picking).setFiles({name:'synthetic.noble.json',mimeType:'application/json',buffer:Buffer.from(raw)});await page.waitForFunction(()=>!window.honorableDrawingBusy);};
+  await choose(incoming);await page.getByRole('button',{name:'Open chosen project',exact:true}).click();await review.waitFor();await choose(newer);assert.equal(await review.count(),0,'Choosing a newer file must dismiss the old review');assert.equal(await save(),before);
+  await page.getByRole('button',{name:'Open chosen project',exact:true}).click();await review.getByRole('heading',{name:'Open “Newer” instead?',exact:true}).waitFor();await review.getByRole('button',{name:'Keep current drawing',exact:true}).click();assert.equal(await save(),before);
   // Insert actual editable artwork to create history; Undo during review invalidates approval.
   await page.getByRole('button',{name:'Layouts',exact:true}).click();await page.getByRole('button',{name:'Starter design',exact:true}).click();await page.getByRole('button',{name:'Insert editable starter design',exact:true}).click();
   const withStarter=await save();assert(JSON.parse(withStarter).elements.length>1);await open();await review.waitFor();assert.equal(await review.getByRole('heading').evaluate(e=>e===document.activeElement),true);

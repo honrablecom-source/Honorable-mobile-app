@@ -39,3 +39,20 @@ callbacks. No packaged Android assets were refreshed, no full native/APK build r
 and actual Android WebView, provider, lifecycle, keyboard/accessibility and device
 acceptance remain pending. Existing source media/search/billing/privacy policy and
 native bridge schema are unchanged. The broad batch-build cadence remains intact.
+
+## Follow-up: invalidate approval when incoming data changes
+
+0 new features, 1 follow-up correctness fix, 0 scaffolding. A review previously
+remained visible after editing incoming JSON, exporting different JSON into the
+same field, or staging a newly chosen file. Its approval still referenced the old
+project. Those three actions now dismiss the review without changing the canvas.
+Open/Import must be selected again to review the latest incoming project.
+
+The expanded actual browser fixture reproduces stale review after a JSON edit on
+the previous source, then passes all three incoming-source changes, latest-project
+naming, exact current-draft preservation and previous cancel/stale-current/Undo/
+reopen/empty-opening checks. Current editor and project-file browser regressions
+also pass, as do all 167 Node tests and the isolated source/266-asset fingerprint.
+Evidence and hashes: .context/open-source-change. Only synthetic local chooser
+files are used; native providers, lifecycle, devices and packaged builds remain
+unverified. The source workflow count remains 82, batch progress 44.
