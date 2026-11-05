@@ -184,3 +184,11 @@ Pinned BSD d3-cloud1.2.9 uses Noble's rectangle-mask adapter to reserve editable
 Objects → Remove connected color uses a tapped source pixel and RGB tolerance to remove one touching background area into a separate flattened PNG copy. Disconnected matching islands remain. Review the checkerboard preview before Insert, or Keep original only to cancel. Original artwork stays unchanged; Undo, recovery and exports use the existing photo pipeline. The full source is used before object crop/flip/rotation/opacity. Hard edges may retain halos. This is manual color selection, with no upload or person recognition.
 
 For a transparent export of the new selected copy: Projects → Image copies → Use transparent image background → Use selected artwork; keep PNG in the photo editor. Pinned MIT magic-wand-tool1.1.7 and its notice are bundled. See [C075 evidence and limits](../../../docs/FEATURE_C075_CONNECTED_COLOR.md). No Android asset refresh/full app/APK/device acceptance.
+
+### Editable connected-color outlines (C076)
+
+Objects → Trace connected outline traces a tapped source-color region into grouped, closed, unfilled black line paths, including inner contours. Preview before Insert, or Keep original only to cancel. The full embedded source is used before crop/flip/rotation/opacity; originals stay unchanged. Paths approximate pixel centers and simplification can change details. Ungroup to edit each path. Undo, recovery, editable JSON, vector SVG and PNG use existing workspace tools.
+
+Reuses the pinned MIT magic-wand-tool1.1.7 and shared C075 selector/review panel; no new dependency. Complex, tiny or thin traces are refused as a whole. See [C076 verification and limits](../../../docs/FEATURE_C076_PHOTO_TRACE.md). Local processing only; no Android asset refresh/full app/APK/device acceptance.
+
+The drawing workspace has its own `tsconfig.json` so restored native dependencies cannot change browser compilation. Native strict-mode emission breaks the pinned legacy Numeric shim used by perspective-transform; the scoped browser configuration preserves its working runtime semantics. A regression reproduces the native-settings failure and checks a real transform with the browser settings. Native TypeScript configuration is unchanged.

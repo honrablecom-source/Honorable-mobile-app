@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 69,
+  "source_implemented": 73,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 431,
+  "remaining_not_source_complete": 427,
   "features": [
     {
       "id": "C001",
@@ -555,6 +555,38 @@
     {
       "id": "C070",
       "outcome": "Review and apply local content-aware photo crop suggestions while preserving source bytes, geometry, Undo and project recovery",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C072",
+      "outcome": "Straighten a flat document or poster from four selected source-photo corners into a separate local PNG copy while retaining original artwork",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C074",
+      "outcome": "Preview and insert a locally arranged weighted word cloud as independently editable grouped text with all input words retained",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C075",
+      "outcome": "Tap and remove one connected background color into a separate transparent PNG copy while preserving original artwork and disconnected matching regions",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C076",
+      "outcome": "Trace a tapped connected photo color region into grouped editable outer and inner outline paths while preserving original artwork",
       "status": "implemented-source",
       "local_web_checked": true,
       "full_app_build_checked": false,
