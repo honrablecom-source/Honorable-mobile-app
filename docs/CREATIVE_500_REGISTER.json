@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 79,
+  "source_implemented": 80,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 421,
+  "remaining_not_source_complete": 420,
   "features": [
     {
       "id": "C001",
@@ -637,6 +637,14 @@
       "outcome": "Review and insert a local photo as grouped editable colored triangle mosaic artwork while retaining the original source and recoverable image/vector exports",
       "status": "implemented-source",
       "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C081",
+      "outcome": "Inspect local original-source audio RMS energy and jump to selected or largest-energy regions without editing the video timeline",
+      "status": "implemented-source",
+      "local_web_checked": false,
       "full_app_build_checked": false,
       "device_checked": false
     }

@@ -37,6 +37,7 @@ class HonorableVideoEditorActivity : Activity() {
     private data class VoiceoverTarget(val project:VideoEditProject,val clips:List<VideoSegment>,val soundtrack:VideoSoundtrack?,val selected:Int,val mode:EditorAccessMode,val owner:String)
     private var voiceoverTarget:VoiceoverTarget?=null
     private var framePhotoCancellation:java.util.concurrent.atomic.AtomicBoolean?=null
+    // Shared ownership for original-source audio analysis jobs and their dialogs.
     private var quietAudioCancellation:AtomicBoolean?=null
     private var quietAudioGeneration=0L
     private var quietAudioDialog:android.app.AlertDialog?=null
@@ -277,6 +278,7 @@ class HonorableVideoEditorActivity : Activity() {
         audioTools.addView(audioActions)
         audioTools.addView(Button(this).apply{text="Record voiceover";setOnClickListener{recordVoiceover()}})
         audioTools.addView(Button(this).apply{text="Remove quiet pauses";setOnClickListener{quietPauseOptions()}})
+        audioTools.addView(Button(this).apply{text="Inspect source audio levels";setOnClickListener{sourceAudioLevels()}})
         audioTools.addView(Button(this).apply{text="Export audio copy";setOnClickListener{saveAudioCopy()}})
         audioTools.addView(Button(this).apply{text="Cancel audio export";setOnClickListener{audioExporter?.cancel()}})
         audioTools.addView(Button(this).apply{text="Project audio fade";setOnClickListener{toggleAudioFade()}})
@@ -608,7 +610,7 @@ class HonorableVideoEditorActivity : Activity() {
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
-            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
             "Project" to (listOf(t("Build a montage"){montageOptions()},t("Timeline report"){timelineReport()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
@@ -1560,7 +1562,7 @@ class HonorableVideoEditorActivity : Activity() {
         (project?.captionSourceUris()?.mapIndexed { index, uri -> "__caption_$index" to Uri.parse(uri) }?.toMap() ?: emptyMap())
 
     private fun quietPauseOptions(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing||quietAudioDialog?.isShowing==true)return
         val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips[index]
         if(clip.endMs-clip.startMs>120_000||clip.endMs>Int.MAX_VALUE){status.text="Select a clip range of at most two source minutes before analysing quiet pauses.";return}
         val sources=sourceUris().toMap();val uri=sources[clip.sourceId]?:return
@@ -1634,6 +1636,64 @@ class HonorableVideoEditorActivity : Activity() {
                 }
             },"noble-quiet-audio").start()
         }};track(optionsDialog)
+    }
+
+    private fun sourceAudioLevels(){
+        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing||quietAudioDialog?.isShowing==true)return
+        val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips[index]
+        if(clip.endMs-clip.startMs>120_000||clip.endMs>Int.MAX_VALUE){status.text="Select at most two source minutes to inspect audio levels.";return}
+        val sources=sourceUris().toMap();val uri=sources[clip.sourceId]?:return
+        val mode=accessMode;val owner=videoLookNamespace()?:return;val music=current.soundtrack;val generation=quietAudioGeneration
+        fun sameSnapshot()=workspaceActive&&!isDestroyed&&!isFinishing&&quietAudioGeneration==generation&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()==sources
+        fun track(dialog:android.app.AlertDialog){quietAudioDialog=dialog;dialog.setOnDismissListener{if(quietAudioDialog===dialog)quietAudioDialog=null};dialog.show()}
+        stopProjectPreview();video.pause();val cancellation=AtomicBoolean(false);quietAudioCancellation=cancellation;importing=true
+        status.text="Measuring original audio levels locally. Timeline edits are unchanged."
+        val progress=android.app.AlertDialog.Builder(this).setTitle("Reading source audio levels").setMessage("This uses original audio before clip volume, mute, music and effects. No media is uploaded and no timeline edit is made.")
+            .setNegativeButton("Cancel"){_,_->cancellation.set(true)}.create()
+        progress.setOnCancelListener{cancellation.set(true)};track(progress)
+        val appContext=applicationContext
+        Thread({
+            val result=runCatching{
+                val windows=VideoQuietAudio.scan(appContext,uri,clip.startMs,clip.endMs){cancellation.get()}
+                if(cancellation.get())throw java.util.concurrent.CancellationException("Audio inspection cancelled")
+                VideoAudioLevels.inspect(windows).also{require(it.knownMs>0){"No reliable source audio could be measured"}}
+            }
+            runOnUiThread{
+                if(quietAudioCancellation===cancellation){quietAudioCancellation=null;importing=false}
+                runCatching{progress.dismiss()};if(isDestroyed||isFinishing)return@runOnUiThread
+                if(cancellation.get()||!sameSnapshot()||!editorIdle()){
+                    if(workspaceActive&&quietAudioGeneration==generation)status.text="Audio inspection cancelled or the source changed. Timeline edits are unchanged."
+                    return@runOnUiThread
+                }
+                result.onSuccess{overview->
+                    val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(16),dp(8),dp(16),dp(12))}
+                    body.addView(TextView(this).apply{text="Original source RMS energy before volume, mute, music or effects. Black bars show energy on a -60 to 0 dBFS scale; grey regions have unknown coverage. This is an approximate level overview. Select on the graph, use a region below, or enter a source time. Jump changes only the playhead.";setTextColor(Color.DKGRAY)})
+                    body.addView(TextView(this).apply{text="${overview.knownMs*100/(overview.endMs-overview.startMs)}% source coverage · known-audio RMS ${VideoAudioLevels.levelText(overview.averageRms)}";setTextColor(Color.BLACK)})
+                    val selectedInfo=TextView(this).apply{setTextColor(Color.BLACK);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE}
+                    val time=EditText(this).apply{contentDescription="Selected audio source time in seconds";setSingleLine(true);setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(12))}
+                    lateinit var graph:VideoAudioLevelsView
+                    fun select(at:Long){
+                        VideoAudioLevels.fraction(overview,at);graph.position(at);time.setText(VideoTrimRange.format(at));time.error=null
+                        selectedInfo.text="Overview region RMS: ${VideoAudioLevels.levelText(VideoAudioLevels.barAt(overview,at).rms)}"
+                    }
+                    graph=VideoAudioLevelsView(this,overview){select(it)};body.addView(graph,LinearLayout.LayoutParams(-1,dp(156)))
+                    body.addView(TextView(this).apply{text="Source time in seconds (${VideoTrimRange.format(clip.startMs)} to before ${VideoTrimRange.format(clip.endMs)})";setTextColor(Color.BLACK)})
+                    body.addView(time);body.addView(selectedInfo)
+                    body.addView(Button(this).apply{text="Review this time";setOnClickListener{runCatching{select(VideoCaptions.seconds(time.text.toString()))}.onFailure{time.error=it.message?:"Choose a time inside this range"}}})
+                    val regions=VideoAudioLevels.topRegions(overview)
+                    body.addView(TextView(this).apply{text=if(regions.isEmpty())"No reliable positive-energy regions are available in this overview."else"Largest-energy regions (averages)";setTextColor(Color.BLACK)})
+                    for(region in regions)body.addView(Button(this).apply{text="${VideoCaptions.formatTime(region.startMs)} · ${VideoAudioLevels.levelText(region.rms)}";contentDescription="Select source region at ${VideoCaptions.formatTime(region.startMs)}, ${VideoAudioLevels.levelText(region.rms)}";setOnClickListener{select(region.startMs)}})
+                    select(clip.startMs)
+                    val review=android.app.AlertDialog.Builder(this).setTitle("Source audio levels · clip ${index+1}").setView(ScrollView(this).apply{addView(body)}).setNegativeButton("Close",null).setPositiveButton("Jump to selected time",null).create()
+                    review.setOnShowListener{review.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener jumpAudio@{
+                        if(!editorIdle()||!sameSnapshot()||cancellation.get()){review.dismiss();status.text="Video or session changed. Inspect audio again before jumping.";return@jumpAudio}
+                        val at=runCatching{VideoCaptions.seconds(time.text.toString()).also{VideoAudioLevels.fraction(overview,it)}}.getOrElse{time.error=it.message?:"Choose a time inside this range";return@jumpAudio}
+                        review.dismiss();runCatching{seekTimeline(VideoFilmstripScale.outputTime(clips,index,at))}
+                            .onSuccess{status.text="Audio region selected. Timeline edits are unchanged."}.onFailure{status.text="The source time could not be opened. Timeline edits are unchanged."}
+                    }};review.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);track(review)
+                }.onFailure{status.text=(it.message?:"Source audio could not be inspected")+". Timeline edits are unchanged."}
+            }
+        },"noble-source-audio-levels").start()
     }
 
     private fun captionOptions() {
