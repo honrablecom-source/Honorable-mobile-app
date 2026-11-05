@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-67 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+68 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -91,3 +91,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C066** — Fade the framed photo/person background directionally to transparency with editable stops/reverse and session/project recovery. Scalar kernel/codecs and isolated photo/video callers checked;native alpha/grid/UI/PNG/JPEG/device pending. Global saved looks retain the target photo fade.
 
 - **C067** — Keep an exact local repair archive of an unreadable preserved drawing draft without changing the stored original. Browser download/no-write/error/reload and model bounds/chunk checks pass;archive does not repair/reopen and Android SAF/device acceptance remains pending.
+
+- **C069** — Create grouped editable Code 128 barcode labels locally using MIT JsBarcode, with captions and quiet borders. All 113 model tests (6 new) and actual browser Undo/recovery/project JSON checks pass; actual PNG/SVG independently decode exact identifiers. Native/APK/device/printing acceptance remains pending. C068 stays withdrawn as duplicate duotone. See [feature evidence](FEATURE_C069_BARCODE.md).

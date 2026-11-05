@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 67,
+  "source_implemented": 68,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 433,
+  "remaining_not_source_complete": 432,
   "features": [
     {
       "id": "C001",
@@ -539,6 +539,14 @@
     {
       "id": "C067",
       "outcome": "Keep an exact local recovery archive of an unreadable preserved drawing draft without overwriting or repairing it",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C069",
+      "outcome": "Create local editable Code 128 barcode labels with quiet border,caption,Undo andproject recovery",
       "status": "implemented-source",
       "local_web_checked": true,
       "full_app_build_checked": false,
