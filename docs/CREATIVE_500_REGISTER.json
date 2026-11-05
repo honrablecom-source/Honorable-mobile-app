@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 74,
+  "source_implemented": 75,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 426,
+  "remaining_not_source_complete": 425,
   "features": [
     {
       "id": "C001",
@@ -595,6 +595,14 @@
     {
       "id": "C077",
       "outcome": "Find and launch existing native photo or video inspector tools using bounded local multi-word name/category search",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C079",
+      "outcome": "Review and remove interior quiet pauses detected from selected local video source audio as one undoable timeline edit while preserving originals and clip settings",
       "status": "implemented-source",
       "local_web_checked": false,
       "full_app_build_checked": false,
