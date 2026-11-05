@@ -1361,9 +1361,12 @@ class HonorableVideoEditorActivity : Activity() {
     private fun finishAudioCopy(resultCode:Int,data:Intent?) {
         val snapshot=pendingAudio;pendingAudio=null;importing=false
         start.isEnabled=true;end.isEnabled=true
-        if(resultCode!=RESULT_OK||data?.data==null)return
-        if(snapshot==null){status.text="Audio export was interrupted. Choose Export audio copy again.";return}
-        if(isDestroyed||isFinishing)return
+        if(isDestroyed||isFinishing||saving)return
+        if(resultCode!=RESULT_OK||data?.data==null){
+            if(snapshot!=null)status.text="Audio save cancelled. Current edits are unchanged."
+            return
+        }
+        if(snapshot==null){status.text="Audio save was interrupted. Choose Export audio copy again. Check Files for an empty or partial copy.";return}
         saving=true;start.isEnabled=false;end.isEnabled=false;status.text="Saving audio copy..."
         val worker=VideoAudioExporter(this);audioExporter=worker
         runCatching {
@@ -1416,7 +1419,12 @@ class HonorableVideoEditorActivity : Activity() {
         pendingRange = null
         pendingSegments = null
         start.isEnabled = true; end.isEnabled = true
-        if (resultCode != RESULT_OK || data?.data == null || saving || range == null || clips == null || isFinishing || isDestroyed) return
+        if (saving || isFinishing || isDestroyed) return
+        if (resultCode != RESULT_OK || data?.data == null) {
+            if(range!=null && clips!=null)status.text="Video save cancelled. Current edits are unchanged."
+            return
+        }
+        if(range==null || clips==null){status.text="Video save was interrupted. Choose Export again. Check Files for an empty or partial copy.";return}
         val destination = data.data!!
         saving = true
         start.isEnabled = false; end.isEnabled = false
@@ -1924,7 +1932,17 @@ class HonorableVideoEditorActivity : Activity() {
     private fun finishSubtitleExport(resultCode:Int,data:Intent?) {
         val bytes=pendingSubtitleBytes;val originals=pendingSubtitleOriginals;val destination=data?.data
         pendingSubtitleBytes=null;pendingSubtitleOriginals=null
-        if(resultCode!=RESULT_OK||bytes==null||originals==null||destination==null||isDestroyed||isFinishing){importing=false;return}
+        if(isDestroyed||isFinishing){importing=false;return}
+        if(resultCode!=RESULT_OK||destination==null){
+            importing=false
+            if(bytes!=null && originals!=null)status.text="Subtitle save cancelled. Current edits are unchanged."
+            return
+        }
+        if(bytes==null||originals==null){
+            importing=false
+            status.text="Subtitle save was interrupted. Export subtitles again. Check Files for an empty or partial copy."
+            return
+        }
         status.text="Saving subtitle copy..."
         draftWorker.execute{
             val result=runCatching{VideoSubtitleDocuments.writeCopy(this,destination,bytes,originals)}

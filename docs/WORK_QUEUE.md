@@ -1,3 +1,11 @@
+## November5 — Core interrupted-save feedback
+
+**0 new features;1 usability fix;0 scaffolding. Source register remains82/500,batch44 beyond38; broad native/APK target~138.** Video/audio/subtitle save callbacks now explain when editor recreation lost the pending export snapshot, name the retry action and ask the user to check Files for an empty or partial copy. Video/subtitle previously returned silently; audio omitted the possible leftover document. Ordinary Cancel with pending state confirms current edits unchanged. Lost snapshots are never replayed and no destination is deleted. Exporters, original-file protection and canonical edits are unchanged.
+
+**54 retained host regressions and current Activity/shared API compilation pass.** These cover existing model/storage/constructor-free Activity behavior; the new message-only callback branches were reviewed in source. No tests mirroring message literals were added. Evidence `.context/noble-fast-save-feedback/verification.json` with current source hashes/logs.
+
+No actual Android save picker/provider/recreation/callback-message rendering/device execution, configured SDK37/full Gradle/native/APK build or packaged assets. This clarifies interrupted results; it does not automatically resume an export or clean up a provider document. Main core-browser verification and all previous notes/register rows preserved. Owner priority remains core import/edit/save/reopen cleanup before creative extras.
+
 ## November 5 — Current drawing core browser acceptance
 
 **0 new features; 0 new fixes; 0 scaffolding.** Source count remains 82, batch 44 beyond baseline 38. After the guarded reset fix, current isolated drawing assets pass real-browser project-file open/insert/export with Undo, exact-text corrupt-draft recovery, and photo replacement/export with a PNG pixel check. Source and all 266 generated files match. These are synthetic browser flows and simulated native callbacks; Android WebView, lifecycle, SAF providers, real media/device and packaged asset/full-build acceptance remain pending. [Evidence and scope](CORE_DRAWING_ACCEPTANCE.md). Full app/native/APK builds remain deferred under the owner's batch cadence.
