@@ -33,6 +33,8 @@ import app.honorable.editor.EditorAccessMode
 
 @UnstableApi
 class HonorableVideoEditorActivity : Activity() {
+    private var closeDialog:android.app.AlertDialog?=null
+    private var releaseEditorBack:(()->Unit)?=null
     private var accessMode = EditorAccessMode.ACCOUNT
     private data class VoiceoverTarget(val project:VideoEditProject,val clips:List<VideoSegment>,val soundtrack:VideoSoundtrack?,val selected:Int,val mode:EditorAccessMode,val owner:String)
     private var voiceoverTarget:VoiceoverTarget?=null
@@ -125,7 +127,7 @@ class HonorableVideoEditorActivity : Activity() {
             text = value; textSize = size; setTextColor(Color.BLACK); setPadding(0, 8, 0, 8)
         }
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(Button(this).apply { text = "‹"; contentDescription = "Close video editor"; setOnClickListener { finish() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(Button(this).apply { text = "‹"; contentDescription = "Close video editor"; setOnClickListener { requestClose() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
         header.addView(label("Video editor", 16f).apply{typeface=android.graphics.Typeface.create("sans-serif-medium",0)}, LinearLayout.LayoutParams(0, -2, 1f))
         fun icon(parent:LinearLayout,label:String,kind:String,action:()->Unit):ImageButton {
             val b=ImageButton(this).apply{contentDescription=label;setImageDrawable(app.honorable.editor.EditorChrome.ToolIcon(kind));setPadding(dp(12),dp(12),dp(12),dp(12));setBackgroundColor(Color.WHITE);setOnClickListener{action()}}
@@ -346,6 +348,9 @@ class HonorableVideoEditorActivity : Activity() {
         selectTools("Edit")
         tray.visibility=View.GONE
         setContentView(root)
+        runCatching { VideoEditorBack.install(this){requestClose()} }
+            .onSuccess { releaseEditorBack=it }
+            .onFailure { status.text="System Back protection is unavailable. Use the editor's Close button to leave." }
         app.honorable.editor.NativeWorkspaceInsets.install(this,root)
         video.setOnErrorListener { _, _, _ -> status.text = "Video unavailable. Check access to the selected source."; true }
         video.setOnPreparedListener { player ->
@@ -2254,9 +2259,39 @@ class HonorableVideoEditorActivity : Activity() {
         }.getOrNull()
     }
 
+    private fun closeState():VideoCloseState {
+        val current=project;val clip=current?.segments?.getOrNull(selectedClip)
+        val from=if(clip!=null&&::start.isInitialized)maxOf(start.progress*1000L,clip.startMs)else null
+        val to=if(clip!=null&&::end.isInitialized)minOf(end.progress*1000L,clip.endMs)else null
+        return VideoCloseState.capture(current,primaryDurationMs,selectedClip,from,to,!editorIdle(),recoveryBytes!=null,
+            if(::source.isInitialized)source.toString()else null)
+    }
+    private fun requestClose() {
+        if(!workspaceActive||isDestroyed||isFinishing||closeDialog?.isShowing==true)return
+        val captured=closeState()
+        if(!captured.needsConfirmation()){finish();return}
+        runCatching { if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview) }
+        val working=!editorIdle()
+        val message=if(working)"An operation is in progress. Leaving may interrupt it; check Files for an empty or partial copy. Existing saved projects and original media are kept."
+            else "Current timeline edits may be lost when you leave. Keep editing to save a project or draft first. Existing saved projects, exported copies and original media are kept."
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Leave video editor?").setMessage(message)
+            .setNegativeButton("Keep editing",null).setPositiveButton("Leave editor"){_,_->
+                if(!workspaceActive||isDestroyed||isFinishing)return@setPositiveButton
+                if(!captured.stillMatches(closeState())){status.text="Video or operation changed. Review it before closing again.";return@setPositiveButton}
+                finish()
+            }.create()
+        closeDialog=dialog
+        dialog.setOnDismissListener { if(closeDialog===dialog)closeDialog=null }
+        dialog.show()
+    }
+    @Deprecated("Legacy Back path for Android versions before the platform callback API")
+    override fun onBackPressed(){requestClose()}
+
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick)}
-    override fun onPause() { titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        runCatching{releaseEditorBack?.invoke()};releaseEditorBack=null
+        runCatching{closeDialog?.dismiss()};closeDialog=null
         titleStyleShelf?.close();titleStyleShelf=null
         quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null
         framePhotoCancellation?.set(true)
