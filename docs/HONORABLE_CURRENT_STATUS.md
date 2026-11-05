@@ -1,3 +1,9 @@
+# November 5 — C070 local suggested photo framing
+
+**1 new experimental source workflow; 0 separate fixes or scaffolding.** Objects → Suggest crop uses pinned MIT Smartcrop on the full embedded photo copy. Choose square, portrait, wide or vertical framing, inspect the photo-only preview, then Apply or Keep current framing. The crop fits within the old photo box and keeps its center, rotation, flip and opacity. Source bytes stay unchanged; the existing crop field supports Undo, recovery and exports. The UI explicitly distinguishes full-source project/SVG files from flattened PNG artwork.
+
+**118 model tests pass (5 new)**, plus the actual framing browser flow and existing photo-replacement regression. The browser checks Cancel, one-step Undo/Redo/no-op, source-byte preservation, reload/project JSON, crop-region and flip/rotation agreement in preview/PNG/SVG, three asynchronous source fences, phone widths and bundled license. No Android assets refresh, full native/Gradle/APK build, real-device or crop-quality acceptance is claimed. Source register: **69/500; batch 31/100** beyond 38; target~138. See [feature evidence](FEATURE_C070_PHOTO_FRAMING.md) and `.context/noble-fast-photo-framing/verification.json`. Main's sharing and playback lifecycle fixes and their runtime limitations remain intact.
+
 # November 5 — Keep custom video title sizes
 
 **0 new features;1 correctness fix;5 new host tests.** Video Title style previously fell back to Small for a valid saved custom size. A custom size now appears as a selected Keep current option;existing presets remain. Actual controls API compilation and **13 host tests pass** (5new choice/history/draft cases,8existing finishing cases). Reapplying the same custom style keeps model history unchanged;draft recovery preserves its exact size.

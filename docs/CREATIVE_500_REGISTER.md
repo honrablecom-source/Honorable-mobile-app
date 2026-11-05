@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-68 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+69 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -93,3 +93,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C067** — Keep an exact local repair archive of an unreadable preserved drawing draft without changing the stored original. Browser download/no-write/error/reload and model bounds/chunk checks pass;archive does not repair/reopen and Android SAF/device acceptance remains pending.
 
 - **C069** — Create grouped editable Code 128 barcode labels locally using MIT JsBarcode, with captions and quiet borders. All 113 model tests (6 new) and actual browser Undo/recovery/project JSON checks pass; actual PNG/SVG independently decode exact identifiers. Native/APK/device/printing acceptance remains pending. C068 stays withdrawn as duplicate duotone. See [feature evidence](FEATURE_C069_BARCODE.md).
+
+- **C070** — Review content-aware photo framing suggestions locally using MIT Smartcrop, then apply a reversible crop while retaining source bytes, center and appearance. All 118 model tests (5 new), actual framing browser checks and the photo-replacement regression pass; preview/PNG/SVG crop-region and transform checks pass. Native/device/crop-quality acceptance remains pending. [Feature evidence](FEATURE_C070_PHOTO_FRAMING.md).

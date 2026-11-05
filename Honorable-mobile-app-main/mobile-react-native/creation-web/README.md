@@ -158,3 +158,11 @@ The starter form now shows a read-only image of the current design before insert
 Layouts → Barcode label converts up to 80 printable ASCII characters into a grouped Code 128 label with a white quiet border and optional caption. Bars remain editable rectangles, with one-step Undo, local project recovery and PNG/SVG export. This is one workflow, not one feature per parameter. It does not create EAN/UPC product codes. Keep bar/border proportions and confirm a scan before printing. No identifier is uploaded.
 
 Uses pinned [JsBarcode 3.12.3](https://github.com/lindell/JsBarcode), with its MIT notice in `THIRD_PARTY/jsbarcode-MIT-LICENSE.txt` and offline bundles. Test-only ZXing independently decodes the generated rectangles and actual PNG/SVG exports. Run `node --test test/barcode.test.mjs` and `node test/barcode-preview.cjs` against an isolated preview. All 113 model tests and the barcode and existing QR browser suites pass. See [C069 evidence](../../../docs/FEATURE_C069_BARCODE.md). Android WebView/SAF/device/printing acceptance remains pending; no new native/APK build.
+
+### Suggested photo framing (C070)
+
+Objects → Suggest crop analyzes a full embedded photo copy locally using pinned MIT Smartcrop 2.0.5. Choose a format and review the proposed photo-only crop before Apply; Keep current framing leaves the drawing unchanged. Applying preserves source bytes, center, rotation, flip and opacity, fits within the current photo box, and uses the existing Undo/recovery/export pipeline. It is a heuristic suggestion rather than a face-recognition or crop-quality promise.
+
+The source copy must be at least 32 px on each side and satisfy the existing embedded-photo limits. Show, unlock and ungroup it first. Projects and SVG retain the full embedded photo; PNG is flattened visible artwork. The runtime MIT notice is bundled in `THIRD_PARTY/SMARTCROP-LICENSE.txt`.
+
+All 118 model families (5new), `test/photo-framing-preview.cjs` and the existing photo-replacement browser regression pass. See [C070 evidence](../../../docs/FEATURE_C070_PHOTO_FRAMING.md). No Android asset refresh, full native/APK build or device acceptance.
