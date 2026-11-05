@@ -1,3 +1,7 @@
+## November 5 — Core server and project contracts checked
+
+**0 new features; 0 new fixes; 0 scaffolding.** All 67 required dev-server, Studio project, Android SDK-config and release-manifest Node tests pass. Local fixtures cover credit/model rules, account isolation, trusted search completion, provider failure handling, project bounds/entitlements and artifact metadata. [Command and limits](CORE_CONTRACT_ACCEPTANCE.md); logs/hashes in .context/core-server-acceptance. Source count stays 82, batch 44 beyond 38. These tests do not prove live providers, native search quality, Android/device behavior, signing or store readiness. No benchmark/holdout or full native/APK build ran.
+
 ## November 5 — Damaged saved-work shelves stay isolated
 
 **0 new features; 1 core correctness fix; 0 scaffolding.** Saved designs and reusable parts now load independently. An unreadable shelf preserves its stored text and clears stale displayed actions while healthy saved work remains usable. Actual browser before reproduces healthy parts hidden by a damaged design shelf; after checks pass both failure directions, Open/Insert, raw-text preservation, stale-action removal and repaired-shelf availability. 167 drawing Node tests pass; isolated source/266 generated asset fingerprint matches. Source count stays 82, batch 44 beyond 38. Android WebView/device/full native/APK build remain pending; no packaged assets refreshed. [Scope and evidence](SAVED_SHELF_ISOLATION.md).
