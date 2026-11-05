@@ -1,3 +1,7 @@
+## November 5 — React Native core checks restored and passing
+
+**0 new features; 0 new fixes; 0 scaffolding.** Restored the missing existing external RN dependency target with npm ci using the exact unchanged package lock. Typecheck exits 0; lint exits 0 with 0 errors/41 warnings; Jest passes 154 tests in 17 suites. Install peer/deprecation warnings remain recorded. [Commands and evidence limits](MOBILE_CORE_CHECKPOINT.md); full logs/hashes in .context/mobile-core-check. Source count stays 82, batch 44 beyond 38. Native boundaries are mocked; no Android/device/search benchmark/full native/APK build or packaged asset refresh. Peer Kotlin recovery work is separate and preserved.
+
 ## November 5 — Incoming project changes dismiss old approval
 
 **0 new features; 1 follow-up correctness fix; 0 scaffolding.** Editing or exporting project JSON, or staging a newly chosen file, dismisses an earlier drawing replacement review. Approval can no longer target a previously staged project after those inputs change. Browser before reproduces stale review after JSON edit; after covers edits/export, real chooser replacement, latest-project naming and unchanged current draft, alongside existing cancel/Undo/reopen checks. 167 Node tests and current editor/project-file browsers pass; source/266 isolated assets match. Source count stays 82, batch 44 beyond 38. [Follow-up evidence and limits](DRAWING_OPEN_REVIEW.md). Android/device/full native/APK checks remain pending; no packaged assets refreshed.
