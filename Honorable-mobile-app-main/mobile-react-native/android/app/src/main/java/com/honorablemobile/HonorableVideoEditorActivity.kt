@@ -33,6 +33,7 @@ import app.honorable.editor.EditorAccessMode
 
 @UnstableApi
 class HonorableVideoEditorActivity : Activity() {
+    private var restoreReviewDialog:android.app.AlertDialog?=null
     private var closeDialog:android.app.AlertDialog?=null
     private var releaseEditorBack:(()->Unit)?=null
     private var accessMode = EditorAccessMode.ACCOUNT
@@ -1452,7 +1453,10 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private enum class GuestProjectAction { SAVE, RESTORE, DELETE, DELETE_ALL }
-    private fun guestProjectOperation(restore:Boolean)=runGuestProjectAction(if(restore)GuestProjectAction.RESTORE else GuestProjectAction.SAVE)
+    private fun guestProjectOperation(restore:Boolean) {
+        if(restore)requestSavedRestore(true){runGuestProjectAction(GuestProjectAction.RESTORE)}
+        else runGuestProjectAction(GuestProjectAction.SAVE)
+    }
     private fun deleteGuestProject() {
         if(accessMode!=EditorAccessMode.GUEST_BASIC||!editorIdle()||isDestroyed||isFinishing)return
         android.app.AlertDialog.Builder(this).setTitle("Delete saved guest project?")
@@ -1524,7 +1528,13 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
-    private fun draftOperation(restore: Boolean) {
+    private fun draftOperation(restore:Boolean) {
+        if(restore){
+            if(!accessMode.allowsAccountDrafts){status.text="Sign in to save or restore account drafts. Export a copy to keep your guest edit.";return}
+            requestSavedRestore(false){performDraftOperation(true)}
+        }else performDraftOperation(false)
+    }
+    private fun performDraftOperation(restore: Boolean) {
         if(!accessMode.allowsAccountDrafts){status.text="Sign in to save or restore account drafts. Export a copy to keep your guest edit.";return}
         if (saving || analyzing || draftBusy || importing || pendingRange != null || durationMs <= 0) return
         val current = project ?: return
@@ -2350,6 +2360,29 @@ class HonorableVideoEditorActivity : Activity() {
         return true
     }
 
+    private fun canApproveSavedRestore(captured:VideoCloseState,mode:EditorAccessMode):Boolean =
+        workspaceActive&&!isDestroyed&&!isFinishing&&editorIdle()&&accessMode==mode&&captured.stillMatches(closeState())
+    private fun requestSavedRestore(guest:Boolean,action:()->Unit) {
+        if(!workspaceActive||!editorIdle()||isDestroyed||isFinishing||restoreReviewDialog?.isShowing==true)return
+        if(guest!=(accessMode==EditorAccessMode.GUEST_BASIC)||project==null||primaryDurationMs<=0)return
+        val captured=closeState();val mode=accessMode
+        if(!captured.needsConfirmation()){action();return}
+        runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle(if(guest)"Restore saved project?" else "Restore saved draft?")
+            .setMessage("Restore replaces the timeline and selected range. Export a video copy first if you need to keep your current result. Timeline Undo lasts only in this editor session; a range you only selected is not kept by Undo.")
+            .setNegativeButton("Keep current",null).setPositiveButton("Restore saved"){_,_->
+                if(restoreReviewDialog!==dialog||!canApproveSavedRestore(captured,mode)){
+                    if(workspaceActive&&!isDestroyed&&!isFinishing)status.text="Video or operation changed. Review the saved restore again."
+                    return@setPositiveButton
+                }
+                action()
+            }.create()
+        restoreReviewDialog=dialog
+        dialog.setOnDismissListener{if(restoreReviewDialog===dialog)restoreReviewDialog=null}
+        dialog.show()
+    }
+
     private fun closeState():VideoCloseState {
         val current=project;val clip=current?.segments?.getOrNull(selectedClip)
         val from=if(clip!=null&&::start.isInitialized)maxOf(start.progress*1000L,clip.startMs)else null
@@ -2381,8 +2414,9 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onBackPressed(){requestClose()}
 
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
-    override fun onPause() { mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null
         mediaImportTarget?.let{finishMediaImportTarget(it)}
         recoveryRequest++
         runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null
