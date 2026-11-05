@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-73 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+74 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -100,3 +100,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C074** — Preview and insert a locally arranged weighted word cloud as editable grouped text, retaining every input word.
 - **C075** — Tap and remove a connected background color into a separate transparent PNG copy, preserving originals and disconnected matching regions.
 - **C076** — Trace a tapped connected photo color region into grouped editable outer and inner outline paths, preserving original artwork.
+
+- **C077** — Find and launch existing native photo/video inspector tools through local multi-word name/category search.
