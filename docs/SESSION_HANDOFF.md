@@ -1,3 +1,7 @@
+## November 5 — Damaged saved-work shelves stay isolated
+
+**0 new features; 1 core correctness fix; 0 scaffolding.** Saved designs and reusable parts now load independently. An unreadable shelf preserves its stored text and clears stale displayed actions while healthy saved work remains usable. Actual browser before reproduces healthy parts hidden by a damaged design shelf; after checks pass both failure directions, Open/Insert, raw-text preservation, stale-action removal and repaired-shelf availability. 167 drawing Node tests pass; isolated source/266 generated asset fingerprint matches. Source count stays 82, batch 44 beyond 38. Android WebView/device/full native/APK build remain pending; no packaged assets refreshed. [Scope and evidence](SAVED_SHELF_ISOLATION.md).
+
 ## November5 — Core interrupted-save feedback
 
 **0 new features;1 usability fix;0 scaffolding. Source register remains82/500,batch44 beyond38; broad native/APK target~138.** Video/audio/subtitle save callbacks now explain when editor recreation lost the pending export snapshot, name the retry action and ask the user to check Files for an empty or partial copy. Video/subtitle previously returned silently; audio omitted the possible leftover document. Ordinary Cancel with pending state confirms current edits unchanged. Lost snapshots are never replayed and no destination is deleted. Exporters, original-file protection and canonical edits are unchanged.

@@ -260,7 +260,12 @@ function Editor() {
     if (panel === value) { setPanel(null); return; }
     if (value === 'objects' || value === 'arrange') setObjects(api.current.getSceneElements());
     if (value === 'projects') {
-      try { setProjects(readProjects(localStorage.getItem(PROJECT_KEY))); setComponents(readProjects(localStorage.getItem(COMPONENT_KEY))); } catch (failure) { error(failure); }
+      const unavailable = [];
+      for (const [key, update, label] of [[PROJECT_KEY, setProjects, 'Saved designs'], [COMPONENT_KEY, setComponents, 'Reusable parts']]) {
+        try { update(readProjects(localStorage.getItem(key))); }
+        catch { update([]); unavailable.push(label); }
+      }
+      if (unavailable.length) setStatus(`${unavailable.join(' and ')} could not be read. Stored data is preserved. Other available project tools still work.`);
     }
     setPanel(value);
   };
