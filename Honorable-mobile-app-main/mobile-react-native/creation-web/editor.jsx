@@ -23,6 +23,7 @@ import { photoSheet } from './photo-sheet.mjs';
 import { replaceablePhoto, replacementPatch } from './photo-replace.mjs';
 import { framingPatch } from './photo-framing.mjs';
 import { PhotoFramingPreview } from './PhotoFramingPreview.jsx';
+import { PhotoRectifyTool } from './PhotoRectifyTool.jsx';
 import { dependencyPlan } from './dependencies.mjs';
 import './honorable.css';
 
@@ -57,6 +58,7 @@ function Editor() {
   const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Start a new drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
   const [busy, setBusy] = useState(false), [panel, setPanel] = useState(null);
   const [framingTarget, setFramingTarget] = useState(null);
+  const [rectifyTarget, setRectifyTarget] = useState(null);
   useEffect(() => { if (restoreError) { setPanel('projects'); setProjectTool('files'); } }, [restoreError]);
   useEffect(() => {
     const changed = previousProjectTool.current !== projectTool; previousProjectTool.current = projectTool;
@@ -143,6 +145,23 @@ function Editor() {
       setFramingTarget({ editor: api.current, photo, dataURL: file.dataURL, snapshot: encodeDraft(...scene()) }); setPanel('framing');
     } catch (failure) { error(failure); }
   };
+  const openRectify = id => {
+    if (busyRef.current) return;
+    try {
+      const photo = replaceablePhoto(api.current.getSceneElements(), id), file = api.current.getFiles()[photo.fileId];
+      if (!file) throw Error('The embedded source copy is unavailable.');
+      const { width, height } = photoBytes(file.dataURL);
+      setRectifyTarget({ editor: api.current, photo, dataURL: file.dataURL, width, height, snapshot: encodeDraft(...scene()) });setPanel('rectify');
+    } catch (failure) { error(failure); }
+  };
+  const insertRectified = async proposal => {
+    if (!rectifyTarget || !framingCurrent(rectifyTarget) || busyRef.current) throw Error('The source or drawing changed. Open Straighten photo again.');
+    const [, top, right] = getCommonBounds([rectifyTarget.photo]);
+    photoTarget.current = null;
+    const inserted = await addPhoto(proposal.blob, false, { x: right + 32, y: top });
+    if (!inserted) throw Error('The new copy could not be kept. Your drawing is unchanged; check available storage or use a smaller selection.');
+    setPanel(null);
+  };
   const applyFraming = proposal => {
     if (!framingTarget || !framingCurrent(framingTarget)) throw Error('The photo or drawing changed. Open suggested framing again.');
     const patch = framingPatch(api.current.getSceneElementsIncludingDeleted(), framingTarget.photo.id, framingTarget.photo.fileId, proposal.width, proposal.height, proposal.crop);
@@ -183,7 +202,7 @@ function Editor() {
       throw Error('The complete drawing is in your saved draft. Reopen the drawing to restore it.');
     }
   };
-  const addPhoto = async (source, native = false) => {
+  const addPhoto = async (source, native = false, placement = null) => {
     if (!native && !beginBusy()) return;
     const editor = api.current, target = photoTarget.current;
     try {
@@ -197,7 +216,7 @@ function Editor() {
         const info = photoBytes(file.dataURL), files = mergePhotoFiles(editor.getFiles(), { [file.id]: file });
         const factor = Math.min(1, Math.min(480, Math.max(80, state.width * 0.75)) / Math.max(info.width, info.height));
         const width = info.width * factor, height = info.height * factor;
-        const [added] = restoreElements([{ id: objectId, type: 'image', x: state.width / 2 / state.zoom.value - state.scrollX - width / 2, y: state.height / 2 / state.zoom.value - state.scrollY - height / 2,
+        const [added] = restoreElements([{ id: objectId, type: 'image', x: placement ? placement.x : state.width / 2 / state.zoom.value - state.scrollX - width / 2, y: placement ? placement.y : state.height / 2 / state.zoom.value - state.scrollY - height / 2,
           width, height, angle: 0, opacity: 100, strokeColor: 'transparent', backgroundColor: 'transparent', strokeWidth: 0, roughness: 0,
           fileId: file.id, scale: [1, 1], status: 'saved', crop: null, groupIds: [], boundElements: null, link: null, locked: false }], null);
         const changes = target ? replacementPatch(previous, target.id, file.id, info.width, info.height) : null;
@@ -214,7 +233,8 @@ function Editor() {
       setPanel(null);
       requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) editor.scrollToContent([proposed.image], { fitToViewport: true, viewportZoomFactor: 0.85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); }));
       setStatus(`Photo ${target ? 'replaced' : 'added'} as a local ${proposed.info.width} × ${proposed.info.height} copy. Original preserved.`);
-    } catch (failure) { if (mounted.current) error(failure); }
+      return true;
+    } catch (failure) { if (mounted.current) error(failure); return false; }
     finally { finishBusy(); }
   };
   const choosePhoto = (targetId = null) => {
@@ -623,12 +643,13 @@ function Editor() {
       </>}
       {panel === 'objects' && <><TextContrastReview elements={objects} expanded={contrastOpen} onToggle={() => setContrastOpen(value => !value)} background={contrastBackground} onBackgroundChange={setContrastBackground} onLocate={locateObject} /><label>Find artwork<input type="search" maxLength={100} value={objectQuery} onChange={event => setObjectQuery(event.target.value)} placeholder="Text or object type" /></label><label>Object type<select aria-label="Object type" value={objectType} onChange={event => setObjectType(event.target.value)}><option value="all">All objects</option><option value="text">Text</option><option value="photos">Photos</option><option value="shapes">Shapes, lines & frames</option></select></label><p>{foundObjects.length} of {objects.length} objects. Searches this drawing only; hidden objects must be shown before locating.</p>{!!(objectQuery || objectType !== 'all') && <button onClick={() => { setObjectQuery(''); setObjectType('all'); }}>Clear object filters</button>}{!!objects.length && !foundObjects.length && <p>No matching objects. Try another word or clear the filters.</p>}<p>Top objects appear in front. Changes share the drawing Undo control. Replace photo fits a new local copy inside the old photo’s box, keeping its center, rotation and flip; any old crop is cleared. Originals stay unchanged.</p>{!objects.length && <p>Add a shape or text to start a composition.</p>}
         {foundObjects.map(({ element, number, hidden, label }) => <article key={element.id} className="object-row"><strong>{label}{hidden ? ' · hidden' : element.locked ? ' · locked' : ''}</strong><div className="tool-grid"><button disabled={hidden} aria-label={`Find object ${number} on canvas`} onClick={() => locateObject(element.id)}>Find on canvas</button>
-          {element.type === 'image' && <><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Replace photo ${number}`} onClick={() => choosePhoto(element.id)}>Replace photo</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Suggest crop for photo ${number}`} onClick={() => openFraming(element.id)}>Suggest crop</button></>}
+          {element.type === 'image' && <><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Replace photo ${number}`} onClick={() => choosePhoto(element.id)}>Replace photo</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Suggest crop for photo ${number}`} onClick={() => openFraming(element.id)}>Suggest crop</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Straighten photo ${number}`} onClick={() => openRectify(element.id)}>Straighten photo</button></>}
           <button onClick={() => objectAction(element.id, 'visibility')}>{element.customData?.nobleHidden ? 'Show' : 'Hide'}</button>
           <button disabled={!!element.customData?.nobleHidden} onClick={() => objectAction(element.id, 'lock')}>{element.locked ? 'Unlock' : 'Lock'}</button>
           <button disabled={element.locked} onClick={() => objectAction(element.id, 'up')}>Forward</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'down')}>Backward</button>
           <button disabled={element.locked} onClick={() => objectAction(element.id, 'front')}>To front</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'back')}>To back</button>
         </div></article>)}</>}
+      {panel === 'rectify' && rectifyTarget && <PhotoRectifyTool target={rectifyTarget} isCurrent={() => framingCurrent(rectifyTarget)} onApply={insertRectified} onCancel={closePanel} />}
       {panel === 'framing' && framingTarget && <PhotoFramingPreview target={framingTarget} isCurrent={() => framingCurrent(framingTarget)} onApply={applyFraming} onCancel={closePanel} />}
       {panel === 'arrange' && <><div className="tool-grid layout-tools" role="group" aria-label="Arrangement tool">{[['align','Align & space'],['photos','Photo sheet'],['blend','Shape blend'],['grid','Grid repeat'],['ring','Ring repeat'],['recolor','Recolor']].map(([value,label]) => <button key={value} aria-pressed={arrangeTool === value} onClick={() => setArrangeTool(value)}>{label}</button>)}</div>{arrangeTool === 'photos' && <><h3>Photo contact sheet</h3><p>Fit 2–8 existing photos into equal cells without cropping. Order follows the drawing’s back-to-front object list, left to right then down. Unlock, ungroup and straighten photos first. Other artwork stays in place.</p><label className="check-label"><input type="checkbox" checked={sheetAll} onChange={event => setSheetAll(event.target.checked)} />Use all visible unlocked photos</label><p>{sheetAll ? 'All eligible photos will move and resize.' : 'Select only the photos to arrange on the canvas first.'}</p><div className="number-fields"><label>Photo sheet columns<input inputMode="numeric" maxLength={1} value={sheetColumns} onChange={event => setSheetColumns(event.target.value)} /></label><label>Photo cell size<input inputMode="numeric" maxLength={4} value={sheetCell} onChange={event => setSheetCell(event.target.value)} /></label><label>Photo sheet gap<input inputMode="decimal" maxLength={5} value={sheetGap} onChange={event => setSheetGap(event.target.value)} /></label></div><button onClick={arrangePhotos}>Arrange photos as contact sheet</button></>}{arrangeTool === 'align' && <><p>Select objects on the canvas first. Unlock and ungroup them before arranging.</p><h3>Align selected objects</h3><div className="tool-grid">{['left', 'center', 'right', 'top', 'middle', 'bottom'].map(operation => <button key={operation} onClick={() => arrange(operation)}>{operation}</button>)}</div><h3>Space three or more objects evenly</h3><div className="tool-grid"><button onClick={() => arrange('horizontal')}>Horizontal spacing</button><button onClick={() => arrange('vertical')}>Vertical spacing</button></div></>}{arrangeTool === 'blend' && <><h3>Blend endpoint shapes</h3><p>Select exactly two matching rectangle, ellipse or diamond shapes. Insert editable intermediate positions, sizes, rotations and colors; endpoint shapes stay unchanged.</p><label>Blend intermediate steps<input inputMode="numeric" maxLength={2} value={blendSteps} onChange={event => setBlendSteps(event.target.value)} /></label><button onClick={() => repeatSelection('blend')}>Blend selected endpoint shapes</button></>}{arrangeTool === 'grid' && <><h3>Editable grid repeat</h3><p>Repeat the selected composition as independent objects. The original is the first grid placement.</p><div className="number-fields"><label>Grid columns<input inputMode="numeric" maxLength={2} value={gridColumns} onChange={event => setGridColumns(event.target.value)} /></label><label>Grid rows<input inputMode="numeric" maxLength={2} value={gridRows} onChange={event => setGridRows(event.target.value)} /></label><label>Grid gap<input inputMode="decimal" maxLength={5} value={gridGap} onChange={event => setGridGap(event.target.value)} /></label></div><button onClick={() => repeatSelection('grid')}>Create editable grid copies</button></>}{arrangeTool === 'ring' && <><h3>Editable ring repeat</h3><p>Add upright copies around the selected composition. The original stays at the center.</p><div className="number-fields"><label>Ring copies<input inputMode="numeric" maxLength={2} value={ringCount} onChange={event => setRingCount(event.target.value)} /></label><label>Ring radius<input inputMode="decimal" maxLength={5} value={ringRadius} onChange={event => setRingRadius(event.target.value)} /></label></div><button onClick={() => repeatSelection('ring')}>Create editable ring copies</button></>}{arrangeTool === 'recolor' && <><h3>Replace a composition color</h3><p>Change matching strokes and fills together. Locked and hidden objects stay protected unless included.</p><label>Source composition color<select value={sourceColor} onChange={event => setSourceColor(event.target.value)}>{!compositionColors(objects).some(entry => entry.color === sourceColor) && <option value={sourceColor}>{sourceColor} · no matches</option>}{compositionColors(objects).map(entry => <option key={entry.color} value={entry.color}>{entry.color} · {entry.count} uses</option>)}</select></label><label>Replacement hex color<input value={targetColor} maxLength={9} onChange={event => setTargetColor(event.target.value)} /></label><label className="check-label"><input type="checkbox" checked={includeLocked} onChange={event => setIncludeLocked(event.target.checked)} />Include locked and hidden objects</label><button onClick={recolor}>Replace matching colors</button></>}</>}
       {panel === 'projects' && <>

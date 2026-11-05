@@ -166,3 +166,9 @@ Objects → Suggest crop analyzes a full embedded photo copy locally using pinne
 The source copy must be at least 32 px on each side and satisfy the existing embedded-photo limits. Show, unlock and ungroup it first. Projects and SVG retain the full embedded photo; PNG is flattened visible artwork. The runtime MIT notice is bundled in `THIRD_PARTY/SMARTCROP-LICENSE.txt`.
 
 All 118 model families (5new), `test/photo-framing-preview.cjs` and the existing photo-replacement browser regression pass. See [C070 evidence](../../../docs/FEATURE_C070_PHOTO_FRAMING.md). No Android asset refresh, full native/APK build or device acceptance.
+
+### Four-corner photo straightening (C072)
+
+Objects → Straighten photo marks a flat document's corners and previews a locally corrected PNG before inserting a separate copy. Tap corners or enter percentages, then choose an aspect ratio when physical proportions matter. This uses the full source before existing crop/rotation/flip/opacity; the original remains. Keep original only cancels. The copy is flattened, bounded to 1024 px and subject to existing project storage limits. Undo, recovery and exports use the photo pipeline.
+
+Pinned MIT perspective-transform 1.1.3 is adapted to Noble's white/black review panel, with both upstream and bundled Numeric Javascript notices retained. No media is uploaded. See [C072 evidence](../../../docs/FEATURE_C072_PHOTO_RECTIFY.md). Source and isolated browser checks only; no Android asset refresh, full app/APK build or device acceptance.
