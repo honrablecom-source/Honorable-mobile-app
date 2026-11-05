@@ -178,3 +178,9 @@ Pinned MIT perspective-transform 1.1.3 is adapted to Noble's white/black review 
 Layouts → Word cloud accepts 2–24 unique `word or phrase | weight` rows, with whole-number weights 1–100. Preview locally arranges black text with larger weights at larger sizes. Every word must fit before Insert is allowed. Insert creates grouped ordinary editable text; Undo removes it and Close panel cancels. Ungroup to move or style individual words; later text edits can change spacing. Existing artwork, saved recovery and JSON/SVG/PNG exports are retained. Nothing is uploaded.
 
 Pinned BSD d3-cloud1.2.9 uses Noble's rectangle-mask adapter to reserve editable-text spacing; its notice and the d3-dispatch ISC notice are bundled. See [C074 verification and limits](../../../docs/FEATURE_C074_WORD_CLOUD.md). Source and browser checks only; no Android asset refresh/full app/APK/device acceptance.
+
+### Connected-color transparency (C075)
+
+Objects → Remove connected color uses a tapped source pixel and RGB tolerance to remove one touching background area into a separate flattened PNG copy. Disconnected matching islands remain. Review the checkerboard preview before Insert, or Keep original only to cancel. Original artwork stays unchanged; Undo, recovery and exports use the existing photo pipeline. The full source is used before object crop/flip/rotation/opacity. Hard edges may retain halos. This is manual color selection, with no upload or person recognition.
+
+For a transparent export of the new selected copy: Projects → Image copies → Use transparent image background → Use selected artwork; keep PNG in the photo editor. Pinned MIT magic-wand-tool1.1.7 and its notice are bundled. See [C075 evidence and limits](../../../docs/FEATURE_C075_CONNECTED_COLOR.md). No Android asset refresh/full app/APK/device acceptance.
