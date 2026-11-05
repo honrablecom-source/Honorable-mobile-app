@@ -11,12 +11,12 @@ assert(match, 'Native reset script must remain inspectable');
 const resetScript = JSON.parse('"' + match[1] + '"');
 const key = 'honorable-drawing-v1', projectKey = 'noble-drawing-projects-v1', componentKey = 'noble-drawing-components-v1';
 (async () => {
-  const { saveProject } = await import('../projects.mjs');
+  const { saveProject, writeProjects } = await import('../projects.mjs');
   const elements = [{ id: 'original', type: 'rectangle', x: 50, y: 40, width: 120, height: 90, angle: 0, opacity: 100, strokeColor: '#111111', backgroundColor: '#dddddd', fillStyle: 'solid', strokeWidth: 1, roughness: 0, groupIds: [], boundElements: null, version: 1, versionNonce: 1, seed: 1 }];
   const state = { viewBackgroundColor: '#ffffff', currentItemFontFamily: 2 };
   const initial = { version: 1, elements, appState: state };
-  const projects = JSON.stringify(saveProject([], 'Keep named', elements, state));
-  const components = JSON.stringify(saveProject([], 'Keep component', elements, state));
+  const projects = writeProjects(saveProject([], 'Keep named', elements, state));
+  const components = writeProjects(saveProject([], 'Keep component', elements, state));
   const browser = await chromium.launch({ args: ['--no-sandbox'] }); let page;
   try {
     page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -73,7 +73,7 @@ const key = 'honorable-drawing-v1', projectKey = 'noble-drawing-projects-v1', co
     assert.equal(fresh.elements.length, 0);
     assert.equal(await page.evaluate(() => window.honorableDrawingBusy), false);
     await page.getByRole('button', { name: 'Projects', exact: true }).click();
-    await withProjectView(page, 'saved', () => page.getByText('Keep named', { exact: true }).waitFor());
+    await withProjectView(page, 'saved', () => page.getByRole('button', { name: 'Open Keep named', exact: true }).waitFor());
     assert.equal(await page.evaluate(componentKey => localStorage.getItem(componentKey), componentKey), components);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     fs.writeFileSync(path.join(output, 'review.json'), JSON.stringify({ nativeScript: resetScript, busyFileRefused: true, storageFailurePreserved: true, staleLifecycleSaveRefused: true, staleAutosaveWrites: held.staleWrites, lateCallbackStayedFrozen: true, freshDrawingObjects: fresh.elements.length, namedProjectsPreserved: true, componentsPreserved: true, pageErrors: errors, externalRequests: external, scope: 'Actual browser script/save hooks and simulated native callback timing; not Android WebView/Activity lifecycle execution' }, null, 2));
