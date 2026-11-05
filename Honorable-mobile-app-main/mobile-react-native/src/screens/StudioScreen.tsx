@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   Modal,
   Pressable,
@@ -36,7 +37,11 @@ import { useLibrary } from '../library/LibraryContext';
 import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
 
-export function StudioScreen() {
+export function StudioScreen({
+  onReturnToLibrary,
+}: {
+  onReturnToLibrary?: () => void;
+}) {
   const reduceMotion = useReducedMotion();
   const { width } = useWindowDimensions();
   const { items, total, loading, error, loadMore } = useLibrary();
@@ -52,6 +57,18 @@ export function StudioScreen() {
   const [mode, setMode] = useState<WorkspaceKind>('IMAGE');
   const [selectedId, setSelectedId] = useState<number>();
   const [details, setDetails] = useState(false);
+  useEffect(() => {
+    if (!onReturnToLibrary) return;
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (details) setDetails(false);
+        else onReturnToLibrary();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [details, onReturnToLibrary]);
   const [inspectorTab, setInspectorTab] = useState<'tools' | 'source'>('tools');
   const [opening, setOpening] = useState(false);
   const pending = useRef(false);
@@ -275,6 +292,16 @@ export function StudioScreen() {
           <Text style={s.subtitle}>Photo & video editing</Text>
         </View>
         <View style={s.headerActions}>
+          {onReturnToLibrary && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to library setup"
+              onPress={onReturnToLibrary}
+              style={s.returnToLibrary}
+            >
+              <Text style={s.returnToLibraryText}>Library setup</Text>
+            </Pressable>
+          )}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open tools inspector"
@@ -744,6 +771,15 @@ const s = StyleSheet.create({
   titleCopy: { flex: 1, gap: 3 },
   subtitle: { fontSize: 13, lineHeight: 19, color: colors.textSecondary },
   headerActions: { flexDirection: 'row', gap: 6 },
+  returnToLibrary: {
+    minHeight: 48,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  returnToLibraryText: { fontSize: 12, color: colors.textPrimary },
   sourceActions: {
     flexDirection: 'row',
     gap: 8,

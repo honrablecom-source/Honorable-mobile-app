@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { colors } from '../design-system/tokens';
 import {
   ActivityIndicator,
@@ -12,8 +12,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Images, ShieldCheck } from 'lucide-react-native';
 import { useLibrary } from './LibraryContext';
 import { useOpenWorkspace } from '../native/openWorkspace';
+import { StudioScreen } from '../screens/StudioScreen';
 
-function DirectEditors() {
+function StudioEntry({
+  onOpen,
+  disabled = false,
+}: {
+  onOpen: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={s.editors}>
+      <Text style={s.noteText}>
+        Draw, create a blank image, or reopen a saved project without scanning
+        your library.
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open Studio without library setup"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={onOpen}
+        style={[s.editorButton, disabled && s.disabled]}
+      >
+        <Text style={s.editorText}>Open Studio</Text>
+      </Pressable>
+    </View>
+  );
+}
+function DirectEditors({ onStudio }: { onStudio: () => void }) {
   const { busy, open } = useOpenWorkspace();
   return (
     <View style={s.editors}>
@@ -36,18 +63,23 @@ function DirectEditors() {
           </Pressable>
         );
       })}
+      <StudioEntry onOpen={onStudio} disabled={busy} />
     </View>
   );
 }
 
 export function LibraryGate({ children }: { children: React.ReactNode }) {
+  const [studioOpen, setStudioOpen] = useState(false);
   const { status, loading, indexing, error, requestAccess, reindex } =
     useLibrary();
+  if (studioOpen)
+    return <StudioScreen onReturnToLibrary={() => setStudioOpen(false)} />;
   if (loading)
     return (
       <SafeAreaView style={s.safe}>
         <ScrollView contentContainerStyle={s.screen}>
           <ActivityIndicator color={colors.textPrimary} />
+          <StudioEntry onOpen={() => setStudioOpen(true)} />
         </ScrollView>
       </SafeAreaView>
     );
@@ -61,8 +93,8 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
           <Text style={s.kicker}>PRIVATE PHOTO SEARCH</Text>
           <Text style={s.title}>Find anything{`\n`}you remember.</Text>
           <Text style={s.copy}>
-            Choose the photos and videos Noble can search. Your media stays
-            on this device.
+            Choose the photos and videos Noble can search. Your media stays on
+            this device.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -75,7 +107,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
             <ShieldCheck color={colors.textPrimary} size={17} />
             <Text style={s.noteText}>You can change access at any time.</Text>
           </View>
-          <DirectEditors />
+          <DirectEditors onStudio={() => setStudioOpen(true)} />
           {!!error && <Text style={s.error}>{error}</Text>}
         </ScrollView>
       </SafeAreaView>
@@ -108,7 +140,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
               {indexing ? 'Indexing…' : 'Start indexing'}
             </Text>
           </Pressable>
-          <DirectEditors />
+          <DirectEditors onStudio={() => setStudioOpen(true)} />
           {!!error && <Text style={s.error}>{error}</Text>}
         </ScrollView>
       </SafeAreaView>
