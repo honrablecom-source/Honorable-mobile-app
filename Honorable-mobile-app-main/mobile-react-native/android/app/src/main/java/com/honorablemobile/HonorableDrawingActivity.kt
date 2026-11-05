@@ -47,9 +47,9 @@ class HonorableDrawingActivity : Activity() {
         val actions=LinearLayout(this)
         actions.addView(Button(this).apply{text="Close drawing";setOnClickListener{finish()}},LinearLayout.LayoutParams(0,-2,1f))
         actions.addView(Button(this).apply{text="New drawing";setOnClickListener{
-            if(exporting.get())return@setOnClickListener
+            if(exporting.get()||importing.get()){nativeMessage.text="Finish the current image or file operation before starting a new drawing.";return@setOnClickListener}
             android.app.AlertDialog.Builder(this@HonorableDrawingActivity).setTitle("Start a new drawing?").setMessage("This clears the current drawing and its local draft. Save a named composition in Projects or export an image first to keep your work. Named compositions and components stay on this device.")
-                .setNegativeButton("Cancel",null).setPositiveButton("New drawing"){_,_->web.evaluateJavascript("(function(){if(window.honorableDrawingBusy)return false;localStorage.removeItem('honorable-drawing-v1');return true;})()"){reset->if(reset=="true"&&!isDestroyed&&!isFinishing)web.reload()}}.show()
+                .setNegativeButton("Cancel",null).setPositiveButton("New drawing"){_,_->if(!requestNewDrawing())nativeMessage.text="The drawing was kept. Finish the current operation and try again."}.show()
         }},LinearLayout.LayoutParams(0,-2,1f))
         root.addView(actions)
         val message=TextView(this).apply{text=interruptedFileKind?.let{interruptedFileMessage(it)}?:idleMessage;accessibilityLiveRegion=android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE;setTextColor(Color.DKGRAY);setPadding(16,8,16,8)}
@@ -79,6 +79,20 @@ class HonorableDrawingActivity : Activity() {
         root.addView(web,LinearLayout.LayoutParams(-1,0,1f));root.addView(message)
         setContentView(root)
         web.loadUrl("https://${DrawingPolicy.HOST}/drawing/index.html")
+    }
+    /** Confirm again after the dialog: an import/export may have started while it was open. */
+    private fun requestNewDrawing():Boolean {
+        if(isDestroyed||isFinishing||exporting.get()||importing.get())return false
+        return runCatching {
+            web.evaluateJavascript("typeof window.honorableNewDrawing === 'function' && window.honorableNewDrawing()"){reset->
+                if(isDestroyed||isFinishing)return@evaluateJavascript
+                if(reset=="true"){
+                    clearFileNotice()
+                    runCatching{web.reload()}.onFailure{if(::nativeMessage.isInitialized)nativeMessage.text="The draft was cleared. Close and reopen the drawing to continue."}
+                }else if(::nativeMessage.isInitialized)nativeMessage.text="The drawing was kept. Wait for the canvas or current operation, then try again."
+            }
+            true
+        }.getOrDefault(false)
     }
     private fun blocked()=WebResourceResponse("text/plain","UTF-8",403,"Blocked",mapOf("Cache-Control" to "no-store"),ByteArrayInputStream(ByteArray(0)))
     inner class Bridge {

@@ -46,6 +46,7 @@ function Editor() {
   const api = useRef(null), timer = useRef(null), latest = useRef(null), portable = useRef(null), panelHeading = useRef(null);
   const photoInput = useRef(null), photoRequest = useRef(0), photoTarget = useRef(null), busyRef = useRef(false), mounted = useRef(true);
   const [ready, setReady] = useState(false);
+  const resetPending = useRef(false);
   const [transparentImage, setTransparentImage] = useState(false);
   const [selectionFile, setSelectionFile] = useState(false);
   const [projectTool, setProjectTool] = useState('saved');
@@ -108,8 +109,9 @@ function Editor() {
     if (busyRef.current || !api.current) return false;
     busyRef.current = true; window.honorableDrawingBusy = true; setBusy(true); return true;
   };
-  const finishBusy = () => { photoTarget.current = null; busyRef.current = false; window.honorableDrawingBusy = false; if (mounted.current) setBusy(false); };
+  const finishBusy = () => { if (resetPending.current) return; photoTarget.current = null; busyRef.current = false; window.honorableDrawingBusy = false; if (mounted.current) setBusy(false); };
   const save = (announce = true) => {
+    if (resetPending.current) return false;
     try {
       if (!latest.current) return true;
       if (preservedDraft.current) throw Error(restoreError ? 'The saved draft is preserved but could not be safely opened. It has not been replaced.' : 'The complete drawing is preserved in your saved draft. Reopen the drawing to restore it.');
@@ -119,9 +121,22 @@ function Editor() {
     } catch (failure) { error(failure); return false; }
   };
   // Native back/lifecycle hooks always read current refs. Clear delayed work on teardown.
-  window.honorableDrawingBusy = busy;
+  window.honorableDrawingBusy = busy || resetPending.current;
   window.honorableSaveDraft = () => save(false);
-  window.honorableExportResult = message => { finishBusy(); setStatus(message); };
+  window.honorableExportResult = message => { if (resetPending.current) return; finishBusy(); setStatus(message); };
+  window.honorableNewDrawing = () => {
+    if (!mounted.current || !api.current || busyRef.current || resetPending.current) return false;
+    try {
+      // Remove first: storage failure must leave the existing editor and draft usable.
+      localStorage.removeItem(KEY);
+      resetPending.current = true;
+      clearTimeout(timer.current);
+      latest.current = null;
+      busyRef.current = true; window.honorableDrawingBusy = true; setBusy(true);
+      setStatus('Starting a new drawing…');
+      return true;
+    } catch { setStatus('Could not start a new drawing. Your current work was kept. Try again.'); return false; }
+  };
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; photoRequest.current++; clearTimeout(timer.current); }; }, []);
   const scene = () => [api.current.getSceneElements(), api.current.getAppState(), api.current.getFiles()];
   const commit = elements => {
@@ -697,7 +712,7 @@ function Editor() {
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}
-        onChange={(elements, state, files) => { setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
+        onChange={(elements, state, files) => { if (resetPending.current) return; setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
         <MainMenu><MainMenu.ItemCustom><small>Offline creation powered by Excalidraw.<br/>MIT and font notices are bundled.</small></MainMenu.ItemCustom></MainMenu>
       </Excalidraw>
     </section>
