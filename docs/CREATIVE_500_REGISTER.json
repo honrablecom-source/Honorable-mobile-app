@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 75,
+  "source_implemented": 79,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 425,
+  "remaining_not_source_complete": 421,
   "features": [
     {
       "id": "C001",
@@ -561,10 +561,26 @@
       "device_checked": false
     },
     {
+      "id": "C071",
+      "outcome": "Trim fully transparent outer borders from edited artwork into a separate local PNG photo workspace while retaining current editable work",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
       "id": "C072",
       "outcome": "Straighten a flat document or poster from four selected source-photo corners into a separate local PNG copy while retaining original artwork",
       "status": "implemented-source",
       "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C073",
+      "outcome": "Create a padded rounded-outline sticker PNG from transparent edited artwork in a separate local photo workspace",
+      "status": "implemented-source",
+      "local_web_checked": false,
       "full_app_build_checked": false,
       "device_checked": false
     },
@@ -601,10 +617,26 @@
       "device_checked": false
     },
     {
+      "id": "C078",
+      "outcome": "Save extracted photo colors as named private guest/account palettes and reuse their HEX codes across later photo sessions",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
       "id": "C079",
       "outcome": "Review and remove interior quiet pauses detected from selected local video source audio as one undoable timeline edit while preserving originals and clip settings",
       "status": "implemented-source",
       "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C080",
+      "outcome": "Review and insert a local photo as grouped editable colored triangle mosaic artwork while retaining the original source and recoverable image/vector exports",
+      "status": "implemented-source",
+      "local_web_checked": true,
       "full_app_build_checked": false,
       "device_checked": false
     }

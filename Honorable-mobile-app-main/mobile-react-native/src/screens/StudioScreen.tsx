@@ -27,6 +27,7 @@ import {
   WandSparkles,
   Music2,
   Download,
+  PenLine,
 } from 'lucide-react-native';
 import { colors } from '../design-system/tokens';
 import { creativeStyles } from '../design-system/CreativeChrome';
@@ -38,7 +39,15 @@ export function StudioScreen() {
   const reduceMotion = useReducedMotion();
   const { width } = useWindowDimensions();
   const { items, loading, error } = useLibrary();
-  const { busy: importing, open } = useOpenWorkspace();
+  const {
+    busy: importing,
+    open,
+    create,
+    draw,
+    photoVideo,
+    projects,
+    videoProjects,
+  } = useOpenWorkspace();
   const [mode, setMode] = useState<WorkspaceKind>('IMAGE');
   const [selectedId, setSelectedId] = useState<number>();
   const [details, setDetails] = useState(false);
@@ -51,15 +60,17 @@ export function StudioScreen() {
   const busy = importing || opening;
   const kindName = mode === 'IMAGE' ? 'photo' : 'video';
   // Import and library routes share one synchronous guard, including same-frame taps.
-  const importMedia = async (kind: WorkspaceKind) => {
+  const launchWorkspace = async (action: () => Promise<unknown>) => {
     if (pending.current || importing) return;
     pending.current = true;
     try {
-      await open(kind);
+      await action();
     } finally {
       pending.current = false;
     }
   };
+  const importMedia = (kind: WorkspaceKind) =>
+    launchWorkspace(() => open(kind));
   const editSelected = async (source = selected) => {
     if (!source || pending.current || importing) return;
     setSelectedId(source.mediaId);
@@ -141,6 +152,26 @@ export function StudioScreen() {
             Icon: Download,
           },
         ];
+  const creations = [
+    {
+      title: 'Design with photos & text',
+      detail: 'Resume your drawing or make something new.',
+      Icon: PenLine,
+      launch: draw,
+    },
+    {
+      title: 'Turn photos into a video',
+      detail: 'Choose photos. Arrange an editable timeline.',
+      Icon: Film,
+      launch: photoVideo,
+    },
+    {
+      title: 'Create a blank square image',
+      detail: 'Start with a white 1080 × 1080 canvas.',
+      Icon: Plus,
+      launch: () => create('square'),
+    },
+  ];
   const renderSource = (item: (typeof assets)[number], featured = false) => (
     <Pressable
       key={item.mediaId}
@@ -243,6 +274,52 @@ export function StudioScreen() {
             <ArrowUpRight size={16} color={colors.textPrimary} />
           </Pressable>
         </View>
+        <View style={s.creationSection}>
+          <Text accessibilityRole="header" style={s.creationHeading}>
+            Start something new
+          </Text>
+          <Text style={s.creationCopy}>
+            Create on this device. Keep your work editable.
+          </Text>
+          {creations.map(({ title, detail, Icon, launch }) => (
+            <Pressable
+              key={title}
+              accessibilityRole="button"
+              accessibilityLabel={title}
+              accessibilityHint={detail}
+              accessibilityState={{ disabled: busy, busy }}
+              disabled={busy}
+              onPress={() => launchWorkspace(launch)}
+              style={[s.creationCard, busy && s.disabled]}
+            >
+              <Icon size={22} color={colors.textPrimary} strokeWidth={1.5} />
+              <View style={s.creationCardCopy}>
+                <Text style={s.creationTitle}>{title}</Text>
+                <Text style={s.creationCopy}>{detail}</Text>
+              </View>
+              <ArrowUpRight size={16} color={colors.textSecondary} />
+            </Pressable>
+          ))}
+          <View style={s.savedCreations}>
+            {[
+              { label: 'Saved image projects', launch: projects },
+              { label: 'Saved photo videos', launch: videoProjects },
+            ].map(({ label, launch }) => (
+              <Pressable
+                key={label}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ disabled: busy, busy }}
+                disabled={busy}
+                onPress={() => launchWorkspace(launch)}
+                style={[s.savedCreation, busy && s.disabled]}
+              >
+                <Text style={s.savedCreationText}>{label}</Text>
+                <ChevronRight size={16} color={colors.textSecondary} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
         <View style={s.recentHeading}>
           <Text style={s.recentTitle}>Your media</Text>
           <Pressable
@@ -313,7 +390,9 @@ export function StudioScreen() {
         )}
         {busy && (
           <ActivityIndicator
-            accessibilityLabel={opening ? 'Opening editor' : 'Choosing media'}
+            accessibilityLabel={
+              opening ? 'Opening editor' : 'Opening workspace'
+            }
             color={colors.textPrimary}
           />
         )}
@@ -433,6 +512,54 @@ export function StudioScreen() {
   );
 }
 const s = StyleSheet.create({
+  creationSection: { gap: 10, marginTop: 22, marginBottom: 12, marginHorizontal: 16 },
+  creationHeading: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  creationCopy: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+    flexShrink: 1,
+  },
+  creationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 72,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  creationCardCopy: { flex: 1, minWidth: 0, gap: 4 },
+  creationTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  savedCreations: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  savedCreation: {
+    flexGrow: 1,
+    flexBasis: 140,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  savedCreationText: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   launchHeader: {
     minHeight: 100,
     paddingHorizontal: 16,

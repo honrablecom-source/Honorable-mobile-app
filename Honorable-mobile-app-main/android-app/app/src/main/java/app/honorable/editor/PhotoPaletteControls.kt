@@ -13,7 +13,7 @@ import android.widget.*
 import java.util.Locale
 
 object PhotoPaletteControls {
- fun show(activity:Activity,width:Int,height:Int,palette:PhotoPalette,canCopy:()->Boolean){
+ fun show(activity:Activity,width:Int,height:Int,palette:PhotoPalette,canCopy:()->Boolean,onSave:((List<Int>)->Unit)?=null){
   val body=LinearLayout(activity).apply{orientation=LinearLayout.VERTICAL;val p=(20*resources.displayMetrics.density).toInt();setPadding(p,p,p,p);setBackgroundColor(Color.WHITE)}
   fun text(value:String)=TextView(activity).apply{text=value;setTextColor(Color.BLACK);textSize=15f;setPadding(0,8,0,8);body.addView(this)}
   fun percent(weight:Long)=if(palette.totalAlphaWeight==0L)"0.0%" else String.format(Locale.ROOT,"%.1f%%",100.0*weight/palette.totalAlphaWeight)
@@ -30,7 +30,7 @@ object PhotoPaletteControls {
   text("Copy HEX codes only when you want to reuse these colors. Preview size, transparency compositing and export encoding can change the palette. This tool does not upload photos or palettes or add them to saved projects.")
   val status=text("")
   val builder=AlertDialog.Builder(activity).setTitle("Extract preview palette").setView(ScrollView(activity).apply{addView(body)}).setNegativeButton("Close",null)
-  if(palette.swatches.isNotEmpty())builder.setPositiveButton("Copy HEX codes",null)
+  if(palette.swatches.isNotEmpty()){builder.setPositiveButton("Copy HEX codes",null);if(onSave!=null)builder.setNeutralButton("Save palette",null)}
   val dialog=builder.create()
   if(palette.swatches.isNotEmpty())dialog.setOnShowListener{dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener{
    if(activity.isFinishing||activity.isDestroyed||!runCatching{canCopy()}.getOrDefault(false)){status.text="Photo or session changed. Close and extract a fresh palette.";return@setOnClickListener}
@@ -39,7 +39,13 @@ object PhotoPaletteControls {
     if(Build.VERSION.SDK_INT>=33)clip.description.extras=PersistableBundle().apply{putBoolean(ClipDescription.EXTRA_IS_SENSITIVE,true)}
     (activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
    }.onSuccess{status.text="HEX codes copied. Paste one code into an object color field, with or without #."}.onFailure{status.text="Clipboard unavailable. You can select and copy individual HEX labels."}
-  }}
+  }
+   if(onSave!=null)dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener{
+    if(activity.isFinishing||activity.isDestroyed||!runCatching{canCopy()}.getOrDefault(false)){status.text="Photo or session changed. Close and extract a fresh palette.";return@setOnClickListener}
+    val colors=palette.swatches.map{it.color}.distinct()
+    dialog.dismiss();onSave(colors)
+   }
+  }
   dialog.show()
  }
 }

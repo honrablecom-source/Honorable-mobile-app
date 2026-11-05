@@ -122,10 +122,7 @@ type NativeBoundary = {
   getSearchHistory(): Promise<{ queries: string[] }>;
   clearSearchHistory(): Promise<{ cleared: boolean }>;
   editPhoto(uri: string): Promise<{ opened: boolean }>;
-  editPhotoWithLook(
-    uri: string,
-    look: string,
-  ): Promise<{ opened: boolean }>;
+  editPhotoWithLook(uri: string, look: string): Promise<{ opened: boolean }>;
   editVideo(uri: string): Promise<{ opened: boolean }>;
   editPhotoGuest(uri: string): Promise<{ opened: boolean }>;
   editPhotoGuestWithLook(
@@ -141,14 +138,40 @@ type NativeBoundary = {
   openPhotoVideoProjectsGuest(): Promise<{ opened: boolean }>;
   openCanvasProjectsGuest(): Promise<{ opened: boolean }>;
   createDrawingGuest(): Promise<{ opened: boolean }>;
-  canvasSetups(action: 'list' | 'save' | 'delete', name: string, width: number, height: number, background: string): Promise<string>;
-  createCustomImageGuest(width: number, height: number, background: 'white' | 'black' | 'transparent'): Promise<{ opened: boolean }>;
+  canvasSetups(
+    action: 'list' | 'save' | 'delete',
+    name: string,
+    width: number,
+    height: number,
+    background: string,
+  ): Promise<string>;
+  createCustomImageGuest(
+    width: number,
+    height: number,
+    background: 'white' | 'black' | 'transparent',
+  ): Promise<{ opened: boolean }>;
   createImageGuest(
-    format: 'square' | 'portrait' | 'landscape' | 'feed_portrait' | 'story' | 'reels' | 'ultrawide' | 'postcard' | 'banner' | 'poster' | 'cover' | 'wallpaper',
+    format:
+      | 'square'
+      | 'portrait'
+      | 'landscape'
+      | 'feed_portrait'
+      | 'story'
+      | 'reels'
+      | 'ultrawide'
+      | 'postcard'
+      | 'banner'
+      | 'poster'
+      | 'cover'
+      | 'wallpaper',
   ): Promise<{ opened: boolean }>;
   editVideoAtMoment(
     uri: string,
     timestampMs: number,
+  ): Promise<{ opened: boolean }>;
+  shareMedia(
+    uri: string,
+    kind: 'IMAGE' | 'VIDEO',
   ): Promise<{ opened: boolean }>;
   openMedia(
     uri: string,
@@ -211,14 +234,39 @@ export const honorableNative = {
       : boundary().editVideoAtMoment(uri, timestampMs),
   editPhotoGuest: (uri: string) => boundary().editPhotoGuest(uri),
   editVideoGuest: (uri: string) => boundary().editVideoGuest(uri),
-  canvasSetups: (action: 'list' | 'save' | 'delete', name: string, width: number, height: number, background: string) => boundary().canvasSetups(action, name, width, height, background),
+  canvasSetups: (
+    action: 'list' | 'save' | 'delete',
+    name: string,
+    width: number,
+    height: number,
+    background: string,
+  ) => boundary().canvasSetups(action, name, width, height, background),
   createPhotoVideoGuest: () => boundary().createPhotoVideoGuest(),
   openPhotoVideoProjectsGuest: () => boundary().openPhotoVideoProjectsGuest(),
   openCanvasProjectsGuest: () => boundary().openCanvasProjectsGuest(),
   createDrawingGuest: () => boundary().createDrawingGuest(),
-  createCustomImageGuest: (width: number, height: number, background: 'white' | 'black' | 'transparent') => boundary().createCustomImageGuest(width, height, background),
-  createImageGuest: (format: 'square' | 'portrait' | 'landscape' | 'feed_portrait' | 'story' | 'reels' | 'ultrawide' | 'postcard' | 'banner' | 'poster' | 'cover' | 'wallpaper') =>
-    boundary().createImageGuest(format),
+  createCustomImageGuest: (
+    width: number,
+    height: number,
+    background: 'white' | 'black' | 'transparent',
+  ) => boundary().createCustomImageGuest(width, height, background),
+  createImageGuest: (
+    format:
+      | 'square'
+      | 'portrait'
+      | 'landscape'
+      | 'feed_portrait'
+      | 'story'
+      | 'reels'
+      | 'ultrawide'
+      | 'postcard'
+      | 'banner'
+      | 'poster'
+      | 'cover'
+      | 'wallpaper',
+  ) => boundary().createImageGuest(format),
+  shareMedia: (item: { mediaUri: string; mediaType: 'IMAGE' | 'VIDEO' }) =>
+    boundary().shareMedia(item.mediaUri, item.mediaType),
   openMedia: (item: {
     mediaUri: string;
     mediaType: 'IMAGE' | 'VIDEO';

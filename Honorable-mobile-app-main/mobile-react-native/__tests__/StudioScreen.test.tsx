@@ -3,6 +3,11 @@ import Renderer, { act } from 'react-test-renderer';
 import { StudioScreen } from '../src/screens/StudioScreen';
 
 const mockOpen = jest.fn();
+const mockDraw = jest.fn();
+const mockCreate = jest.fn();
+const mockPhotoVideo = jest.fn();
+const mockProjects = jest.fn();
+const mockVideoProjects = jest.fn();
 const mockEdit = jest.fn();
 const mockItems = [
   {
@@ -28,7 +33,15 @@ jest.mock('../src/library/LibraryContext', () => ({
   useLibrary: () => ({ items: mockItems, loading: false, error: '' }),
 }));
 jest.mock('../src/native/openWorkspace', () => ({
-  useOpenWorkspace: () => ({ busy: false, open: mockOpen }),
+  useOpenWorkspace: () => ({
+    busy: false,
+    open: mockOpen,
+    draw: mockDraw,
+    create: mockCreate,
+    photoVideo: mockPhotoVideo,
+    projects: mockProjects,
+    videoProjects: mockVideoProjects,
+  }),
 }));
 jest.mock('../src/native/editMemory', () => ({
   editMemory: (...args: unknown[]) => mockEdit(...args),
@@ -37,6 +50,7 @@ jest.mock('lucide-react-native', () => {
   const { View } = require('react-native');
   return {
     ArrowUpRight: View,
+    PenLine: View,
     Film: View,
     Image: View,
     Plus: View,
@@ -65,6 +79,15 @@ const button = (label: string) =>
 beforeEach(async () => {
   jest.clearAllMocks();
   mockEdit.mockResolvedValue({ opened: true });
+  for (const action of [
+    mockOpen,
+    mockDraw,
+    mockCreate,
+    mockPhotoVideo,
+    mockProjects,
+    mockVideoProjects,
+  ])
+    action.mockResolvedValue(undefined);
   await act(async () => {
     tree = Renderer.create(<StudioScreen />);
   });
@@ -150,7 +173,12 @@ test('Studio launch imports the requested media kind without changing an existin
 
 test('a same-tick library tap cannot launch an editor while Studio import is pending', async () => {
   let complete!: () => void;
-  mockOpen.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+  mockOpen.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      }),
+  );
   await act(async () => {
     button('Import media').props.onPress();
     button('Edit Second.jpg').props.onPress();
@@ -167,7 +195,12 @@ test('a same-tick library tap cannot launch an editor while Studio import is pen
 
 test('a same-tick import tap cannot compete with a pending library editor', async () => {
   let complete!: () => void;
-  mockEdit.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+  mockEdit.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      }),
+  );
   await act(async () => {
     button('Edit Second.jpg').props.onPress();
     button('Import media').props.onPress();
@@ -182,4 +215,125 @@ test('a same-tick import tap cannot compete with a pending library editor', asyn
   }
   await act(async () => button('Import media').props.onPress());
   expect(mockOpen).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  ['Design with photos & text', mockDraw, undefined],
+  ['Turn photos into a video', mockPhotoVideo, undefined],
+  ['Create a blank square image', mockCreate, 'square'],
+  ['Saved image projects', mockProjects, undefined],
+  ['Saved photo videos', mockVideoProjects, undefined],
+])(
+  'Studio exposes the existing local route: %s',
+  async (label, action, argument) => {
+    await act(async () => button(label as string).props.onPress());
+    expect(action).toHaveBeenCalledTimes(1);
+    if (argument) expect(action).toHaveBeenCalledWith(argument);
+    else expect(action).toHaveBeenCalledWith();
+    expect(mockOpen).not.toHaveBeenCalled();
+    expect(mockEdit).not.toHaveBeenCalled();
+  },
+);
+
+test('pending creation blocks same-frame import, library and other local launches until it settles', async () => {
+  let complete!: () => void;
+  mockDraw.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      }),
+  );
+  await act(async () => {
+    button('Design with photos & text').props.onPress();
+    button('Import media').props.onPress();
+    button('Edit First.jpg').props.onPress();
+    button('Turn photos into a video').props.onPress();
+    button('Create a blank square image').props.onPress();
+    button('Saved image projects').props.onPress();
+    button('Saved photo videos').props.onPress();
+  });
+  try {
+    expect(mockDraw).toHaveBeenCalledTimes(1);
+    for (const action of [
+      mockOpen,
+      mockEdit,
+      mockPhotoVideo,
+      mockCreate,
+      mockProjects,
+      mockVideoProjects,
+    ])
+      expect(action).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => complete());
+  }
+  await act(async () => button('Saved image projects').props.onPress());
+  expect(mockProjects).toHaveBeenCalledTimes(1);
+});
+
+test('a pending library editor cannot compete with a new local creation or saved shelf', async () => {
+  let complete!: () => void;
+  mockEdit.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      }),
+  );
+  await act(async () => {
+    button('Edit Second.jpg').props.onPress();
+    for (const label of [
+      'Design with photos & text',
+      'Turn photos into a video',
+      'Create a blank square image',
+      'Saved image projects',
+      'Saved photo videos',
+    ])
+      button(label).props.onPress();
+  });
+  try {
+    expect(mockEdit).toHaveBeenCalledTimes(1);
+    for (const action of [
+      mockDraw,
+      mockPhotoVideo,
+      mockCreate,
+      mockProjects,
+      mockVideoProjects,
+    ])
+      expect(action).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => complete());
+  }
+});
+
+test('a pending import cannot compete with any new local creation route', async () => {
+  let complete!: () => void;
+  mockOpen.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      }),
+  );
+  await act(async () => {
+    button('Import media').props.onPress();
+    for (const label of [
+      'Design with photos & text',
+      'Turn photos into a video',
+      'Create a blank square image',
+      'Saved image projects',
+      'Saved photo videos',
+    ])
+      button(label).props.onPress();
+  });
+  try {
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+    for (const action of [
+      mockDraw,
+      mockPhotoVideo,
+      mockCreate,
+      mockProjects,
+      mockVideoProjects,
+    ])
+      expect(action).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => complete());
+  }
 });

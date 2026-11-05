@@ -18,6 +18,8 @@ import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 
 /** Local, non-destructive raster editor. Exports through CREATE_DOCUMENT; never writes source URI. */
+private typealias PhotoCopyTransform = (Bitmap, () -> Unit) -> Bitmap
+
 class PhotoEditorActivity:Activity(){
  companion object {
   const val START_LOOK_EXTRA="app.honorable.editor.START_LOOK"
@@ -69,6 +71,8 @@ class PhotoEditorActivity:Activity(){
  }
  private val sliders=mutableListOf<SeekBar>();private var edit=PhotoEdit();private val undo=mutableListOf<PhotoEdit>();private val redo=mutableListOf<PhotoEdit>();private var before=false
  private lateinit var image:ImageView;private lateinit var note:TextView;private lateinit var source:Uri
+ @Volatile private var copyForeground=false
+ @Volatile private var copyGeneration=0L
  private var bitmap:Bitmap?=null;private var rendered:Bitmap?=null;private val worker=Executors.newSingleThreadExecutor();@Volatile private var revision=0
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState)
  accessMode=runCatching{EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA))}.getOrElse{finish();return}
@@ -158,6 +162,8 @@ class PhotoEditorActivity:Activity(){
  }
  val transformRow=row(transforms)
  button(transformRow,"Rotate"){tool("rotate");change(edit.copy(rotation=(edit.rotation+90)%360))}
+ button(row(transforms),"Trim transparency"){createTrimmedCopy()}
+ button(row(transforms),"Make outlined sticker"){createStickerCopy()}
  button(transformRow,"Crop center"){tool("crop");change(edit.copy(crop=if(edit.crop>.51f)edit.crop-.1f else 1f))}
  val framing=row(transforms)
  button(framing,"Aspect ratio"){chooseRatio()}
@@ -260,7 +266,7 @@ class PhotoEditorActivity:Activity(){
   val input=bitmap?:return
   val state=if(before)PhotoEdit()else edit
   if(state.needsPersonMask&&personMask==null){note.text="Restoring person cutout on this device…";cutOutPerson(true);return}
-  image.background=if(state.personCutout||state.alphaGradient.enabled)TransparencyGridDrawable(12.dp())else null
+  image.background=if(state.personCutout||state.alphaGradient.enabled||input.hasAlpha())TransparencyGridDrawable(12.dp())else null
   val request=++revision
   val started=System.currentTimeMillis()
   worker.execute {
@@ -336,7 +342,22 @@ class PhotoEditorActivity:Activity(){
   val colors=PhotoPaletteAccumulator();val row=IntArray(preview.width)
   for(y in 0 until preview.height){preview.getPixels(row,0,preview.width,0,y,preview.width,1);colors.add(row)}
   colors.snapshot()
- }){width,height,result,canCopy->PhotoPaletteControls.show(this,width,height,result,canCopy)}
+ }){width,height,result,canCopy->
+  PhotoPaletteControls.show(this,width,height,result,canCopy){colors->paletteShelfControls(canCopy)?.save(colors)}
+ }
+ private var colorPaletteControls:PhotoColorPaletteControls?=null
+ private fun paletteShelfControls(extraGuard:()->Boolean={true}):PhotoColorPaletteControls? {
+  if(!copyForeground)return null
+  val scope=photoControlScope()?:return null
+  val namespace=currentPresetNamespace()?:run{note.text="Session changed. Reopen the photo.";return null}
+  val state=edit;val original=source;val requestGeneration=copyGeneration
+  colorPaletteControls?.close()
+  val store=runCatching{PhotoColorPaletteStore(java.io.File(noBackupFilesDir,"photo-palettes"),namespace)}.getOrElse{note.text="Palette storage is unavailable. Close and try again.";return null}
+  return PhotoColorPaletteControls(this,store,worker){
+   copyForeground&&copyGeneration==requestGeneration&&photoControlUnchanged(state,scope)&&source==original&&currentPresetNamespace()==namespace&&extraGuard()
+  }.also{colorPaletteControls=it}
+ }
+ private fun showSavedPalettes(){paletteShelfControls()?.shelf()}
  private fun <T> inspectPreview(measure:(Bitmap)->T,present:(Int,Int,T,()->Boolean)->Unit){
   if(!canFinish()||previewAnalysisRunning)return
   val state=edit
@@ -357,12 +378,83 @@ class PhotoEditorActivity:Activity(){
    finally{owned.recycle()}
   }}catch(failure:Exception){previewAnalysisRunning=false;owned.recycle();if(current())note.text="Unable to measure this preview. Try again."}
  }
- private fun createComparison(){
+ private fun createTrimmedCopy()=createDerivedPhoto(
+  "Trim transparent border?",
+  "Removes only fully transparent outer rows and columns from the edited preview. Faint edges stay. Creates a flattened PNG at preview resolution, up to 2024 pixels per source edge, and opens a separate local guest photo workspace. Current editable work and originals stay here. An opaque background cannot be trimmed. Save an image project or export PNG in the new workspace to keep the result; its starting copy is temporary.",
+  "Create trimmed copy"
+ ){_ -> { {pixels,guard -> PhotoAlphaTrim.render(pixels,guard)} }}
+ private fun createStickerCopy()=createDerivedPhoto(
+  "Create outlined sticker?",
+  "Use a transparent PNG or make a person cutout first. Adds a rounded border and transparent padding around visible artwork. Original visible pixels keep their colors and alpha. Creates a separate flattened PNG at edited preview resolution, up to 2024 pixels per source edge. It does not keep upstream layers or border controls in the new image. Current editable work and originals stay here. Save an image project or export PNG in the new workspace to keep it; its starting copy is temporary.",
+  "Create sticker"
+ ){body ->
+  var radius=16;var color=Color.WHITE
+  val label=TextView(this).apply{text="Border width: 16 preview pixels";setTextColor(Color.BLACK)};body.addView(label)
+  body.addView(SeekBar(this).apply{max=30;progress=14;contentDescription="Sticker border width";progressTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);thumbTintList=android.content.res.ColorStateList.valueOf(Color.BLACK)
+   setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onStartTrackingTouch(s:SeekBar){};override fun onStopTrackingTouch(s:SeekBar){};override fun onProgressChanged(s:SeekBar,value:Int,user:Boolean){radius=value+2;label.text="Border width: $radius preview pixels"}})
+  },LinearLayout.LayoutParams(-1,48.dp()))
+  val choices=RadioGroup(this)
+  for((name,tint)in listOf("White border" to Color.WHITE,"Black border" to Color.BLACK)){
+   choices.addView(RadioButton(this).apply{text=name;setTextColor(Color.BLACK);buttonTintList=android.content.res.ColorStateList.valueOf(Color.BLACK);isChecked=tint==color;setOnCheckedChangeListener{_,checked->if(checked)color=tint}},LinearLayout.LayoutParams(-1,48.dp()))
+  }
+  body.addView(choices)
+  val snapshot:()->PhotoCopyTransform={val width=radius;val tint=color;{pixels,guard->PhotoSticker.render(pixels,width,tint,guard)}}
+  snapshot
+ }
+ private fun createDerivedPhoto(title:String,description:String,button:String,configure:(LinearLayout)->(() -> PhotoCopyTransform)){
+  if(!copyForeground)return
   val scope=photoControlScope()?:return
+  val requestGeneration=copyGeneration
+  val input=bitmap?:return;val state=edit;val original=source
+  if(state.needsPersonMask&&personMask==null){before=false;preview();note.text="Wait for the person preview, then create the copy again.";return}
+  val inherited=protectedOriginals.map{it.toString()}
+  val origins=runCatching{PhotoComparisonFiles.originals(original.toString(),inherited)}.getOrElse{note.text="This copy cannot safely retain its original sources. Current edits were kept.";return}
+  fun current()=copyForeground&&copyGeneration==requestGeneration&&!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&loadedScope==scope&&protectedOriginals.map{it.toString()}==inherited&&runCatching{currentScope()==scope}.getOrDefault(false)
+  val controls=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(16.dp(),8.dp(),16.dp(),8.dp())}
+  val snapshot=configure(controls)
+  android.app.AlertDialog.Builder(this).setTitle(title).setMessage(description).setView(controls)
+   .setNegativeButton("Cancel",null).setPositiveButton(button){_,_->
+    if(!current()||!canFinish()){note.text="Photo or session changed. Open this tool again.";return@setPositiveButton}
+    val operation=snapshot()
+    clearObjectPick();placingLight=null;placingOn=null;placingScope=null
+    photoProjectBusy=true;note.text="Creating a local image copy…"
+    try{worker.execute{
+     val prepared=runCatching{
+      fun requireCurrent(){check(current()){"Photo session changed"}}
+      requireCurrent()
+      var edited:Bitmap?=null;var derived:Bitmap?=null
+      try{
+       val rendered=render(input,state);edited=rendered;requireCurrent()
+       val result=operation(rendered,::requireCurrent);derived=result
+       PhotoComparisonFiles.write(cacheDir,::requireCurrent){file->java.io.FileOutputStream(file).use{stream->check(result.compress(Bitmap.CompressFormat.PNG,100,stream)){"PNG encoding failed"};stream.fd.sync()}}
+      }finally{if(derived!==edited)derived?.recycle();edited?.recycle()}
+     }
+     runOnUiThread{
+      val unchanged=current();photoProjectBusy=false
+      prepared.onSuccess{file->
+       if(!unchanged||!canFinish()){file.delete();if(!activityClosed&&!isDestroyed&&!isFinishing)note.text="Copy cancelled. Current edits were kept.";return@onSuccess}
+       runCatching{
+        val uri=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+        startActivity(Intent(this,PhotoEditorActivity::class.java).putExtra("uri",uri.toString()).putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name).putStringArrayListExtra(ImportedPhotoOriginals.EXTRA,ArrayList(origins)))
+       }.onSuccess{note.text="Image copy opened separately. Current edits and originals were kept."}.onFailure{file.delete();note.text="Could not open the image copy. Current edits were kept."}
+      }.onFailure{if(!activityClosed&&!isDestroyed&&!isFinishing)note.text=if(!unchanged)"Copy cancelled. Current edits were kept." else when(val message=it.message){
+       "This image is fully transparent. Add visible artwork first.","No fully transparent outer border was found. The current image was kept.","Image exceeds the trimming limit",
+       "Add visible artwork before making a sticker.","Use a transparent PNG or a person cutout before making a sticker.","The sticker is too large. Use a smaller image or border.","Sticker source exceeds the image limit"->message
+       else->"Could not create the image copy. Try a smaller image or free some storage; current edits were kept."
+      }}
+     }
+    }}catch(failure:Exception){photoProjectBusy=false;if(current())note.text="Could not start creating the copy. Current edits were kept."}
+   }.show()
+ }
+ private fun createComparison(){
+  if(!copyForeground)return
+  val scope=photoControlScope()?:return
+  val requestGeneration=copyGeneration
   val input=bitmap?:return;val state=edit;val original=source
   if(state.needsPersonMask&&personMask==null){before=false;preview();note.text="Wait for the person preview, then create the comparison again.";return}
-  val origins=runCatching{PhotoComparisonFiles.originals(original.toString(),protectedOriginals.map{it.toString()})}.getOrElse{note.text="This comparison cannot safely carry all original sources. Existing edits were kept.";return}
-  fun current()=!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  val inherited=protectedOriginals.map{it.toString()}
+  val origins=runCatching{PhotoComparisonFiles.originals(original.toString(),inherited)}.getOrElse{note.text="This comparison cannot safely carry all original sources. Existing edits were kept.";return}
+  fun current()=copyForeground&&copyGeneration==requestGeneration&&!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&loadedScope==scope&&protectedOriginals.map{it.toString()}==inherited&&runCatching{currentScope()==scope}.getOrDefault(false)
   android.app.AlertDialog.Builder(this).setTitle("Create before/after image?")
    .setMessage("Creates a labelled PNG from the original and edited views at editor preview resolution, up to 2024 pixels per edge. Both views fit without cropping; small images may be enlarged. Transparency uses white. Cropped or composed edits may show a different framing. The two panels become one flattened image. Opens a separate local guest photo workspace with no account draft or privileges transferred. Save an image project or export a copy there to keep it; its starting PNG is temporary. Your original photo, current edits and Undo history are kept.")
    .setNegativeButton("Cancel",null).setPositiveButton("Choose layout"){_,_->
@@ -402,7 +494,7 @@ class PhotoEditorActivity:Activity(){
   fun t(label:String,run:()->Unit)=NativeInspectorPanel.Tool(label,run)
   NativeInspectorPanel.show(this,"Photo inspector","${bitmap?.width} × ${bitmap?.height} px · ${edit.rotation}° · edits save as a new copy",listOf(
    "Framing" to listOf(t("Aspect ratio"){chooseRatio()},t("Mirror"){chooseMirror()}),
-   "Color & light" to listOf(t("Preview tonal histogram"){showHistogram()},t("Extract preview palette"){showPalette()},t("White balance"){finishAdjust("White balance",0)},t("Selective color range"){manageSelectiveColor()},t("Black-and-white mix"){manageMonochrome()},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
+   "Color & light" to listOf(t("Preview tonal histogram"){showHistogram()},t("Extract preview palette"){showPalette()},t("Saved color palettes"){showSavedPalettes()},t("White balance"){finishAdjust("White balance",0)},t("Selective color range"){manageSelectiveColor()},t("Black-and-white mix"){manageMonochrome()},t("Shadows / highlights"){finishAdjust("Shadows / highlights",1)},t("Tone curve"){showCurve()},t("Local light"){showLocalLight()}),
    "Finish" to listOf(t("Fade to transparency"){manageAlphaGradient()},t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
    "Creative color" to PhotoCreativeTool.values().map{kind->t(kind.title){creativeAdjust(kind)}},
    "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
@@ -870,5 +962,7 @@ class PhotoEditorActivity:Activity(){
   }
  }
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
+ override fun onResume(){super.onResume();copyGeneration++;copyForeground=true}
+ override fun onPause(){copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
  override fun onDestroy(){activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }

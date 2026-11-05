@@ -26,6 +26,7 @@ import { PhotoFramingPreview } from './PhotoFramingPreview.jsx';
 import { PhotoRectifyTool } from './PhotoRectifyTool.jsx';
 import { WordCloudTool } from './WordCloudTool.jsx';
 import { PhotoWandTool } from './PhotoWandTool.jsx';
+import { PhotoMosaicTool } from './PhotoMosaicTool.jsx';
 import { dependencyPlan } from './dependencies.mjs';
 import './honorable.css';
 
@@ -62,6 +63,7 @@ function Editor() {
   const [framingTarget, setFramingTarget] = useState(null);
   const [rectifyTarget, setRectifyTarget] = useState(null);
   const [wandTarget,setWandTarget]=useState(null);
+  const [mosaicTarget,setMosaicTarget]=useState(null);
   useEffect(() => { if (restoreError) { setPanel('projects'); setProjectTool('files'); } }, [restoreError]);
   useEffect(() => {
     const changed = previousProjectTool.current !== projectTool; previousProjectTool.current = projectTool;
@@ -160,6 +162,28 @@ function Editor() {
   const openWand = (id,tracing=false) => {
     if(busyRef.current)return;
     try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source copy is unavailable.');const{width,height}=photoBytes(file.dataURL);setWandTarget({editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene())});setPanel(tracing?'trace':'wand');}catch(failure){error(failure);}
+  };
+  const openMosaic = id => {
+    if (busyRef.current) return;
+    try {
+      const photo = replaceablePhoto(api.current.getSceneElements(), id), file = api.current.getFiles()[photo.fileId];
+      if (!file) throw Error('The embedded source copy is unavailable.');
+      photoBytes(file.dataURL);
+      setMosaicTarget({ editor: api.current, photo, dataURL: file.dataURL, snapshot: encodeDraft(...scene()) });
+      setPanel('mosaic');
+    } catch (failure) { error(failure); }
+  };
+  const insertMosaic = proposal => {
+    if (!mosaicTarget || !framingCurrent(mosaicTarget) || busyRef.current) throw Error('The source or drawing changed. Open Photo mosaic again.');
+    const [, top, right] = getCommonBounds([mosaicTarget.photo]), group = makeObjectId();
+    const created = convertToExcalidrawElements(proposal.plan.map(shape => ({ ...shape, x: shape.x + right + 32, y: shape.y + top })))
+      .map(element => ({ ...element, groupIds: [group] }));
+    commit([...api.current.getSceneElementsIncludingDeleted(), ...created].map(element => newElementWith(element, {}, true)));
+    api.current.updateScene({ appState: { selectedElementIds: Object.fromEntries(created.map(element => [element.id, true])), selectedGroupIds: { [group]: true }, editingGroupId: null }, captureUpdate: CaptureUpdateAction.NEVER });
+    setPanel(null);
+    const editor = api.current;
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) editor.scrollToContent(created, { fitToViewport: true, viewportZoomFactor: .85, canvasOffsets: { top: 80, bottom: 80, left: 8, right: 40 } }); }));
+    setStatus('Editable mosaic inserted. Ungroup to edit each triangle; Undo removes the mosaic. Original photo preserved.');
   };
   const insertTrace=proposal=>{
     if(!wandTarget||!framingCurrent(wandTarget)||busyRef.current)throw Error('The source or drawing changed. Preview again.');
@@ -673,12 +697,13 @@ function Editor() {
       </>}
       {panel === 'objects' && <><TextContrastReview elements={objects} expanded={contrastOpen} onToggle={() => setContrastOpen(value => !value)} background={contrastBackground} onBackgroundChange={setContrastBackground} onLocate={locateObject} /><label>Find artwork<input type="search" maxLength={100} value={objectQuery} onChange={event => setObjectQuery(event.target.value)} placeholder="Text or object type" /></label><label>Object type<select aria-label="Object type" value={objectType} onChange={event => setObjectType(event.target.value)}><option value="all">All objects</option><option value="text">Text</option><option value="photos">Photos</option><option value="shapes">Shapes, lines & frames</option></select></label><p>{foundObjects.length} of {objects.length} objects. Searches this drawing only; hidden objects must be shown before locating.</p>{!!(objectQuery || objectType !== 'all') && <button onClick={() => { setObjectQuery(''); setObjectType('all'); }}>Clear object filters</button>}{!!objects.length && !foundObjects.length && <p>No matching objects. Try another word or clear the filters.</p>}<p>Top objects appear in front. Changes share the drawing Undo control. Replace photo fits a new local copy inside the old photo’s box, keeping its center, rotation and flip; any old crop is cleared. Originals stay unchanged.</p>{!objects.length && <p>Add a shape or text to start a composition.</p>}
         {foundObjects.map(({ element, number, hidden, label }) => <article key={element.id} className="object-row"><strong>{label}{hidden ? ' · hidden' : element.locked ? ' · locked' : ''}</strong><div className="tool-grid"><button disabled={hidden} aria-label={`Find object ${number} on canvas`} onClick={() => locateObject(element.id)}>Find on canvas</button>
-          {element.type === 'image' && <><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Replace photo ${number}`} onClick={() => choosePhoto(element.id)}>Replace photo</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Suggest crop for photo ${number}`} onClick={() => openFraming(element.id)}>Suggest crop</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Straighten photo ${number}`} onClick={() => openRectify(element.id)}>Straighten photo</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Remove connected color from photo ${number}`} onClick={() => openWand(element.id)}>Remove connected color</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Trace connected outline from photo ${number}`} onClick={() => openWand(element.id,true)}>Trace connected outline</button></>}
+          {element.type === 'image' && <><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Replace photo ${number}`} onClick={() => choosePhoto(element.id)}>Replace photo</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Suggest crop for photo ${number}`} onClick={() => openFraming(element.id)}>Suggest crop</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Straighten photo ${number}`} onClick={() => openRectify(element.id)}>Straighten photo</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Remove connected color from photo ${number}`} onClick={() => openWand(element.id)}>Remove connected color</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Trace connected outline from photo ${number}`} onClick={() => openWand(element.id,true)}>Trace connected outline</button><button disabled={element.locked || !!element.customData?.nobleHidden} aria-label={`Make mosaic from photo ${number}`} onClick={() => openMosaic(element.id)}>Photo mosaic</button></>}
           <button onClick={() => objectAction(element.id, 'visibility')}>{element.customData?.nobleHidden ? 'Show' : 'Hide'}</button>
           <button disabled={!!element.customData?.nobleHidden} onClick={() => objectAction(element.id, 'lock')}>{element.locked ? 'Unlock' : 'Lock'}</button>
           <button disabled={element.locked} onClick={() => objectAction(element.id, 'up')}>Forward</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'down')}>Backward</button>
           <button disabled={element.locked} onClick={() => objectAction(element.id, 'front')}>To front</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'back')}>To back</button>
         </div></article>)}</>}
+      {panel === 'mosaic' && mosaicTarget && <PhotoMosaicTool target={mosaicTarget} isCurrent={() => framingCurrent(mosaicTarget)} onApply={insertMosaic} onCancel={closePanel} />}
       {panel === 'trace' && wandTarget && <PhotoWandTool target={wandTarget} mode="trace" isCurrent={() => framingCurrent(wandTarget)} onApply={insertTrace} onCancel={closePanel} />}
       {panel === 'wand' && wandTarget && <PhotoWandTool target={wandTarget} isCurrent={() => framingCurrent(wandTarget)} onApply={insertWand} onCancel={closePanel} />}
       {panel === 'rectify' && rectifyTarget && <PhotoRectifyTool target={rectifyTarget} isCurrent={() => framingCurrent(rectifyTarget)} onApply={insertRectified} onCancel={closePanel} />}

@@ -1,10 +1,9 @@
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors } from '../design-system/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Share,
   Image,
   Modal,
   Pressable,
@@ -29,16 +28,69 @@ export function MediaViewer({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [chrome, setChrome] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const lifecycle = useRef({ active: false, generation: 0 });
+  useEffect(() => {
+    const session = lifecycle.current;
+    session.active = true;
+    session.generation++;
+    return () => {
+      session.active = false;
+      session.generation++;
+    };
+  }, [item]);
   if (!item) return null;
   const crop = item.cropIndex;
+  const sourceUri =
+    item.result?.mediaUri ??
+    item.mediaUri ??
+    (item.type === 'IMAGE' ? item.uri : undefined);
+  const run = async (title: string, action: () => Promise<unknown>) => {
+    if (pending.current || !lifecycle.current.active) return;
+    pending.current = true;
+    const generation = lifecycle.current.generation;
+    setBusy(true);
+    try {
+      await action();
+    } catch (reason) {
+      if (
+        lifecycle.current.active &&
+        lifecycle.current.generation === generation
+      ) {
+        Alert.alert(
+          title,
+          reason instanceof Error
+            ? reason.message
+            : 'This action could not complete. Try again.',
+        );
+      }
+    } finally {
+      pending.current = false;
+      if (lifecycle.current.active) setBusy(false);
+    }
+  };
   const openVideo = () =>
-    honorableNative
-      .openMedia({
-        mediaUri: item.result?.mediaUri ?? item.mediaUri ?? '',
+    run('Open media', async () => {
+      if (!sourceUri)
+        throw new Error(
+          'This source is unavailable. Choose it again from your library.',
+        );
+      const timestamp = item.result?.bestTimestampMs;
+      if (
+        timestamp !== undefined &&
+        (!Number.isFinite(timestamp) || timestamp < 0)
+      ) {
+        throw new Error(
+          'This video moment is unavailable. Open the video from your library.',
+        );
+      }
+      await honorableNative.openMedia({
+        mediaUri: sourceUri,
         mediaType: item.type,
         bestTimestampMs: item.result?.bestTimestampMs,
-      })
-      .catch(() => undefined);
+      });
+    });
   return (
     <Modal
       visible
@@ -46,31 +98,45 @@ export function MediaViewer({
       onRequestClose={onClose}
     >
       <StatusBar hidden />
-      <Pressable onPress={() => setChrome(v => !v)} style={styles.canvas}>
-        {crop === undefined && item.uri ? (
-          <Image
-            source={item.source ?? { uri: item.uri }}
-            resizeMode="contain"
-            style={styles.fill}
-          />
-        ) : crop !== undefined ? (
-          <View style={{ width, height, overflow: 'hidden' }}>
+      <View
+        style={styles.canvas}
+        accessibilityViewIsModal
+        onAccessibilityEscape={onClose}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            chrome ? 'Hide viewer controls' : 'Show viewer controls'
+          }
+          onPress={() => setChrome(v => !v)}
+          style={styles.mediaSurface}
+        >
+          {crop === undefined && item.uri ? (
             <Image
-              source={item.source}
-              style={{
-                position: 'absolute',
-                width: width * 3,
-                height: width * 3,
-                left: -(crop % 3) * width,
-                top: (height - width) / 2 - Math.floor(crop / 3) * width,
-              }}
+              source={item.source ?? { uri: item.uri }}
+              resizeMode="contain"
+              style={styles.fill}
             />
-          </View>
-        ) : null}
+          ) : crop !== undefined ? (
+            <View style={{ width, height, overflow: 'hidden' }}>
+              <Image
+                source={item.source}
+                style={{
+                  position: 'absolute',
+                  width: width * 3,
+                  height: width * 3,
+                  left: -(crop % 3) * width,
+                  top: (height - width) / 2 - Math.floor(crop / 3) * width,
+                }}
+              />
+            </View>
+          ) : null}
+        </Pressable>
         {chrome && (
           <>
             <View style={[styles.top, { top: insets.top + 8 }]}>
               <Pressable
+                accessibilityRole="button"
                 accessibilityLabel="Close viewer"
                 onPress={onClose}
                 style={styles.control}
@@ -87,6 +153,8 @@ export function MediaViewer({
                 accessibilityRole="button"
                 accessibilityLabel="Play video"
                 onPress={openVideo}
+                disabled={busy}
+                accessibilityState={{ disabled: busy, busy }}
                 style={styles.play}
               >
                 <Play color="#000000" fill="#000000" size={25} />
@@ -98,33 +166,63 @@ export function MediaViewer({
               </Pressable>
             )}
             <View style={[styles.details, { bottom: insets.bottom + 8 }]}>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable accessibilityRole="button" onPress={openVideo}>
+              <View style={styles.actions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open media"
+                  style={[styles.action, busy && styles.actionDisabled]}
+                  disabled={busy}
+                  accessibilityState={{ disabled: busy, busy }}
+                  onPress={openVideo}
+                >
                   <Text style={styles.counter}>Open</Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit media"
+                  style={[styles.action, busy && styles.actionDisabled]}
+                  disabled={busy}
+                  accessibilityState={{ disabled: busy, busy }}
                   onPress={() =>
-                    editMemory(item).catch(e =>
-                      Alert.alert(
-                        item.type === 'VIDEO' ? 'Edit video' : 'Edit',
-                        e.message,
-                      ),
+                    run(
+                      item.type === 'VIDEO' ? 'Edit video' : 'Edit photo',
+                      () => editMemory(item),
                     )
                   }
                 >
                   <Text style={styles.counter}>Edit</Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Share media"
+                  style={[styles.action, busy && styles.actionDisabled]}
+                  disabled={busy}
+                  accessibilityState={{ disabled: busy, busy }}
                   onPress={() =>
-                    Share.share({
-                      url: item.mediaUri ?? item.uri,
-                      message: item.displayName ?? 'Memory',
+                    run('Share media', async () => {
+                      if (!sourceUri)
+                        throw new Error(
+                          'This source is unavailable. Choose it again from your library.',
+                        );
+                      await honorableNative.shareMedia({
+                        mediaUri: sourceUri,
+                        mediaType: item.type,
+                      });
                     })
                   }
                 >
                   <Text style={styles.counter}>Share</Text>
                 </Pressable>
               </View>
+              {busy && (
+                <Text accessibilityLiveRegion="polite" style={styles.counter}>
+                  Working…
+                </Text>
+              )}
+              <Text style={styles.date}>
+                Share sends the full original file, including metadata. Export
+                edits from the editor first.
+              </Text>
               <Text style={styles.name} numberOfLines={1}>
                 {item.displayName ??
                   item.result?.displayName ??
@@ -138,7 +236,7 @@ export function MediaViewer({
             </View>
           </>
         )}
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -149,6 +247,15 @@ function formatDuration(ms: number) {
 const styles = StyleSheet.create({
   canvas: { flex: 1, backgroundColor: colors.canvas, justifyContent: 'center' },
   fill: { width: '100%', height: '100%' },
+  mediaSurface: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  action: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionDisabled: { opacity: 0.45 },
   top: {
     position: 'absolute',
     top: 18,
