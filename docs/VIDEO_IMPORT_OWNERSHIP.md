@@ -1,0 +1,17 @@
+# Video and music picker ownership — November5
+
+0 new features,1 core correctness fix,0 scaffolding outcomes. Shared source register83,batch45 beyond38,including peer C084. This fix does not add or recount that workflow. Experimental source/host/API checks; no full app build or device acceptance.
+
+Video and music imports previously accepted returned URIs without a pending request, including after editor recreation. They now share one metadata-only request target holding project identity, clip/caption values,soundtrack,primary source/duration,source catalog,selection and access mode. A target moves from picker to validation once. Missing targets require choosing Add video/Add music again; wrong-kind callbacks and callbacks repeated during validation leave the current request alone. The Activity router keeps unrelated edit/import/save result codes away while a media request owns the busy state.
+
+A matching result is checked before requesting persistent document access or inspecting media. The worker checks cancellation between framework calls. Its UI completion must still own the same target and match the snapshot,foreground state and busy/recovery constraints. Only that target can release its importing flag. An obsolete worker cannot unlock or publish into a newer request.
+
+Ordinary external-picker pause retains a pending picker target. Backgrounding during validation cancels that transaction; destroy and pending recovery also invalidate it. Native provider/retriever calls may finish before cancellation is observed; their obsolete result is ignored. Request targets are not saved across Activity recreation: the user must choose the source again. No lost request is automatically replayed.
+
+Existing document permission policy remains: selected media must support durable read access. Cancellation can retain a provider grant acquired before inspection completed; this change does not revoke global grants that another project may need. No upload,new dependency,search ranking or credit/ledger change is introduced.
+
+Canonical clip/soundtrack application is separate from preview setup. After a successful model change,a failed preview reports that media was added/selected rather than claiming nothing was added. Existing source/project limits and exporter protection remain in force.
+
+Validation:84 host tests and current Activity/target/shared API compilation pass. Four new pure target families cover single consumption/cancel,context mismatch,canonical timeline/music changes and defensive caption/catalog snapshots. Six new constructor-free actual Activity families cover missing requests,wrong kind,duplicate validation,stale project,old-worker/new-request busy ownership,and router admission with ordinary Cancel. The74 earlier regressions remain green. Evidence `.context/noble-fast-media-import/verification.json`; initial83-case logs precede the final router/Cancel refinement.
+
+These tests execute production target/private admission code with synthetic Intent/URI metadata and poisoned views,resolver and worker. They do not execute actual picker/provider permission persistence,media inspection,UI preview,Android lifecycle/rotation,real callbacks or device behavior. API34 compilation is not configured SDK37/full Gradle/native/APK integration,packaged assets or production readiness. Broad builds remain deferred under the owner's batch cadence. Peer Studio/library work is separate and preserved.

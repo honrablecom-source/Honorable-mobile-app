@@ -59,6 +59,7 @@ class HonorableVideoEditorActivity : Activity() {
     private val importedSources = linkedMapOf<String, VideoSource>()
     private var videoSourceId = "primary"
     private var pendingSeekMs = 0L
+    private var mediaImportTarget:VideoMediaImportTarget?=null
     private var importing = false
     private var sourceReady = false
     private var recoveryBytes: ByteArray? = null
@@ -1408,7 +1409,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if(holdRecoveryResult(requestCode))return
+        if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
         if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
         if(requestCode == 25) { finishCaptionImport(resultCode,data); return }
@@ -1984,16 +1985,8 @@ class HonorableVideoEditorActivity : Activity() {
         validateSources(saved.sources)
         saved.soundtrack?.let { require(inspectSoundtrack(Uri.parse(it.uri)) == it.durationMs) { "Soundtrack changed or unavailable" } }
     }
-    private fun importSoundtrack() {
-        if(project == null || saving || analyzing || draftBusy || importing || pendingRange != null) return
-        importing = true;video.pause();stopProjectPreview()
-        try {
-            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE);type="audio/*"
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            },24)
-        } catch(error: Exception) { importing=false;status.text="No audio document picker is available." }
-    }
+    private fun importSoundtrack(){beginMediaPicker(VideoMediaImportKind.SOUNDTRACK)}
+
     private fun soundtrackExcerpt(){
         if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
         val current=project?:return;val clips=current.segments.toList()
@@ -2143,29 +2136,7 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
-    private fun finishSoundtrackImport(resultCode: Int, data: Intent?) {
-        val uri = data?.data
-        if(resultCode != RESULT_OK || uri == null || isDestroyed || isFinishing) { importing=false;return }
-        val current=project ?: run { importing=false;return }
-        status.text="Checking soundtrack on this device..."
-        draftWorker.execute {
-            val result=runCatching {
-                contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                require(contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
-                VideoSoundtrack(uri.toString(),inspectSoundtrack(uri))
-            }
-            runOnUiThread {
-                importing=false
-                if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
-                result.onSuccess { track ->
-                    runCatching { VideoTimeline.soundtrackRepeatCount(current.segments,track);current.setSoundtrack(track) }
-                        .onSuccess { showClip();status.text="Soundtrack added at 25%. Preview project to check the mix." }
-                        .onFailure { status.text="Choose longer audio; this project supports up to 1000 soundtrack repeats." }
-                }
-                    .onFailure { status.text="Choose readable audio from a provider that keeps document access. Nothing was added." }
-            }
-        }
-    }
+    private fun finishSoundtrackImport(resultCode:Int,data:Intent?){finishMediaImport(VideoMediaImportKind.SOUNDTRACK,resultCode,data)}
 
     private fun validateSources(sources: List<VideoSource>) {
         sources.forEach { require(inspectSource(Uri.parse(it.uri)) == it.durationMs) { "Imported source changed or unavailable" } }
@@ -2189,47 +2160,90 @@ class HonorableVideoEditorActivity : Activity() {
         pendingSeekMs = saved.previewPositionMs
         return previewReady
     }
-    private fun importVideo() {
-        if(project == null || saving || analyzing || draftBusy || importing || pendingRange != null) return
-        if(importedSources.size >= 31) { status.text = "A project supports up to 32 source videos."; return }
-        importing = true
-        video.pause(); stopProjectPreview(); previewHandler.removeCallbacks(stopPreview)
+    private fun importVideo(){beginMediaPicker(VideoMediaImportKind.VIDEO)}
+    private fun finishImport(resultCode:Int,data:Intent?){finishMediaImport(VideoMediaImportKind.VIDEO,resultCode,data)}
+    private fun beginMediaPicker(kind:VideoMediaImportKind) {
+        if(!workspaceActive||!editorIdle()||recoveryBytes!=null||isDestroyed||isFinishing)return
+        val current=project?:return
+        if(kind==VideoMediaImportKind.VIDEO&&importedSources.size>=31){status.text="A project supports up to 32 source videos.";return}
+        val target=VideoMediaImportTarget(kind,current,source.toString(),primaryDurationMs,accessMode.name,selectedClip,importedSources)
+        mediaImportTarget=target;importing=true
+        video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)
         try {
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE); type = "video/*"
+                addCategory(Intent.CATEGORY_OPENABLE);type=kind.mime
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            }, 23)
-        } catch(error: Exception) { importing = false; status.text = "No document picker is available." }
+            },kind.requestCode)
+        }catch(_:Exception){finishMediaImportTarget(target);status.text="No document picker is available. Current edits were kept."}
     }
-    private fun finishImport(resultCode: Int, data: Intent?) {
-        val uri = data?.data
-        if(resultCode != RESULT_OK || uri == null || isDestroyed || isFinishing) { importing = false; return }
-        val current = project ?: run { importing = false; return }
-        status.text = "Checking imported video on this device..."
-        draftWorker.execute {
-            val result = runCatching {
-                require(uri.scheme == "content")
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                require(contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
-                inspectSource(uri)
+    private fun allowsMediaImportResult(requestCode:Int):Boolean =
+        mediaImportTarget?.let{requestCode !in 22..28||requestCode==it.kind.requestCode}?:true
+    private fun finishMediaImportTarget(target:VideoMediaImportTarget):Boolean {
+        target.cancel()
+        if(mediaImportTarget!==target)return false
+        mediaImportTarget=null;importing=false
+        return true
+    }
+    private fun mediaImportMatches(target:VideoMediaImportTarget):Boolean =
+        target.matches(project,source.toString(),primaryDurationMs,accessMode.name,selectedClip,importedSources)
+    private fun finishMediaImport(kind:VideoMediaImportKind,resultCode:Int,data:Intent?) {
+        val target=mediaImportTarget
+        if(target==null){
+            if(!importing&&!isDestroyed&&!isFinishing&&::status.isInitialized)status.text="Import was interrupted. Choose ${kind.action} again. Current edits were kept."
+            return
+        }
+        if(target.kind!=kind||!target.beginValidation())return
+        val uri=data?.data
+        if(resultCode!=RESULT_OK||uri==null||isDestroyed||isFinishing){finishMediaImportTarget(target);return}
+        if(!importing||!mediaImportMatches(target)||saving||analyzing||draftBusy||pendingRange!=null||recoveryBytes!=null){
+            finishMediaImportTarget(target)
+            if(::status.isInitialized)status.text="Video changed. Choose ${kind.action} again. Current edits were kept."
+            return
+        }
+        status.text="Checking imported ${if(kind==VideoMediaImportKind.VIDEO)"video" else "audio"} on this device..."
+        try{draftWorker.execute {
+            val result=runCatching {
+                target.requireChecking();require(uri.scheme=="content")
+                contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                require(contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission})
+                target.requireChecking()
+                val duration=if(kind==VideoMediaImportKind.VIDEO)inspectSource(uri)else inspectSoundtrack(uri)
+                target.requireChecking();duration
             }
             runOnUiThread {
-                importing = false
-                if(isDestroyed || isFinishing || project !== current) return@runOnUiThread
+                if(mediaImportTarget!==target)return@runOnUiThread
+                val current=target.project
+                val canApply=workspaceActive&&!isDestroyed&&!isFinishing&&importing&&target.isChecking&&mediaImportMatches(target)&&
+                    !saving&&!analyzing&&!draftBusy&&pendingRange==null&&recoveryBytes==null
+                finishMediaImportTarget(target)
+                if(!canApply){if(!isDestroyed&&!isFinishing)status.text="Import stopped because the video changed or the editor was away. Current edits were kept.";return@runOnUiThread}
                 result.onSuccess { duration ->
-                    runCatching {
-                        val existing = if(uri == source) "primary" else importedSources.values.firstOrNull { it.uri == uri.toString() }?.id
-                        val id = existing ?: java.util.UUID.randomUUID().toString()
-                        if(existing != null) require(sourceDuration(id) == duration) { "Source changed" }
-                        val metadata = if(id != "primary") VideoSource(id, uri.toString(), duration) else null
-                        current.appendSource(id, duration)
-                        metadata?.let { importedSources[id] = it }
-                        selectedClip = current.segments.lastIndex; showClip()
-                        status.text = "Video added. Preview the project before saving a copy."
-                    }.onFailure { status.text = "Video could not be added. Check source duration and project limits." }
-                }.onFailure { status.text = "Choose a readable video from a provider that keeps document access. Nothing was added." }
+                    val applied=runCatching {
+                        if(kind==VideoMediaImportKind.VIDEO){
+                            val existing=if(uri==source)"primary" else importedSources.values.firstOrNull{it.uri==uri.toString()}?.id
+                            val id=existing?:java.util.UUID.randomUUID().toString()
+                            if(existing!=null)require(sourceDuration(id)==duration){"Source changed"}
+                            val metadata=if(id!="primary")VideoSource(id,uri.toString(),duration)else null
+                            current.appendSource(id,duration)
+                            metadata?.let{importedSources[id]=it}
+                            selectedClip=current.segments.lastIndex
+                        }else {
+                            val track=VideoSoundtrack(uri.toString(),duration)
+                            VideoTimeline.soundtrackRepeatCount(current.segments,track);current.setSoundtrack(track)
+                        }
+                    }
+                    if(applied.isFailure){status.text="Media could not be added within source or project limits. Current edits were kept.";return@onSuccess}
+                    val previewReady=runCatching{showClip()}.isSuccess
+                    status.text=if(kind==VideoMediaImportKind.VIDEO){
+                        if(previewReady)"Video added. Preview before exporting; Undo restores the previous timeline."
+                        else "Video added; preview is unavailable. Undo restores the previous timeline."
+                    }else {
+                        if(previewReady)"Soundtrack selected at 25%. Preview the mix."
+                        else "Soundtrack selected; preview is unavailable. Review the audio before exporting."
+                    }
+                }.onFailure{status.text="Choose readable media from a provider that keeps document access. Nothing was added."}
             }
-        }
+        }}catch(_:java.util.concurrent.RejectedExecutionException){if(finishMediaImportTarget(target)&&::status.isInitialized)status.text="Import could not start. Current edits were kept."}
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -2306,6 +2320,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun discardRecovery(current:VideoEditProject,expected:ByteArray):Boolean {
         if(!recoveryBlocked||recoveryChecking||project!==current||primaryDurationMs<=0||recoveryBytes?.contentEquals(expected)!=true)return false
         val fresh=VideoEditProject(primaryDurationMs)
+        mediaImportTarget?.let{finishMediaImportTarget(it)}
         recoveryRequest++;recoveryBytes=null;recoveryBlocked=false;recoveryChecking=false;draftBusy=false
         project=fresh;importedSources.clear();selectedClip=0;pendingSeekMs=0
         return true
@@ -2328,6 +2343,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
     private fun holdRecoveryResult(requestCode:Int):Boolean {
         if(recoveryBytes==null||requestCode !in 22..28)return false
+        mediaImportTarget?.let{finishMediaImportTarget(it)}
         pendingRange=null;pendingSegments=null;pendingAudio=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
         captionImportTarget=null;captionImportProject=null;voiceoverTarget=null;importing=false
         if(::status.isInitialized)status.text="Finish session recovery before importing or saving again. Check Files for an empty or partial copy."
@@ -2365,8 +2381,9 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onBackPressed(){requestClose()}
 
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
-    override fun onPause() { runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        mediaImportTarget?.let{finishMediaImportTarget(it)}
         recoveryRequest++
         runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null
         runCatching{releaseEditorBack?.invoke()};releaseEditorBack=null
