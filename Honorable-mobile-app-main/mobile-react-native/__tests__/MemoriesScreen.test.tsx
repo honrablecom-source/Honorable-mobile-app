@@ -26,6 +26,12 @@ let mockItems = fixtures,
   mockLoading = false,
   mockIndexing = false,
   mockError = '';
+const mockShare = jest.fn();
+jest.mock('../src/native/HonorableNative', () => ({
+  honorableNative: {
+    shareMediaBatch: (...args: unknown[]) => mockShare(...args),
+  },
+}));
 const mockLoadMore = jest.fn(),
   mockReload = jest.fn();
 jest.mock('../src/library/LibraryContext', () => ({
@@ -149,6 +155,7 @@ beforeEach(() => {
   mockLoading = false;
   mockIndexing = false;
   mockError = '';
+  mockShare.mockResolvedValue({ opened: true });
   mockLoadMore.mockResolvedValue(undefined);
   mockReload.mockResolvedValue(undefined);
 });
@@ -399,4 +406,159 @@ test('stale next callbacks cannot skip the current item and refresh closes viewe
   await act(async () => refresh().onRefresh());
   expect(viewer().props.item).toBeUndefined();
   expect(viewer().props.navigation).toBeUndefined();
+});
+
+const chooseTile = (index: number) => {
+  const rows = tree.root
+    .findAllByProps({ testID: 'media-grid' })
+    .filter(row => typeof row.type === 'string');
+  const values = rows.flatMap(row =>
+    row.props.items.map((item: unknown) => ({ row, item })),
+  );
+  values[index].row.props.onPress(values[index].item);
+};
+test('selection shares exact photo and video originals in chosen order without opening a viewer', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  expect(button('Share selected originals').props.disabled).toBe(true);
+  await act(async () => {
+    chooseTile(1);
+    chooseTile(0);
+  });
+  expect(viewer().props.item).toBeUndefined();
+  expect(mockShare).not.toHaveBeenCalled();
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare).toHaveBeenCalledWith([
+    { mediaUri: fixtures[1].mediaUri, mediaType: 'VIDEO' },
+    { mediaUri: fixtures[0].mediaUri, mediaType: 'IMAGE' },
+  ]);
+  expect(
+    tree.root.findAll(
+      node =>
+        typeof node.props.children === 'string' &&
+        node.props.children.includes('Sending depends'),
+    ).length,
+  ).toBeGreaterThan(0);
+});
+test('selection is capped synchronously at twenty and survives a filename filter', async () => {
+  mockItems = Array.from({ length: 21 }, (_, i) => ({
+    ...fixtures[0],
+    mediaId: i + 1,
+    displayName: `Photo${i}.jpg`,
+    mediaUri: `content://synthetic/original/${i}`,
+  }));
+  mockTotal = 21;
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => {
+    for (let i = 0; i < 21; i++) chooseTile(i);
+  });
+  await act(async () => filter().props.onChangeText('Photo0.jpg'));
+  expect(
+    tree.root.findAll(
+      node =>
+        typeof node.props.children === 'string' &&
+        node.props.children.includes('19 hidden by filters'),
+    ).length,
+  ).toBeGreaterThan(0);
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare.mock.calls[0][0]).toEqual(
+    mockItems
+      .slice(0, 20)
+      .map(item => ({ mediaUri: item.mediaUri, mediaType: 'IMAGE' })),
+  );
+});
+test('pending share blocks duplicate launch and selection changes, then failure preserves retry', async () => {
+  let reject!: (reason: Error) => void;
+  mockShare.mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail;
+      }),
+  );
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button('Share selected originals').props.onPress();
+    button('Share selected originals').props.onPress();
+    chooseTile(1);
+    button('Clear library selection').props.onPress();
+  });
+  expect(mockShare).toHaveBeenCalledTimes(1);
+  expect(button('Share selected originals').props.accessibilityState.busy).toBe(
+    true,
+  );
+  await act(async () => {
+    reject(new Error('Synthetic provider denied'));
+    await pending;
+  });
+  expect(
+    tree.root
+      .findAllByProps({ accessibilityRole: 'alert' })
+      .some(node => node.props.children === 'Synthetic provider denied'),
+  ).toBe(true);
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare).toHaveBeenCalledTimes(2);
+  expect(mockShare.mock.calls[1][0]).toEqual([
+    { mediaUri: fixtures[0].mediaUri, mediaType: 'IMAGE' },
+  ]);
+});
+test('removed sources are pruned before share and explicit refresh exits selection', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => {
+    chooseTile(0);
+    chooseTile(1);
+  });
+  mockItems = [fixtures[1]];
+  await update();
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare).toHaveBeenCalledWith([
+    { mediaUri: fixtures[1].mediaUri, mediaType: 'VIDEO' },
+  ]);
+  await act(async () => refresh().onRefresh());
+  expect(button('Done selecting originals')).toBeUndefined();
+  expect(button('Select library originals')).toBeDefined();
+});
+test('retained Share cannot invoke native storage after Library unmount', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  const share = button('Share selected originals').props.onPress;
+  await act(async () => tree.unmount());
+  await act(async () => share());
+  expect(mockShare).not.toHaveBeenCalled();
+});
+test('Done discards only selection and restores normal original viewer opening', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  await act(async () => button('Done selecting originals').props.onPress());
+  await act(async () => chooseTile(1));
+  expect(viewer().props.item.mediaUri).toBe(fixtures[1].mediaUri);
+  expect(mockShare).not.toHaveBeenCalled();
+});
+
+test('a reused library ID cannot silently substitute a different original into a selected share', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  mockItems = [
+    {
+      ...fixtures[0],
+      mediaUri: 'content://synthetic/replacement',
+      mediaType: 'VIDEO',
+    },
+  ];
+  await update();
+  expect(button('Share selected originals').props.disabled).toBe(true);
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare).not.toHaveBeenCalled();
+  await act(async () => chooseTile(0));
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare).toHaveBeenCalledWith([
+    { mediaUri: 'content://synthetic/replacement', mediaType: 'VIDEO' },
+  ]);
 });

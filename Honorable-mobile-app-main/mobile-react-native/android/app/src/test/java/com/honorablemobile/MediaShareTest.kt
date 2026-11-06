@@ -56,4 +56,63 @@ class MediaShareTest {
         fails { MediaShare.prepare(raw, "VIDEO", { "video/mp4" }, { calls++; error("Synthetic read denied") }) }
         assertEquals(1, calls)
     }
+    private fun payload(items: List<Pair<String,String>>) = org.json.JSONArray().apply {
+        items.forEach { (uri,kind) -> put(org.json.JSONObject().put("mediaUri",uri).put("mediaType",kind)) }
+    }.toString()
+    @Test fun batchPayloadBoundsSchemaAndLocalSourcesAreEnforced() {
+        val valid=payload(listOf(raw to "IMAGE"))
+        assertEquals(listOf(raw to "IMAGE"),MediaShare.batchSources(valid))
+        for(value in listOf("[]","{}",valid+" trailing","[null]",payload(List(21){"$raw/$it" to "IMAGE"}),payload(listOf(raw to "AUDIO")),payload(listOf("https://example.test/image" to "IMAGE")),payload(listOf(raw to "IMAGE",raw to "IMAGE")))) {
+            try { MediaShare.batchSources(value); fail("Expected invalid bundle refusal") } catch (_: IllegalArgumentException) {} catch (_: org.json.JSONException) {}
+        }
+        fails { MediaShare.batchSources(" ".repeat(170001)) }
+        for(value in listOf("[{\"mediaUri\":7,\"mediaType\":\"IMAGE\"}]", "[{\"mediaUri\":\"$raw\",\"mediaType\":\"IMAGE\",\"extra\":true}]")) {
+            fails { MediaShare.batchSources(value) }
+        }
+    }
+    @Test fun mixedBatchHasOnlyOrderedSelectedStreamsAndReadOnlyGrants() {
+        val items=listOf(raw to "IMAGE","$raw/video" to "VIDEO")
+        val reads=mutableListOf<Uri>()
+        val chooser=MediaShare.prepareBatch(items,{if(it.toString()==raw) "image/jpeg" else "video/mp4"},{reads+=it})
+        val send=chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+        val uris=items.map{Uri.parse(it.first)}
+        assertEquals(uris,reads);assertEquals(Intent.ACTION_SEND_MULTIPLE,send.action);assertEquals("*/*",send.type)
+        assertEquals(uris,send.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM))
+        for(intent in listOf(send,chooser)) {
+            assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION,intent.flags)
+            assertEquals(2,intent.clipData!!.itemCount)
+            for(i in uris.indices) assertEquals(uris[i],intent.clipData!!.getItemAt(i).uri)
+            assertFalse(intent.hasExtra(Intent.EXTRA_TEXT));assertFalse(intent.hasExtra(Intent.EXTRA_HTML_TEXT))
+        }
+        assertEquals("Share 2 original files",chooser.getStringExtra(Intent.EXTRA_TITLE))
+    }
+    @Test fun allMimeChecksPrecedeAnyFileReadAndRejectTypeMismatch() {
+        var reads=0
+        fails { MediaShare.prepareBatch(listOf(raw to "IMAGE","$raw/other" to "VIDEO"),{"image/png"},{reads++}) }
+        assertEquals(0,reads)
+        fails { MediaShare.prepareBatch(listOf(raw to "IMAGE"),{null},{reads++}) }
+        assertEquals(0,reads)
+    }
+    @Test fun exactAndFamilyMimeTypesAreNarrowedWithoutChangingStreams() {
+        for((mimes,expected) in listOf(listOf("image/png","image/png") to "image/png",listOf("image/png","image/jpeg") to "image/*",listOf("video/mp4","video/webm") to "video/*")) {
+            val kind=if(mimes.first().startsWith("image")) "IMAGE" else "VIDEO"
+            val chooser=MediaShare.prepareBatch(listOf(raw to kind,"$raw/other" to kind),{if(it.toString()==raw)mimes[0] else mimes[1]},{})
+            assertEquals(expected,chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!.type)
+        }
+    }
+    @Test fun unreadableMemberDoesNotReturnAnyChooser() {
+        var reads=0
+        fails { MediaShare.prepareBatch(listOf(raw to "IMAGE","$raw/other" to "IMAGE"),{"image/png"},{reads++;error("Synthetic access denied")}) }
+        assertEquals(1,reads)
+    }
+    @Test fun twentyOriginalsAreRetainedAndOversizeOrDuplicatesNeverRead() {
+        val items=List(20){"$raw/$it" to "IMAGE"};var reads=0
+        assertEquals(items,MediaShare.batchSources(payload(items)))
+        val chooser=MediaShare.prepareBatch(items,{"image/jpeg"},{reads++})
+        assertEquals(20,reads);assertEquals(20,chooser.clipData!!.itemCount)
+        fails { MediaShare.prepareBatch(items+items.first(),{"image/jpeg"},{reads++}) }
+        fails { MediaShare.prepareBatch(listOf(items.first(),items.first()),{"image/jpeg"},{reads++}) }
+        assertEquals(20,reads)
+    }
+
 }

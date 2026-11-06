@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 85,
+  "source_implemented": 86,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 415,
+  "remaining_not_source_complete": 414,
   "features": [
     {
       "id": "C001",
@@ -683,6 +683,14 @@
     {
       "id": "C086",
       "outcome": "Browse adjacent loaded filtered Library originals in the viewer while preserving exact Open/Edit/Share sources",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C087",
+      "outcome": "Select up to twenty loaded Library originals across filters and open one read-only Android share sheet with the exact chosen files",
       "status": "implemented-source",
       "local_web_checked": true,
       "full_app_build_checked": false,

@@ -11,6 +11,7 @@ const output =
   process.env.NOBLE_LIBRARY_PREVIEW_OUTPUT ||
   path.join(root, '.context/library-viewer-preview/browser');
 await fs.mkdir(output, { recursive: true });
+const batchMode = process.env.NOBLE_LIBRARY_BATCH_PREVIEW === '1';
 const require = createRequire(path.join(here, 'package.json'));
 const { build } = require('esbuild');
 const { chromium } = createRequire(
@@ -38,8 +39,8 @@ const image='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.
 const item=(id,type,name)=>({mediaId:id,mediaUri:'content://synthetic/original/'+id,thumbnailUri:image,mediaType:type,displayName:name,capturedAt:Date.UTC(2026,10,6),durationMs:12000});
 const initial=[item(1,'IMAGE','Photo1.jpg'),item(2,'VIDEO','Clip.mp4'),item(3,'IMAGE','Photo3.jpg')];
 window.__routes=[];window.__pages=0;window.__reloads=0;
-const route=async(kind,value)=>{window.__routes.push({kind,value});if(window.__hold){window.__hold=false;await new Promise(resolve=>{window.__finish=resolve;});}return {opened:true};};
-export const honorableNative={openMedia:value=>route('open',value),shareMedia:value=>route('share',value),editPhoto:value=>route('photo',value),editVideo:value=>route('video',value)};
+const route=async(kind,value)=>{window.__routes.push({kind,value});if(kind==='batch'&&window.__failShare){window.__failShare=false;throw Error('Synthetic batch share failure');}if(window.__hold){window.__hold=false;await new Promise(resolve=>{window.__finish=resolve;});}return {opened:true};};
+export const honorableNative={shareMediaBatch:value=>route('batch',value),openMedia:value=>route('open',value),shareMedia:value=>route('share',value),editPhoto:value=>route('photo',value),editVideo:value=>route('video',value)};
 function App(){const[items,setItems]=useState(initial);return <Context.Provider value={{items,total:4,loading:false,indexing:false,error:'',reload:async()=>{window.__reloads++;},loadMore:async()=>{window.__pages++;setItems([...initial,item(4,'IMAGE','Photo4.jpg')]);}}}><MemoriesScreen/></Context.Provider>;}
 createRoot(document.getElementById('root')).render(<App/>);
 `,
@@ -136,6 +137,91 @@ try {
       );
     });
     await page.goto(url);
+    if (batchMode) {
+      await button('Select library originals').click();
+      await page
+        .getByRole('checkbox', { name: 'image Photo1.jpg', exact: true })
+        .click();
+      await page
+        .getByRole('checkbox', { name: 'video Clip.mp4', exact: true })
+        .click();
+      assert.equal(await page.evaluate(() => window.__routes.length), 0);
+      await page
+        .getByRole('textbox', {
+          name: 'Search filenames in your library',
+          exact: true,
+        })
+        .fill('Photo1');
+      await page.evaluate(() => {
+        window.__hold = true;
+      });
+      await button('Share selected originals').click();
+      assert(await button('Clear library selection').isDisabled());
+      assert(
+        await page
+          .getByRole('checkbox', { name: 'image Photo1.jpg', exact: true })
+          .isDisabled(),
+      );
+      await page.evaluate(() => window.__finish());
+      await page.evaluate(() => {
+        window.__failShare = true;
+      });
+      await button('Share selected originals').click();
+      await page
+        .getByRole('alert')
+        .filter({ hasText: 'Synthetic batch share failure' })
+        .waitFor();
+      await page.screenshot({
+        path: path.join(output, `batch-error-${viewport.width}.png`),
+      });
+      await button('Share selected originals').click();
+      await page
+        .getByText(
+          'Share sheet opened. Sending depends on the app and destination you choose.',
+          { exact: true },
+        )
+        .waitFor();
+      const routes = await page.evaluate(() => window.__routes);
+      assert.equal(routes.length, 3);
+      for (const route of routes)
+        assert.deepEqual(route, {
+          kind: 'batch',
+          value: [
+            { mediaUri: 'content://synthetic/original/1', mediaType: 'IMAGE' },
+            { mediaUri: 'content://synthetic/original/2', mediaType: 'VIDEO' },
+          ],
+        });
+      const shareBox = await button('Share selected originals').boundingBox();
+      assert(
+        shareBox &&
+          shareBox.y >= 0 &&
+          shareBox.y + shareBox.height <= viewport.height + 1,
+      );
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      );
+      await page.screenshot({
+        path: path.join(output, `batch-${viewport.width}.png`),
+      });
+      await button('Done selecting originals').click();
+      await page.getByLabel('image Photo1.jpg', { exact: true }).click();
+      await button('Close viewer').waitFor();
+      await button('Close viewer').click();
+      assert.deepEqual(await page.evaluate(() => window.__alerts), []);
+      assert.deepEqual(errors, []);
+      assert.deepEqual(external, []);
+      results.push({
+        viewport,
+        mode: 'batch-selection',
+        errors,
+        external,
+        passed: true,
+      });
+      await page.close();
+      continue;
+    }
     await page.getByLabel('image Photo1.jpg', { exact: true }).click();
     await button('Next library item').waitFor();
     assert(await button('Previous library item').isDisabled());

@@ -21,6 +21,7 @@ import { MediaGridRow, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
 import { colors, WorkspaceHeader } from '../design-system';
 import { useLibrary } from '../library/LibraryContext';
+import { honorableNative } from '../native/HonorableNative';
 import { FilterTabs } from '../design-system/CreativeChrome';
 import {
   memoryRows,
@@ -37,8 +38,19 @@ export function MemoriesScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
   const [selected, setSelected] = useState<MediaItem>();
-  const [operation, setOperation] = useState<'refresh' | 'more' | null>(null);
+  const [operation, setOperation] = useState<
+    'refresh' | 'more' | 'share' | null
+  >(null);
   const [localError, setLocalError] = useState('');
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const pickedBindings = useRef(
+    new Map<string, { mediaUri?: string; type: MediaItem['type'] }>(),
+  );
+  const pickedRef = useRef<string[]>([]),
+    selectingRef = useRef(false);
+  const [shareError, setShareError] = useState('');
+  const [shareNotice, setShareNotice] = useState('');
   const pending = useRef(false),
     active = useRef(true);
   useEffect(() => {
@@ -57,7 +69,16 @@ export function MemoriesScreen() {
     pending.current = true;
     setOperation(kind);
     setLocalError('');
-    if (kind === 'refresh') setSelected(undefined);
+    if (kind === 'refresh') {
+      setSelected(undefined);
+      setSelecting(false);
+      selectingRef.current = false;
+      pickedRef.current = [];
+      pickedBindings.current.clear();
+      setPicked([]);
+      setShareError('');
+      setShareNotice('');
+    }
     try {
       if (kind === 'refresh') await reload();
       else await loadMore();
@@ -106,6 +127,11 @@ export function MemoriesScreen() {
     () => rows.flatMap(row => (row.kind === 'media' ? row.items : [])),
     [rows],
   );
+  const visibleIds = useMemo(
+    () => new Set(visibleMedia.map(item => item.id)),
+    [visibleMedia],
+  );
+  const hiddenPicked = picked.filter(id => !visibleIds.has(id)).length;
   const selectedIndex = selected
     ? visibleMedia.findIndex(item => item.id === selected.id)
     : -1;
@@ -115,6 +141,131 @@ export function MemoriesScreen() {
     const next = visibleMedia[selectedIndex + offset];
     if (next)
       setSelected(current => (current?.id === displayed.id ? next : current));
+  };
+  const mediaById = useMemo(
+    () => new Map(entries.map(entry => [entry.media.id, entry.media])),
+    [entries],
+  );
+  const catalog = useRef(mediaById);
+  useEffect(() => {
+    catalog.current = mediaById;
+    const next = pickedRef.current.filter(id => {
+      const source = mediaById.get(id),
+        chosen = pickedBindings.current.get(id);
+      return (
+        source &&
+        chosen &&
+        source.mediaUri === chosen.mediaUri &&
+        source.type === chosen.type
+      );
+    });
+    for (const id of pickedBindings.current.keys())
+      if (!next.includes(id)) pickedBindings.current.delete(id);
+    if (next.length !== pickedRef.current.length) {
+      pickedRef.current = next;
+      setPicked(next);
+    }
+  }, [mediaById]);
+  const pickedSet = useMemo(() => new Set(picked), [picked]);
+  const beginSelection = () => {
+    if (!active.current || pending.current || !catalog.current.size) return;
+    selectingRef.current = true;
+    setSelecting(true);
+    setSelected(undefined);
+    setShareError('');
+    setShareNotice('');
+  };
+  const clearSelection = (done = false) => {
+    if (!active.current || pending.current) return;
+    pickedRef.current = [];
+    pickedBindings.current.clear();
+    setPicked([]);
+    setShareError('');
+    setShareNotice('');
+    if (done) {
+      selectingRef.current = false;
+      setSelecting(false);
+    }
+  };
+  const toggleSelection = useCallback((item: MediaItem) => {
+    if (
+      !active.current ||
+      pending.current ||
+      !selectingRef.current ||
+      !catalog.current.has(item.id)
+    )
+      return;
+    const latest = catalog.current.get(item.id)!;
+    if (latest.mediaUri !== item.mediaUri || latest.type !== item.type) return;
+    const current = pickedRef.current;
+    if (current.includes(item.id)) pickedBindings.current.delete(item.id);
+    else if (current.length < 20)
+      pickedBindings.current.set(item.id, {
+        mediaUri: item.mediaUri,
+        type: item.type,
+      });
+    const next = current.includes(item.id)
+      ? current.filter(id => id !== item.id)
+      : current.length < 20
+      ? [...current, item.id]
+      : current;
+    pickedRef.current = next;
+    setPicked(next);
+    setShareError('');
+    setShareNotice('');
+  }, []);
+  const shareSelection = async () => {
+    if (
+      !active.current ||
+      pending.current ||
+      !selectingRef.current ||
+      !pickedRef.current.length
+    )
+      return;
+    const chosen = pickedRef.current.map(id => catalog.current.get(id));
+    if (
+      chosen.some((item, index) => {
+        const binding = pickedBindings.current.get(pickedRef.current[index]);
+        return (
+          !item?.mediaUri ||
+          !binding ||
+          binding.mediaUri !== item.mediaUri ||
+          binding.type !== item.type
+        );
+      })
+    ) {
+      setShareError(
+        'A selected original is unavailable. Refresh the library and choose it again.',
+      );
+      return;
+    }
+    const payload = chosen.map(item => ({
+      mediaUri: item!.mediaUri!,
+      mediaType: item!.type,
+    }));
+    pending.current = true;
+    setOperation('share');
+    setShareError('');
+    setShareNotice('');
+    try {
+      const result = await honorableNative.shareMediaBatch(payload);
+      if (!result.opened)
+        throw Error('The share sheet could not open. Try again.');
+      if (active.current)
+        setShareNotice(
+          'Share sheet opened. Sending depends on the app and destination you choose.',
+        );
+    } catch (reason) {
+      if (active.current)
+        setShareError(
+          reason instanceof Error
+            ? reason.message
+            : 'The selected originals could not be shared. Try again.',
+        );
+    } finally {
+      pending.current = false;
+      if (active.current) setOperation(null);
+    }
   };
   const renderRow = useCallback(
     ({ item, index }: { item: MemoryRow; index: number }) =>
@@ -126,11 +277,96 @@ export function MemoriesScreen() {
           {item.label}
         </Text>
       ) : (
-        <MediaGridRow edgeToEdge items={item.items} onPress={setSelected} />
+        <MediaGridRow
+          edgeToEdge
+          items={item.items}
+          onPress={selecting ? toggleSelection : setSelected}
+          selectedIds={selecting ? pickedSet : undefined}
+          disabled={operation !== null}
+        />
       ),
-    [],
+    [selecting, pickedSet, operation, toggleSelection],
   );
 
+  const selectionPanel = (
+    <View style={styles.selectionPanel}>
+      {!selecting ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Select library originals"
+          disabled={loading || operation !== null || !items.length}
+          accessibilityState={{
+            disabled: loading || operation !== null || !items.length,
+          }}
+          onPress={beginSelection}
+          style={styles.selectionAction}
+        >
+          <Text style={styles.selectionActionText}>Select originals</Text>
+        </Pressable>
+      ) : (
+        <>
+          <Text style={styles.selectionCopy}>
+            {`${picked.length} selected${
+              hiddenPicked ? ` · ${hiddenPicked} hidden by filters` : ''
+            } · up to 20 originals`}
+          </Text>
+          <View style={styles.selectionActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share selected originals"
+              disabled={!picked.length || operation !== null || loading}
+              accessibilityState={{
+                disabled: !picked.length || operation !== null || loading,
+                busy: operation === 'share',
+              }}
+              onPress={shareSelection}
+              style={styles.selectionAction}
+            >
+              <Text style={styles.selectionActionText}>
+                {operation === 'share'
+                  ? 'Opening share sheet…'
+                  : 'Share selected'}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear library selection"
+              disabled={operation !== null}
+              accessibilityState={{ disabled: operation !== null }}
+              onPress={() => clearSelection()}
+              style={styles.selectionAction}
+            >
+              <Text style={styles.selectionActionText}>Clear selection</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Done selecting originals"
+              disabled={operation !== null}
+              accessibilityState={{ disabled: operation !== null }}
+              onPress={() => clearSelection(true)}
+              style={styles.selectionAction}
+            >
+              <Text style={styles.selectionActionText}>Done</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.selectionCopy}>
+            Choose up to 20 loaded originals. Sharing includes full files and
+            metadata. Export edits from the editor first.
+          </Text>
+          {!!shareError && (
+            <Text accessibilityRole="alert" style={styles.selectionCopy}>
+              {shareError}
+            </Text>
+          )}
+          {!!shareNotice && (
+            <Text accessibilityLiveRegion="polite" style={styles.selectionCopy}>
+              {shareNotice}
+            </Text>
+          )}
+        </>
+      )}
+    </View>
+  );
   const header = (
     <View>
       <WorkspaceHeader
@@ -138,6 +374,7 @@ export function MemoriesScreen() {
         section={`${total.toLocaleString()} items on your device`}
       />
 
+      {!selecting && selectionPanel}
       <HonorableSearchBar
         compact
         value={query}
@@ -271,6 +508,7 @@ export function MemoriesScreen() {
           />
         }
       />
+      {selecting && selectionPanel}
       <MediaViewer
         item={displayed}
         onClose={() => setSelected(undefined)}
@@ -294,6 +532,23 @@ export function MemoriesScreen() {
 }
 
 const styles = StyleSheet.create({
+  selectionPanel: { paddingHorizontal: 16, gap: 8, marginBottom: 12 },
+  selectionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  selectionAction: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  selectionActionText: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  selectionCopy: { color: colors.textSecondary, fontSize: 12 },
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 24 },
   loadedNotice: {

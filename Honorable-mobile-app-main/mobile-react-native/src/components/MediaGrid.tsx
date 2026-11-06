@@ -47,16 +47,24 @@ function Tile({
   size,
   onPress,
   squareEdges = false,
+  selected,
+  disabled = false,
 }: {
   item: MediaItem;
   size: number;
   squareEdges?: boolean;
+  selected?: boolean;
+  disabled?: boolean;
   onPress: (item: MediaItem) => void;
 }) {
   const crop = item.cropIndex;
   return (
     <Pressable
-      accessibilityRole="imagebutton"
+      accessibilityRole={selected === undefined ? 'imagebutton' : 'checkbox'}
+      accessibilityState={
+        selected === undefined ? { disabled } : { checked: selected, disabled }
+      }
+      disabled={disabled}
       accessibilityLabel={`${item.type.toLowerCase()} ${
         item.displayName ?? 'media'
       }`}
@@ -67,6 +75,17 @@ function Tile({
         squareEdges && styles.squareTile,
       ]}
     >
+      {selected !== undefined && (
+        <View
+          pointerEvents="none"
+          style={[styles.selectionMarker, selected && styles.selectionChecked]}
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          <Text style={styles.selectionMarkText}>{selected ? '✓' : ''}</Text>
+        </View>
+      )}
       {crop === undefined && item.uri ? (
         <Image source={item.source ?? { uri: item.uri }} style={styles.fill} />
       ) : crop === undefined ? (
@@ -100,10 +119,14 @@ export const MediaGridRow = React.memo(function MediaGridRow({
   items,
   onPress,
   edgeToEdge = false,
+  selectedIds,
+  disabled = false,
 }: {
   items: MediaItem[];
   onPress: (item: MediaItem) => void;
   edgeToEdge?: boolean;
+  selectedIds?: ReadonlySet<string>;
+  disabled?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const inset = edgeToEdge ? 2 : 16;
@@ -123,6 +146,8 @@ export const MediaGridRow = React.memo(function MediaGridRow({
           size={size}
           onPress={onPress}
           squareEdges={edgeToEdge}
+          selected={selectedIds?.has(item.id)}
+          disabled={disabled}
         />
       ))}
     </View>
@@ -170,6 +195,26 @@ export function MediaGrid({
   );
 }
 const styles = StyleSheet.create({
+  selectionMarker: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.textPrimary,
+    backgroundColor: colors.canvas,
+    zIndex: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionChecked: { borderWidth: 3 },
+  selectionMarkText: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '700',
+  },
   mediaRow: { flexDirection: 'row' },
   squareTile: { borderRadius: 2 },
   row: { gap: grid.gap, marginBottom: grid.gap },

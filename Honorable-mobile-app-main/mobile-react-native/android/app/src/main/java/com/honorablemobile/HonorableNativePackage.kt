@@ -278,6 +278,21 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
             promise.reject("SHARE_MEDIA_ERROR","The selected file could not be shared. Check access and try again.",error)
         }
     }
+    @ReactMethod fun shareMediaBatch(payload:String,promise:Promise)=work.execute {
+        try {
+            val activity=context.currentActivity?:error("Open the library before sharing")
+            val chooser=MediaShare.prepareBatch(context,payload)
+            activity.runOnUiThread {
+                guarded(promise) {
+                    check(context.currentActivity===activity && context.lifecycleState==com.facebook.react.common.LifecycleState.RESUMED && !activity.isFinishing && !activity.isDestroyed) { "The sharing screen closed. Open the library and try again." }
+                    activity.startActivity(chooser)
+                    Arguments.createMap().apply{putBoolean("opened",true)}
+                }
+            }
+        } catch(error:Throwable) {
+            promise.reject("SHARE_MEDIA_BATCH_ERROR","The selected originals could not be shared. Check access and try again.",error)
+        }
+    }
     @ReactMethod fun openMedia(uri:String,kind:String,timestampMs:Double?,promise:Promise)=work.execute{guarded(promise){context.startActivity(Intent(context,HonorableMediaViewerActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION);putExtra("uri",uri);putExtra("kind",kind);timestampMs?.let{putExtra("timestampMs",it.toLong())}});Arguments.createMap().apply{putBoolean("opened",true)}}}
 
     @ReactMethod fun getEntitlementState(promise: Promise) = work.execute { guarded(promise) {

@@ -78,3 +78,38 @@ test('a final partial row updates without retaining or opening removed tiles', a
   expect(open).toHaveBeenCalledTimes(1);
   expect(open).toHaveBeenLastCalledWith(items[2]);
 });
+
+test('selection rows expose checked and unchecked originals as accessible checkboxes', async () => {
+  await act(async () => {
+    tree = Renderer.create(
+      <MediaGridRow
+        items={items}
+        onPress={open}
+        selectedIds={new Set(['1'])}
+      />,
+    );
+  });
+  expect(tile('image Photo').props.accessibilityRole).toBe('checkbox');
+  expect(tile('image Photo').props.accessibilityState.checked).toBe(true);
+  expect(tile('video Clip').props.accessibilityState.checked).toBe(false);
+  await act(async () => tile('video Clip').props.onPress());
+  expect(open).toHaveBeenCalledWith(items[1]);
+});
+test('busy rows disable every original checkbox without changing its selected identity', async () => {
+  await act(async () => {
+    tree = Renderer.create(
+      <MediaGridRow
+        items={items}
+        onPress={open}
+        selectedIds={new Set(['2'])}
+        disabled
+      />,
+    );
+  });
+  for (const label of ['image Photo', 'video Clip', 'image Last'])
+    expect(tile(label).props.disabled).toBe(true);
+  expect(tile('video Clip').props.accessibilityState).toEqual({
+    checked: true,
+    disabled: true,
+  });
+});
