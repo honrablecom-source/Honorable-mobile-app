@@ -17,7 +17,7 @@ class PhotoEditorSessionGuardTest {
   val type=Class.forName("sun.misc.Unsafe");val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
   fun allocate(clazz:Class<*>)=type.getMethod("allocateInstance",Class::class.java).invoke(allocator,clazz)
   val activity=allocate(PhotoEditorActivity::class.java) as PhotoEditorActivity
-  for((name,value)in listOf("accessMode" to EditorAccessMode.GUEST_BASIC,"guestInstance" to uuid,"source" to Uri.parse(source),"loadedScope" to scope,"edit" to original,"bitmap" to allocate(Bitmap::class.java)))set(activity,name,value)
+  for((name,value)in listOf("copyForeground" to true,"accessMode" to EditorAccessMode.GUEST_BASIC,"guestInstance" to uuid,"source" to Uri.parse(source),"loadedScope" to scope,"edit" to original,"bitmap" to allocate(Bitmap::class.java)))set(activity,name,value)
   return activity
  }
  private fun capture(activity:PhotoEditorActivity)=PhotoEditorActivity::class.java.getDeclaredMethod("photoControlScope").apply{isAccessible=true}.invoke(activity)

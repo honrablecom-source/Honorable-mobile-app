@@ -796,62 +796,74 @@ class PhotoEditorActivity:Activity(){
  }
  private fun manageAlphaGradient(){
   val scope=photoControlScope()?:return;val snapshot=edit
+  val captured=photoCloseState()
   PhotoAlphaGradientControls.show(this,snapshot.alphaGradient){value->
-   require(photoControlUnchanged(snapshot,scope)){"Photo or session changed. Open transparency fade again."}
-   if(value!=snapshot.alphaGradient){tool("alpha_gradient");change(snapshot.copy(alphaGradient=value))}
+   require(photoControlUnchanged(snapshot,scope,captured)){"Photo or session changed. Open transparency fade again."}
+   if(value!=snapshot.alphaGradient){tool("alpha_gradient");changePhotoControl(snapshot,scope,captured,snapshot.copy(alphaGradient=value))}
   }
  }
  private fun manageMonochrome(){
-  if(!canFinish())return
+  if(!canRequestPhotoMetadataReview())return
   val snapshot=edit
   val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
+  val captured=photoCloseState()
   PhotoMonochromeControls.show(this,snapshot.monochrome){value->
-   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Photo or account changed. Open black-and-white mix again."}
-   if(value!=snapshot.monochrome){tool("monochrome_channel_mix");change(snapshot.copy(monochrome=value))}
+   require(photoControlUnchanged(snapshot,scope,captured)){"Photo or account changed. Open black-and-white mix again."}
+   if(value!=snapshot.monochrome){tool("monochrome_channel_mix");changePhotoControl(snapshot,scope,captured,snapshot.copy(monochrome=value))}
   }
  }
  private fun manageSelectiveColor(){
-  if(!canFinish())return
+  if(!canRequestPhotoMetadataReview())return
   val snapshot=edit
   val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  val captured=photoCloseState()
   PhotoSelectiveColorControls.show(this,snapshot.selectiveColor){value->
-   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Photo or account changed. Open selective color again."}
-   tool("selective_color_range");change(snapshot.copy(selectiveColor=value))
+   require(photoControlUnchanged(snapshot,scope,captured)){"Photo or account changed. Open selective color again."}
+   tool("selective_color_range");changePhotoControl(snapshot,scope,captured,snapshot.copy(selectiveColor=value))
   }
  }
  private fun manageRegionRecipes(){
-  if(!canFinish())return
+  if(!canRequestPhotoMetadataReview())return
   val snapshot=edit
   val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  val captured=photoCloseState()
   val namespace=currentPresetNamespace()?:return
-  fun requireCurrent(){require(canFinish()&&edit==snapshot&&loadedScope==scope&&currentPresetNamespace()==namespace&&runCatching{currentScope()==scope}.getOrDefault(false)){"Photo or account changed. Open region recipes again."}}
+  fun requireCurrent(){require(photoControlUnchanged(snapshot,scope,captured)&&currentPresetNamespace()==namespace){"Photo or account changed. Open region recipes again."}}
   val store=PhotoRegionPresetStore(java.io.File(noBackupFilesDir,"photo-region-recipes"),namespace)
-  PhotoRegionPresetControls.show(this,snapshot,store,::requireCurrent){next->requireCurrent();tool("apply_region_recipe");change(next)}
+  PhotoRegionPresetControls.show(this,snapshot,store,::requireCurrent){next->requireCurrent();tool("apply_region_recipe");changePhotoControl(snapshot,scope,captured,next)}
  }
  private fun manageRegions(){
-  if(!canFinish())return
+  if(!canRequestPhotoMetadataReview())return
   val snapshot=edit
   val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  val captured=photoCloseState()
   PhotoRegionControls.show(this,snapshot.regions){next->
-   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Editor or account changed. Reopen local effect regions."}
-   tool("local_effect_regions");change(snapshot.copy(regions=next))
+   require(photoControlUnchanged(snapshot,scope,captured)){"Editor or account changed. Reopen local effect regions."}
+   tool("local_effect_regions");changePhotoControl(snapshot,scope,captured,snapshot.copy(regions=next))
   }
  }
  private fun manageObjects(){
-  if(!canFinish())return
+  if(!canRequestPhotoMetadataReview())return
   val snapshot=edit
   val scope=loadedScope?.takeIf{currentScope()==it}?:run{note.text="Session changed. Reopen this photo.";return}
+  val captured=photoCloseState()
   PhotoLayerControls.show(this,snapshot.layers){next->
-   require(canFinish()&&edit==snapshot&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)){"Editor or account changed. Reopen the object controls."}
-   tool("composition_objects");change(snapshot.copy(layers=next))
+   require(photoControlUnchanged(snapshot,scope,captured)){"Editor or account changed. Reopen the object controls."}
+   tool("composition_objects");changePhotoControl(snapshot,scope,captured,snapshot.copy(layers=next))
   }
  }
  private fun photoLoadCurrent(scope:String)=!activityClosed&&!isFinishing&&!isDestroyed&&runCatching{currentScope()==scope}.getOrDefault(false)
  private fun photoControlScope():String? {
-  if(!canFinish()||isDestroyed)return null
+  if(!canRequestPhotoMetadataReview())return null
   return loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";null}
  }
  private fun photoControlUnchanged(base:PhotoEdit,scope:String)=canFinish()&&!isDestroyed&&edit==base&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+ private fun photoControlUnchanged(base:PhotoEdit,scope:String,captured:PhotoCloseState)=canRequestPhotoMetadataReview()&&photoControlUnchanged(base,scope)&&captured.stillMatches(photoCloseState())
+ private fun commitPhotoControl(base:PhotoEdit,scope:String,captured:PhotoCloseState,next:PhotoEdit):Boolean {
+  if(!photoControlUnchanged(base,scope,captured))return false
+  return commitPhotoChange(next)
+ }
+ private fun changePhotoControl(base:PhotoEdit,scope:String,captured:PhotoCloseState,next:PhotoEdit){if(commitPhotoControl(base,scope,captured,next))preview()}
  private fun canFinish()=photoRecovery==null&&!activityClosed&&!photoProjectBusy&&!exportInProgress&&bitmap!=null&&exportEdit==null&&!readingText&&!enhancing&&!cuttingOut&&!isFinishing
  private fun chooseCreative(){if(!canFinish())return
   val tools=PhotoCreativeTool.values()
@@ -861,9 +873,9 @@ class PhotoEditorActivity:Activity(){
   val tools=PhotoCompositionTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Create & compose").setItems(tools.map{it.title}.toTypedArray()){_,index->compositionAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
  }
- private fun compositionAdjust(kind:PhotoCompositionTool){val scope=photoControlScope()?:return;val base=edit
+ private fun compositionAdjust(kind:PhotoCompositionTool){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
   PhotoCompositionControls.show(this,kind,base.composition){value->
-   if(photoControlUnchanged(base,scope)){if(value!=base.composition){tool("composition_${kind.name.lowercase()}");change(base.copy(composition=value))}}
+   if(photoControlUnchanged(base,scope,captured)){if(value!=base.composition){tool("composition_${kind.name.lowercase()}");changePhotoControl(base,scope,captured,base.copy(composition=value))}}
    else note.text="Photo or session changed. Open the composition tool again."
   }
  }
@@ -871,15 +883,15 @@ class PhotoEditorActivity:Activity(){
   val tools=PhotoEffectTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Photo effects").setItems(tools.map{it.title}.toTypedArray()){_,index->effectAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
  }
- private fun effectAdjust(kind:PhotoEffectTool){val scope=photoControlScope()?:return;val base=edit
+ private fun effectAdjust(kind:PhotoEffectTool){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
   PhotoEffectsControls.show(this,kind,base.effects){value->
-   if(photoControlUnchanged(base,scope)){if(value!=base.effects){tool("effect_${kind.name.lowercase()}");change(base.copy(effects=value))}}
+   if(photoControlUnchanged(base,scope,captured)){if(value!=base.effects){tool("effect_${kind.name.lowercase()}");changePhotoControl(base,scope,captured,base.copy(effects=value))}}
    else note.text="Photo or session changed. Open the effect again."
   }
  }
- private fun creativeAdjust(kind:PhotoCreativeTool){val scope=photoControlScope()?:return;val base=edit
+ private fun creativeAdjust(kind:PhotoCreativeTool){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
   PhotoCreativeControls.show(this,kind,base.creative){value->
-   if(photoControlUnchanged(base,scope)){if(value!=base.creative){tool("creative_${kind.name.lowercase()}");change(base.copy(creative=value))}}
+   if(photoControlUnchanged(base,scope,captured)){if(value!=base.creative){tool("creative_${kind.name.lowercase()}");changePhotoControl(base,scope,captured,base.copy(creative=value))}}
    else note.text="Photo or session changed. Open the tool again."
   }
  }
@@ -946,21 +958,21 @@ class PhotoEditorActivity:Activity(){
    }.show()
   }.setNegativeButton("Cancel",null).show()
  }
- private fun chooseRatio(){val scope=photoControlScope()?:return;val base=edit
-  android.app.AlertDialog.Builder(this).setTitle("Photo aspect ratio").setItems(arrayOf("Original","Square 1:1","Portrait 4:5","Wide 16:9","Vertical 9:16")){_,i->if(photoControlUnchanged(base,scope))change(base.copy(finish=base.finish.copy(ratio=listOf(0f,1f,.8f,16f/9,9f/16)[i])))}.setNegativeButton("Cancel",null).show()
+ private fun chooseRatio(){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
+  android.app.AlertDialog.Builder(this).setTitle("Photo aspect ratio").setItems(arrayOf("Original","Square 1:1","Portrait 4:5","Wide 16:9","Vertical 9:16")){_,i->if(photoControlUnchanged(base,scope,captured))changePhotoControl(base,scope,captured,base.copy(finish=base.finish.copy(ratio=listOf(0f,1f,.8f,16f/9,9f/16)[i])))}.setNegativeButton("Cancel",null).show()
  }
- private fun chooseMirror(){val scope=photoControlScope()?:return;val base=edit
-  android.app.AlertDialog.Builder(this).setTitle("Mirror photo").setItems(arrayOf("Flip horizontally","Flip vertically","Reset mirrors")){_,i->if(photoControlUnchanged(base,scope))change(base.copy(finish=when(i){0->base.finish.copy(mirrorX=!base.finish.mirrorX);1->base.finish.copy(mirrorY=!base.finish.mirrorY);else->base.finish.copy(mirrorX=false,mirrorY=false)}))}.setNegativeButton("Cancel",null).show()
+ private fun chooseMirror(){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
+  android.app.AlertDialog.Builder(this).setTitle("Mirror photo").setItems(arrayOf("Flip horizontally","Flip vertically","Reset mirrors")){_,i->if(photoControlUnchanged(base,scope,captured))changePhotoControl(base,scope,captured,base.copy(finish=when(i){0->base.finish.copy(mirrorX=!base.finish.mirrorX);1->base.finish.copy(mirrorY=!base.finish.mirrorY);else->base.finish.copy(mirrorX=false,mirrorY=false)}))}.setNegativeButton("Cancel",null).show()
  }
- private fun finishAdjust(title:String,kind:Int){val scope=photoControlScope()?:return;val base=edit
-  PhotoFinishControls.adjust(this,title,base.finish,kind){f->if(photoControlUnchanged(base,scope))change(base.copy(finish=f))else note.text="Photo or session changed. Open the tool again."}
+ private fun finishAdjust(title:String,kind:Int){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
+  PhotoFinishControls.adjust(this,title,base.finish,kind){f->if(photoControlUnchanged(base,scope,captured))changePhotoControl(base,scope,captured,base.copy(finish=f))else note.text="Photo or session changed. Open the tool again."}
  }
- private fun editCaption(){val scope=photoControlScope()?:return;val base=edit
-  PhotoFinishControls.caption(this,base.finish.caption){caption->if(photoControlUnchanged(base,scope))change(base.copy(finish=base.finish.copy(caption=caption)))else note.text="Photo or session changed. Open text again."}
+ private fun editCaption(){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
+  PhotoFinishControls.caption(this,base.finish.caption){caption->if(photoControlUnchanged(base,scope,captured))changePhotoControl(base,scope,captured,base.copy(finish=base.finish.copy(caption=caption)))else note.text="Photo or session changed. Open text again."}
  }
- private fun chooseExport(){val scope=photoControlScope()?:return;val base=edit
+ private fun chooseExport(){val scope=photoControlScope()?:return;val base=edit;val captured=photoCloseState()
   android.app.AlertDialog.Builder(this).setTitle("Export photo").setItems(arrayOf("PNG · transparency","JPEG · compact (70%)","JPEG · balanced (85%)","JPEG · high quality (95%)")){_,i->
-   if(!photoControlUnchanged(base,scope)){note.text="Photo or session changed. Open export again.";return@setItems}
+   if(!photoControlUnchanged(base,scope,captured)){note.text="Photo or session changed. Open export again.";return@setItems}
    exportEncoding=if(i==0)SafePhotoCopy.Encoding.PNG else SafePhotoCopy.Encoding.JPEG;exportQuality=listOf(100,70,85,95)[i]
    exportEdit=base;waitingForPicker=true
    try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=exportEncoding.mime;putExtra(Intent.EXTRA_TITLE,"Noble-copy.${exportEncoding.extension}")},20)}catch(e:Exception){waitingForPicker=false;exportEdit=null;note.text="No app is available to save a copy."}
@@ -969,14 +981,14 @@ class PhotoEditorActivity:Activity(){
  private fun chooseBackground(){
    if(!allowOnDeviceAi())return
   val scope=photoControlScope()?:return
-  val base=edit;val request=revision
+  val base=edit;val captured=photoCloseState();val request=revision
   fun commit(background:PhotoBackground?){
-   if(!photoControlUnchanged(base,scope)||request!=revision){note.text="Photo or session changed. Open person background again.";return}
-   if(background==null){tool("person_background");change(base.copy(personCutout=false,background=null))}else cutOutPerson(background=background)
+   if(!photoControlUnchanged(base,scope,captured)||request!=revision){note.text="Photo or session changed. Open person background again.";return}
+   if(background==null){tool("person_background");changePhotoControl(base,scope,captured,base.copy(personCutout=false,background=null))}else cutOutPerson(background=background)
   }
   val names=arrayOf("Blur background","White background","Black background","Gray background","Restore original background")
   android.app.AlertDialog.Builder(this).setTitle("AI person background · beta").setItems(names){_,which->
-   if(!photoControlUnchanged(base,scope)||request!=revision){note.text="Photo or session changed. Open person background again.";return@setItems}
+   if(!photoControlUnchanged(base,scope,captured)||request!=revision){note.text="Photo or session changed. Open person background again.";return@setItems}
    when(which){
     0->{var strength=base.background?.strength?:45
      val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(20.dp(),12.dp(),20.dp(),12.dp())}
