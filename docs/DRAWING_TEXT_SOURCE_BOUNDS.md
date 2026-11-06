@@ -1,0 +1,11 @@
+# Editable drawing text admission
+
+November 6: **0 new user-facing features; 1 correctness fix; 0 scaffolding. Source93/500 and batch55 remain unchanged.**
+
+Drawing validation already bounded displayed `text` to2000 UTF16 code units, but accepted oversized or nonstring `originalText`. The pinned Excalidraw0.18.1 restore path preserves `originalText` for editable text and subsequent wrapping/font operations use it. This allowed imported/restored editable source to bypass the intended per-object limit. No device crash or security exploit is claimed.
+
+`validateDrawingElements` now applies the same inclusive2000-unit string budget to a supplied `originalText`, before renderer restoration. Legacy absent values remain compatible. Whitespace, Unicode and permitted empty strings are preserved without truncation; deleted objects do not consume the active text budget. Malformed or oversized supplied values reject the complete operation. Existing unreadable drafts remain stored and available through the exact-text recovery copy workflow. The fix adds no text conversion, network use or new limit on valid shorter text.
+
+Eight focused test families cover scene encode/decode, legacy compatibility, UTF16 boundaries, malformed fields, JSON/file/graph import, whole shelf admission, opaque recovery and deleted objects. Five of the eight fail against the unchanged source before the fix; all eight pass after. All189 drawing JavaScript tests and67 required Node tests pass. Actual browser tests verify oversized/nonstring restored drafts route to recovery, exact downloaded archive/reload/no draft writes, three viewport sizes, and refused JSON open/insert/file imports preserve the existing drawing. Recovery screenshots were inspected at320px. Evidence and hashes: `.context/drawing-text-bounds/verification.json`, before/target/all/node/browser logs and browser results/screenshots.
+
+The current isolated browser bundle was regenerated in `/tmp` only. No dependencies, search ranking, billing, account data or private media changed. Android WebView, provider/lifecycle/device behavior, full native/APK build and store readiness remain unverified; tracked drawing asset regeneration remains deferred to the approximately138-source-workflow build batch.

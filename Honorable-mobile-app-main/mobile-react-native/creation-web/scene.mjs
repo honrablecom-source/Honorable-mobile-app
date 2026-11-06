@@ -25,6 +25,8 @@ export function validateDrawingElements(elements) {
     if (!['rectangle', 'diamond', 'ellipse', 'line', 'arrow', 'freedraw', 'text', 'frame', 'image'].includes(element.type)) throw Error('This local workspace supports drawing, photos, shapes and text.');
     for (const field of ['x', 'y', 'width', 'height']) if (!Number.isFinite(element[field]) || Math.abs(element[field]) > 1e6) throw Error('Drawing coordinates exceed the supported bounds.');
     if ((element.type === 'text' || element.text != null) && (typeof element.text !== 'string' || element.text.length > 2000)) throw Error('Use shorter text.');
+    // The renderer uses originalText when restoring/wrapping editable text. Validate it too; never truncate saved work.
+    if (element.originalText !== undefined && (typeof element.originalText !== 'string' || element.originalText.length > 2000)) throw Error('Use shorter editable text.');
     if (element.type === 'image') {
       if (!validPhotoId(element.fileId) || element.width <= 0 || element.height <= 0 || !Array.isArray(element.scale) || element.scale.length !== 2 || element.scale.some(value => value !== 1 && value !== -1)) throw Error('Stored photo placement is invalid.');
       if (element.status != null && !['saved', 'pending', 'error'].includes(element.status)) throw Error('Stored photo status is invalid.');

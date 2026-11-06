@@ -1,3 +1,7 @@
+## November 6 — Editable drawing source-text admission
+
+**0 new features; 1 correctness fix; 0 scaffolding. Source93/500, batch55 unchanged.** Supplied `originalText` now shares displayed text’s2000-unit string budget before renderer restore; legacy absent fields remain supported. Invalid drafts are preserved for exact recovery, and invalid imports leave current work unchanged. Five new test families fail before the fix; all189 drawing tests,67 required Node tests and actual recovery/import browser checks pass. [Evidence and limits](DRAWING_TEXT_SOURCE_BOUNDS.md). No full native/APK/device check; packaged drawing assets remain deferred to approximately138 workflows.
+
 ## November 6 — SVG file delivery improvement
 
 **0 new features; 1 existing-workflow delivery improvement; 1 native adapter. Source93/500, batch55 unchanged.** Fresh prepared SVG now has an Android read-only file share handoff with bounded Unicode transport, ownership/cancellation checks and selection/draft preservation. 38 focused JVM/API,181 drawing JS,67 Node tests and actual SVG/print browser regressions pass. [Evidence and limits](DRAWING_SVG_FILE_SHARE.md). No actual Android chooser/provider/device or full native/APK build; drawing assets remain deferred to the approximately138-workflow batch.
