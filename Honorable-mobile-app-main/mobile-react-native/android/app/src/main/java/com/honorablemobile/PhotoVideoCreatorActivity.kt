@@ -34,6 +34,14 @@ class PhotoVideoCreatorActivity:Activity(){
     private lateinit var review:LinearLayout
     private val photoNames=mutableMapOf<String,String>()
     private var nameRequest=0
+    private val planGate=PhotoVideoPlanGate()
+    private lateinit var savePlan:Button;private lateinit var openPlans:Button
+    private var planDialog:android.app.AlertDialog?=null
+    private data class PlanView(val selection:PhotoVideoSelection,val name:String,val format:PhotoVideoFormat,val defaultMs:Long)
+    private fun editingLocked()=job!=null||planGate.busy()
+    private fun planView()=PlanView(selection,name.text.toString(),PhotoVideoFormat.entries[format.selectedItemPosition],defaultHold())
+    private fun samePlanView(view:PlanView)=selection===view.selection&&name.text.toString()==view.name&&PhotoVideoFormat.entries[format.selectedItemPosition]==view.format&&defaultHold()==view.defaultMs
+    private fun planStore()=PhotoVideoPlanStore(File(filesDir,"photo-video-preparation-plans"))
     private var encoder:PhotoVideoEncoder?=null
     @Volatile private var alive=true
     @Volatile private var job:Job?=null
@@ -52,14 +60,17 @@ class PhotoVideoCreatorActivity:Activity(){
         name=EditText(this).apply{hint="Video project name";contentDescription="Video project name";setText(state?.getString("name")?:"Photo story");isSingleLine=true;filters=arrayOf(android.text.InputFilter.LengthFilter(40));setTextColor(Color.BLACK)};body.addView(name)
         format=Spinner(this).apply{adapter=ArrayAdapter(this@PhotoVideoCreatorActivity,android.R.layout.simple_spinner_dropdown_item,PhotoVideoFormat.entries.map{it.title});contentDescription="Photo video format";setSelection((state?.getInt("format")?:0).coerceIn(0,PhotoVideoFormat.entries.lastIndex))};body.addView(format)
         duration=Spinner(this).apply{adapter=ArrayAdapter(this@PhotoVideoCreatorActivity,android.R.layout.simple_spinner_dropdown_item,listOf("Default: 3 seconds","Default: 5 seconds","Default: 8 seconds","Default: 10 seconds"));contentDescription="Default photo hold";setSelection((state?.getInt("duration")?:1).coerceIn(0,3))};body.addView(duration)
-        choose=button("Choose photos"){if(job==null)pickPhotos()}
-        addPhotos=button("Add more photos"){if(job==null&&selection.items.size<20)pickPhotos(true)}
+        choose=button("Choose photos"){if(!editingLocked())pickPhotos()}
+        addPhotos=button("Add more photos"){if(!editingLocked()&&selection.items.size<20)pickPhotos(true)}
         fitTiming=button("Fit default holds to total"){fitPhotoTiming()}
         undoSelection=button("Undo photo edit"){restoreSelectionEdit(false)}
         redoSelection=button("Redo photo edit"){restoreSelectionEdit(true)}
         body.addView(TextView(this).apply{text="Undo/Redo keeps the last 20 selection, order and individual hold edits while this screen stays open. Default hold, format and name are separate settings. Reopening restores the current selection without edit history.";setTextColor(Color.DKGRAY)})
         review=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};body.addView(review)
-        start=button("Create editable video project"){if(job==null)begin()}
+        body.addView(TextView(this).apply{text="Preparation plans keep photo locations, order and timing privately on this device before encoding. Save keeps read access where Android allows; photos are not copied and access can still expire. Prepared video projects are separate.";setTextColor(Color.DKGRAY)})
+        savePlan=button("Save preparation plan"){savePreparationPlan()}
+        openPlans=button("Open preparation plans"){openPreparationPlans()}
+        start=button("Create editable video project"){if(!editingLocked())begin()}
         button("Cancel preparation"){job?.let{cancel(it,"Preparation cancelled. Original photos and completed projects were kept.")}}
         note=TextView(this).apply{setTextColor(Color.DKGRAY)};body.addView(note)
         val recovered=runCatching{PhotoVideoEntry.initial(state,intent)}
@@ -69,13 +80,13 @@ class PhotoVideoCreatorActivity:Activity(){
         setContentView(ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
         renderSelection();loadPhotoNames()
         duration.onItemSelectedListener=object:android.widget.AdapterView.OnItemSelectedListener{
-            override fun onItemSelected(parent:android.widget.AdapterView<*>?,view:android.view.View?,position:Int,id:Long){if(job==null)renderSelection()}
+            override fun onItemSelected(parent:android.widget.AdapterView<*>?,view:android.view.View?,position:Int,id:Long){if(!editingLocked())renderSelection()}
             override fun onNothingSelected(parent:android.widget.AdapterView<*>?){}
         }
     }
-    private fun pickPhotos(append:Boolean=false){try{startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/*";putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);putExtra(Intent.EXTRA_LOCAL_ONLY,true);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},if(append)402 else 401)}catch(failure:Exception){note.text="No local photo picker is available."}}
+    private fun pickPhotos(append:Boolean=false){try{startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="image/*";putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);putExtra(Intent.EXTRA_LOCAL_ONLY,true);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)},if(append)402 else 401)}catch(failure:Exception){note.text="No local photo picker is available."}}
     @Deprecated("Platform result API") override fun onActivityResult(request:Int,result:Int,data:Intent?){
-        super.onActivityResult(request,result,data);if(request !in setOf(401,402)||result!=RESULT_OK||job!=null||!alive||isFinishing||isDestroyed)return
+        super.onActivityResult(request,result,data);if(request !in setOf(401,402)||result!=RESULT_OK||editingLocked()||!alive||isFinishing||isDestroyed)return
         val selected=buildList{data?.clipData?.let{clip->for(i in 0 until clip.itemCount)add(clip.getItemAt(i).uri)};data?.data?.let(::add)}.distinct()
         if(selected.size !in 1..20||selected.any{it.scheme!="content"}){note.text="Choose 1–20 local photo documents.";return}
         val checked=runCatching{if(request==402)selection.append(selected.map{it.toString()})else PhotoVideoSelection.of(selected.map{it.toString()},selection.holds.filterKeys{key->selected.any{it.toString()==key}})}
@@ -92,12 +103,14 @@ class PhotoVideoCreatorActivity:Activity(){
     private fun renderSelection(){
         if(!::review.isInitialized)return
         review.removeAllViews()
-        if(::start.isInitialized)start.isEnabled=job==null&&selection.items.isNotEmpty()
-        if(::addPhotos.isInitialized)addPhotos.isEnabled=job==null&&selection.items.size<20
-        if(::fitTiming.isInitialized)fitTiming.isEnabled=job==null&&selection.items.any{it !in selection.holds}
+        if(::savePlan.isInitialized)savePlan.isEnabled=!editingLocked()&&selection.items.isNotEmpty()
+        if(::openPlans.isInitialized)openPlans.isEnabled=!editingLocked()
+        if(::start.isInitialized)start.isEnabled=!editingLocked()&&selection.items.isNotEmpty()
+        if(::addPhotos.isInitialized)addPhotos.isEnabled=!editingLocked()&&selection.items.size<20
+        if(::fitTiming.isInitialized)fitTiming.isEnabled=!editingLocked()&&selection.items.any{it !in selection.holds}
         if(::choose.isInitialized)choose.text=if(selection.items.isEmpty())"Choose photos"else"Replace photo selection"
-        if(::undoSelection.isInitialized)undoSelection.isEnabled=job==null&&selectionHistory.canUndo
-        if(::redoSelection.isInitialized)redoSelection.isEnabled=job==null&&selectionHistory.canRedo
+        if(::undoSelection.isInitialized)undoSelection.isEnabled=!editingLocked()&&selectionHistory.canUndo
+        if(::redoSelection.isInitialized)redoSelection.isEnabled=!editingLocked()&&selectionHistory.canRedo
         val expected=selection
         val plan=expected.durations(defaultHold())
         review.addView(TextView(this).apply{text=if(expected.items.isEmpty())"No photos in this selection."else "Photo order · ${expected.items.size} selected · about ${String.format(java.util.Locale.ROOT,"%.1f",plan.sum()/1000.0)} seconds. Set holds, move or remove before preparation; original photos are kept.";setTextColor(Color.DKGRAY)})
@@ -107,15 +120,15 @@ class PhotoVideoCreatorActivity:Activity(){
             row.addView(TextView(this).apply{text="${index+1}. $label";setTextColor(Color.BLACK);setPadding(0,12,0,0)})
             row.addView(Button(this).apply{
                 text="Hold ${String.format(java.util.Locale.ROOT,"%.3f",plan[index]/1000.0)} s · ${if(uri in expected.holds)"custom"else "default"}"
-                contentDescription="Set photo ${index+1} hold: $label";app.honorable.editor.EditorChrome.style(this);isEnabled=job==null
-                setOnClickListener{if(alive&&job==null&&selection===expected)editHold(index,expected,label)}
+                contentDescription="Set photo ${index+1} hold: $label";app.honorable.editor.EditorChrome.style(this);isEnabled=!editingLocked()
+                setOnClickListener{if(alive&&!editingLocked()&&selection===expected)editHold(index,expected,label)}
             })
             val controls=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
             fun action(text:String,enabled:Boolean,update:()->PhotoVideoSelection){
                 controls.addView(Button(this).apply{
-                    this.text=text;contentDescription="$text photo ${index+1}: $label";app.honorable.editor.EditorChrome.style(this);isEnabled=job==null&&enabled
+                    this.text=text;contentDescription="$text photo ${index+1}: $label";app.honorable.editor.EditorChrome.style(this);isEnabled=!editingLocked()&&enabled
                     setOnClickListener{
-                        if(!alive||job!=null||selection!==expected)return@setOnClickListener
+                        if(!alive||editingLocked()||selection!==expected)return@setOnClickListener
                         selection=update();renderSelection();note.text="${selection.items.size} photos selected. Preparation will use this order; originals are unchanged."
                     }
                 },LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
@@ -127,10 +140,10 @@ class PhotoVideoCreatorActivity:Activity(){
         }
     }
     private fun fitPhotoTiming(){
-        if(!alive||isFinishing||isDestroyed||job!=null||selection.items.none{it !in selection.holds})return
+        if(!alive||isFinishing||isDestroyed||editingLocked()||selection.items.none{it !in selection.holds})return
         val expected=selection;val range=expected.fitTotalRange()
         fun seconds(ms:Long)=String.format(java.util.Locale.ROOT,"%.3f",ms/1000.0)
-        fun valid()=alive&&!isFinishing&&!isDestroyed&&job==null&&selection===expected
+        fun valid()=alive&&!isFinishing&&!isDestroyed&&!editingLocked()&&selection===expected
         val field=EditText(this).apply{hint="Requested total seconds";contentDescription="Requested photo story total in seconds";setSingleLine(true);setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(8));setText(seconds(expected.durations(defaultHold()).sum()))}
         val dialog=android.app.AlertDialog.Builder(this).setTitle("Fit default photo holds")
             .setMessage("Keep every custom hold. Split the remaining time equally across photos still using the default,within 1–10 seconds each. Feasible total: ${seconds(range.first)}–${seconds(range.last)} seconds. This one-time edit turns those default holds into custom holds;Use default on a photo resets it. New photos added later use the default menu. Prepared video can round to codec frames;this plans requested timing.")
@@ -150,7 +163,7 @@ class PhotoVideoCreatorActivity:Activity(){
         }};dialog.show()
     }
     private fun restoreSelectionEdit(redo:Boolean){
-        if(!alive||isFinishing||isDestroyed||job!=null)return
+        if(!alive||isFinishing||isDestroyed||editingLocked())return
         val changed=if(redo)selectionHistory.redo()else selectionHistory.undo()
         if(!changed)return
         renderSelection();loadPhotoNames()
@@ -159,7 +172,7 @@ class PhotoVideoCreatorActivity:Activity(){
     private fun defaultHold():Long=listOf(3L,5L,8L,10L)[duration.selectedItemPosition]*1000
     private fun editHold(index:Int,expected:PhotoVideoSelection,label:String){
         val field=EditText(this).apply{hint="Hold in seconds";contentDescription="Photo hold in seconds";setTextColor(Color.BLACK);setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;setText(String.format(java.util.Locale.ROOT,"%.3f",expected.durations(defaultHold())[index]/1000.0))}
-        fun valid()=alive&&!isFinishing&&!isDestroyed&&job==null&&selection===expected
+        fun valid()=alive&&!isFinishing&&!isDestroyed&&!editingLocked()&&selection===expected
         val dialog=android.app.AlertDialog.Builder(this).setTitle("Photo ${index+1} hold").setMessage("$label\nChoose 1–10 seconds with up to three decimal places. This affects preparation only; the video timeline stays editable. Use default follows the duration menu for this photo.").setView(field)
             .setNegativeButton("Cancel",null).setNeutralButton("Use default"){_,_->if(valid()){selection=expected.withHold(index,null);renderSelection()}}.setPositiveButton("Set hold",null).create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
@@ -181,6 +194,107 @@ class PhotoVideoCreatorActivity:Activity(){
             runOnUiThread{if(alive&&request==nameRequest){found.forEach{(uri,label)->if(label!=null&&uri in selection.items)photoNames[uri]=label};renderSelection()}}
         }
     }
+    private fun <T> planWork(action:(()->Unit)->T,success:(T)->Unit){
+        if(!alive||isFinishing||isDestroyed||editingLocked())return
+        val lease=planGate.begin()?:return
+        planDialog?.dismiss();planDialog=null
+        val expected=planView();setBusy(true);note.text="Working with private preparation plan metadata… Original photos are kept."
+        worker.execute{
+            val result=runCatching{action{check(alive&&planGate.current(lease)){"Preparation plan operation was cancelled"}}}
+            runOnUiThread{
+                if(!alive)return@runOnUiThread
+                val accept=planGate.finish(lease);setBusy(editingLocked())
+                if(!accept)return@runOnUiThread
+                if(!samePlanView(expected)){note.text="Plan settings changed. Open the preparation shelf to check saved plans.";return@runOnUiThread}
+                result.onSuccess(success).onFailure{note.text=it.message?:"Preparation plan operation failed. Current photos and saved plans were kept."}
+            }
+        }
+    }
+    private fun readablePlan(plan:PhotoVideoPlan,requireCurrent:()->Unit){
+        plan.selection.items.forEach{reference->
+            requireCurrent();val uri=Uri.parse(reference)
+            require(uri.scheme=="content"&&contentResolver.getType(uri)?.startsWith("image/")==true){"A planned photo is unavailable or is no longer an image. Current work and the saved plan were kept."}
+            contentResolver.openFileDescriptor(uri,"r").use{check(it!=null){"A planned photo is unreadable. Current work and the saved plan were kept."}}
+            requireCurrent()
+        }
+    }
+    private fun savePreparationPlan(){
+        if(!alive||isFinishing||isDestroyed||editingLocked()||planGate.review()==null)return
+        val view=planView()
+        val plan=runCatching{PhotoVideoPlan(java.util.UUID.randomUUID().toString(),view.name.trim(),view.format,view.defaultMs,view.selection)}
+            .getOrElse{note.text=it.message?:"Check the plan name and chosen photos.";return}
+        planWork({current->
+            readablePlan(plan,current);planStore().save(plan,current)
+            // Retain only an already offered read grant, only after this explicit save commits.
+            var kept=0
+            plan.selection.items.forEach{reference->
+                current();val uri=Uri.parse(reference)
+                val retained=try{
+                    contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission}
+                }catch(_:Exception){false}
+                if(retained)kept++
+                current()
+            }
+            kept
+        }){kept->
+            note.text="Saved preparation plan. No clips were encoded. Kept read access to $kept/${plan.selection.items.size} photos where Android allowed; other access follows current library permissions. You may need permission again."
+        }
+    }
+    private fun openPreparationPlans(){
+        planWork({current->planStore().list(current)}){rows->showPlanShelf(rows)}
+    }
+    private fun showPlanShelf(rows:List<PhotoVideoPlanStore.Summary>){
+        if(rows.isEmpty()){note.text="No preparation plans saved. Choose photos, set their order and holds, then save a plan before encoding.";return}
+        val epoch=planGate.review()?:return;val expected=planView()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Preparation plans · ${rows.size}/20")
+            .setItems(rows.map{if(it.readable)it.name else "${it.name} · ${it.id.take(8)}"}.toTypedArray()){_,index->
+                if(planDialog!==dialog||!alive||isFinishing||isDestroyed||!planGate.canReview(epoch)||!samePlanView(expected))return@setItems
+                planDialog=null;val row=rows[index]
+                if(row.readable)planWork({current->
+                    val record=planStore().load(row.id,current)
+                    require(record.token==row.token){"Saved plan changed. Open the shelf again."}
+                    readablePlan(record.plan,current);record
+                }){record->reviewPreparationPlan(record)}
+                else confirmPlanDelete(row)
+            }.setNegativeButton("Cancel",null).create()
+        showOwnedPlanDialog(dialog)
+    }
+    private fun showOwnedPlanDialog(dialog:android.app.AlertDialog){
+        planDialog?.dismiss();planDialog=dialog
+        dialog.setOnDismissListener{if(planDialog===dialog)planDialog=null}
+        dialog.show()
+    }
+    private fun showPlanReview(title:String,message:String,positive:Pair<String,()->Unit>?,neutral:Pair<String,()->Unit>?=null){
+        val epoch=planGate.review()?:return;val expected=planView()
+        lateinit var dialog:android.app.AlertDialog
+        fun act(action:()->Unit){
+            if(planDialog!==dialog||!alive||isFinishing||isDestroyed||!planGate.canReview(epoch)||!samePlanView(expected))return
+            planDialog=null;action()
+        }
+        val builder=android.app.AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null)
+        positive?.let{button->builder.setPositiveButton(button.first){_,_->act(button.second)}}
+        neutral?.let{button->builder.setNeutralButton(button.first){_,_->act(button.second)}}
+        dialog=builder.create();showOwnedPlanDialog(dialog)
+    }
+    private fun reviewPreparationPlan(record:PhotoVideoPlanStore.Record){
+        val plan=record.plan
+        val total=String.format(java.util.Locale.ROOT,"%.1f",plan.selection.durations(plan.defaultMs).sum()/1000.0)
+        showPlanReview("Open preparation plan?","${plan.name}\n${plan.selection.items.size} photos · about $total seconds\n${plan.format.title} · default ${plan.defaultMs/1000} seconds\n\nReplaces the current chosen photos, order, holds, name and format, and clears selection Undo/Redo. No encoding starts. Original photos are not copied; access can expire. Review everything before Create.",
+            "Open plan" to {
+                selectionHistory.reset(plan.selection);name.setText(plan.name);format.setSelection(plan.format.ordinal)
+                duration.setSelection(PhotoVideoPlan.DEFAULT_HOLDS.indexOf(plan.defaultMs));photoNames.clear();renderSelection();loadPhotoNames()
+                note.text="Preparation plan opened for review. No clips were encoded; current selection Undo/Redo was reset."
+            },
+            "Delete plan" to {confirmPlanDelete(PhotoVideoPlanStore.Summary(plan.id,plan.name,true,record.token))})
+    }
+    private fun confirmPlanDelete(row:PhotoVideoPlanStore.Summary){
+        val token=row.token
+        if(token==null){showPlanReview("Preparation plan kept","This saved plan is too large or cannot be read safely. It was kept unchanged. No photos or prepared projects were deleted.",null);return}
+        showPlanReview("Delete preparation plan?","${row.name}\n\n${if(row.readable)""else "This plan is unreadable and was not repaired. "}Delete only this exact saved metadata record? Original photos, the current selection and prepared video projects stay. Shared photo permissions are not revoked. This cannot be undone.",
+            "Delete metadata" to {planWork({current->planStore().delete(row.id,token,current)}){note.text="Deleted preparation plan metadata. Current photos, originals and prepared video projects were kept."}})
+    }
     private fun begin(){
         val label=name.text.toString().trim();val chosen=PhotoVideoFormat.entries[format.selectedItemPosition];val plan=selection.durations(defaultHold())
         val checked=runCatching{require(photos.size in 1..20){"Choose 1–20 photos first"};PhotoVideoProject("12345678-1234-1234-1234-123456789abc",label,packageName+".creation",chosen,listOf(PhotoVideoAsset(1,"0".repeat(64))))}
@@ -193,7 +307,7 @@ class PhotoVideoCreatorActivity:Activity(){
             staging
         };runOnUiThread{if(alive&&job===value&&!value.cancelled.get())result.onSuccess{prepare(value,0)}.onFailure{fail(value,it)}}}
     }
-    private fun setBusy(busy:Boolean){start.isEnabled=!busy&&selection.items.isNotEmpty();choose.isEnabled=!busy;name.isEnabled=!busy;format.isEnabled=!busy;duration.isEnabled=!busy;renderSelection()}
+    private fun setBusy(busy:Boolean){val locked=busy||editingLocked();start.isEnabled=!locked&&selection.items.isNotEmpty();choose.isEnabled=!locked;name.isEnabled=!locked;format.isEnabled=!locked;duration.isEnabled=!locked;if(::savePlan.isInitialized)savePlan.isEnabled=!locked&&selection.items.isNotEmpty();if(::openPlans.isInitialized)openPlans.isEnabled=!locked;renderSelection()}
     private fun prepare(value:Job,index:Int){
         if(!alive||job!==value||value.cancelled.get())return
         if(index==value.photos.size){commit(value);return}
@@ -235,5 +349,7 @@ class PhotoVideoCreatorActivity:Activity(){
         worker.execute{value.staging?.let{runCatching{PhotoVideoProjectStore(this).abandon(it)}};runOnUiThread{if(alive&&job===value){job=null;setBusy(false);note.text=message}}}
     }
     override fun onSaveInstanceState(out:Bundle){super.onSaveInstanceState(out);if(::name.isInitialized){out.putString("name",name.text.toString());out.putInt("format",format.selectedItemPosition);out.putInt("duration",duration.selectedItemPosition);out.putStringArrayList("photos",ArrayList(photos.map{it.toString()}));out.putLongArray("photoHolds",selection.savedHolds())}}
-    override fun onDestroy(){alive=false;nameRequest++;job?.let{it.cancelled.set(true);encoder?.cancel();encoder=null;worker.execute{it.staging?.let{staging->runCatching{PhotoVideoProjectStore(this).abandon(staging)}}}};worker.shutdown();super.onDestroy()}
+    override fun onResume(){super.onResume();planGate.resume();if(::start.isInitialized)setBusy(editingLocked())}
+    override fun onPause(){planGate.pause();planDialog?.dismiss();planDialog=null;super.onPause()}
+    override fun onDestroy(){planGate.destroy();planDialog?.dismiss();planDialog=null;alive=false;nameRequest++;job?.let{it.cancelled.set(true);encoder?.cancel();encoder=null;worker.execute{it.staging?.let{staging->runCatching{PhotoVideoProjectStore(this).abandon(staging)}}}};worker.shutdown();super.onDestroy()}
 }

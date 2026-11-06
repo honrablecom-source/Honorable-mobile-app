@@ -1,0 +1,31 @@
+# C090 — Save unfinished photo-video preparation plans
+
+**1 new experimental source workflow; 0 separate fixes; 0 scaffolding.** The shared register advances88→89/500, batch51 beyond the38 baseline. No full native/APK build or device acceptance. This extends C028 with durable *pre-encoding* recipes; completed prepared video projects and transient screen recreation already existed and are not counted again.
+
+The existing guest photo-video creator now offers Save preparation plan and Open preparation plans. A plan keeps its name, exact ordered1–20 original photo references, individual/custom holds, default hold and output format. It copies no photos and starts no encoding. Plans are private guest data on this device, separate from account-owned projects and prepared video files. Android backup remains disabled.
+
+Saving checks each original's image MIME and read-mode descriptor, then saves a new named record. Names are bounded1–40 characters; the shelf holds up to20 plans. An existing name, including case variants, or ID cannot be overwritten. After a successful explicit save, the creator attempts to retain only an already offered read grant; unsupported grants do not undo a saved plan, and the status reports the retained count. No write grant is taken and no grant is retained merely by listing/opening the shelf. Persistent access can still be lost when a document moves or is deleted; see [Android document-access guidance](https://developer.android.com/training/data-storage/shared/documents-files).
+
+Opening checks the exact listed metadata token and current photo access, then shows a replacement review. Approval restores selection/order/holds/name/format/default together and explicitly clears selection Undo/Redo. The opened plan remains a reviewable recipe until the existing Create action starts preparation. An inaccessible original leaves current work and saved metadata unchanged; regranting access or choosing available photos may be necessary. URI equality does not prove unchanged photo bytes.
+
+Deletion requires a separate confirmation and an exact current record token. It deletes only that plan metadata, retaining original photos, current selection, prepared projects and shared photo grants. Small corrupt records stay visible and may be explicitly deleted by their exact bytes; oversized/unreadable records without a safe bounded token are kept rather than blindly erased. Interrupted pending files are not automatically removed by another save.
+
+The codec has a strict version/header, identity and count validation, bounded64KiB payload and SHA-256 integrity trailer. This detects corruption; it is not authentication or encryption. Names never become filenames. Private storage uses UUID paths, canonical-path checks, bounded reads, process-wide serialization, a synced temporary write, verification and rename, followed by readback. It does not promise cross-process locking, directory fsync or power-loss durability.
+
+Slow metadata work shares admission with the existing selection/timing/encoding controls. Foreground epochs invalidate old dialogs, a lease keeps pending work owned until completion, and a stale completion cannot release a newer operation. Review approval also binds the current selection object/name/format/default and exact dialog. Pause/destroy dismiss plan dialogs. Cancellation remains cooperative: metadata save/delete or a grant may commit near a foreground change, and completed side effects are not rolled back.
+
+## Verified evidence
+
+- **65 focused host tests pass:22new +43retained.** Nine model/codec/foreground-gate cases,10 real temporary-filesystem cases and3 constructor-free checks on the actual current Creator. Retained selection/history/entry/share tests continue to pass.
+- Tests cover exact ordered restoration, all formats/defaults, Unicode and strict bounds, corruption/truncation/version/identity/trailing-data rejection,20-plan limit, duplicate/concurrent names, cancelled pending cleanup, corrupt-record preservation/exact deletion, stale-token refusal, traversal/symlinks and operation ownership.
+- The actual Creator admission tests bypass its Android constructor and run guards before widgets/context are touched. They do not run Android dialogs, a physical lifecycle or providers.
+- Current Creator plus7 actual helpers/models API-compile against real Android API34 and Media3 common1.11.1, with retained older reference APIs for the surrounding editor. This is not a full current native-module/all-source/targetSDK37 build.
+- **67 required Node tests pass.**13 source-wiring checks pass; they are source checks, not runtime tests. React Native source is unchanged; its prior266-test/type/lint evidence remains separate.
+
+Full logs, pinned public dependency hashes, runners, source hashes and the small focused host/API test jar are retained under `.context/photo-video-plans/`. The final source's first compile was interrupted by an environment reset before a pass was established. After confirming the process and temporary tools were gone, all4 tools were restored with exact recorded hashes and the current65-test runner completed exit0. Interrupted output is retained and is not counted as a pass.
+
+No widgets/dialog layout, font scaling/accessibility, real provider reads or persisted-grant behavior, Android storage/rename durability, lifecycle/rotation/process death, encode/export/reopen, full app or physical-device proof. No APK/signing/store-ready claim. No new app dependency/manifest permission, personal-media upload, search-ranking, credit or ledger change; no benchmark/holdout run.
+
+## Device checks after the agreed build batch
+
+Use synthetic photos:save a reordered/custom-timed plan, close/force-stop and reopen it; compare every setting and original hash. Test offered and refused persisted grants, permission revocation/moved files, cancelled replacement, deliberate opening and explicit Create. Exercise duplicate names/20-plan cap, metadata-only deletion, corrupt/oversized records, slow-provider pause/rotation/close and stale callbacks. Verify large fonts, screen-reader labels, reachability and white/black contrast. Confirm current work stays unchanged on refusal and no clips appear before Create. These checks are pending.

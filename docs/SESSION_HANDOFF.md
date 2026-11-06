@@ -1,3 +1,9 @@
+## November 6 — C090 unfinished photo-video preparation plans
+
+**1 new experimental source workflow; 0 separate fixes; 0 scaffolding. Source89/500, batch51 beyond38; broad native/APK target~138.** The guest creator can save/reopen named pre-encoding plans with exact photo order/references, holds/default/format/name, reviewed replacement and metadata-only deletion. Save-new20-plan/64KiB bounds, integrity/readback and exact-token deletion preserve existing records. Explicit committed Save retains offered read-only grants where Android allows; no copies or automatic encoding.
+
+All65focused host tests pass(22new+43retained,including3constructor-free actual Creator admission cases),67requiredNode tests and13source-wiring checks pass. Current Creator+7helpers API-compile against API34/Media3 with retained reference APIs,not a full current native module/SDK37 build. [Evidence, device checklist and limitations](FEATURE_C090_PHOTO_VIDEO_PLANS.md); `.context/photo-video-plans/verification.json`. Widgets/provider/grants/lifecycle/encode/device/fullnative/APK remain unverified; cancellation may commit around pause and has no rollback guarantee. Final tools were hash-restored after confirmed interrupted reset; only the completed current run counts. Peer C089/C091 and REA work preserved.
+
 ## November 6 — Photo destructive reviews stay with their original session
 
 **0 new features; 1 core approval correctness fix; 0 scaffolding. Source 88/500 and batch 50 unchanged at this checkpoint.** Reset and Delete saved photo edits now require foreground/idle admission and an owned full photo/session snapshot; stale/replaced approvals cannot act on a later editor state. Pause/destroy invalidates their review. Reset retains actual Undo and protected originals; saved-edit deletion retains originals/current edits/named versions and checks the original foreground generation in its worker. Existing background Save policy is retained.

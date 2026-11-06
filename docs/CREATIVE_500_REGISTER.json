@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 88,
+  "source_implemented": 89,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 412,
+  "remaining_not_source_complete": 411,
   "features": [
     {
       "id": "C001",
@@ -707,6 +707,14 @@
     {
       "id": "C089",
       "outcome": "Keep named private full editable photo alternatives bound to the same original, with reviewed opening and Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C090",
+      "outcome": "Save and reopen named private photo-video preparation plans before encoding with exact original references, order, timing and reviewed replacement",
       "status": "implemented-source",
       "local_web_checked": false,
       "full_app_build_checked": false,
