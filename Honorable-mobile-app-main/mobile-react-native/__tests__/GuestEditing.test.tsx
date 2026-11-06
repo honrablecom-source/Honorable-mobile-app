@@ -843,3 +843,26 @@ test('refresh invalidates setup review and mutation failure keeps the displayed 
   expect(button('Load canvas setup Cover')).toBeDefined();
   expect(JSON.stringify(tree.toJSON())).toContain('Setup save unavailable');
 });
+
+
+test('saved canvas setup confirmation cannot delete after the guest screen closes', async () => {
+  native.canvasSetups.mockResolvedValue(JSON.stringify([{name:'Keep me',width:800,height:600,background:'white'}]));
+  await enterGuest();
+  await act(async () => button('Create an image').props.onPress());
+  await act(async () => button('Custom canvas and setups').props.onPress());
+  await act(async () => button('Delete canvas setup Keep me').props.onPress());
+  const confirm=button('Confirm delete saved canvas setup').props.onPress;
+  await act(async () => tree.unmount());
+  await act(async () => confirm());
+  expect(native.canvasSetups.mock.calls.map(call=>call[0])).toEqual(['list']);
+});
+
+test('retained canvas setup refresh cannot read storage after guest unmount', async () => {
+  await enterGuest();
+  await act(async () => button('Create an image').props.onPress());
+  await act(async () => button('Custom canvas and setups').props.onPress());
+  const refresh=button('Refresh saved setups').props.onPress;
+  await act(async () => tree.unmount());
+  await act(async () => refresh());
+  expect(native.canvasSetups.mock.calls.map(call=>call[0])).toEqual(['list']);
+});

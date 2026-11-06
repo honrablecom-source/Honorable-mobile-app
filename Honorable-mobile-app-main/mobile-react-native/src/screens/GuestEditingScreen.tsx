@@ -50,6 +50,14 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
   const [setupReview, setSetupReview] = useState<SetupReview | null>(null);
   const setupReviewRef = useRef<SetupReview | null>(null);
   const setupPending = useRef(false);
+  const setupActive = useRef(false);
+  useEffect(() => {
+    setupActive.current = true;
+    return () => {
+      setupActive.current = false;
+      setupReviewRef.current = null;
+    };
+  }, []);
   const [choosingCanvas, setChoosingCanvas] = useState(false);
   const [canvasMode, setCanvasMode] = useState<'formats' | 'custom'>('formats');
   const [canvasQuery, setCanvasQuery] = useState('');
@@ -81,13 +89,14 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
     setCanvasHeight(String(Math.floor(Number(canvasHeight) * scale)));
   };
   const updateSetups = async (action: 'list' | 'save' | 'delete', name = '', replacement?: CanvasSetup) => {
-    if (setupPending.current || busy) return;
+    if (!setupActive.current || setupPending.current || busy) return;
     if (action === 'list') { setupReviewRef.current = null; setSetupReview(null); }
     setupPending.current = true;
     setSetupBusy(true);
     setSetupError('');
     try {
       const raw = await honorableNative.canvasSetups(action, name, replacement?.width ?? Number(canvasWidth), replacement?.height ?? Number(canvasHeight), replacement?.background ?? background);
+      if (!setupActive.current) return;
       if (raw.length > 16384) throw new Error('Saved setups exceed the supported size.');
       const saved: unknown = JSON.parse(raw);
       if (!Array.isArray(saved) || saved.length > 20 || !saved.every(item =>
@@ -98,29 +107,29 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
       )) throw new Error('Saved setups could not be read.');
       setSetups(saved);
     } catch (error) {
-      setSetupError(error instanceof Error ? error.message : 'Canvas setups are unavailable.');
+      if (setupActive.current) setSetupError(error instanceof Error ? error.message : 'Canvas setups are unavailable.');
     } finally {
       setupPending.current = false;
-      setSetupBusy(false);
+      if (setupActive.current) setSetupBusy(false);
     }
   };
   const reviewSetup = (action: 'save' | 'delete', saved: CanvasSetup, replacement?: CanvasSetup) => {
-    if (busy || setupPending.current) return;
+    if (!setupActive.current || busy || setupPending.current) return;
     const review = { action, saved, replacement };
     setupReviewRef.current = review;
     setSetupReview(review);
   };
   const saveSetup = () => {
-    if (busy || setupPending.current || !customValid || !setupName.trim()) return;
+    if (!setupActive.current || busy || setupPending.current || !customValid || !setupName.trim()) return;
     const replacement: CanvasSetup = { name: setupName.trim(), width: Number(canvasWidth), height: Number(canvasHeight), background };
     const saved = setups.find(item => item.name === replacement.name);
     if (saved && (saved.width !== replacement.width || saved.height !== replacement.height || saved.background !== replacement.background)) {
       reviewSetup('save', saved, replacement);
     } else void updateSetups('save', replacement.name);
   };
-  const cancelSetupReview = () => { setupReviewRef.current = null; setSetupReview(null); };
+  const cancelSetupReview = () => { setupReviewRef.current = null; if (setupActive.current) setSetupReview(null); };
   const confirmSetupReview = (review: SetupReview) => {
-    if (busy || setupPending.current || setupReviewRef.current !== review) return;
+    if (!setupActive.current || busy || setupPending.current || setupReviewRef.current !== review) return;
     const saved = setups.find(item => item.name === review.saved.name);
     if (!saved || saved.width !== review.saved.width || saved.height !== review.saved.height || saved.background !== review.saved.background) {
       cancelSetupReview();
@@ -131,7 +140,7 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
     void updateSetups(review.action, review.saved.name, review.replacement);
   };
   const chooseCanvas = () => {
-    if (busy) return;
+    if (!setupActive.current || busy) return;
     setCanvasQuery('');
     setCanvasMode('formats');
     setChoosingCanvas(true);
