@@ -1,4 +1,5 @@
 import React from 'react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { BetaFeedbackScreen } from '../screens/BetaFeedbackScreen';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -68,6 +69,16 @@ const MemoriesTab = () => (
     <MemoriesScreen />
   </TabTransition>
 );
+const StudioTab = () => (
+  <TabTransition>
+    <StudioScreen />
+  </TabTransition>
+);
+const AccountTab = () => (
+  <TabTransition>
+    <SettingsScreen />
+  </TabTransition>
+);
 function MainTabs() {
   const insets = useSafeAreaInsets();
   return (
@@ -99,15 +110,19 @@ function MainTabs() {
         component={MemoriesTab}
         options={{ title: 'Library' }}
       />
-      <Tabs.Screen name="Studio" component={StudioScreen} />
-      <Tabs.Screen name="Account" component={SettingsScreen} />
+      <Tabs.Screen name="Studio" component={StudioTab} />
+      <Tabs.Screen name="Account" component={AccountTab} />
     </Tabs.Navigator>
   );
 }
 export function AppNavigator() {
+  const reduceMotion = useReducedMotion();
   return (
     <Stack.Navigator
-      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+      screenOptions={{
+        headerShown: false,
+        animation: reduceMotion ? 'none' : 'slide_from_right',
+      }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Pass" component={PassScreen} />

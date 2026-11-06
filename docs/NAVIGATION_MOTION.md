@@ -1,0 +1,9 @@
+# Consistent navigation motion — November 6
+
+0 new features; 1 accessibility fix plus 1 UI consistency refinement; 0 scaffolding. Source register85/500, batch47 beyond38 remains unchanged. Full native/APK builds remain deferred until approximately138 source workflows.
+
+Studio and Account now use the same stable TabTransition wrapper as Home and Library. The existing220ms opacity/translation/scale animation and native-driver request remain; no new animation engine or dependency. Stable module-level wrappers preserve route screen identity. The root native stack now reads the existing useReducedMotion hook: animation is none while the preference is unknown or reduced, and slide_from_right only when motion is allowed. Live preference updates change the options. Routes, screen content and tab selection feedback are preserved.
+
+Three new actual AppNavigator/TabTransition test families fail against prior source and pass after the change: stack motion follows preference changes; all4tab routes wrap their correct screen; Studio focus/blur stops/restarts animation, reduced motion stops it and inactive content rejects pointer events. Navigator and screen boundaries are mocked; the real transition uses a mocked Animated.timing start/stop boundary. Existing ReducedMotion tests separately cover the real preference hook's initial-query/event ordering, query failure and cleanup. All221Jest tests/22suites pass; typecheck exits0; lint exits0 with38warnings. Retained before/full logs and tested hashes are local `.context/navigation-motion/verification.json` and adjacent files.
+
+This proves configured options, wrapper wiring and JavaScript focus/preference decisions. It does not establish native stack runtime, Android motion preference delivery, visual smoothness/frame timing, gestures/rotation/safe areas or physical-device acceptance. No full native/APK build, personal-media upload, search ranking, credit or native editor changes.
