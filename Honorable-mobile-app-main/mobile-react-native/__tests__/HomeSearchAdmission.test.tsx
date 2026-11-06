@@ -5,7 +5,8 @@ const mockStart = jest.fn(),
   mockFinish = jest.fn(),
   mockSelect = jest.fn(),
   mockSearch = jest.fn();
-const mockHistory = jest.fn();
+const mockHistory = jest.fn(),
+  mockClear = jest.fn();
 jest.mock('../src/passes/MemoryPassContext', () => ({
   useMemoryPass: () => ({
     connected: true,
@@ -18,6 +19,7 @@ jest.mock('../src/library/LibraryContext', () => ({
 }));
 jest.mock('../src/native/HonorableNative', () => ({
   honorableNative: {
+    clearSearchHistory: (...args: unknown[]) => mockClear(...args),
     getSearchHistory: (...args: unknown[]) => mockHistory(...args),
     selectSeranModel: (...args: unknown[]) => mockSelect(...args),
     search: (...args: unknown[]) => mockSearch(...args),
@@ -72,7 +74,8 @@ let tree: Renderer.ReactTestRenderer;
 const input = () => tree.root.findByProps({ testID: 'search-input' });
 beforeEach(async () => {
   jest.resetAllMocks();
-  mockHistory.mockResolvedValue({ queries: [] });
+  mockHistory.mockResolvedValue({ queries: ['Synthetic old query'] });
+  mockClear.mockResolvedValue(undefined);
   mockSelect.mockResolvedValue(undefined);
   mockStart.mockResolvedValue(undefined);
   mockFinish.mockResolvedValue(undefined);
@@ -160,4 +163,82 @@ test('blank input does not reserve admission or call model, credit or native sea
   await act(async () => input().props.onChangeText('Retry'));
   await act(async () => input().props.onSubmit());
   expect(mockSearch).toHaveBeenCalledWith('Retry');
+});
+
+const hasText = (text: string) => tree.root.findAll(node => node.props.children === text).length > 0;
+const clearButton = () =>
+  tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === 'Clear search history' &&
+      typeof node.props.onPress === 'function',
+  )[0];
+test('failed history clear preserves displayed queries, reports failure and permits retry', async () => {
+  mockClear.mockRejectedValueOnce(new Error('Synthetic clearing failure'));
+  await act(async () => clearButton().props.onPress());
+  expect(
+    tree.root
+      .findAllByProps({ accessibilityRole: 'alert' })
+      .some(node =>
+        JSON.stringify(node.props.children).includes(
+          'Synthetic clearing failure',
+        ),
+      ),
+  ).toBe(true);
+  expect(hasText('Synthetic old query')).toBe(true);
+  expect(clearButton().props.disabled).toBe(false);
+  await act(async () => clearButton().props.onPress());
+  expect(clearButton()).toBeUndefined();
+  expect(hasText('Synthetic old query')).toBe(false);
+  expect(mockClear).toHaveBeenCalledTimes(2);
+});
+test('same-frame clear taps share one pending native clear and show busy feedback', async () => {
+  let release!: () => void;
+  const held = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  mockClear.mockReturnValue(held);
+  const clear = clearButton().props.onPress;
+  let first!: Promise<void>, second!: Promise<void>;
+  await act(async () => {
+    first = clear();
+    second = clear();
+  });
+  const calls = mockClear.mock.calls.length;
+  const busy = clearButton().props.accessibilityState?.busy;
+  await act(async () => {
+    release();
+    await Promise.all([first, second]);
+  });
+  expect(calls).toBe(1);
+  expect(busy).toBe(true);
+  expect(clearButton()).toBeUndefined();
+});
+test('an older pending history read cannot restore queries after a successful clear', async () => {
+  const clear = clearButton().props.onPress;
+  let release!: (value: { queries: string[] }) => void;
+  mockHistory.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        release = resolve;
+      }),
+  );
+  let search!: Promise<void>;
+  await act(async () => {
+    search = input().props.onSubmit();
+  });
+  await act(async () => clear());
+  await act(async () => {
+    release({ queries: ['Synthetic stale query'] });
+    await search;
+  });
+  mockSearch.mockRejectedValueOnce(new Error('Synthetic retry failure'));
+  await act(async () => input().props.onSubmit());
+  expect(hasText('Synthetic stale query')).toBe(false);
+  expect(clearButton()).toBeUndefined();
+});
+test('a retained Clear callback cannot mutate native history after Home unmounts', async () => {
+  const clear = clearButton().props.onPress;
+  await act(async () => tree.unmount());
+  await act(async () => clear());
+  expect(mockClear).not.toHaveBeenCalled();
 });

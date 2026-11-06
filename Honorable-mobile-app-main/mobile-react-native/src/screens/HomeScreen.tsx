@@ -70,6 +70,13 @@ export function HomeScreen() {
   const [selected, setSelected] = useState<MediaItem>();
   const [modeOpen, setModeOpen] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const historySession = useRef({
+    active: false,
+    generation: 0,
+    clearing: false,
+  });
   const smartSearches = [
     'sunset beach',
     'photos of people',
@@ -84,13 +91,26 @@ export function HomeScreen() {
     'cars',
     'city at night',
   ];
-  const refreshHistory = () =>
-    honorableNative
-      .getSearchHistory()
-      .then(value => setHistory(value.queries))
-      .catch(() => setHistory([]));
+  const refreshHistory = async () => {
+    const session = historySession.current;
+    if (!session.active || session.clearing) return;
+    const generation = ++session.generation;
+    try {
+      const value = await honorableNative.getSearchHistory();
+      if (session.active && session.generation === generation)
+        setHistory(value.queries);
+    } catch {
+      if (session.active && session.generation === generation) setHistory([]);
+    }
+  };
   useEffect(() => {
+    const session = historySession.current;
+    session.active = true;
     void refreshHistory();
+    return () => {
+      session.active = false;
+      session.generation++;
+    };
   }, []);
   const libraryItems = useMemo(
     () =>
@@ -172,8 +192,26 @@ export function HomeScreen() {
     }
   };
   const clearHistory = async () => {
-    await honorableNative.clearSearchHistory();
-    setHistory([]);
+    const session = historySession.current;
+    if (!session.active || session.clearing) return;
+    session.clearing = true;
+    session.generation++;
+    setHistoryBusy(true);
+    setHistoryError('');
+    try {
+      await honorableNative.clearSearchHistory();
+      if (session.active) setHistory([]);
+    } catch (reason) {
+      if (session.active)
+        setHistoryError(
+          reason instanceof Error
+            ? reason.message
+            : 'History could not be cleared. Try again.',
+        );
+    } finally {
+      session.clearing = false;
+      if (session.active) setHistoryBusy(false);
+    }
   };
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
@@ -280,6 +318,19 @@ export function HomeScreen() {
             <Text variant="muted" className="text-[11px] font-semibold">
               Try a memory search
             </Text>
+            {historyBusy && (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.historyFeedback}
+              >
+                Clearing search history…
+              </Text>
+            )}
+            {!!historyError && (
+              <Text accessibilityRole="alert" style={styles.historyFeedback}>
+                Could not clear history. {historyError} Try Clear again.
+              </Text>
+            )}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -355,7 +406,7 @@ export function HomeScreen() {
             </View>
           </View>
         </Modal>
-        {history.length > 0 && !response && (
+        {(history.length > 0 || historyBusy || !!historyError) && !response && (
           <View style={styles.history}>
             <View style={styles.historyTitle}>
               <View style={styles.historyLabel}>
@@ -367,6 +418,11 @@ export function HomeScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Clear search history"
+                disabled={historyBusy}
+                accessibilityState={{
+                  disabled: historyBusy,
+                  busy: historyBusy,
+                }}
                 style={{
                   minWidth: 44,
                   minHeight: 44,
@@ -641,6 +697,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  historyFeedback: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    color: colors.textSecondary,
+    fontSize: 12,
   },
   historyLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   historyItems: { paddingHorizontal: 20, paddingTop: 8, gap: 6 },
