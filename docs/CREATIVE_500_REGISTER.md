@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-92 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+93 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -141,3 +141,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C092** — Review and arrange explicitly selected eligible photo object centers together with one Undo. [Scope and limits](FEATURE_C092_PHOTO_OBJECT_ARRANGEMENT.md). Experimental source; full-app/device acceptance pending.
 
 - **C093** — Prepare whole/selected drawing artwork for a one-page PDF or printer through Android’s explicit print sheet while preserving editable work. [Evidence and limits](FEATURE_C093_DRAWING_PRINT.md). One experimental source workflow;28focused host/API tests,175web tests and actual-browser PNG handoff checked. Android PDF/device/full-app acceptance and tracked-asset regeneration pending.
+
+- **C094** — Import whole edited-playback SRT across source clips and speeds with reviewed caption replacement and one Undo. [Scope and limits](FEATURE_C094_PLAYBACK_CAPTION_IMPORT.md). Experimental source; full-app/device acceptance pending.

@@ -45,6 +45,7 @@ class HonorableVideoEditorActivity : Activity() {
     private var quietAudioGeneration=0L
     private var versionShelf:VideoProjectVersionShelf?=null
     private var titleStyleShelf:VideoTitleStyleShelf?=null
+    private var timelineCaptionImport:VideoTimelineCaptionControls?=null
     private var quietAudioDialog:android.app.AlertDialog?=null
     @Volatile private var guestProjectRequest = 0L
     private lateinit var source: Uri
@@ -1449,6 +1450,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE){timelineCaptionImport?.accept(resultCode,data);return}
         if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
         if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
@@ -1795,7 +1797,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun captionOptions() {
         if(!editorIdle()) return
         val current=project?:return;val index=selectedClip;val clip=current.segments[index]
-        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
+        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
         android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
             .setItems(choices.toTypedArray()){_,choice->
                 if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip)return@setItems
@@ -1808,9 +1810,39 @@ class HonorableVideoEditorActivity : Activity() {
                     4->captionReadability()
                     5->findCaptionText()
                     6->copyCaptionText()
-                    else->editCaption(current,index,clip,choice-7)
+                    7->requestTimelineCaptionImport()
+                    else->editCaption(current,index,clip,choice-8)
                 }
             }.setNegativeButton("Close",null).show()
+    }
+
+    private fun canRequestTimelineCaptionImport()=workspaceActive&&editorIdle()&&recoveryBytes==null&&!recoveryBlocked&&!recoveryChecking&&!isDestroyed&&!isFinishing&&project!=null&&::source.isInitialized
+    private fun ownsTimelineCaptionImport(owner:VideoTimelineCaptionControls)=timelineCaptionImport===owner&&importing&&!saving&&!analyzing&&!draftBusy&&pendingRange==null&&recoveryBytes==null&&!recoveryBlocked&&!recoveryChecking&&!isDestroyed&&!isFinishing
+    private fun canApproveTimelineCaptionImport(owner:VideoTimelineCaptionControls,captured:VideoCloseState,mode:EditorAccessMode,namespace:String)=workspaceActive&&ownsTimelineCaptionImport(owner)&&accessMode==mode&&videoLookNamespace()==namespace&&captured.stillMatches(closeState())
+    private fun releaseTimelineCaptionImport(owner:VideoTimelineCaptionControls){if(timelineCaptionImport!==owner)return;timelineCaptionImport=null;importing=false}
+    private fun commitTimelineCaptionImport(owner:VideoTimelineCaptionControls,captured:VideoCloseState,mode:EditorAccessMode,namespace:String,plan:VideoTimelineCaptionImport):Boolean {
+        if(!canApproveTimelineCaptionImport(owner,captured,mode,namespace)||!plan.changed)return false
+        plan.apply(requireNotNull(project)){check(canApproveTimelineCaptionImport(owner,captured,mode,namespace)){"Timeline or session changed. Existing captions were kept."}}
+        return true
+    }
+    private fun timelineCaptionRangeMatches(clip:VideoSegment,from:Int,to:Int)=maxOf(from*1000L,clip.startMs)==clip.startMs&&minOf(to*1000L,clip.endMs)==clip.endMs
+    private fun requestTimelineCaptionImport(){
+        if(!canRequestTimelineCaptionImport())return
+        val current=project?:return;val clips=current.segments;val clip=clips.getOrNull(selectedClip)?:return
+        if(!::start.isInitialized||!::end.isInitialized)return
+        if(!timelineCaptionRangeMatches(clip,start.progress,end.progress)){status.text="Apply or reset the selected trim before importing playback subtitles. Existing captions were kept.";return}
+        val mode=accessMode;val namespace=videoLookNamespace()?:return;val primary=source.toString();val duration=primaryDurationMs;val index=selectedClip;val music=current.soundtrack;val sources=sourceUris().toMap();val catalog=importedSources.toMap()
+        runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        importing=true;val captured=closeState()
+        lateinit var controls:VideoTimelineCaptionControls
+        controls=VideoTimelineCaptionControls(this,clips,music,
+            isCurrent={ownsTimelineCaptionImport(controls)&&project===current&&current.segments===clips&&current.soundtrack===music&&accessMode==mode&&source.toString()==primary&&primaryDurationMs==duration&&selectedClip==index&&importedSources==catalog},
+            isForeground={workspaceActive},canReview={canApproveTimelineCaptionImport(controls,captured,mode,namespace)&&sourceUris()==sources},
+            launch={intent->startActivityForResult(intent,VideoTimelineCaptionControls.REQUEST_CODE)},
+            apply={plan,guard->guard();check(commitTimelineCaptionImport(controls,captured,mode,namespace,plan)){"Timeline or session changed. Existing captions were kept."}},
+            committed={plan->if(workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&accessMode==mode&&videoLookNamespace()==namespace){val ready=runCatching{showClip();previewProject()}.isSuccess;status.text=if(ready)"Imported ${plan.inputCues} playback cues as ${plan.mappedCues} source captions. Undo restores previous captions. Check timing."else"Playback captions imported, but preview is unavailable. Undo restores previous captions."}},
+            release={releaseTimelineCaptionImport(controls)},message={status.text=it})
+        timelineCaptionImport=controls;controls.open()
     }
 
     private fun copyCaptionText(){
@@ -2452,9 +2484,10 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Legacy Back path for Android versions before the platform callback API")
     override fun onBackPressed(){requestClose()}
 
-    override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
-    override fun onPause() { versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onResume(){super.onResume();workspaceActive=true;timelineCaptionImport?.resume();previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
+    override fun onPause() { timelineCaptionImport?.onPause();versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        timelineCaptionImport?.close();timelineCaptionImport=null
         versionShelf?.close();versionShelf=null
         runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null
         mediaImportTarget?.let{finishMediaImportTarget(it)}

@@ -27,7 +27,12 @@ internal object VideoCaptions {
         require(cues.zipWithNext().all { (a, b) -> a.endMs <= b.startMs }) { "Captions must be ordered and cannot overlap" }
     }
 
-    fun parseSrt(bytes: ByteArray, sourceDurationMs: Long): List<VideoCaption> {
+    fun parseSrt(bytes:ByteArray,sourceDurationMs:Long):List<VideoCaption> = parseSrtBounded(bytes,sourceDurationMs,MAX_PER_CLIP)
+
+    /** Separate playback-timeline import bound; original-source clip imports remain limited to200. */
+    fun parsePlaybackSrt(bytes:ByteArray,durationMs:Long):List<VideoCaption> = parseSrtBounded(bytes,durationMs,MAX_PROJECT_CUES)
+
+    private fun parseSrtBounded(bytes: ByteArray, sourceDurationMs: Long, maximum:Int): List<VideoCaption> {
         require(bytes.size in 1..MAX_SRT_BYTES) { "Choose an SRT file up to 128 KB" }
         require(sourceDurationMs in 1..Int.MAX_VALUE.toLong())
         val text = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
@@ -35,17 +40,17 @@ internal object VideoCaptions {
             .removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n').trim()
         require(text.isNotEmpty()) { "The SRT file is empty" }
         val blocks = text.split(Regex("\n(?:[ \\t]*\n)+"))
-        require(blocks.size in 1..MAX_PER_CLIP) { "Use up to 200 captions per clip" }
+        require(blocks.size in 1..maximum) { "Use up to $maximum captions for this import" }
         val cues = blocks.map { block ->
             val lines = block.lines()
             require(lines.size >= 3 && lines[0].trim().matches(Regex("[0-9]{1,6}"))) { "Expected numbered SRT cues" }
             val timing = Regex("([0-9]{2,7}:[0-5][0-9]:[0-5][0-9][,.][0-9]{3})[ \\t]+-->[ \\t]+([0-9]{2,7}:[0-5][0-9]:[0-5][0-9][,.][0-9]{3})").matchEntire(lines[1].trim())
                 ?: error("Invalid SRT timestamp")
             val start = parseTimestamp(timing.groupValues[1]); val end = parseTimestamp(timing.groupValues[2])
-            require(end <= sourceDurationMs) { "Caption exceeds the original source duration" }
+            require(end <= sourceDurationMs) { if(maximum==MAX_PER_CLIP)"Caption exceeds the original source duration"else"Caption exceeds the edited playback duration" }
             VideoCaption(start, end, lines.drop(2).joinToString("\n").trim())
         }.sortedBy { it.startMs }
-        validate(cues)
+        if(maximum==MAX_PER_CLIP)validate(cues)else require(cues.zipWithNext().all{(a,b)->a.endMs<=b.startMs}){"Captions must be ordered and cannot overlap"}
         require(cues.sumOf { it.text.toByteArray(Charsets.UTF_8).size } <= MAX_PROJECT_TEXT_BYTES) { "Caption text limit reached" }
         return cues
     }
