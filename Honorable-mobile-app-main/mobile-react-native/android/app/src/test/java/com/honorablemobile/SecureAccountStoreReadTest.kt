@@ -34,4 +34,12 @@ class SecureAccountStoreReadTest {
         val file=File(dir,"credential-fixture.enc");file.writeText("not JSON")
         assertNull(store(file).read());assertFalse(file.exists())
     }
+    @Test fun committedLegacyBackupIsNotMisreportedAsMissingAndBytesSurviveFailure()=folder { dir ->
+        val file=File(dir,"backup-only.enc");val backup=File(file.path+".bak")
+        val bytes="malformed synthetic encrypted envelope".toByteArray();backup.writeBytes(bytes)
+        try{store(file).readPreserving();fail("Committed backup looked absent")}catch(_:IOException){}
+        assertTrue(file.exists()||backup.exists())
+        val retained=if(file.exists())file else backup
+        assertArrayEquals(bytes,retained.readBytes())
+    }
 }

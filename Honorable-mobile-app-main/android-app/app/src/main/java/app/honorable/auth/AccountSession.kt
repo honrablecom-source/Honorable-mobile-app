@@ -29,7 +29,7 @@ class SecureAccountStore(context: Context, private val name:String="honorable-ac
  /** Drafts must retain unreadable data; authentication keeps its existing destructive-invalid-read policy. */
  fun readPreserving():JSONObject? = readStored(true)
  private fun readStored(preserve:Boolean):JSONObject? {
-  if(!file.baseFile.exists())return null
+  if(!file.baseFile.exists()&&(!preserve||!File(file.baseFile.path+".bak").exists()))return null
   return try {
    val encoded=if(preserve)file.openRead().use { input ->
     val output=java.io.ByteArrayOutputStream()

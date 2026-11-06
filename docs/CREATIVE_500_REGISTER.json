@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 83,
+  "source_implemented": 84,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 417,
+  "remaining_not_source_complete": 416,
   "features": [
     {
       "id": "C001",
@@ -669,6 +669,14 @@
       "outcome": "Find and open Studio media beyond the first source page using bounded library paging and private loaded-filename filtering while preserving the chosen source/type",
       "status": "implemented-source",
       "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C085",
+      "outcome": "Save and reopen multiple named private editable video versions for the same original",
+      "status": "implemented-source",
+      "local_web_checked": false,
       "full_app_build_checked": false,
       "device_checked": false
     }

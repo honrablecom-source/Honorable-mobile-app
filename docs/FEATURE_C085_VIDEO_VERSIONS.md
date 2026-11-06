@@ -1,0 +1,23 @@
+# C085 — Named editable video versions
+
+One experimental source workflow: keep multiple named editable timelines for the same original video, separately for the current guest/account owner. Reach **Saved video versions** from native video Project tools or the Project inspector. Existing single-slot guest/account saves remain available.
+
+Save new version keeps the timeline, captions, soundtrack, clip treatments and selected range as metadata. Names are unique after Unicode normalization; saving never silently replaces another named version. Open reviews replacement, checks current ownership and original access, then uses the existing project application/Undo path. Delete removes metadata only; conflict-safe deletion Undo remains available while this shelf stays open and unchanged. Original media is neither copied nor uploaded. Export is still needed for a rendered video copy.
+
+## Bounds and recovery
+
+Each owner/original shelf allows up to 20 entries and 512,000 combined encoded draft bytes. Each draft is bounded at 256,000 bytes and the catalog at 540,000 bytes. Scope binds the owner and primary content URI; UUID identities, strict UTF-8/names, canonical Base64, lengths, digest, duration and trailing data are checked before use. Storage reuses encrypted SecureAccountStore/AtomicFile and its bounded preserving reader. Damaged or incompatible records fail closed rather than becoming empty shelves. Writes are process-serialized and read back; if verification fails after a successful commit, reopening may reveal that the operation completed. This is not a cross-process transaction guarantee.
+
+Saved snapshots retain only video originals used by that timeline; live Undo metadata is unchanged. On reopen, same-URI/same-duration imported originals reuse current IDs; true ID collisions get independent IDs. Existing live originals remain for Undo. Changed durations, unavailable sources and a combined catalog beyond 31 imported originals refuse application rather than discarding live history. The error advises reopening the original before trying again. This is URI/duration validation, not content hashing or proof the underlying pixels are unchanged.
+
+The worker owns storage/media I/O; current dialogs, foreground/session/source/project state and controller-owned busy flags gate results. Pause/destroy closes the controller and invalidates publication. Cancellation can follow a completed storage commit. Persisted document access is requested only when needed; existing private sources and native video capability are reused for canonical MediaStore video URIs. No shared grant is revoked. Original documents must remain available. No durable pending-operation recovery, media backup, account sync or rotation guarantee is added.
+
+## Separate storage fix
+
+Preserving reads previously treated a committed legacy AtomicFile `.bak` without its base file as missing. The real temporary-file regression failed before the fix. The preserving reader now admits that state to AtomicFile recovery and keeps malformed recovered bytes instead of silently replacing them. Default credential reads, key/write/clear logic and AccountSession policy are unchanged. This is one storage correctness fix, not another feature.
+
+## Validation
+
+All **110 focused host tests pass** (22 new version families, one new backup regression and 87 retained). Current Activity/helper API compilation also passes. Final focused evidence is recorded in `.context/noble-fast-video-versions/verification.json`, with complete compiler/test logs and source hashes in that directory. Host cases cover immutable/bounded codecs, damaged records, scope and ownership, concurrent writes/readback failure, exact deletion/Undo conflicts, current Activity admission, modal/busy ownership, source alias/collision reconciliation and actual project Undo, plus retained editor/storage regressions. The current Activity and new helpers compile against pinned Android API 34/Media3 APIs and existing cached production model APIs; the current native permission-manager block is compiled verbatim with its source hash. This does not compile the entire engine or configured SDK 37 app.
+
+Memory-backed transaction tests do not execute real encryption writes. Temporary AtomicFile malformed-record tests do not exercise Android Keystore. Native dialogs, real providers/media validation, permission transitions, pause/rotation/Back interactions and physical devices remain untested. No full app/Gradle/native/APK build, packaged asset refresh or production-readiness claim. Full builds remain deferred under the owner's batch instruction. Count exactly one source workflow; buttons, storage and tests are not additional features.

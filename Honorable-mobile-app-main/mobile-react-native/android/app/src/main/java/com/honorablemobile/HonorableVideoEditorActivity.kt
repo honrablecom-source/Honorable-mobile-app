@@ -43,6 +43,7 @@ class HonorableVideoEditorActivity : Activity() {
     // Shared ownership for original-source audio analysis jobs and their dialogs.
     private var quietAudioCancellation:AtomicBoolean?=null
     private var quietAudioGeneration=0L
+    private var versionShelf:VideoProjectVersionShelf?=null
     private var titleStyleShelf:VideoTitleStyleShelf?=null
     private var quietAudioDialog:android.app.AlertDialog?=null
     @Volatile private var guestProjectRequest = 0L
@@ -335,6 +336,7 @@ class HonorableVideoEditorActivity : Activity() {
         drafts.addView(Button(this).apply { text = if(guestProject)"Restore project" else "Restore draft"; isEnabled=guestProject||accessMode.allowsAccountDrafts; setOnClickListener { if(guestProject)guestProjectOperation(true)else draftOperation(true) } },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         projectTools.addView(drafts)
+        projectTools.addView(Button(this).apply{text="Saved video versions";setOnClickListener{savedVideoVersions()}})
         if(guestProject)projectTools.addView(Button(this).apply{text="Delete saved project";setOnClickListener{deleteGuestProject()}})
         projectTools.addView(label(if(guestProject)"One local guest save per original video, up to 20. Save replaces its earlier save. Reopen the same original in Files, then Restore project. Media must remain available; account drafts stay separate." else "Drafts stay on this device. Reopen this video to restore its saved edits.", 12f))
         val tabs = LinearLayout(this)
@@ -617,7 +619,7 @@ class HonorableVideoEditorActivity : Activity() {
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
-            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Timeline report"){timelineReport()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
@@ -709,6 +711,43 @@ class HonorableVideoEditorActivity : Activity() {
         runCatching{VideoRefinementTools.report(clips).text()}.onSuccess{text->
             android.app.AlertDialog.Builder(this).setTitle("Timeline report").setMessage(text).setPositiveButton("Done",null).show()
         }.onFailure{status.text=it.message?:"Timeline report is unavailable."}
+    }
+
+    private fun savedVideoVersions() {
+        if(!workspaceActive||!editorIdle()||isDestroyed||isFinishing||recoveryBytes!=null)return
+        val current=project?:return;val captured=closeState();val mode=accessMode;val primary=source.toString()
+        val draft=runCatching{VideoProjectVersion.snapshot(currentDraft())}.getOrElse{status.text="Choose a valid range before using saved versions.";return}
+        versionShelf?.close()
+        runCatching{video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        lateinit var shelf:VideoProjectVersionShelf
+        shelf=VideoProjectVersionShelf(this,mode,primary,draft,
+            isCurrent={workspaceActive&&!isDestroyed&&!isFinishing&&editorIdle()&&accessMode==mode&&captured.stillMatches(closeState())},
+            busy={value->if(versionShelf===shelf)draftBusy=value},message={status.text=it},
+            withSaveAccess={saved,requireCurrent,commit->
+                GuestVideoProjectMedia.originals(primary,saved).forEach { value ->
+                    requireCurrent()
+                    if(!hasVersionRead(value))contentResolver.takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    require(hasVersionRead(value)){"An original needs lasting document access. Reopen it through Files."}
+                }
+                // Read grants are shared by other projects; cancellation must not revoke their access.
+                requireCurrent();validateVersionMedia(primary,saved);requireCurrent();commit()
+            },
+            validateOpen={saved,requireCurrent->requireCurrent();validateVersionMedia(primary,saved);requireCurrent()},
+            apply={saved->
+                runCatching{applySavedDraft(current,VideoVersionSources.reconcile(primary,importedSources,saved),true)}
+                    .onSuccess{ready->status.text=if(ready)"Saved video version opened. Timeline Undo restores prior edits." else "Saved version opened; preview is unavailable. Timeline Undo restores prior edits."}
+                    .onFailure{status.text="Saved version conflicts with the current project. Existing edits were kept."}
+            })
+        versionShelf=shelf;shelf.open()
+    }
+
+    private fun hasVersionRead(value:String):Boolean=VideoVersionReadPolicy.existingAccess(value,hasDurableGuestRead(value),
+        app.honorable.search.MediaCapabilityManager(this).current().canReadVideos)
+    private fun validateVersionMedia(primary:String,saved:VideoDraft) {
+        GuestVideoProjectMedia.validate(primary,saved,::hasVersionRead,{inspectSource(Uri.parse(it))},{inspectSoundtrack(Uri.parse(it))}){value,duration->
+            val bytes=contentResolver.openInputStream(Uri.parse(value))?.use{VideoSubtitleDocuments.readBounded(it)}?:error("Subtitle original is unavailable")
+            VideoCaptions.parseSrt(bytes,duration)
+        }
     }
 
     private fun videoLookNamespace():String?=VideoPrivateOwner.namespace(this,accessMode)
@@ -2414,8 +2453,9 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onBackPressed(){requestClose()}
 
     override fun onResume(){super.onResume();workspaceActive=true;previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
-    override fun onPause() { runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
+        versionShelf?.close();versionShelf=null
         runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null
         mediaImportTarget?.let{finishMediaImportTarget(it)}
         recoveryRequest++
