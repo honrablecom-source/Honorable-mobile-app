@@ -1,5 +1,6 @@
 import React from 'react';
 import Renderer, { act } from 'react-test-renderer';
+import { Alert } from 'react-native';
 import { StudioScreen } from '../src/screens/StudioScreen';
 
 const mockOpen = jest.fn();
@@ -479,5 +480,60 @@ test('a pending import cannot compete with any new local creation route', async 
       expect(action).not.toHaveBeenCalled();
   } finally {
     await act(async () => complete());
+  }
+});
+
+test('leaving Studio suppresses a delayed library editor failure alert', async () => {
+  let reject!: (reason: Error) => void;
+  mockEdit.mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail;
+      }),
+  );
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  try {
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = button('Edit First.jpg').props.onPress();
+    });
+    await act(async () => tree.unmount());
+    await act(async () => {
+      reject(new Error('Source unavailable'));
+      await pending;
+    });
+    expect(alert).not.toHaveBeenCalled();
+  } finally {
+    alert.mockRestore();
+  }
+});
+
+test('retained Studio source and creation callbacks cannot launch after unmount', async () => {
+  const edit = button('Edit First.jpg').props.onPress;
+  const importMedia = button('Import media').props.onPress;
+  await act(async () => tree.unmount());
+  await act(async () => {
+    await edit();
+    await importMedia();
+  });
+  expect(mockEdit).not.toHaveBeenCalled();
+  expect(mockOpen).not.toHaveBeenCalled();
+});
+
+test('a current Studio library failure still alerts and permits an exact-source retry', async () => {
+  mockEdit.mockRejectedValueOnce(new Error('Source unavailable'));
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  try {
+    await act(async () => button('Edit Second.jpg').props.onPress());
+    expect(alert).toHaveBeenCalledWith('Open editor', 'Source unavailable');
+    await act(async () => button('Edit Second.jpg').props.onPress());
+    expect(mockEdit).toHaveBeenCalledTimes(2);
+    expect(mockEdit.mock.calls[1][0]).toEqual({
+      id: '2',
+      mediaUri: 'content://fixture/photo2',
+      type: 'IMAGE',
+    });
+  } finally {
+    alert.mockRestore();
   }
 });

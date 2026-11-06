@@ -1,3 +1,7 @@
+## November 6 — Studio ignores stale editor callbacks
+
+**0 new features; 1 lifecycle fix; 0 scaffolding. Source84/500, batch46 unchanged.** Studio checks current-screen ownership before source/import/local/paging launches and suppresses delayed library-editor alerts/state updates after unmount. Current-screen errors and exact-source retry remain. Three new screen cases reproduce2failures against prior source; all209Jest/21suites now pass, typecheck0, lint0errors/38warnings. [Evidence and limits](STUDIO_LIFECYCLE.md). Native/workspace/library boundaries are mocked; no cancellation of an already launched editor or physical native lifecycle acceptance is claimed. No full native/APK build;~138target retained.
+
 ## November 6 — One owning Library list
 
 **0 new features; 1 rendering fix; 0 scaffolding. Source84/500, batch46 unchanged.** Memories uses one virtualized list for month headings and three-thumbnail rows, preserving filename/type/order/original-URI/selection/refresh/paging contracts. Metadata preparation is memoized and grouping avoids repeated accumulated-array copies. All206 Jest tests/21suites pass (11new checks), typecheck exits0 and lint exits0. [Evidence and limits](LIBRARY_VIRTUALIZATION.md). Initial focused timeout passed unchanged on rerun; no timeout increase or list-mock substitution. No device heap/frame/gesture/provider acceptance or full native/APK build. Next broad build target remains~138; physical validation is pending.

@@ -102,7 +102,8 @@ export function StudioScreen({
     setSelectedId(undefined);
   };
   const loadSources = async () => {
-    if (sourcePending.current || busy || !moreLibrary) return;
+    if (!sourceActive.current || sourcePending.current || busy || !moreLibrary)
+      return;
     sourcePending.current = true;
     setBrowsing(true);
     setSourcePageError('');
@@ -126,7 +127,7 @@ export function StudioScreen({
   const kindName = mode === 'IMAGE' ? 'photo' : 'video';
   // Import and library routes share one synchronous guard, including same-frame taps.
   const launchWorkspace = async (action: () => Promise<unknown>) => {
-    if (pending.current || importing) return;
+    if (!sourceActive.current || pending.current || importing) return;
     pending.current = true;
     try {
       await action();
@@ -137,7 +138,8 @@ export function StudioScreen({
   const importMedia = (kind: WorkspaceKind) =>
     launchWorkspace(() => open(kind));
   const editSelected = async (source = selected) => {
-    if (!source || pending.current || importing) return;
+    if (!sourceActive.current || !source || pending.current || importing)
+      return;
     setSelectedId(source.mediaId);
     pending.current = true;
     setOpening(true);
@@ -148,13 +150,14 @@ export function StudioScreen({
         type: source.mediaType,
       });
     } catch (reason) {
+      if (!sourceActive.current) return;
       Alert.alert(
         'Open editor',
         reason instanceof Error ? reason.message : 'The editor could not open.',
       );
     } finally {
       pending.current = false;
-      setOpening(false);
+      if (sourceActive.current) setOpening(false);
     }
   };
   const showInspector = (tab: 'tools' | 'source') => {
