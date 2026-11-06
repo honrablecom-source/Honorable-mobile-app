@@ -1450,6 +1450,8 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        // Older picker results must not release busy/recovery state owned by this import.
+        if(timelineCaptionImport!=null&&!allowsMediaImportResult(requestCode))return
         if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE){timelineCaptionImport?.accept(resultCode,data);return}
         if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
@@ -2257,8 +2259,10 @@ class HonorableVideoEditorActivity : Activity() {
             },kind.requestCode)
         }catch(_:Exception){finishMediaImportTarget(target);status.text="No document picker is available. Current edits were kept."}
     }
-    private fun allowsMediaImportResult(requestCode:Int):Boolean =
-        mediaImportTarget?.let{requestCode !in 22..28||requestCode==it.kind.requestCode}?:true
+    private fun allowsMediaImportResult(requestCode:Int):Boolean {
+        if(timelineCaptionImport!=null)return requestCode !in 22..28
+        return mediaImportTarget?.let{requestCode !in 22..28||requestCode==it.kind.requestCode}?:true
+    }
     private fun finishMediaImportTarget(target:VideoMediaImportTarget):Boolean {
         target.cancel()
         if(mediaImportTarget!==target)return false
