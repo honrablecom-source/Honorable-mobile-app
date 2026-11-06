@@ -1,4 +1,10 @@
 import React from 'react';
+import {
+  AppState,
+  AppStateStatus,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 import Renderer, { act } from 'react-test-renderer';
 import { LibraryProvider, useLibrary } from '../src/library/LibraryContext';
 import {
@@ -14,6 +20,10 @@ jest.mock('../src/native/HonorableNative', () => ({
   },
 }));
 const native = honorableNative as jest.Mocked<typeof honorableNative>;
+let stateListener: ((state: AppStateStatus) => void) | undefined;
+const removeStateListener = jest.fn();
+const originalAppState = AppState.currentState;
+let restorePlatform: (() => void) | undefined;
 const status = (allowed = true): IndexStatus => ({
   engine: 'REAL',
   permissionGranted: allowed,
@@ -43,6 +53,14 @@ function Probe() {
 }
 beforeEach(() => {
   jest.resetAllMocks();
+  stateListener = undefined;
+  AppState.currentState = 'active';
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((event, listener) => {
+      if (event === 'change') stateListener = listener;
+      return { remove: removeStateListener };
+    });
   native.getStatus.mockResolvedValue(status());
   native.getLibrary.mockResolvedValue({ total: 100, items: [item(1)] });
   native.refreshIndex.mockResolvedValue({
@@ -57,6 +75,10 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => tree?.unmount());
   jest.useRealTimers();
+  jest.restoreAllMocks();
+  restorePlatform?.();
+  restorePlatform = undefined;
+  AppState.currentState = originalAppState;
 });
 async function mount() {
   await act(async () => {
@@ -269,4 +291,148 @@ test('a slow status poll does not accumulate overlapping native requests', async
     });
     await pending;
   });
+});
+
+async function emitState(state: AppStateStatus) {
+  await act(async () => {
+    stateListener?.(state);
+  });
+}
+test('foreground rechecks revoked access and clears visible library metadata without indexing', async () => {
+  await mount();
+  await emitState('background');
+  native.getStatus.mockResolvedValueOnce(status(false));
+  await emitState('active');
+  expect(native.getStatus).toHaveBeenCalledTimes(2);
+  expect(value.status?.permissionGranted).toBe(false);
+  expect(value.items).toEqual([]);
+  expect(value.total).toBe(0);
+  expect(native.refreshIndex).not.toHaveBeenCalled();
+});
+test('foreground reload rejects an old in-flight page after access was revoked', async () => {
+  await mount();
+  const page = deferred<{ total: number; items: LibraryItem[] }>();
+  native.getLibrary.mockReturnValueOnce(page.promise);
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = value.loadMore();
+  });
+  await emitState('inactive');
+  native.getStatus.mockResolvedValueOnce(status(false));
+  await emitState('active');
+  await act(async () => {
+    page.resolve({ total: 100, items: [item(2)] });
+    await pending;
+  });
+  expect(value.items).toEqual([]);
+  expect(value.total).toBe(0);
+});
+test('foreground recognizes newly granted access using only status and the existing library page', async () => {
+  native.getStatus.mockResolvedValueOnce(status(false));
+  await mount();
+  expect(value.items).toEqual([]);
+  native.getLibrary.mockResolvedValueOnce({ total: 1, items: [item(20)] });
+  await emitState('background');
+  await emitState('active');
+  expect(value.status?.permissionGranted).toBe(true);
+  expect(value.items).toEqual([item(20)]);
+  expect(native.getLibrary).toHaveBeenCalledWith(60, 0);
+  expect(native.refreshIndex).not.toHaveBeenCalled();
+});
+test('foreground ignores repeated active notifications and makes no calls while backgrounded', async () => {
+  await mount();
+  await emitState('active');
+  await emitState('background');
+  await emitState('inactive');
+  expect(native.getStatus).toHaveBeenCalledTimes(1);
+  await emitState('active');
+  await emitState('active');
+  expect(native.getStatus).toHaveBeenCalledTimes(2);
+});
+test('foreground listener is removed and a late retained callback cannot request a library', async () => {
+  await mount();
+  const retained = stateListener;
+  await act(async () => tree.unmount());
+  expect(removeStateListener).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    retained?.('background');
+    retained?.('active');
+  });
+  expect(native.getStatus).toHaveBeenCalledTimes(1);
+  expect(native.getLibrary).toHaveBeenCalledTimes(1);
+});
+function permissionDialog() {
+  const os = Object.getOwnPropertyDescriptor(Platform, 'OS');
+  const version = Object.getOwnPropertyDescriptor(Platform, 'Version');
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: 'android',
+  });
+  Object.defineProperty(Platform, 'Version', { configurable: true, value: 34 });
+  restorePlatform = () => {
+    if (os) Object.defineProperty(Platform, 'OS', os);
+    else Reflect.deleteProperty(Platform, 'OS');
+    if (version) Object.defineProperty(Platform, 'Version', version);
+    else Reflect.deleteProperty(Platform, 'Version');
+  };
+  const pending =
+    deferred<Awaited<ReturnType<typeof PermissionsAndroid.requestMultiple>>>();
+  const request = jest
+    .spyOn(PermissionsAndroid, 'requestMultiple')
+    .mockReturnValue(pending.promise);
+  const permissions = [
+    PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+    PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
+  ];
+  // Native returns entries for the requested permissions; its mapped type lists every possible permission.
+  const granted = Object.fromEntries(
+    permissions.map(permission => [
+      permission,
+      PermissionsAndroid.RESULTS.GRANTED,
+    ]),
+  ) as Awaited<ReturnType<typeof PermissionsAndroid.requestMultiple>>;
+  return { pending, request, permissions, granted };
+}
+test('foreground refresh cannot discard a still-owned permission dialog and repeated requests are blocked', async () => {
+  const dialog = permissionDialog();
+  native.getStatus.mockResolvedValue(status(false));
+  await mount();
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = value.requestAccess();
+    value.requestAccess();
+  });
+  expect(dialog.request).toHaveBeenCalledTimes(1);
+  expect(dialog.request).toHaveBeenCalledWith(dialog.permissions);
+  await emitState('background');
+  await emitState('active');
+  expect(value.status?.permissionGranted).toBe(false);
+  native.getStatus.mockResolvedValue(status());
+  await act(async () => {
+    dialog.pending.resolve(dialog.granted);
+    await pending;
+  });
+  expect(value.status?.permissionGranted).toBe(true);
+  expect(value.items).toEqual([item(1)]);
+  expect(native.getStatus).toHaveBeenCalledTimes(3);
+  expect(native.refreshIndex).not.toHaveBeenCalled();
+});
+test('foreground permission completion after unmount cannot reload or start another dialog', async () => {
+  const dialog = permissionDialog();
+  native.getStatus.mockResolvedValue(status(false));
+  await mount();
+  const requestAccess = value.requestAccess;
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = requestAccess();
+  });
+  await act(async () => tree.unmount());
+  await act(async () => {
+    dialog.pending.resolve(dialog.granted);
+    await pending;
+    await requestAccess();
+  });
+  expect(dialog.request).toHaveBeenCalledTimes(1);
+  expect(native.getStatus).toHaveBeenCalledTimes(1);
+  expect(native.getLibrary).not.toHaveBeenCalled();
 });

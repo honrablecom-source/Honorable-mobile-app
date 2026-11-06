@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import {
   honorableNative,
   IndexStatus,
@@ -40,6 +40,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const pageRequest = useRef<object | null>(null),
     indexRequest = useRef<object | null>(null);
   const pollRequest = useRef<object | null>(null);
+  const permissionRequest = useRef<object | null>(null);
   const current = useCallback(
     (epoch: number) => active.current && generation.current === epoch,
     [],
@@ -80,12 +81,24 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     active.current = false;
     generation.current++;
     indexRequest.current = null;
+    permissionRequest.current = null;
   }, []);
   useEffect(() => {
     active.current = true;
     reload();
     return deactivate;
   }, [deactivate, reload]);
+  useEffect(() => {
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener('change', next => {
+      const returning =
+        next === 'active' &&
+        (previous === 'background' || previous === 'inactive');
+      previous = next;
+      if (returning) reload();
+    });
+    return () => subscription.remove();
+  }, [reload]);
   useEffect(() => {
     if (!indexing) return;
     const timer = setInterval(() => {
@@ -126,8 +139,11 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(timer);
   }, [indexing, current]);
   const requestAccess = useCallback(async () => {
-    const epoch = generation.current;
-    if (!current(epoch)) return;
+    if (!active.current || permissionRequest.current) return;
+    const request = {};
+    permissionRequest.current = request;
+    // A foreground reload may advance the library generation while the OS dialog is open.
+    const owned = () => active.current && permissionRequest.current === request;
     try {
       if (Platform.OS === 'android') {
         const permissions =
@@ -139,16 +155,19 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
             : [PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE];
         await PermissionsAndroid.requestMultiple(permissions);
       }
-      if (current(epoch)) await reload();
+      if (owned()) await reload();
     } catch (reason) {
-      if (current(epoch))
+      if (owned())
         setError(
           reason instanceof Error
             ? reason.message
             : 'Photo access could not be requested',
         );
+    } finally {
+      if (permissionRequest.current === request)
+        permissionRequest.current = null;
     }
-  }, [current, reload]);
+  }, [reload]);
   const reindex = useCallback(async () => {
     if (!active.current || indexRequest.current) return;
     const job = {};
