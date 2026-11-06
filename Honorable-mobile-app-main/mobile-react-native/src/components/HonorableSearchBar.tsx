@@ -35,6 +35,8 @@ export function HonorableSearchBar({
               ? 'Search filenames in your library'
               : 'Describe a photo or video'
           }
+          editable={!busy}
+          accessibilityState={{ disabled: busy }}
           returnKeyType="search"
           blurOnSubmit={false}
           onSubmitEditing={() => canSubmit && onSubmit()}
@@ -48,7 +50,11 @@ export function HonorableSearchBar({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear search"
-            onPress={() => onChangeText('')}
+            disabled={busy}
+            accessibilityState={{ disabled: busy }}
+            onPress={() => {
+              if (!busy) onChangeText('');
+            }}
             style={styles.clear}
           >
             <X color={colors.iconMuted} size={16} />

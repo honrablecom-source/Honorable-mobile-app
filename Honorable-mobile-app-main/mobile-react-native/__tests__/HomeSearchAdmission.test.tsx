@@ -66,6 +66,8 @@ jest.mock('lucide-react-native', () => {
     ChevronDown: View,
     ShieldCheck: View,
     ArrowUpRight: View,
+    ArrowUp: View,
+    Search: View,
     Image: View,
     Film: View,
   };
@@ -165,7 +167,8 @@ test('blank input does not reserve admission or call model, credit or native sea
   expect(mockSearch).toHaveBeenCalledWith('Retry');
 });
 
-const hasText = (text: string) => tree.root.findAll(node => node.props.children === text).length > 0;
+const hasText = (text: string) =>
+  tree.root.findAll(node => node.props.children === text).length > 0;
 const clearButton = () =>
   tree.root.findAll(
     node =>
@@ -241,4 +244,110 @@ test('a retained Clear callback cannot mutate native history after Home unmounts
   await act(async () => tree.unmount());
   await act(async () => clear());
   expect(mockClear).not.toHaveBeenCalled();
+});
+
+const action = (label: string) =>
+  tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === label &&
+      typeof node.props.onPress === 'function',
+  )[0];
+test('clearing the completed search field returns Home without another search or credit request', async () => {
+  await act(async () => input().props.onSubmit());
+  expect(action('Open Studio')).toBeUndefined();
+  await act(async () => input().props.onChangeText(''));
+  expect(action('Open Studio')).toBeDefined();
+  expect(input().props.value).toBe('');
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+  expect(mockStart).toHaveBeenCalledTimes(1);
+  expect(mockFinish).toHaveBeenCalledTimes(1);
+});
+test('explicit clear results returns Home and retains local history without native mutation', async () => {
+  await act(async () => input().props.onSubmit());
+  expect(action('Clear search results')).toBeDefined();
+  await act(async () => action('Clear search results').props.onPress());
+  expect(action('Open Studio')).toBeDefined();
+  expect(input().props.value).toBe('');
+  expect(hasText('Synthetic old query')).toBe(true);
+  expect(mockClear).not.toHaveBeenCalled();
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+  expect(mockStart).toHaveBeenCalledTimes(1);
+});
+test('completed query label stays tied to results while drafting another query', async () => {
+  await act(async () => input().props.onSubmit());
+  await act(async () => input().props.onChangeText('A different draft'));
+  expect(hasText('Results for Synthetic query')).toBe(true);
+  expect(input().props.value).toBe('A different draft');
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+});
+test('pending search blocks retained result reset and field clear until normal completion', async () => {
+  await act(async () => input().props.onSubmit());
+  const reset = action('Clear search results').props.onPress;
+  let release!: (value: unknown) => void;
+  mockSearch.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        release = resolve;
+      }),
+  );
+  await act(async () => input().props.onChangeText('Second query'));
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = input().props.onSubmit();
+    reset();
+    input().props.onChangeText('');
+  });
+  expect(input().props.value).toBe('Second query');
+  expect(action('Clear search results').props.disabled).toBe(true);
+  await act(async () => {
+    release({ results: [] });
+    await pending;
+  });
+  await act(async () => action('Clear search results').props.onPress());
+  expect(action('Open Studio')).toBeDefined();
+  expect(mockSearch).toHaveBeenCalledTimes(2);
+  expect(mockFinish).toHaveBeenCalledTimes(2);
+});
+test('actual search bar locks editing and clearing while busy and restores both after completion', async () => {
+  const RealBar = jest.requireActual(
+    '../src/components/HonorableSearchBar',
+  ).HonorableSearchBar;
+  const change = jest.fn(),
+    submit = jest.fn();
+  const TextInput = require('react-native').TextInput;
+  await act(async () =>
+    tree.update(
+      <RealBar
+        value="Synthetic query"
+        busy
+        onChangeText={change}
+        onSubmit={submit}
+      />,
+    ),
+  );
+  expect(tree.root.findByType(TextInput).props.editable).toBe(false);
+  expect(action('Clear search').props.disabled).toBe(true);
+  await act(async () => {
+    action('Clear search').props.onPress();
+    tree.root.findByType(TextInput).props.onSubmitEditing();
+  });
+  expect(change).not.toHaveBeenCalled();
+  expect(submit).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.update(
+      <RealBar
+        value="Synthetic query"
+        busy={false}
+        onChangeText={change}
+        onSubmit={submit}
+      />,
+    ),
+  );
+  expect(tree.root.findByType(TextInput).props.editable).toBe(true);
+  await act(async () => {
+    action('Clear search').props.onPress();
+    tree.root.findByType(TextInput).props.onSubmitEditing();
+  });
+  expect(change).toHaveBeenCalledWith('');
+  expect(submit).toHaveBeenCalledTimes(1);
 });

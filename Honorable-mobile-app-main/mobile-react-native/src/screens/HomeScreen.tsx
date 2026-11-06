@@ -63,6 +63,7 @@ export function HomeScreen() {
   );
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState<SearchResponse>();
+  const [resultQuery, setResultQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const searchPending = useRef(false);
   const [error, setError] = useState('');
@@ -159,6 +160,20 @@ export function HomeScreen() {
       (filter === 'Screenshots' &&
         (item.displayName ?? '').toLowerCase().includes('screenshot')),
   );
+  const resetResults = () => {
+    if (searchPending.current) return;
+    setQuery('');
+    setResponse(undefined);
+    setResultQuery('');
+    setSelected(undefined);
+    setFilter('All');
+    setError('');
+  };
+  const changeQuery = (value: string) => {
+    if (searchPending.current) return;
+    if (!value.trim()) resetResults();
+    else setQuery(value);
+  };
   const search = async (value = query) => {
     const clean = value.trim();
     if (!clean || loading || searchPending.current) return;
@@ -178,6 +193,7 @@ export function HomeScreen() {
         chargeRequestId,
         result.results.length ? 'SUCCESS' : 'FAILED',
       );
+      setResultQuery(clean);
       setResponse(result);
       await refreshHistory();
     } catch (reason) {
@@ -289,7 +305,7 @@ export function HomeScreen() {
         </View>
         <HonorableSearchBar
           value={query}
-          onChangeText={setQuery}
+          onChangeText={changeQuery}
           onSubmit={() => search()}
           busy={loading}
           footer={
@@ -348,6 +364,24 @@ export function HomeScreen() {
                 </Pressable>
               ))}
             </ScrollView>
+          </View>
+        )}
+        {response && (
+          <View style={styles.resultsReturn}>
+            <Text
+              numberOfLines={2}
+              style={styles.resultsQuery}
+            >{`Results for ${resultQuery}`}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear search results"
+              disabled={loading}
+              accessibilityState={{ disabled: loading }}
+              onPress={resetResults}
+              style={styles.resultsClear}
+            >
+              <Text style={styles.resultsClearLabel}>Clear results</Text>
+            </Pressable>
           </View>
         )}
         <Modal
@@ -691,6 +725,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   privacyText: { fontSize: 11, color: colors.textTertiary },
+  resultsReturn: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  resultsQuery: { flex: 1, color: colors.textSecondary, fontSize: 12 },
+  resultsClear: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+  },
+  resultsClearLabel: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   history: { marginTop: 12 },
   historyTitle: {
     paddingHorizontal: 20,
