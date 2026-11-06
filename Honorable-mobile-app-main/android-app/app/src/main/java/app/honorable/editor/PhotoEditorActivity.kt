@@ -55,6 +55,7 @@ class PhotoEditorActivity:Activity(){
  private var photoSettingsDialog:android.app.AlertDialog?=null
  private var photoSettingsToken:Any?=null
  private var photoVersions:PhotoVersionShelf?=null
+ private var photoObjectArrange:PhotoObjectArrangeControls?=null
  private var photoTextReplace:PhotoTextReplaceControls?=null
  private var photoDestructiveDialog:android.app.AlertDialog?=null
  private var photoDestructiveToken:Any?=null
@@ -553,7 +554,7 @@ class PhotoEditorActivity:Activity(){
    "Finish" to listOf(t("Fade to transparency"){manageAlphaGradient()},t("Vignette"){finishAdjust("Vignette",2)},t("Sharpen"){finishAdjust("Sharpen",3)},t("Text overlay"){editCaption()}),
    "Creative color" to PhotoCreativeTool.values().map{kind->t(kind.title){creativeAdjust(kind)}},
    "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
-   "Composition objects" to listOf(t("Text and shape objects"){manageObjects()},t("Pick object on photo"){armObjectPick()},t("Local effect regions"){manageRegions()},t("Local region recipes"){manageRegionRecipes()},t("Find / replace photo text"){findReplacePhotoText()}),
+   "Composition objects" to listOf(t("Text and shape objects"){manageObjects()},t("Pick object on photo"){armObjectPick()},t("Local effect regions"){manageRegions()},t("Local region recipes"){manageRegionRecipes()},t("Find / replace photo text"){findReplacePhotoText()},t("Arrange selected objects"){arrangePhotoObjects()}),
    "Create & compose" to PhotoCompositionTool.values().map{kind->t(kind.title){compositionAdjust(kind)}},
    "Editable project" to (listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){requestPhotoRestore()},t("Delete saved photo edits"){deletePhotoProject()},t("Copy editable photo settings"){copyPhotoSettings()},t("Paste editable photo settings"){pastePhotoSettings()})+if(!isCreatedPhotoSource())listOf(t("Saved photo versions"){savedPhotoVersions()})else emptyList()),
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
@@ -565,8 +566,27 @@ class PhotoEditorActivity:Activity(){
   if(!canRequestPhotoDestructive())return
   showPhotoDestructiveReview(true)
  }
- private fun canRequestPhotoTextReplace()=copyForeground&&canFinish()&&!isDestroyed&&!waitingForPicker&&pendingDestination==null&&::source.isInitialized
- private fun canApprovePhotoTextReplace(captured:PhotoCloseState,scope:String,mode:EditorAccessMode)=canRequestPhotoTextReplace()&&accessMode==mode&&currentScope()==scope&&captured.stillMatches(photoCloseState())
+ private fun canApprovePhotoObjectArrange(captured:PhotoCloseState,scope:String,mode:EditorAccessMode)=canApprovePhotoMetadataReview(captured,scope,mode)
+ private fun applyPhotoObjectArrange(owner:PhotoObjectArrangeControls,captured:PhotoCloseState,scope:String,mode:EditorAccessMode,plan:PhotoObjectArrangement):Boolean {
+  if(photoObjectArrange!==owner||!canApprovePhotoObjectArrange(captured,scope,mode)||plan.base!==edit||!plan.changed)return false
+  return commitPhotoChange(plan.edit)
+ }
+ private fun arrangePhotoObjects(){
+  if(!canRequestPhotoMetadataReview())return
+  val scope=photoControlScope()?:return;val mode=accessMode?:return;val captured=photoCloseState();val base=edit
+  photoObjectArrange?.close()
+  lateinit var controls:PhotoObjectArrangeControls
+  controls=PhotoObjectArrangeControls(this,base,isCurrent={photoObjectArrange===controls&&canApprovePhotoObjectArrange(captured,scope,mode)},apply={plan->
+   val applied=applyPhotoObjectArrange(controls,captured,scope,mode,plan)
+   if(applied){val ready=runCatching{preview()}.isSuccess;note.text=if(ready)"Arranged ${plan.changes.size} object centers. Undo restores positions. Check overlap and clipping."else"Object centers arranged, but preview is unavailable. Undo restores positions."}
+   applied
+  },message={note.text=it})
+  photoObjectArrange=controls;controls.open()
+ }
+ private fun canRequestPhotoMetadataReview()=copyForeground&&canFinish()&&!isDestroyed&&!waitingForPicker&&pendingDestination==null&&::source.isInitialized
+ private fun canRequestPhotoTextReplace()=canRequestPhotoMetadataReview()
+ private fun canApprovePhotoMetadataReview(captured:PhotoCloseState,scope:String,mode:EditorAccessMode)=canRequestPhotoMetadataReview()&&accessMode==mode&&currentScope()==scope&&captured.stillMatches(photoCloseState())
+ private fun canApprovePhotoTextReplace(captured:PhotoCloseState,scope:String,mode:EditorAccessMode)=canApprovePhotoMetadataReview(captured,scope,mode)
  private fun applyPhotoTextReplace(owner:PhotoTextReplaceControls,captured:PhotoCloseState,scope:String,mode:EditorAccessMode,plan:PhotoTextReplacement):Boolean {
   if(photoTextReplace!==owner||!canApprovePhotoTextReplace(captured,scope,mode)||plan.base!==edit||!plan.changed)return false
   return commitPhotoChange(plan.edit)
@@ -1270,6 +1290,6 @@ class PhotoEditorActivity:Activity(){
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel();if(photoExport?.isCancelled==true&&::note.isInitialized)note.text="Stopping the previous export. Check Files before retrying.";publishPhotoExportNotice();resumePendingExport()}
- override fun onPause(){photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }
