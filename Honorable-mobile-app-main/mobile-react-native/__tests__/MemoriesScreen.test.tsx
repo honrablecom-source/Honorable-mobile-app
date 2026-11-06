@@ -334,3 +334,69 @@ test('one owning virtualized list receives complete small rows for a larger libr
   expect(list.props.ListHeaderComponent).toBeDefined();
   expect(list.props.ListFooterComponent).toBeDefined();
 });
+
+test('viewer browses loaded filtered originals in displayed order without wrapping or loading', async () => {
+  await mount();
+  await act(async () => grid().props.onPress(grid().props.items[0]));
+  expect(viewer().props.navigation).toMatchObject({
+    position: 1,
+    total: 2,
+    onPrevious: undefined,
+  });
+  await act(async () => viewer().props.navigation.onNext());
+  expect(viewer().props.item).toMatchObject({
+    id: '2',
+    type: 'VIDEO',
+    mediaUri: fixtures[1].mediaUri,
+  });
+  expect(viewer().props.navigation).toMatchObject({
+    position: 2,
+    total: 2,
+    onNext: undefined,
+  });
+  await act(async () => viewer().props.navigation.onPrevious());
+  expect(viewer().props.item.mediaUri).toBe(fixtures[0].mediaUri);
+  expect(mockLoadMore).not.toHaveBeenCalled();
+  expect(mockReload).not.toHaveBeenCalled();
+});
+
+test('viewer navigation uses only filename matches and extends after an explicit page load', async () => {
+  await mount();
+  await act(async () => filter().props.onChangeText('Photo'));
+  await act(async () => grid().props.onPress(grid().props.items[0]));
+  expect(viewer().props.navigation).toMatchObject({
+    position: 1,
+    total: 1,
+    onNext: undefined,
+  });
+  mockItems = [
+    ...fixtures,
+    {
+      ...fixtures[0],
+      mediaId: 3,
+      mediaUri: 'content://synthetic/photo3',
+      displayName: 'Photo3.jpg',
+    },
+  ];
+  await update();
+  expect(viewer().props.navigation.total).toBe(2);
+  await act(async () => viewer().props.navigation.onNext());
+  expect(viewer().props.item.mediaUri).toBe('content://synthetic/photo3');
+  expect(mockLoadMore).not.toHaveBeenCalled();
+});
+
+test('stale next callbacks cannot skip the current item and refresh closes viewer navigation', async () => {
+  await mount();
+  await act(async () => grid().props.onPress(grid().props.items[0]));
+  const next = viewer().props.navigation.onNext;
+  await act(async () => {
+    next();
+    next();
+  });
+  expect(viewer().props.item.id).toBe('2');
+  await act(async () => next());
+  expect(viewer().props.item.id).toBe('2');
+  await act(async () => refresh().onRefresh());
+  expect(viewer().props.item).toBeUndefined();
+  expect(viewer().props.navigation).toBeUndefined();
+});

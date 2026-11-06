@@ -241,3 +241,113 @@ test('accessibility escape uses the existing viewer close callback', async () =>
   );
   expect(close).toHaveBeenCalledTimes(2);
 });
+
+test('optional navigation exposes position and disables the loaded boundary', async () => {
+  const next = jest.fn();
+  await act(async () => {
+    tree = Renderer.create(
+      <MediaViewer
+        item={source}
+        onClose={() => {}}
+        navigation={{ position: 1, total: 2, onNext: next }}
+      />,
+    );
+  });
+  expect(
+    button('Previous library item').props.accessibilityState.disabled,
+  ).toBe(true);
+  await act(async () => button('Previous library item').props.onPress());
+  await act(async () => button('Next library item').props.onPress());
+  expect(next).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify(tree.toJSON())).toContain('loaded');
+});
+
+test('pending native actions synchronously block viewer navigation until completion', async () => {
+  const next = jest.fn();
+  let finish!: (value: { opened: boolean }) => void;
+  native.openMedia.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  );
+  await act(async () => {
+    tree = Renderer.create(
+      <MediaViewer
+        item={source}
+        onClose={() => {}}
+        navigation={{ position: 1, total: 2, onNext: next }}
+      />,
+    );
+  });
+  const move = button('Next library item').props.onPress;
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button('Open media').props.onPress();
+    move();
+  });
+  expect(next).not.toHaveBeenCalled();
+  expect(button('Next library item').props.disabled).toBe(true);
+  await act(async () => {
+    finish({ opened: true });
+    await pending;
+  });
+  await act(async () => button('Next library item').props.onPress());
+  expect(next).toHaveBeenCalledTimes(1);
+});
+
+test('changed viewer item rejects stale actions and uses the displayed original for open edit and share', async () => {
+  const next = jest.fn();
+  await act(async () => {
+    tree = Renderer.create(
+      <MediaViewer
+        item={source}
+        onClose={() => {}}
+        navigation={{ position: 1, total: 2, onNext: next }}
+      />,
+    );
+  });
+  const oldOpen = button('Open media').props.onPress;
+  const oldNext = button('Next library item').props.onPress;
+  const photo: MediaItem = {
+    id: 'photo-next',
+    type: 'IMAGE',
+    uri: 'content://synthetic/thumb-next',
+    mediaUri: 'content://synthetic/original-next',
+  };
+  await act(async () =>
+    tree.update(
+      <MediaViewer
+        item={photo}
+        onClose={() => {}}
+        navigation={{ position: 2, total: 2 }}
+      />,
+    ),
+  );
+  await act(async () => {
+    await oldOpen();
+    oldNext();
+  });
+  expect(native.openMedia).not.toHaveBeenCalled();
+  expect(next).not.toHaveBeenCalled();
+  await act(async () => button('Open media').props.onPress());
+  await act(async () => button('Edit media').props.onPress());
+  await act(async () => button('Share media').props.onPress());
+  expect(native.openMedia).toHaveBeenCalledWith({
+    mediaUri: photo.mediaUri,
+    mediaType: 'IMAGE',
+    bestTimestampMs: undefined,
+  });
+  expect(native.editPhoto).toHaveBeenCalledWith(photo.mediaUri);
+  expect(native.shareMedia).toHaveBeenCalledWith({
+    mediaUri: photo.mediaUri,
+    mediaType: 'IMAGE',
+  });
+});
+
+test('single-item and search viewers retain their existing controls without library navigation', async () => {
+  await render();
+  expect(button('Previous library item')).toBeUndefined();
+  expect(button('Next library item')).toBeUndefined();
+  expect(button('Edit media')).toBeDefined();
+});

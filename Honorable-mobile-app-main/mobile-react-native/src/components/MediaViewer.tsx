@@ -20,9 +20,16 @@ import { editMemory } from '../native/editMemory';
 export function MediaViewer({
   item,
   onClose,
+  navigation,
 }: {
   item?: MediaItem;
   onClose: () => void;
+  navigation?: {
+    position: number;
+    total: number;
+    onPrevious?: () => void;
+    onNext?: () => void;
+  };
 }) {
   const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
@@ -30,10 +37,11 @@ export function MediaViewer({
   const [chrome, setChrome] = useState(true);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
-  const lifecycle = useRef({ active: false, generation: 0 });
+  const lifecycle = useRef({ active: false, generation: 0, item });
   useEffect(() => {
     const session = lifecycle.current;
     session.active = true;
+    session.item = item;
     session.generation++;
     return () => {
       session.active = false;
@@ -47,7 +55,12 @@ export function MediaViewer({
     item.mediaUri ??
     (item.type === 'IMAGE' ? item.uri : undefined);
   const run = async (title: string, action: () => Promise<unknown>) => {
-    if (pending.current || !lifecycle.current.active) return;
+    if (
+      pending.current ||
+      !lifecycle.current.active ||
+      lifecycle.current.item !== item
+    )
+      return;
     pending.current = true;
     const generation = lifecycle.current.generation;
     setBusy(true);
@@ -69,6 +82,17 @@ export function MediaViewer({
       pending.current = false;
       if (lifecycle.current.active) setBusy(false);
     }
+  };
+  const navigate = (action?: () => void) => {
+    if (
+      !action ||
+      pending.current ||
+      !lifecycle.current.active ||
+      lifecycle.current.item !== item
+    )
+      return;
+    setChrome(true);
+    action();
   };
   const openVideo = () =>
     run('Open media', async () => {
@@ -166,6 +190,46 @@ export function MediaViewer({
               </Pressable>
             )}
             <View style={[styles.details, { bottom: insets.bottom + 8 }]}>
+              {navigation && (
+                <View style={styles.navigation}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Previous library item"
+                    disabled={busy || !navigation.onPrevious}
+                    accessibilityState={{
+                      disabled: busy || !navigation.onPrevious,
+                    }}
+                    style={[
+                      styles.action,
+                      (busy || !navigation.onPrevious) && styles.actionDisabled,
+                    ]}
+                    onPress={() => navigate(navigation.onPrevious)}
+                  >
+                    <Text style={styles.counter}>Previous</Text>
+                  </Pressable>
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.position}
+                  >
+                    {navigation.position} of {navigation.total} loaded
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Next library item"
+                    disabled={busy || !navigation.onNext}
+                    accessibilityState={{
+                      disabled: busy || !navigation.onNext,
+                    }}
+                    style={[
+                      styles.action,
+                      (busy || !navigation.onNext) && styles.actionDisabled,
+                    ]}
+                    onPress={() => navigate(navigation.onNext)}
+                  >
+                    <Text style={styles.counter}>Next</Text>
+                  </Pressable>
+                </View>
+              )}
               <View style={styles.actions}>
                 <Pressable
                   accessibilityRole="button"
@@ -248,6 +312,14 @@ const styles = StyleSheet.create({
   canvas: { flex: 1, backgroundColor: colors.canvas, justifyContent: 'center' },
   fill: { width: '100%', height: '100%' },
   mediaSurface: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  navigation: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  position: { color: colors.textSecondary, fontSize: 12, flexShrink: 1 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   action: {
     minWidth: 48,

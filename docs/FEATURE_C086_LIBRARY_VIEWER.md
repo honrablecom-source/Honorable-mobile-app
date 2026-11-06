@@ -1,0 +1,11 @@
+# C086 — Browse loaded Library originals in the viewer
+
+1 new experimental source workflow; 1 separate viewer source-identity safety fix; 0 scaffolding. Source register85/500, batch47 beyond38. Next broad native/APK build target remains approximately138.
+
+Open a Library thumbnail, then use Previous/Next without closing the viewer. The position reports the current item out of loaded matches. Navigation follows the same month grouping and within-month order as the filtered Library grid, includes photos and videos, stops at boundaries and never automatically loads a page, prompts for permissions or wraps. Explicitly loaded pages extend the available matches. Refresh closes the viewer. Source thumbnails and original URIs remain distinct; Open/Edit/Share use the currently displayed original. Search/single-item viewers retain their existing controls with no Library navigation.
+
+Native actions synchronously block navigation while pending. Retained old navigation callbacks cannot skip ahead in the parent selection. Separately, the viewer now checks current item identity before native action admission, preventing callbacks from a previous item from opening/sharing/editing its old source after the displayed item changes. Existing error-generation and unmount handling remains.
+
+Seven new screen/viewer test families cover loaded boundaries/order, filtered/page-extension membership, same-tick/stale next callbacks and refresh, optional navigation, same-frame native-operation blocking, changed-item stale actions with exact current Open/Edit/Share original, and unaffected standalone viewing. Focused27/27 in2suites and full216/216 in21suites pass; typecheck exits0, lint exits0. Logs/hashes retained locally in `.context/library-viewer-browse/verification.json` and adjacent logs.
+
+Screen tests mock grid/viewer boundaries; actual viewer tests mock native/library/editor dependencies. No browser visual, device layout/gesture/scroll, Android permission/provider/lifecycle or native editor acceptance is claimed. Temporary browser tool dependencies were absent; no browser result is inferred from Jest. No full native/APK build or asset refresh. No new dependency, upload, native ranking or credit change.

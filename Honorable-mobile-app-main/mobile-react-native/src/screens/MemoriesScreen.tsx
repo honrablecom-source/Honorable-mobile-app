@@ -102,6 +102,20 @@ export function MemoriesScreen() {
     () => memoryRows(entries, query, filter),
     [entries, query, filter],
   );
+  const visibleMedia = useMemo(
+    () => rows.flatMap(row => (row.kind === 'media' ? row.items : [])),
+    [rows],
+  );
+  const selectedIndex = selected
+    ? visibleMedia.findIndex(item => item.id === selected.id)
+    : -1;
+  const displayed = visibleMedia[selectedIndex];
+  const moveSelection = (offset: number) => {
+    if (!active.current || !displayed) return;
+    const next = visibleMedia[selectedIndex + offset];
+    if (next)
+      setSelected(current => (current?.id === displayed.id ? next : current));
+  };
   const renderRow = useCallback(
     ({ item, index }: { item: MemoryRow; index: number }) =>
       item.kind === 'month' ? (
@@ -257,7 +271,24 @@ export function MemoriesScreen() {
           />
         }
       />
-      <MediaViewer item={selected} onClose={() => setSelected(undefined)} />
+      <MediaViewer
+        item={displayed}
+        onClose={() => setSelected(undefined)}
+        navigation={
+          displayed
+            ? {
+                position: selectedIndex + 1,
+                total: visibleMedia.length,
+                onPrevious:
+                  selectedIndex > 0 ? () => moveSelection(-1) : undefined,
+                onNext:
+                  selectedIndex + 1 < visibleMedia.length
+                    ? () => moveSelection(1)
+                    : undefined,
+              }
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }
