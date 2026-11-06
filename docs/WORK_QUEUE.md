@@ -1,3 +1,7 @@
+## November 6 — Native drawing reset lifecycle ownership
+
+**0 new features; 1 correctness fix; 0 scaffolding. Source 93/500, batch 55 unchanged.** New drawing confirmation now requires a current foreground review; pause/destroy dismisses and invalidates old approvals. Already approved resets retain one dispatch/reply and finish once in foreground, preserving the renderer’s cleared-draft/frozen-page transaction. Competing imports/exports wait; stale replies cannot reload or release later work. **57 focused host/API tests pass (19 new + 38 retained)**, five before-fix failures reproduced, plus actual native-script browser reset/storage/autosave/reopen/shelf regression. [Evidence and device limits](DRAWING_RESET_LIFECYCLE.md). No actual Android dialog/lifecycle/device or full native/APK build; broad build remains deferred to approximately 138 workflows.
+
 ## November 6 — Video results respect the current subtitle import owner
 
 **0 new features; 1 activity-result correctness fix; 0 scaffolding. Source 93/500, batch 55 unchanged.** Unrelated legacy result codes 22–28 now stop before recovery/legacy handlers while the playback-subtitle controller owns import state. A late old caption/audio/save result cannot use that path to clear the current controller's busy flag. Owned request 29 and existing no-owner/media-ticket/out-of-band routing remain; only the current controller's release reopens its gate.

@@ -31,8 +31,14 @@ class HonorableDrawingActivity : Activity() {
     private val exporting=AtomicBoolean(false)
     private val importing=AtomicBoolean(false)
     private val operationLock=Any()
-    private fun claimImport()=synchronized(operationLock){!exporting.get()&&importing.compareAndSet(false,true)}
-    private fun claimExport()=synchronized(operationLock){!importing.get()&&exporting.compareAndSet(false,true)}
+    private fun claimImport()=synchronized(operationLock){resetDispatch==null&&!exporting.get()&&importing.compareAndSet(false,true)}
+    private fun claimExport()=synchronized(operationLock){resetDispatch==null&&!importing.get()&&exporting.compareAndSet(false,true)}
+    private class ResetReview(val generation:Long)
+    private var resetGeneration=0L
+    private var resetReview:ResetReview?=null
+    private var resetDialog:android.app.AlertDialog?=null
+    private class ResetDispatch { var replied=false;var reset=false }
+    @Volatile private var resetDispatch:ResetDispatch?=null
     @Volatile private var printForeground=false
     @Volatile private var printClosed=false
     @Volatile private var printUpload:DrawingPrintUpload?=null
@@ -58,9 +64,7 @@ class HonorableDrawingActivity : Activity() {
         val actions=LinearLayout(this)
         actions.addView(Button(this).apply{text="Close drawing";setOnClickListener{finish()}},LinearLayout.LayoutParams(0,-2,1f))
         actions.addView(Button(this).apply{text="New drawing";setOnClickListener{
-            if(exporting.get()||importing.get()){nativeMessage.text="Finish the current image or file operation before starting a new drawing.";return@setOnClickListener}
-            android.app.AlertDialog.Builder(this@HonorableDrawingActivity).setTitle("Start a new drawing?").setMessage("This clears the current drawing and its local draft. Save a named composition in Projects or export an image first to keep your work. Named compositions and components stay on this device.")
-                .setNegativeButton("Cancel",null).setPositiveButton("New drawing"){_,_->if(!requestNewDrawing())nativeMessage.text="The drawing was kept. Finish the current operation and try again."}.show()
+            showResetReview()
         }},LinearLayout.LayoutParams(0,-2,1f))
         root.addView(actions)
         val message=TextView(this).apply{text=interruptedFileKind?.let{interruptedFileMessage(it)}?:idleMessage;accessibilityLiveRegion=android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE;setTextColor(Color.DKGRAY);setPadding(16,8,16,8)}
@@ -93,19 +97,54 @@ class HonorableDrawingActivity : Activity() {
         setContentView(root)
         web.loadUrl("https://${DrawingPolicy.HOST}/drawing/index.html")
     }
-    /** Confirm again after the dialog: an import/export may have started while it was open. */
+    private fun canResetDrawing()=printForeground&&!printClosed&&!isDestroyed&&!isFinishing&&!exporting.get()&&!importing.get()&&resetDispatch==null
+    private fun beginResetReview():ResetReview? {
+        if(!canResetDrawing()||resetReview!=null)return null
+        return ResetReview(resetGeneration).also{resetReview=it}
+    }
+    private fun approveResetReview(review:ResetReview):Boolean {
+        if(resetReview!==review||review.generation!=resetGeneration||!canResetDrawing())return false
+        resetReview=null;resetDialog=null
+        return requestNewDrawing()
+    }
+    private fun showResetReview(){
+        val review=beginResetReview()?:run{nativeMessage.text="Finish the current operation before starting a new drawing.";return}
+        runCatching{
+            resetDialog=android.app.AlertDialog.Builder(this).setTitle("Start a new drawing?").setMessage("This clears the current drawing and its local draft. Save a named composition in Projects or export an image first to keep your work. Named compositions and components stay on this device.")
+                .setNegativeButton("Cancel",null).setPositiveButton("New drawing"){_,_->
+                    if(resetReview===review&&review.generation==resetGeneration&&!approveResetReview(review)&&printForeground&&!printClosed)nativeMessage.text="The drawing was kept. Open New drawing again when ready."
+                }.setOnDismissListener{if(resetReview===review){resetReview=null;resetDialog=null}}.create().also{it.show()}
+        }.onFailure{if(resetReview===review){resetReview=null;resetDialog=null};nativeMessage.text="The drawing was kept. New drawing could not open; try again."}
+    }
+    /** Invalidate first so a dismissed/replayed approval cannot act after resume. */
+    private fun invalidateResetReview(){
+        resetGeneration++
+        resetReview=null
+        val dialog=resetDialog;resetDialog=null;runCatching{dialog?.dismiss()}
+    }
+    /** An already approved reset may have cleared storage: finish it once, only in foreground. */
+    private fun finishResetDispatch(){
+        val dispatch=synchronized(operationLock){
+            val current=resetDispatch
+            if(current==null||!current.replied||!printForeground||printClosed||isDestroyed||isFinishing)return
+            resetDispatch=null;current
+        }
+        if(dispatch.reset){
+            clearFileNotice()
+            runCatching{web.reload()}.onFailure{if(::nativeMessage.isInitialized)nativeMessage.text="The draft was cleared. Close and reopen the drawing to continue."}
+        }else if(::nativeMessage.isInitialized)nativeMessage.text="The drawing was kept. Wait for the canvas or current operation, then try again."
+    }
+    /** Confirm again after the dialog and own exactly one asynchronous WebView reply. */
     private fun requestNewDrawing():Boolean {
-        if(isDestroyed||isFinishing||exporting.get()||importing.get())return false
-        return runCatching {
+        val dispatch=ResetDispatch()
+        synchronized(operationLock){if(!canResetDrawing())return false;resetDispatch=dispatch}
+        return try {
             web.evaluateJavascript("typeof window.honorableNewDrawing === 'function' && window.honorableNewDrawing()"){reset->
-                if(isDestroyed||isFinishing)return@evaluateJavascript
-                if(reset=="true"){
-                    clearFileNotice()
-                    runCatching{web.reload()}.onFailure{if(::nativeMessage.isInitialized)nativeMessage.text="The draft was cleared. Close and reopen the drawing to continue."}
-                }else if(::nativeMessage.isInitialized)nativeMessage.text="The drawing was kept. Wait for the canvas or current operation, then try again."
+                val owned=synchronized(operationLock){if(resetDispatch!==dispatch||dispatch.replied||printClosed||isDestroyed||isFinishing)false else{dispatch.replied=true;dispatch.reset=reset=="true";true}}
+                if(owned)finishResetDispatch()
             }
             true
-        }.getOrDefault(false)
+        }catch(_:Exception){synchronized(operationLock){if(resetDispatch===dispatch)resetDispatch=null};false}
     }
     private fun blocked()=WebResourceResponse("text/plain","UTF-8",403,"Blocked",mapOf("Cache-Control" to "no-store"),ByteArrayInputStream(ByteArray(0)))
     private fun currentPrintUpload(value:DrawingPrintUpload)=synchronized(operationLock){printUpload===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
@@ -366,7 +405,7 @@ class HonorableDrawingActivity : Activity() {
         if(svgOperation!=null)outState.putBoolean("noble-drawing-svg-pending",true)
         super.onSaveInstanceState(outState)
     }
-    override fun onResume(){super.onResume();if(!printClosed)printForeground=true}
-    override fun onPause(){printForeground=false;svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;printForeground=false;svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch()}}
+    override fun onPause(){printForeground=false;invalidateResetReview();svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

@@ -24,7 +24,7 @@ class DrawingResetAdmissionTest {
     private fun setup(importing: Boolean = false, exporting: Boolean = false): Pair<HonorableDrawingActivity, RecordingWebView> {
         val activity = unsafe.allocateInstance(HonorableDrawingActivity::class.java) as HonorableDrawingActivity
         val web = unsafe.allocateInstance(RecordingWebView::class.java) as RecordingWebView
-        for ((name, value) in listOf("importing" to AtomicBoolean(importing), "exporting" to AtomicBoolean(exporting), "web" to web)) {
+        for ((name, value) in listOf("importing" to AtomicBoolean(importing), "exporting" to AtomicBoolean(exporting), "web" to web, "operationLock" to Any(), "printForeground" to true)) {
             activity.javaClass.getDeclaredField(name).apply { isAccessible = true }.set(activity, value)
         }
         return activity to web

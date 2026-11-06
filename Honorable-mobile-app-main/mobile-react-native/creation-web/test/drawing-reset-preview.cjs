@@ -1,7 +1,7 @@
 const { chromium } = require('../../../ui-previews/node_modules/playwright');
 const { withProjectView } = require('./project-navigation.cjs');
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '../../../..'), output = path.join(root, '.context/drawing-reset/browser');
+const root = path.resolve(__dirname, '../../../..'), output = process.env.NOBLE_RESET_OUTPUT ? path.resolve(process.env.NOBLE_RESET_OUTPUT) : path.join(root, '.context/drawing-reset/browser');
 fs.mkdirSync(output, { recursive: true });
 const before = process.env.NOBLE_RESET_PHASE === 'before';
 const url = process.env.NOBLE_PREVIEW_URL || `http://127.0.0.1:4194/${before ? 'before' : 'after'}/drawing/`;
