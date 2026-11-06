@@ -39,6 +39,8 @@ class HonorableDrawingActivity : Activity() {
     @Volatile private var printPreparing:DrawingPrintUpload?=null
     private class PrintOperation(val id:Int,val adapter:DrawingPrintAdapter){var job:android.print.PrintJob?=null}
     @Volatile private var activePrint:PrintOperation?=null
+    private class SvgOperation(val upload:DrawingSvgUpload){var preparing=false}
+    @Volatile private var svgOperation:SvgOperation?=null
     private var photoRequest:Int?=null
     private data class ProjectOperation(val id:Int,val saving:Boolean,val value:String?=null)
     private data class ProjectRead(val id:Int,val text:String)
@@ -63,6 +65,7 @@ class HonorableDrawingActivity : Activity() {
         root.addView(actions)
         val message=TextView(this).apply{text=interruptedFileKind?.let{interruptedFileMessage(it)}?:idleMessage;accessibilityLiveRegion=android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE;setTextColor(Color.DKGRAY);setPadding(16,8,16,8)}
         if(state?.getBoolean("noble-drawing-print-pending")==true)message.text="Printing was interrupted by screen recreation. Check Android print status before retrying; your saved drawing draft stays here."
+        if(state?.getBoolean("noble-drawing-svg-pending")==true)message.text="SVG sharing was interrupted by screen recreation. Check your drawing and share again when ready."
         nativeMessage=message
         web=WebView(this).apply {
             setBackgroundColor(Color.WHITE)
@@ -153,7 +156,55 @@ class HonorableDrawingActivity : Activity() {
         nativeMessage.text=error?:"Print dialog closed. Check Android print status or the saved PDF; delivery is not confirmed."
         web.evaluateJavascript("window.honorablePrintResult && window.honorablePrintResult($result)",null)
     }
+    private fun currentSvgOperation(value:SvgOperation)=synchronized(operationLock){svgOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
+    private fun releaseSvgOperation(value:SvgOperation,error:String?=null){
+        val owned=synchronized(operationLock){if(svgOperation!==value)false else{svgOperation=null;exporting.set(false);true}}
+        if(owned&&error!=null)runOnUiThread{svgShareReply(value.upload.id,error=error)}
+    }
+    private fun prepareSvgShare(value:SvgOperation){
+        if(!currentSvgOperation(value)){releaseSvgOperation(value,"SVG sharing stopped while the drawing was not active. Try again.");return}
+        try{worker.execute{
+            val prepared=runCatching{DrawingSvgShare.prepare(File(cacheDir,"created-images"),value.upload.finish()){
+                check(currentSvgOperation(value)&&!Thread.currentThread().isInterrupted){"SVG sharing was cancelled"}
+            }}
+            runOnUiThread{prepared.onSuccess{file->
+                if(!currentSvgOperation(value)){file.delete();releaseSvgOperation(value,"SVG sharing was cancelled. Your drawing stays here.");return@onSuccess}
+                val shared=runCatching{
+                    val uri=FileProvider.getUriForFile(this@HonorableDrawingActivity,packageName+".creation",file)
+                    val send=Intent(Intent.ACTION_SEND).apply{type="image/svg+xml";putExtra(Intent.EXTRA_STREAM,uri);clipData=android.content.ClipData.newUri(contentResolver,"Noble SVG artwork",uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+                    startActivity(Intent.createChooser(send,"Share SVG artwork"))
+                }
+                releaseSvgOperation(value)
+                shared.onSuccess{svgShareReply(value.upload.id,opened=true)}.onFailure{file.delete();svgShareReply(value.upload.id,error="The SVG share sheet could not open. Your drawing stays here; try again.")}
+            }.onFailure{releaseSvgOperation(value,if(it is OutOfMemoryError)"Not enough memory. Prepare a smaller SVG."else "SVG file preparation failed. Your drawing stays here; prepare the SVG and try again.")}}
+        }}catch(_:java.util.concurrent.RejectedExecutionException){releaseSvgOperation(value,"SVG sharing stopped. Open the drawing and try again.")}
+    }
+    private fun svgShareReply(requestId:Int,opened:Boolean=false,error:String?=null){
+        if(printClosed||isDestroyed||isFinishing||!::web.isInitialized)return
+        val result=JSONObject().put("requestId",requestId).put("opened",opened)
+        if(error!=null)result.put("error",error)
+        nativeMessage.text=error?:"SVG share sheet opened. Saving or sending depends on the app you choose."
+        web.evaluateJavascript("window.honorableSvgShareResult && window.honorableSvgShareResult($result)",null)
+    }
     inner class Bridge {
+        @JavascriptInterface fun beginSvgShare(requestId:Int,length:Int):Boolean=synchronized(operationLock){
+            if(!printForeground||printClosed||isDestroyed||isFinishing||svgOperation!=null||!claimExport())return@synchronized false
+            runCatching{SvgOperation(DrawingSvgUpload(requestId,length))}.fold({svgOperation=it;true},{exporting.set(false);false})
+        }
+        @JavascriptInterface fun appendSvgShareChunk(requestId:Int,value:String):Boolean=synchronized(operationLock){
+            val operation=svgOperation?.takeIf{it.upload.id==requestId}?:return@synchronized false
+            if(!currentSvgOperation(operation)||operation.preparing)return@synchronized false
+            runCatching{operation.upload.append(value);true}.getOrElse{svgOperation=null;exporting.set(false);false}
+        }
+        @JavascriptInterface fun finishSvgShare(requestId:Int){runOnUiThread{
+            val operation=synchronized(operationLock){svgOperation?.takeIf{it.upload.id==requestId&&!it.preparing}?.also{it.preparing=true}}?:return@runOnUiThread
+            prepareSvgShare(operation)
+        }}
+        @JavascriptInterface fun releaseSvgShare(requestId:Int){
+            val operation=synchronized(operationLock){svgOperation?.takeIf{it.upload.id==requestId}}?:return
+            releaseSvgOperation(operation)
+        }
+
         @JavascriptInterface fun beginPrintImage(requestId:Int,length:Int):Boolean=synchronized(operationLock){
             if(!printForeground||printClosed||isDestroyed||isFinishing||printUpload!=null||activePrint!=null||!claimExport())return@synchronized false
             runCatching{DrawingPrintUpload(requestId,length)}.fold({printUpload=it;true},{exporting.set(false);false})
@@ -312,9 +363,10 @@ class HonorableDrawingActivity : Activity() {
         val kind=projectOperation?.let{if(it.saving)"save"else"open"}?:if(projectUpload!=null)"save"else if(projectRead!=null)"open"else interruptedFileKind
         if(kind!=null)outState.putString(fileStateKey,kind)
         if(printUpload!=null||activePrint!=null)outState.putBoolean("noble-drawing-print-pending",true)
+        if(svgOperation!=null)outState.putBoolean("noble-drawing-svg-pending",true)
         super.onSaveInstanceState(outState)
     }
     override fun onResume(){super.onResume();if(!printClosed)printForeground=true}
-    override fun onPause(){printForeground=false;printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;printForeground=false;printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onPause(){printForeground=false;svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;printForeground=false;svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

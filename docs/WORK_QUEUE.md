@@ -1,3 +1,7 @@
+## November 6 — SVG file delivery improvement
+
+**0 new features; 1 existing-workflow delivery improvement; 1 native adapter. Source93/500, batch55 unchanged.** Fresh prepared SVG now has an Android read-only file share handoff with bounded Unicode transport, ownership/cancellation checks and selection/draft preservation. 38 focused JVM/API,181 drawing JS,67 Node tests and actual SVG/print browser regressions pass. [Evidence and limits](DRAWING_SVG_FILE_SHARE.md). No actual Android chooser/provider/device or full native/APK build; drawing assets remain deferred to the approximately138-workflow batch.
+
 ## November 6 — C094 import SRT against edited playback
 
 **1 new experimental source workflow; 0 separate fixes; 0 scaffolding. Source 93/500, batch 55 beyond 38.** Timed captions now imports a whole-project playback-timed SRT across trims, speeds, repeated and multiple source clips. Pending trim selections must first be applied/reset. Review replaces all project captions as one Undo/Redo while preserving titles/music/clip settings/originals. Bounded integer source-millisecond mapping preserves every fragment or rejects incompatible timing; no silent text loss or overlapping source cues. Input remains strict UTF8/128KB, with separate 1000-cue project parsing and existing per-clip, total cue, text and recovery bounds after mapping. Existing selected-clip source-time import stays unchanged.

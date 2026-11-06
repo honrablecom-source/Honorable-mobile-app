@@ -16,6 +16,7 @@ import { starterPlan } from './starters.mjs';
 import { StarterPreview } from './StarterPreview.jsx';
 import { imageArtwork } from './image-export.mjs';
 import { printArtworkSnapshot, sendPrintArtwork, MAX_PRINT_BYTES } from './print-artwork.mjs';
+import { sendSvgArtwork } from './svg-share.mjs';
 import { projectFilename, decodeProjectFile, sendProjectFile, receiveProjectFile, projectFileArtwork, recoveryFile, sendRecoveryFile } from './project-files.mjs';
 import { findArtwork } from './object-finder.mjs';
 import { TextContrastReview } from './TextContrastReview.jsx';
@@ -53,7 +54,7 @@ function Editor() {
   const [projectTool, setProjectTool] = useState('saved');
   const projectTaskHeading = useRef(null), previousProjectTool = useRef('saved');
   const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', advanced: 'Advanced transfer' };
-  const printRequest = useRef(0), pendingPrint = useRef(null), printSelection = useRef(null);
+  const printRequest = useRef(0), pendingPrint = useRef(null), svgRequest = useRef(0), pendingSvg = useRef(null), outputSelection = useRef(null);
   const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
   const [preparedProjectFile, setPreparedProjectFile] = useState(null);
   const [pendingOpen, setPendingOpen] = useState(null);
@@ -66,10 +67,10 @@ function Editor() {
   const canvasRegion = useRef(null);
   const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Start a new drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
   const [busy, setBusy] = useState(false), [panel, setPanel] = useState(null);
-  const [printUnlocking, setPrintUnlocking] = useState(false);
+  const [outputUnlocking, setOutputUnlocking] = useState(false);
   useLayoutEffect(() => {
-    if (!printUnlocking) return;
-    const captured = printSelection.current;
+    if (!outputUnlocking) return;
+    const captured = outputSelection.current;
     let active = true, frame, attempts = 0;
     const restore = () => {
       if (!active || !mounted.current) return;
@@ -78,16 +79,16 @@ function Editor() {
       if (captured && api.current === captured.editor && captured.editor.getAppState().viewModeEnabled && attempts++ < 60) {
         frame = requestAnimationFrame(restore); return;
       }
-      printSelection.current = null;
+      outputSelection.current = null;
       if (captured && captured.snapshot.current(api.current)) {
         try { captured.editor.updateScene({ appState: captured.selection, captureUpdate: CaptureUpdateAction.NEVER }); }
         catch { /* Keep the drawing; the user can choose the selection again. */ }
       }
-      setPrintUnlocking(false); finishBusy();
+      setOutputUnlocking(false); finishBusy();
     };
     frame = requestAnimationFrame(restore);
     return () => { active = false; cancelAnimationFrame(frame); };
-  }, [printUnlocking]);
+  }, [outputUnlocking]);
 
   useEffect(() => { if (pendingOpen && panel === 'projects') openReviewHeading.current?.focus(); }, [pendingOpen, panel]);
   const [framingTarget, setFramingTarget] = useState(null);
@@ -138,7 +139,11 @@ function Editor() {
     busyRef.current = true; window.honorableDrawingBusy = true; setBusy(true); return true;
   };
   const finishBusy = () => { if (resetPending.current) return; photoTarget.current = null; busyRef.current = false; window.honorableDrawingBusy = false; if (mounted.current) setBusy(false); };
-  const finishPrint = () => { if (printSelection.current) setPrintUnlocking(true); else finishBusy(); };
+  const finishOutput = () => { if (outputSelection.current) setOutputUnlocking(true); else finishBusy(); };
+  const captureOutputSelection = (editor, snapshot) => {
+    const state = editor.getAppState();
+    outputSelection.current = { editor, snapshot, selection: { selectedElementIds: { ...state.selectedElementIds }, selectedGroupIds: { ...state.selectedGroupIds }, editingGroupId: state.editingGroupId || null } };
+  };
   const save = (announce = true) => {
     if (resetPending.current) return false;
     try {
@@ -152,10 +157,16 @@ function Editor() {
   // Native back/lifecycle hooks always read current refs. Clear delayed work on teardown.
   window.honorableDrawingBusy = busy || resetPending.current;
   window.honorableSaveDraft = () => save(false);
+  window.honorableSvgShareResult = result => {
+    const pending = pendingSvg.current;
+    if (!mounted.current || !pending || result?.requestId !== pending.id) return;
+    pendingSvg.current = null; finishOutput();
+    setStatus(result.error || (result.opened === true ? 'SVG share sheet opened. Saving or sending depends on the app you choose.' : 'The SVG share sheet did not open. Try again.'));
+  };
   window.honorablePrintResult = result => {
     const pending = pendingPrint.current;
     if (!mounted.current || !pending || result?.requestId !== pending.id || (!result.error && result.closed !== true)) return;
-    pendingPrint.current = null; finishPrint();
+    pendingPrint.current = null; finishOutput();
     setStatus(result.error || 'Print dialog closed. Check Android print status or your saved PDF; saving or delivery is not confirmed here.');
   };
   window.honorableExportResult = message => { if (resetPending.current) return; finishBusy(); setStatus(message); };
@@ -172,7 +183,7 @@ function Editor() {
       return true;
     } catch { setStatus('Could not start a new drawing. Your current work was kept. Try again.'); return false; }
   };
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; pendingSvg.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
   const scene = () => [api.current.getSceneElements(), api.current.getAppState(), api.current.getFiles()];
   const commit = elements => {
     if (busyRef.current) throw Error('Wait for the current image operation to finish.');
@@ -632,6 +643,7 @@ function Editor() {
       const [elements, appState, files] = scene();
       encodeDraft(elements, appState, files);
       const raw = encodeDraft(elements, {}, files);
+      captureOutputSelection(editor, printArtworkSnapshot(editor, false, getCommonBounds));
       const visible = elements.filter(element => element.opacity !== 0);
       if (!visible.length) throw Error('Add a visible object first.');
       const result = await exportToSvg({ elements: visible, files: filesForElements(visible, files), appState: { ...appState, exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false, exportEmbedScene: false }, exportPadding: 10 });
@@ -639,8 +651,26 @@ function Editor() {
       if (new TextEncoder().encode(value).length > 2 * 1024 * 1024) throw Error('Vector output is too large. Simplify the composition.');
       if (!mounted.current || api.current !== editor || encodeDraft(editor.getSceneElements(), {}, editor.getFiles()) !== raw) throw Error('The drawing changed while preparing SVG. Prepare it again.');
       svgSource.current = { raw, stamp: svgStamp(editor.getSceneElements()), files: editor.getFiles() };
-      setSvg(value); setStatus('Vector SVG ready. Editing the drawing clears this output; prepare it again after changes.');
-    } catch (failure) { error(failure); } finally { finishBusy(); }
+      setSvg(value); setStatus('Vector SVG ready. Share the SVG file or copy the text. Editing the drawing clears this output; prepare it again after changes.');
+    } catch (failure) { error(failure); } finally { finishOutput(); }
+  };
+  const shareVector = () => {
+    if (!beginBusy()) return;
+    const editor = api.current;
+    let handedOff = false, id;
+    try {
+      const prepared = svgSource.current;
+      if (!svg || !prepared || encodeDraft(editor.getSceneElements(), {}, editor.getFiles()) !== prepared.raw) throw Error('Prepare SVG from the current drawing before sharing.');
+      captureOutputSelection(editor, printArtworkSnapshot(editor, false, getCommonBounds));
+      id = svgRequest.current = svgRequest.current >= 1_000_000_000 ? 1 : svgRequest.current + 1;
+      pendingSvg.current = { id };
+      sendSvgArtwork(window.HonorableDrawing, id, svg);
+      handedOff = true;
+      if (pendingSvg.current?.id === id) setStatus('Preparing a private SVG file for the share sheet…');
+    } catch (failure) {
+      if (pendingSvg.current?.id === id) pendingSvg.current = null;
+      error(failure);
+    } finally { if (!handedOff) finishOutput(); }
   };
   const useImage = async (selectionOnly = false) => {
     if (!beginBusy()) return;
@@ -671,8 +701,7 @@ function Editor() {
     try {
       if (!window.HonorableDrawing?.beginPrintImage) throw Error('Open Noble on Android to print or save a PDF.');
       const snapshot = printArtworkSnapshot(editor, selectionOnly, getCommonBounds);
-      const state = editor.getAppState();
-      printSelection.current = { editor, snapshot, selection: { selectedElementIds: { ...state.selectedElementIds }, selectedGroupIds: { ...state.selectedGroupIds }, editingGroupId: state.editingGroupId || null } };
+      captureOutputSelection(editor, snapshot);
       if (!save(false)) return;
       const blob = await exportToBlob({ elements: snapshot.elements, files: snapshot.files, appState: { ...editor.getAppState(), exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false, exportEmbedScene: false }, mimeType: 'image/png', maxWidthOrHeight: 2048 });
       if (!blob || !blob.size || blob.size > MAX_PRINT_BYTES) throw Error('Artwork is too large to print. Use a smaller drawing.');
@@ -694,7 +723,7 @@ function Editor() {
       if (mounted.current) error(failure);
     } finally {
       if (!handedOff && mounted.current) {
-        finishPrint();
+        finishOutput();
       }
     }
   };
@@ -787,7 +816,7 @@ function Editor() {
     setPendingOpen(null); setPendingSave(null); setProjectTool(value);
   };
   const foundObjects = panel === 'objects' ? findArtwork(objects, objectQuery, objectType) : [];
-  return <main onKeyDownCapture={event => { if (printUnlocking) { event.preventDefault(); event.stopPropagation(); } }}>
+  return <main onKeyDownCapture={event => { if (outputUnlocking) { event.preventDefault(); event.stopPropagation(); } }}>
     <header><strong>Noble <span>draw</span></strong><button onClick={() => save()} disabled={busy || !ready}>Save draft</button><button className="primary" onClick={() => useImage()} disabled={busy || !ready}>{busy ? 'Preparing...' : 'Use image'}</button></header>
     <nav aria-label="Composition tools">{['objects', 'arrange', 'layouts', 'projects'].map(value => <button key={value} data-panel-trigger={value} aria-expanded={panel === value} aria-controls="workspace-panel" onClick={() => showPanel(value)} disabled={busy || !ready}>{value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
     <input ref={photoInput} aria-label="Choose a local photo" type="file" accept="image/png,image/jpeg" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) addPhoto(file); }} />
@@ -796,9 +825,9 @@ function Editor() {
       <strong>What would you like to make?</strong><p>Start with editable words and shapes, or add your own photo. Everything stays on this device.</p>
       <div><button className="primary" disabled={busy} onClick={() => { if (busyRef.current) return; setLayoutTool('starter'); showPanel('layouts'); }}>Start a design</button><button disabled={busy} onClick={() => choosePhoto()}>Choose a photo</button><button disabled={busy} onClick={() => { if (busyRef.current) return; setStartDismissed(true); canvasRegion.current?.focus({ preventScroll: true }); }}>Explore canvas</button></div>
     </section>}
-    <section ref={canvasRegion} tabIndex={-1} className="canvas" style={printUnlocking ? { pointerEvents: 'none' } : undefined} aria-label="Offline drawing workspace" onDragOverCapture={event => event.preventDefault()} onDropCapture={event => { event.preventDefault(); event.stopPropagation(); setStatus('Use Add photo to import a local copy.'); }}>
+    <section ref={canvasRegion} tabIndex={-1} className="canvas" style={outputUnlocking ? { pointerEvents: 'none' } : undefined} aria-label="Offline drawing workspace" onDragOverCapture={event => event.preventDefault()} onDropCapture={event => { event.preventDefault(); event.stopPropagation(); setStatus('Use Add photo to import a local copy.'); }}>
       <button className="photo-add" onClick={() => choosePhoto()} disabled={busy || !ready}>Add photo</button>
-      <Excalidraw excalidrawAPI={bindEditor} theme="light" langCode="en" name="Noble drawing" isCollaborating={false} viewModeEnabled={busy && !printUnlocking}
+      <Excalidraw excalidrawAPI={bindEditor} theme="light" langCode="en" name="Noble drawing" isCollaborating={false} viewModeEnabled={busy && !outputUnlocking}
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}
@@ -875,7 +904,7 @@ function Editor() {
         <h3>Editable project transfer</h3><p>Project JSON includes editable objects and any imported photo copies. Original file names, original URIs and account data are excluded.</p><p>Import opens the saved composition. Insert project artwork places its objects beside your visible drawing and selects the movable ones. Undo restores the previous drawing in either case.</p>
         <div className="tool-grid"><button onClick={() => { try { const raw = exportProject(name, ...scene()); setPendingOpen(null); setJson(raw); setStatus('Project JSON ready. Select and copy it to keep a portable editable copy.'); } catch (failure) { error(failure); } }}>Export project JSON</button><button onClick={() => { try { const imported = importProject(json); loadScene(imported, imported.name); } catch (failure) { error(failure); } }}>Import project JSON</button><button onClick={() => { try { insertProject(importProject(json)); } catch (failure) { error(failure); } }}>Insert project artwork</button></div>
         <h3>Scalable vector artwork</h3><p>Export the visible composition as SVG. Hidden objects are excluded. Editing clears prepared output; prepare it again after changes. Keep project JSON separately for editing in Noble.</p><button onClick={prepareVector}>Prepare vector SVG</button>
-        {!!svg && <><label htmlFor="vector-svg">Vector SVG</label><textarea id="vector-svg" value={svg} readOnly spellCheck={false} onFocus={event => event.target.select()} /></>}
+        {!!svg && <><button disabled={busy} onClick={shareVector}>Share SVG file</button><p>The SVG file includes visible artwork and embedded photo copies. Choose the app and destination to share it with. Your drawing stays here.</p><label htmlFor="vector-svg">Vector SVG</label><textarea id="vector-svg" value={svg} readOnly spellCheck={false} onFocus={event => event.target.select()} /></>}
         <label htmlFor="portable-project-json">Project JSON</label><textarea id="portable-project-json" ref={portable} value={json} maxLength={MAX_PORTABLE_BYTES} spellCheck={false} onChange={event => { setPendingOpen(null); setJson(event.target.value); }} /><button onClick={() => { portable.current.focus(); portable.current.select(); }}>Select JSON to copy</button>        </>}
         </section>
       </>}
