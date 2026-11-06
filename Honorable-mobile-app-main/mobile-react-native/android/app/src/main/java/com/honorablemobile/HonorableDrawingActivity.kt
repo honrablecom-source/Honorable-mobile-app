@@ -30,6 +30,15 @@ class HonorableDrawingActivity : Activity() {
     private val worker=Executors.newSingleThreadExecutor()
     private val exporting=AtomicBoolean(false)
     private val importing=AtomicBoolean(false)
+    private val operationLock=Any()
+    private fun claimImport()=synchronized(operationLock){!exporting.get()&&importing.compareAndSet(false,true)}
+    private fun claimExport()=synchronized(operationLock){!importing.get()&&exporting.compareAndSet(false,true)}
+    @Volatile private var printForeground=false
+    @Volatile private var printClosed=false
+    @Volatile private var printUpload:DrawingPrintUpload?=null
+    @Volatile private var printPreparing:DrawingPrintUpload?=null
+    private class PrintOperation(val id:Int,val adapter:DrawingPrintAdapter){var job:android.print.PrintJob?=null}
+    @Volatile private var activePrint:PrintOperation?=null
     private var photoRequest:Int?=null
     private data class ProjectOperation(val id:Int,val saving:Boolean,val value:String?=null)
     private data class ProjectRead(val id:Int,val text:String)
@@ -53,6 +62,7 @@ class HonorableDrawingActivity : Activity() {
         }},LinearLayout.LayoutParams(0,-2,1f))
         root.addView(actions)
         val message=TextView(this).apply{text=interruptedFileKind?.let{interruptedFileMessage(it)}?:idleMessage;accessibilityLiveRegion=android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE;setTextColor(Color.DKGRAY);setPadding(16,8,16,8)}
+        if(state?.getBoolean("noble-drawing-print-pending")==true)message.text="Printing was interrupted by screen recreation. Check Android print status before retrying; your saved drawing draft stays here."
         nativeMessage=message
         web=WebView(this).apply {
             setBackgroundColor(Color.WHITE)
@@ -95,16 +105,84 @@ class HonorableDrawingActivity : Activity() {
         }.getOrDefault(false)
     }
     private fun blocked()=WebResourceResponse("text/plain","UTF-8",403,"Blocked",mapOf("Cache-Control" to "no-store"),ByteArrayInputStream(ByteArray(0)))
+    private fun currentPrintUpload(value:DrawingPrintUpload)=synchronized(operationLock){printUpload===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
+    private fun releasePrintUpload(value:DrawingPrintUpload,error:String?=null){
+        val owned=synchronized(operationLock){if(printUpload!==value)false else{printUpload=null;if(printPreparing===value)printPreparing=null;exporting.set(false);true}}
+        if(owned&&error!=null)runOnUiThread{printReply(value.id,error)}
+    }
+    private fun preparePrint(value:DrawingPrintUpload){
+        if(!currentPrintUpload(value)){releasePrintUpload(value,"Printing stopped while the drawing was not active. Try again.");return}
+        try{worker.execute{
+            val prepared=runCatching{
+                check(currentPrintUpload(value)){"Printing was cancelled"}
+                val payload=DrawingPolicy.base64Payload(value.finish())
+                val bytes=Base64.decode(payload,Base64.NO_WRAP)
+                require(Base64.encodeToString(bytes,Base64.NO_WRAP)==payload){"Artwork encoding is invalid"}
+                val size=DrawingPolicy.validatePng(bytes)
+                check(currentPrintUpload(value)){"Printing was cancelled"}
+                val bitmap=requireNotNull(BitmapFactory.decodeByteArray(bytes,0,bytes.size,BitmapFactory.Options().apply{inPreferredConfig=Bitmap.Config.ARGB_8888;inMutable=false})){"Artwork image could not be read"}
+                try{require(bitmap.width==size.first&&bitmap.height==size.second);check(currentPrintUpload(value)){"Printing was cancelled"};bitmap}
+                catch(failure:Throwable){bitmap.recycle();throw failure}
+            }
+            runOnUiThread{prepared.onSuccess{bitmap->
+                if(!currentPrintUpload(value)){bitmap.recycle();releasePrintUpload(value,"Printing was cancelled. The drawing is unchanged.")}
+                else showPrintSheet(value,bitmap)
+            }.onFailure{releasePrintUpload(value,if(it is OutOfMemoryError)"Not enough memory. Try a smaller drawing."else "Artwork could not be prepared for printing. Try again; your drawing is unchanged.")}}
+        }}catch(_:java.util.concurrent.RejectedExecutionException){releasePrintUpload(value,"Printing stopped. Open the drawing and try again.")}
+    }
+    private fun showPrintSheet(value:DrawingPrintUpload,bitmap:Bitmap){
+        if(!currentPrintUpload(value)){bitmap.recycle();releasePrintUpload(value,"Printing was cancelled.");return}
+        lateinit var operation:PrintOperation
+        val adapter=DrawingPrintAdapter(this,bitmap){error->
+            val owned=synchronized(operationLock){if(activePrint!==operation)false else{activePrint=null;exporting.set(false);true}}
+            if(owned)printReply(operation.id,error)
+        }
+        operation=PrintOperation(value.id,adapter)
+        val owned=synchronized(operationLock){if(!currentPrintUpload(value))false else{printUpload=null;printPreparing=null;activePrint=operation;true}}
+        if(!owned){adapter.close("Printing was cancelled.");return}
+        nativeMessage.text="Choose Save as PDF or a printer in Android's print options. The drawing stays editable; delivery is not confirmed here."
+        try{
+            val manager=getSystemService(android.content.Context.PRINT_SERVICE) as? android.print.PrintManager?:error("Print service unavailable")
+            operation.job=requireNotNull(manager.print("Noble artwork",adapter,android.print.PrintAttributes.Builder().setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4).setColorMode(android.print.PrintAttributes.COLOR_MODE_COLOR).build()))
+        }catch(_:Exception){adapter.close("Android print options could not open. Your drawing is unchanged. Try again.")}
+    }
+    private fun printReply(requestId:Int,error:String?=null){
+        if(printClosed||isDestroyed||isFinishing||!::web.isInitialized)return
+        val result=JSONObject().put("requestId",requestId).put("closed",error==null)
+        if(error!=null)result.put("error",error)
+        nativeMessage.text=error?:"Print dialog closed. Check Android print status or the saved PDF; delivery is not confirmed."
+        web.evaluateJavascript("window.honorablePrintResult && window.honorablePrintResult($result)",null)
+    }
     inner class Bridge {
+        @JavascriptInterface fun beginPrintImage(requestId:Int,length:Int):Boolean=synchronized(operationLock){
+            if(!printForeground||printClosed||isDestroyed||isFinishing||printUpload!=null||activePrint!=null||!claimExport())return@synchronized false
+            runCatching{DrawingPrintUpload(requestId,length)}.fold({printUpload=it;true},{exporting.set(false);false})
+        }
+        @JavascriptInterface fun appendPrintImageChunk(requestId:Int,value:String):Boolean=synchronized(operationLock){
+            val upload=printUpload?.takeIf{it.id==requestId}?:return@synchronized false
+            if(!currentPrintUpload(upload)||printPreparing===upload)return@synchronized false
+            runCatching{upload.append(value);true}.getOrElse{printUpload=null;exporting.set(false);false}
+        }
+        @JavascriptInterface fun finishPrintImage(requestId:Int){runOnUiThread{
+            val upload=synchronized(operationLock){
+                printUpload?.takeIf{it.id==requestId&&printPreparing!==it}?.also{printPreparing=it}
+            }?:return@runOnUiThread
+            preparePrint(upload)
+        }}
+        @JavascriptInterface fun releasePrintImage(requestId:Int){
+            val upload=synchronized(operationLock){printUpload?.takeIf{it.id==requestId}}?:return
+            releasePrintUpload(upload)
+        }
+
         @JavascriptInterface fun choosePhoto(requestId:Int) {runOnUiThread {
             if(isDestroyed||isFinishing||!DrawingPhotoPolicy.acceptsRequest(requestId))return@runOnUiThread
-            if(exporting.get()||!importing.compareAndSet(false,true)){photoReply(requestId,error="Another image operation is running.");return@runOnUiThread}
+            if(!claimImport()){photoReply(requestId,error="Another image operation is running.");return@runOnUiThread}
             photoRequest=requestId
             runCatching{startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply{type="image/*";addCategory(Intent.CATEGORY_OPENABLE);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},DrawingPhotoPolicy.REQUEST_CODE)}
                 .onFailure{photoRequest=null;importing.set(false);photoReply(requestId,error="The photo picker could not open. Try again.")}
         }}
         @JavascriptInterface fun beginProjectFileSave(requestId:Int,name:String,length:Int):Boolean {
-            if(isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId)||exporting.get()||!importing.compareAndSet(false,true))return false
+            if(isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId)||!claimImport())return false
             return runCatching{projectUpload=DrawingProjectUpload(requestId,name,length);runOnUiThread{clearFileNotice()};true}.getOrElse{importing.set(false);false}
         }
         @JavascriptInterface fun appendProjectFileChunk(requestId:Int,value:String):Boolean {
@@ -120,7 +198,7 @@ class HonorableDrawingActivity : Activity() {
         }}
         @JavascriptInterface fun chooseProjectFile(requestId:Int){runOnUiThread{
             if(isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId))return@runOnUiThread
-            if(exporting.get()||!importing.compareAndSet(false,true)){projectReply(requestId,error="Another image or file operation is running.");return@runOnUiThread}
+            if(!claimImport()){projectReply(requestId,error="Another image or file operation is running.");return@runOnUiThread}
             openProjectPicker(ProjectOperation(requestId,false))
         }}
         @JavascriptInterface fun readProjectFileChunk(requestId:Int,offset:Int):String? {
@@ -131,7 +209,7 @@ class HonorableDrawingActivity : Activity() {
             if(projectUpload?.id==requestId||projectRead?.id==requestId){projectUpload=null;projectRead=null;importing.set(false)}
         }}
         @JavascriptInterface fun usePng(value:String) {
-            if(isDestroyed||isFinishing||importing.get()||!exporting.compareAndSet(false,true))return
+            if(isDestroyed||isFinishing||!claimExport())return
             try { worker.execute {
                 var file:File?=null;var bitmap:Bitmap?=null
                 val result=runCatching {
@@ -233,8 +311,10 @@ class HonorableDrawingActivity : Activity() {
         // Add only an operation label here; no project text, photo bytes or URIs are added by this override.
         val kind=projectOperation?.let{if(it.saving)"save"else"open"}?:if(projectUpload!=null)"save"else if(projectRead!=null)"open"else interruptedFileKind
         if(kind!=null)outState.putString(fileStateKey,kind)
+        if(printUpload!=null||activePrint!=null)outState.putBoolean("noble-drawing-print-pending",true)
         super.onSaveInstanceState(outState)
     }
-    override fun onPause(){if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onResume(){super.onResume();if(!printClosed)printForeground=true}
+    override fun onPause(){printForeground=false;printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;printForeground=false;printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

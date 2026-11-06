@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 91,
+  "source_implemented": 92,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 409,
+  "remaining_not_source_complete": 408,
   "features": [
     {
       "id": "C001",
@@ -733,6 +733,14 @@
       "outcome": "Review and arrange explicitly selected eligible photo object centers together with one Undo",
       "status": "implemented-source",
       "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C093",
+      "outcome": "Prepare whole or selected drawing artwork for a one-page PDF or printer through an explicit Android print sheet while preserving editable work",
+      "status": "implemented-source",
+      "local_web_checked": true,
       "full_app_build_checked": false,
       "device_checked": false
     }

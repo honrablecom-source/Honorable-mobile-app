@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Excalidraw, MainMenu, exportToBlob, exportToSvg, newElementWith, restoreElements, convertToExcalidrawElements, CaptureUpdateAction, getCommonBounds } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
@@ -15,6 +15,7 @@ import { tablePlan } from './table.mjs';
 import { starterPlan } from './starters.mjs';
 import { StarterPreview } from './StarterPreview.jsx';
 import { imageArtwork } from './image-export.mjs';
+import { printArtworkSnapshot, sendPrintArtwork, MAX_PRINT_BYTES } from './print-artwork.mjs';
 import { projectFilename, decodeProjectFile, sendProjectFile, receiveProjectFile, projectFileArtwork, recoveryFile, sendRecoveryFile } from './project-files.mjs';
 import { findArtwork } from './object-finder.mjs';
 import { TextContrastReview } from './TextContrastReview.jsx';
@@ -51,7 +52,8 @@ function Editor() {
   const [selectionFile, setSelectionFile] = useState(false);
   const [projectTool, setProjectTool] = useState('saved');
   const projectTaskHeading = useRef(null), previousProjectTool = useRef('saved');
-  const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', parts: 'Reusable parts', advanced: 'Advanced transfer' };
+  const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', advanced: 'Advanced transfer' };
+  const printRequest = useRef(0), pendingPrint = useRef(null), printSelection = useRef(null);
   const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
   const [preparedProjectFile, setPreparedProjectFile] = useState(null);
   const [pendingOpen, setPendingOpen] = useState(null);
@@ -64,6 +66,29 @@ function Editor() {
   const canvasRegion = useRef(null);
   const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Start a new drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
   const [busy, setBusy] = useState(false), [panel, setPanel] = useState(null);
+  const [printUnlocking, setPrintUnlocking] = useState(false);
+  useLayoutEffect(() => {
+    if (!printUnlocking) return;
+    const captured = printSelection.current;
+    let active = true, frame, attempts = 0;
+    const restore = () => {
+      if (!active || !mounted.current) return;
+      // Excalidraw clears selection while entering/leaving view mode. Wait for
+      // that transition while controls remain locked, then restore once.
+      if (captured && api.current === captured.editor && captured.editor.getAppState().viewModeEnabled && attempts++ < 60) {
+        frame = requestAnimationFrame(restore); return;
+      }
+      printSelection.current = null;
+      if (captured && captured.snapshot.current(api.current)) {
+        try { captured.editor.updateScene({ appState: captured.selection, captureUpdate: CaptureUpdateAction.NEVER }); }
+        catch { /* Keep the drawing; the user can choose the selection again. */ }
+      }
+      setPrintUnlocking(false); finishBusy();
+    };
+    frame = requestAnimationFrame(restore);
+    return () => { active = false; cancelAnimationFrame(frame); };
+  }, [printUnlocking]);
+
   useEffect(() => { if (pendingOpen && panel === 'projects') openReviewHeading.current?.focus(); }, [pendingOpen, panel]);
   const [framingTarget, setFramingTarget] = useState(null);
   const [rectifyTarget, setRectifyTarget] = useState(null);
@@ -113,6 +138,7 @@ function Editor() {
     busyRef.current = true; window.honorableDrawingBusy = true; setBusy(true); return true;
   };
   const finishBusy = () => { if (resetPending.current) return; photoTarget.current = null; busyRef.current = false; window.honorableDrawingBusy = false; if (mounted.current) setBusy(false); };
+  const finishPrint = () => { if (printSelection.current) setPrintUnlocking(true); else finishBusy(); };
   const save = (announce = true) => {
     if (resetPending.current) return false;
     try {
@@ -126,6 +152,12 @@ function Editor() {
   // Native back/lifecycle hooks always read current refs. Clear delayed work on teardown.
   window.honorableDrawingBusy = busy || resetPending.current;
   window.honorableSaveDraft = () => save(false);
+  window.honorablePrintResult = result => {
+    const pending = pendingPrint.current;
+    if (!mounted.current || !pending || result?.requestId !== pending.id || (!result.error && result.closed !== true)) return;
+    pendingPrint.current = null; finishPrint();
+    setStatus(result.error || 'Print dialog closed. Check Android print status or your saved PDF; saving or delivery is not confirmed here.');
+  };
   window.honorableExportResult = message => { if (resetPending.current) return; finishBusy(); setStatus(message); };
   window.honorableNewDrawing = () => {
     if (!mounted.current || !api.current || busyRef.current || resetPending.current) return false;
@@ -140,7 +172,7 @@ function Editor() {
       return true;
     } catch { setStatus('Could not start a new drawing. Your current work was kept. Try again.'); return false; }
   };
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; photoRequest.current++; clearTimeout(timer.current); }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
   const scene = () => [api.current.getSceneElements(), api.current.getAppState(), api.current.getFiles()];
   const commit = elements => {
     if (busyRef.current) throw Error('Wait for the current image operation to finish.');
@@ -631,6 +663,41 @@ function Editor() {
       reader.readAsDataURL(blob);
     } catch (failure) { finishBusy(); if (mounted.current) error(failure); }
   };
+  const printArtwork = async (selectionOnly = false) => {
+    if (!beginBusy()) return;
+    const editor = api.current;
+    let handedOff = false, id;
+    setStatus('Preparing artwork for one white printed page…');
+    try {
+      if (!window.HonorableDrawing?.beginPrintImage) throw Error('Open Noble on Android to print or save a PDF.');
+      const snapshot = printArtworkSnapshot(editor, selectionOnly, getCommonBounds);
+      const state = editor.getAppState();
+      printSelection.current = { editor, snapshot, selection: { selectedElementIds: { ...state.selectedElementIds }, selectedGroupIds: { ...state.selectedGroupIds }, editingGroupId: state.editingGroupId || null } };
+      if (!save(false)) return;
+      const blob = await exportToBlob({ elements: snapshot.elements, files: snapshot.files, appState: { ...editor.getAppState(), exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false, exportEmbedScene: false }, mimeType: 'image/png', maxWidthOrHeight: 2048 });
+      if (!blob || !blob.size || blob.size > MAX_PRINT_BYTES) throw Error('Artwork is too large to print. Use a smaller drawing.');
+      const value = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(Error('Artwork could not be prepared for printing.'));
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsDataURL(blob);
+      });
+      if (!mounted.current) return;
+      if (!snapshot.current(api.current)) throw Error('The drawing changed while preparing print output. Try again.');
+      id = printRequest.current = printRequest.current >= 1_000_000_000 ? 1 : printRequest.current + 1;
+      pendingPrint.current = { id };
+      sendPrintArtwork(window.HonorableDrawing, id, value);
+      handedOff = true;
+      if (pendingPrint.current?.id === id) setStatus('Choose Save as PDF or a printer in Android’s print options. Your drawing stays editable; only confirm a destination you want to use.');
+    } catch (failure) {
+      if (pendingPrint.current?.id === id) pendingPrint.current = null;
+      if (mounted.current) error(failure);
+    } finally {
+      if (!handedOff && mounted.current) {
+        finishPrint();
+      }
+    }
+  };
   const stageProjectFile = (value, previous) => {
     if (projectJson.current !== previous) throw Error('Project text changed. Choose the file again to keep your changes.');
     setPendingOpen(null); setJson(value.raw); setPreparedProjectFile({ name: value.project.name, raw: value.raw }); setPendingSave(null); setProjectTool('files'); setPanel('projects');
@@ -720,7 +787,7 @@ function Editor() {
     setPendingOpen(null); setPendingSave(null); setProjectTool(value);
   };
   const foundObjects = panel === 'objects' ? findArtwork(objects, objectQuery, objectType) : [];
-  return <main>
+  return <main onKeyDownCapture={event => { if (printUnlocking) { event.preventDefault(); event.stopPropagation(); } }}>
     <header><strong>Noble <span>draw</span></strong><button onClick={() => save()} disabled={busy || !ready}>Save draft</button><button className="primary" onClick={() => useImage()} disabled={busy || !ready}>{busy ? 'Preparing...' : 'Use image'}</button></header>
     <nav aria-label="Composition tools">{['objects', 'arrange', 'layouts', 'projects'].map(value => <button key={value} data-panel-trigger={value} aria-expanded={panel === value} aria-controls="workspace-panel" onClick={() => showPanel(value)} disabled={busy || !ready}>{value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
     <input ref={photoInput} aria-label="Choose a local photo" type="file" accept="image/png,image/jpeg" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) addPhoto(file); }} />
@@ -729,9 +796,9 @@ function Editor() {
       <strong>What would you like to make?</strong><p>Start with editable words and shapes, or add your own photo. Everything stays on this device.</p>
       <div><button className="primary" disabled={busy} onClick={() => { if (busyRef.current) return; setLayoutTool('starter'); showPanel('layouts'); }}>Start a design</button><button disabled={busy} onClick={() => choosePhoto()}>Choose a photo</button><button disabled={busy} onClick={() => { if (busyRef.current) return; setStartDismissed(true); canvasRegion.current?.focus({ preventScroll: true }); }}>Explore canvas</button></div>
     </section>}
-    <section ref={canvasRegion} tabIndex={-1} className="canvas" aria-label="Offline drawing workspace" onDragOverCapture={event => event.preventDefault()} onDropCapture={event => { event.preventDefault(); event.stopPropagation(); setStatus('Use Add photo to import a local copy.'); }}>
+    <section ref={canvasRegion} tabIndex={-1} className="canvas" style={printUnlocking ? { pointerEvents: 'none' } : undefined} aria-label="Offline drawing workspace" onDragOverCapture={event => event.preventDefault()} onDropCapture={event => { event.preventDefault(); event.stopPropagation(); setStatus('Use Add photo to import a local copy.'); }}>
       <button className="photo-add" onClick={() => choosePhoto()} disabled={busy || !ready}>Add photo</button>
-      <Excalidraw excalidrawAPI={bindEditor} theme="light" langCode="en" name="Noble drawing" isCollaborating={false} viewModeEnabled={busy}
+      <Excalidraw excalidrawAPI={bindEditor} theme="light" langCode="en" name="Noble drawing" isCollaborating={false} viewModeEnabled={busy && !printUnlocking}
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}
@@ -793,6 +860,11 @@ function Editor() {
         </>}
         {projectTool === 'images' && <>
         <label className="check-label"><input type="checkbox" aria-label="Use transparent image background" checked={transparentImage} disabled={busy} onChange={event => { if (!busyRef.current) setTransparentImage(event.target.checked); }} />Use transparent image background</label><p>{transparentImage ? 'Empty canvas areas stay transparent. Photos and filled shapes keep their backgrounds. Choose PNG when exporting from the photo editor to keep transparency.' : 'Empty canvas areas become white. Turn on transparency for artwork you want to place over another image.'} This choice applies to both image buttons for this session; SVG and editable project saves keep their own settings.</p><p>Select artwork on the canvas, then open only that part in the photo editor. Attached labels and selected frame contents are included; hidden objects are excluded. Outside connections are detached in the image copy. Your editable drawing stays here. The header Use image button includes the whole visible drawing.</p><button onClick={() => useImage(true)}>Use selected artwork</button>
+        </>}
+        {projectTool === 'print' && <>
+        <p>Fit your design onto one white page without cropping. In Android’s print options, choose Save as PDF or a printer, then review the page and destination before confirming. Your drawing stays editable.</p>
+        <p>Prints a flattened image up to 2048 pixels; large prints may look soft. Empty and transparent areas become white. Hidden objects are left out. Selected artwork includes attached labels and frame contents.</p>
+        <div className="tool-grid"><button disabled={busy} onClick={() => printArtwork(false)}>Print whole drawing</button><button disabled={busy} onClick={() => printArtwork(true)}>Print selected artwork</button></div>
         </>}
         {projectTool === 'parts' && <>
         <p>Select artwork on the canvas, then save a component. Attached labels and frame contents travel with the selection. Connections to unselected objects are detached; the original stays unchanged. Keep up to 12 local components. Inserted groups and internal connections stay editable.</p><label>Component name<input value={componentName} maxLength={40} onChange={event => setComponentName(event.target.value)} /></label><button data-shelf-save="component" onClick={saveComponent}>Save selected as component</button>
