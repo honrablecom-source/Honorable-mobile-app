@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-87 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+88 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -131,3 +131,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C087** — Select up to twenty loaded Library originals across filters and open one read-only Android share sheet with the exact chosen files. [Scope and limits](FEATURE_C087_LIBRARY_BATCH_SHARE.md). Experimental source;full-app/device acceptance pending.
 
 - **C088** — Copy full editable photo settings between originals through explicit clipboard transfer with reviewed replacement and Undo. [Scope and limits](FEATURE_C088_PHOTO_SETTINGS_TRANSFER.md). Experimental source;full-app/device acceptance pending.
+
+- **C089** — Keep named private full editable photo alternatives bound to the same original, with reviewed opening and Undo. [Scope and limits](FEATURE_C089_PHOTO_VERSIONS.md). Experimental source; full-app/device acceptance pending.

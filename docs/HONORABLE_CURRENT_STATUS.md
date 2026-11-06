@@ -1,3 +1,9 @@
+## November 6 — C089 keep named photo editing alternatives
+
+**1 new experimental source workflow; 0 separate fixes; 0 scaffolding. Source 88/500, batch 50 beyond 38.** Imported-photo Editable project now saves named full editing alternatives separately from the existing single saved-edit slot. Reviewed Open uses photo Undo; save-new refuses duplicate names, and metadata-only deletion has conflict-safe in-shelf Undo. Private guest/account-and-original shelves cap at 20 entries/512 KB, validate original bytes and retain protected sources. Created canvases keep their existing project workflow.
+
+**435 focused host tests pass: 22 new families + 413 retained**, with current Activity/helper API compilation, current source/dependency hashes and 11 source-wiring checks. [Behavior, evidence and limitations](FEATURE_C089_PHOTO_VERSIONS.md); `.context/noble-fast-photo-versions/verification.json`. Memory record and constructor-free Activity tests do not prove actual encrypted Keystore/AtomicFile storage, provider access/grants, dialogs/rendering, physical lifecycle/device or full native/APK integration. No media copy/upload or new dependencies; broad builds stay deferred to approximately 138 source workflows. Source/runtime evidence remains separate. Existing search/ranking/credits/server-ledger behavior and peer work are preserved.
+
 ## November 6 — Studio preserves exact source identity
 
 **0 new user-facing features; 1 correctness fix; 0 scaffolding. Source87/500, batch49 unchanged.** Studio rejects retained edit/inspect callbacks after source removal, URI/type replacement, filename/page/type changes or library loading. An inspected original is bound to its exact ID/URI/type instead of silently becoming another record with the same ID; invalid sources ask for a deliberate new selection.
