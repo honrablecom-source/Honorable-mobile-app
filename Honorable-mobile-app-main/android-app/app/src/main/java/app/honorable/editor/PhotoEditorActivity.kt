@@ -59,6 +59,8 @@ class PhotoEditorActivity:Activity(){
  @Volatile private var activityClosed=false
  @Volatile private var photoProjectBusy=false
  private var exportInProgress=false
+ @Volatile private var photoExport:PhotoExportOperation?=null
+ private var photoExportNotice:Pair<PhotoExportOperation,String>?=null
  private var waitingForPicker=false
  private var loadedScope:String?=null
  private fun currentScope():String?=runCatching {
@@ -705,7 +707,7 @@ class PhotoEditorActivity:Activity(){
   return loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";null}
  }
  private fun photoControlUnchanged(base:PhotoEdit,scope:String)=canFinish()&&!isDestroyed&&edit==base&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
- private fun canFinish()=photoRecovery==null&&!activityClosed&&!photoProjectBusy&&bitmap!=null&&exportEdit==null&&!readingText&&!enhancing&&!cuttingOut&&!isFinishing
+ private fun canFinish()=photoRecovery==null&&!activityClosed&&!photoProjectBusy&&!exportInProgress&&bitmap!=null&&exportEdit==null&&!readingText&&!enhancing&&!cuttingOut&&!isFinishing
  private fun chooseCreative(){if(!canFinish())return
   val tools=PhotoCreativeTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Creative color").setItems(tools.map{it.title}.toTypedArray()){_,index->creativeAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
@@ -967,35 +969,57 @@ class PhotoEditorActivity:Activity(){
   pendingDestination=requireNotNull(data.data)
   resumePendingExport()
  }
- private fun resumePendingExport(){
-  if(photoRecovery!=null)return
-  val destination=pendingDestination?:return
-  if(bitmap==null||exportInProgress||isDestroyed)return
-  if(loadedScope!=null&&currentScope()!=loadedScope){pendingDestination=null;exportEdit=null;note.text="Account changed. Reopen this photo before saving.";return}
-  val state=exportEdit?:run{pendingDestination=null;return}
-  if(state.needsPersonMask&&personMask==null){cutOutPerson(true);return}
-  pendingDestination=null;exportInProgress=true
-  note.text="Exporting copy…"
-  worker.execute {
-   var input:Bitmap?=null
-   var output:Bitmap?=null
-   try {
-    authorizeEditor()
-    val decoded=decode(8192)
-    input=decoded
-    val result=render(decoded,state)
-    output=result
-    SafePhotoCopy.save(this,source,destination,result,exportEncoding,exportQuality,protectedOriginals)
-    val dimensions="${result.width} × ${result.height}"
-    emit("edit_saved",JSONObject().put("mediaType","IMAGE"))
-    runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."}
-   } catch(e:Exception) {
-    emit("client_error",JSONObject().put("errorCode","SAVE_FAILED"))
-    runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Export failed. Choose a local writable destination; check Files for a partial copy."}
-   } catch(e:OutOfMemoryError) {
-    runOnUiThread{exportInProgress=false;exportEdit=null;if(!isDestroyed)note.text="Not enough memory to save this photo. Close other tools and try again."}
-   } finally {output?.recycle();input?.recycle()}
+ private fun capturePhotoExport(destination:Uri,state:PhotoEdit):PhotoExportOperation? {
+  if(!copyForeground||photoRecovery!=null||activityClosed||isDestroyed||isFinishing||exportInProgress||bitmap==null||exportEdit!==state||!::source.isInitialized)return null
+  val mode=accessMode?:return null;val scope=loadedScope?.takeIf{currentScope()==it}?:return null
+  return runCatching{PhotoExportOperation(state,source.toString(),destination.toString(),scope,mode,copyGeneration,exportEncoding,exportQuality,protectedOriginals.map{it.toString()})}.getOrNull()
+ }
+ private fun photoExportCurrent(operation:PhotoExportOperation):Boolean {
+  if(photoExport!==operation||operation.isCancelled||!exportInProgress||!copyForeground||photoRecovery!=null||activityClosed||isDestroyed||isFinishing||bitmap==null||!::source.isInitialized)return false
+  return operation.matches(exportEdit,source.toString(),loadedScope,currentScope(),accessMode,copyGeneration,protectedOriginals.map{it.toString()})
+ }
+ private fun publishPhotoExportNotice(){
+  val notice=photoExportNotice?:return;val operation=notice.first
+  if(!copyForeground||activityClosed||isDestroyed||isFinishing||photoExport!=null||photoRecovery!=null||!::note.isInitialized)return
+  if(!::source.isInitialized||source.toString()!=operation.source||loadedScope!=operation.scope||currentScope()!=operation.scope||accessMode!=operation.mode){photoExportNotice=null;return}
+  note.text=notice.second;photoExportNotice=null
+ }
+ private fun completePhotoExport(operation:PhotoExportOperation,dimensions:String?,failure:Throwable?){
+  if(photoExport!==operation)return
+  val current=runCatching{photoExportCurrent(operation)}.getOrDefault(false)
+  photoExport=null;exportInProgress=false;if(exportEdit===operation.edit)exportEdit=null
+  val message=when{
+   !current||failure is PhotoExportOperation.Cancelled->"Export stopped when the editor changed. Check Files for an empty, partial or completed copy before retrying."
+   failure is OutOfMemoryError->"Not enough memory to save this photo. Check Files for a partial copy, then choose Export again."
+   failure!=null->"Export failed. Choose a local writable destination; check Files for a partial copy."
+   else->"Copy saved · $dimensions px. Original preserved. Large photos are reduced for memory safety."
   }
+  photoExportNotice=operation to message;publishPhotoExportNotice()
+ }
+ private fun resumePendingExport(){
+  if(photoRecovery!=null||!copyForeground||activityClosed||isFinishing||isDestroyed)return
+  val destination=pendingDestination?:return
+  if(bitmap==null||exportInProgress)return
+  val state=exportEdit?:run{pendingDestination=null;return}
+  val operation=capturePhotoExport(destination,state)?:run{pendingDestination=null;exportEdit=null;note.text="Photo or session changed. Reopen this photo before saving.";return}
+  if(state.needsPersonMask&&personMask==null){cutOutPerson(true);return}
+  val mask=personMask
+  pendingDestination=null;exportInProgress=true;photoExport=operation;photoExportNotice=null
+  note.text="Exporting copy…"
+  try{worker.execute {
+   var input:Bitmap?=null;var output:Bitmap?=null;var dimensions:String?=null;var failure:Throwable?=null
+   fun requireCurrent(){operation.requireCurrent{photoExportCurrent(operation)}}
+   try {
+    requireCurrent();authorizeEditor();requireCurrent()
+    val decoded=PhotoSourceDecoder.decode(this,Uri.parse(operation.source),8192);input=decoded;requireCurrent()
+    val result=PhotoRasterRenderer.render(decoded,operation.edit,mask);output=result;requireCurrent()
+    SafePhotoCopy.save(this,Uri.parse(operation.source),Uri.parse(operation.destination),result,operation.encoding,operation.quality,operation.originals.map(Uri::parse),::requireCurrent)
+    requireCurrent();dimensions="${result.width} × ${result.height}"
+    runCatching{emit("edit_saved",JSONObject().put("mediaType","IMAGE"))}
+   }catch(error:Throwable){failure=error;if(error !is PhotoExportOperation.Cancelled&&error !is OutOfMemoryError&&runCatching{photoExportCurrent(operation)}.getOrDefault(false))runCatching{emit("client_error",JSONObject().put("errorCode","SAVE_FAILED"))}}
+   finally{if(output!==input)output?.recycle();input?.recycle()}
+   runOnUiThread{completePhotoExport(operation,dimensions,failure)}
+  }}catch(error:java.util.concurrent.RejectedExecutionException){completePhotoExport(operation,null,error)}
  }
  override fun onSaveInstanceState(outState:Bundle){
   super.onSaveInstanceState(outState)
@@ -1120,7 +1144,7 @@ class PhotoEditorActivity:Activity(){
  @Deprecated("Legacy Back path before the platform callback API")
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
- override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel()}
- override fun onPause(){closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel();if(photoExport?.isCancelled==true&&::note.isInitialized)note.text="Stopping the previous export. Check Files before retrying.";publishPhotoExportNotice();resumePendingExport()}
+ override fun onPause(){photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }
