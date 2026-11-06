@@ -39,6 +39,15 @@ class PhotoEditorActivity:Activity(){
  private var placingScope:String?=null
  private var activeTool=-1
  private var restoredSession:PhotoSessionSnapshot?=null
+ private var photoRecovery:PhotoSessionRecovery?=null
+ private var recoveryExportInvalidated=false
+ @Volatile private var photoLoading=false
+ private var photoRecoveryPanel:LinearLayout?=null
+ private var photoRecoveryRetry:Button?=null
+ private var photoRecoveryStart:Button?=null
+ private var photoRecoveryDiscard:android.app.AlertDialog?=null
+ private var photoRecoveryDiscardToken:Any?=null
+ private var recoveryToolSelection:((Int)->Unit)?=null
  private var photoRestoreReviewDialog:android.app.AlertDialog?=null
  private var photoRestoreReviewToken:Any?=null
  private var photoCloseDialog:android.app.AlertDialog?=null
@@ -70,11 +79,12 @@ class PhotoEditorActivity:Activity(){
  private fun tool(name:String){emit("edit_tool_used",JSONObject().put("tool",name))}
  private fun authorizeEditor(){requireNotNull(accessMode).authorizeAccount{SafeBetaTelemetry.authorizeEditor(this)}}
  private fun allowOnDeviceAi():Boolean {
+  if(photoRecovery!=null){photoRecoveryNotice();return false}
   if(accessMode?.allowsOnDeviceAi==true)return true
   note.text="On-device editing tools are unavailable in this editor session."
   return false
  }
- private val sliders=mutableListOf<SeekBar>();private var edit=PhotoEdit();private val undo=mutableListOf<PhotoEdit>();private val redo=mutableListOf<PhotoEdit>();private var before=false
+ private val sliders=mutableListOf<SeekBar>();private var edit=PhotoEdit();private var undo=mutableListOf<PhotoEdit>();private var redo=mutableListOf<PhotoEdit>();private var before=false
  private lateinit var image:ImageView;private lateinit var note:TextView;private lateinit var source:Uri
  @Volatile private var copyForeground=false
  @Volatile private var copyGeneration=0L
@@ -89,16 +99,14 @@ class PhotoEditorActivity:Activity(){
  startLook=runCatching{(if(savedInstanceState?.containsKey("pendingStartLook")==true)savedInstanceState.getString("pendingStartLook") else intent.getStringExtra(START_LOOK_EXTRA))?.let{PhotoLook.valueOf(it)}}.getOrNull()
  quickStart=runCatching{(if(savedInstanceState?.containsKey("pendingQuickStart")==true)savedInstanceState.getString("pendingQuickStart") else intent.getStringExtra(QUICK_START_EXTRA))?.let{PhotoQuickStart.valueOf(it)}}.getOrNull()
  protectedOriginals=runCatching{ImportedPhotoOriginals.validate(((intent.getStringArrayListExtra(ImportedPhotoOriginals.EXTRA)?.toList()?:emptyList())+(savedInstanceState?.getStringArrayList("protectedPhotoOriginals")?.toList()?:emptyList())).distinct()).map(Uri::parse)}.getOrElse{finish();return}
- restoredSession=runCatching{val bytes=savedInstanceState?.getByteArray("photoSession")?:return@runCatching null
-  PhotoSessionCodec.decode(bytes,currentScope()?:return@runCatching null)}.getOrNull()
- exportEdit=restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
+ restorePhotoRecovery(savedInstanceState?.getByteArray("photoSession"),savedInstanceState?.getBoolean("photoRecoveryExportInvalidated",false)?:false)
  if(restoredSession!=null){exportEncoding=SafePhotoCopy.Encoding.values().getOrNull(savedInstanceState?.getInt("photoEncoding",0)?:0)?:SafePhotoCopy.Encoding.PNG;exportQuality=(savedInstanceState?.getInt("photoQuality",95)?:95).coerceIn(1,100)}
  window.statusBarColor=Color.WHITE;window.navigationBarColor=if(android.os.Build.VERSION.SDK_INT>=26)Color.WHITE else Color.BLACK
  window.decorView.systemUiVisibility=window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if(android.os.Build.VERSION.SDK_INT>=26)View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE);setPadding(16.dp(),4.dp(),16.dp(),8.dp())}
  fun row(parent:LinearLayout=root)=LinearLayout(this).also{parent.addView(it)}
  fun button(parent:LinearLayout,label:String,action:()->Unit):Button {
-  val control=Button(this).apply{text=label;contentDescription=label;EditorChrome.style(this);setOnClickListener{if(!photoProjectBusy)action()}}
+  val control=Button(this).apply{text=label;contentDescription=label;EditorChrome.style(this);setOnClickListener{if(photoRecovery!=null)photoRecoveryNotice()else if(!photoProjectBusy)action()}}
   parent.addView(control,LinearLayout.LayoutParams(0,48.dp(),1f).apply{setMargins(2.dp(),2.dp(),2.dp(),2.dp())})
   return control
  }
@@ -143,6 +151,14 @@ class PhotoEditorActivity:Activity(){
  button(transport,"Undo"){if(undo.isNotEmpty()){tool("undo");navigateHistory(false)}}
  button(transport,"Redo"){if(redo.isNotEmpty()){tool("redo");navigateHistory(true)}}
  note=TextView(this).apply{setTextColor(Color.DKGRAY);text="Loading original…";textSize=11f;maxLines=2;setPadding(4.dp(),8.dp(),4.dp(),8.dp());accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE};root.addView(note)
+ photoRecoveryPanel=LinearLayout(this).apply{
+  orientation=LinearLayout.VERTICAL;setPadding(4.dp(),4.dp(),4.dp(),4.dp())
+  addView(TextView(this@PhotoEditorActivity).apply{text="Previous photo edits have not recovered yet. Editing and saving are paused. Retry, or discard recovery to start from the original. Saved projects and original media are kept.";setTextColor(Color.BLACK);textSize=12f})
+  val actions=LinearLayout(this@PhotoEditorActivity);addView(actions)
+  photoRecoveryRetry=Button(this@PhotoEditorActivity).apply{text="Retry recovery";contentDescription="Retry previous photo session recovery";EditorChrome.style(this);setOnClickListener{retryPhotoRecovery()}}
+  photoRecoveryStart=Button(this@PhotoEditorActivity).apply{text="Start original";contentDescription="Review discarding unrecovered photo edits and start from original";EditorChrome.style(this);setOnClickListener{requestPhotoRecoveryDiscard()}}
+  actions.addView(photoRecoveryRetry,LinearLayout.LayoutParams(0,48.dp(),1f));actions.addView(photoRecoveryStart,LinearLayout.LayoutParams(0,48.dp(),1f))
+ };root.addView(photoRecoveryPanel)
  val tray=FrameLayout(this);root.addView(tray,LinearLayout.LayoutParams(-1,140.dp()))
  val categories=linkedMapOf<String,LinearLayout>()
  fun category(name:String):LinearLayout {
@@ -207,35 +223,34 @@ class PhotoEditorActivity:Activity(){
   "Mirror" to {chooseMirror()}, "Color" to {finishAdjust("White balance",0)},
   "Curves" to {showCurve()}, "Saved looks" to {showSavedLooks()}, "People" to {chooseBackground()}, "Text" to {editCaption()},
   "Framing" to {selectCategory("Transform")}, "AI" to {selectCategory("Assist")}, "More" to {openInspector()})
- directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsOnDeviceAi==true||name !in setOf("AI","People");setOnClickListener{if(!photoProjectBusy)action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
+ directTools.forEach{(name,action)->val b=Button(this).apply{text=name;contentDescription="$name photo tool";EditorChrome.style(this,true);isEnabled=accessMode?.allowsOnDeviceAi==true||name !in setOf("AI","People");setOnClickListener{if(photoRecovery!=null)photoRecoveryNotice()else if(!photoProjectBusy)action()}};tabs.addView(b,LinearLayout.LayoutParams(72.dp(),72.dp()))}
  root.removeView(tabs)
  root.addView(HorizontalScrollView(this).apply{isHorizontalScrollBarEnabled=false;addView(tabs)})
  selectCategory("Adjust");toolButtons.first().performClick()
 
+ recoveryToolSelection={index->toolButtons.getOrNull(index)?.performClick()}
  setContentView(root)
+ refreshPhotoRecoveryPanel()
  runCatching{PhotoEditorBack.install(this){requestPhotoClose()}}.onSuccess{releasePhotoBack=it}.onFailure{note.text="System Back protection is unavailable. Use the editor Close button to review edits before leaving."}
  NativeWorkspaceInsets.install(this,root)
  emit("editor_opened",JSONObject().put("mediaType","IMAGE"));
  val openingOriginals=protectedOriginals.map{it.toString()}
  val openingScope=currentScope()?:run{note.text="Session changed. Reopen this photo.";return}
+ photoLoading=true;refreshPhotoRecoveryPanel()
  worker.execute{try{authorizeEditor();check(photoLoadCurrent(openingScope)){"Photo session changed"};val canvasSaved=canvasProjectId?.let{id->
    val store=CanvasProjectStore(java.io.File(filesDir,"canvas-projects"))
    require(accessMode==EditorAccessMode.GUEST_BASIC&&source==androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",store.sourceFile(id))){"Saved project source is unavailable"}
    store.load(id){check(photoLoadCurrent(openingScope)){"Photo session changed"}}
-  };val loadedOriginals=ImportedPhotoOriginals.validate((openingOriginals+(canvasSaved?.protectedOriginals?:emptyList())).distinct());check(photoLoadCurrent(openingScope)){"Photo session changed"};val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)emit("performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{if(photoLoadCurrent(openingScope)){
+  };val loadedOriginals=ImportedPhotoOriginals.validate((openingOriginals+(canvasSaved?.protectedOriginals?:emptyList())).distinct());check(photoLoadCurrent(openingScope)){"Photo session changed"};val low=(getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice;if(low)emit("performance_sample",JSONObject().put("metric","PROXY_USE").put("durationMs",0));val loaded=decode(if(low)768 else 1600);runOnUiThread{photoLoading=false;if(photoLoadCurrent(openingScope)){
    protectedOriginals=loadedOriginals.map(Uri::parse)
    bitmap=loaded;loadedScope=openingScope
    canvasSaved?.let{edit=it.edit;canvasProjectName=it.name}
-   restoredSession?.takeIf{it.scope==loadedScope}?.let{saved->edit=saved.edit;undo.addAll(saved.undo);redo.addAll(saved.redo);before=saved.compareOriginal;activeTool=saved.activeTool
-    if(activeTool in toolButtons.indices)toolButtons[activeTool].performClick()}
-   if(restoredSession!=null&&restoredSession?.scope!=loadedScope){exportEdit=null;pendingDestination=null;note.text="Previous edits belong to another session."}
-   restoredSession=null;preview();resumePendingExport()
-   startLook?.let{look->startLook=null;enhanceScene(look)}
-   quickStart?.let{preset->quickStart=null;tool("quick_${preset.name.lowercase()}");change(PhotoQuickStart.apply(edit,preset))}
-  }else{loaded.recycle();if(!activityClosed&&!isFinishing&&!isDestroyed)note.text="Session changed. Reopen this photo."}}}catch(e:Exception){runOnUiThread{if(!isDestroyed)note.text="Unable to open this image. Check access and try again."}}catch(e:OutOfMemoryError){runOnUiThread{if(!isDestroyed)note.text="Not enough memory to open this photo. Try a smaller image."}}}
+   photoRecovery?.let{pending->runCatching{applyPhotoRecovery(pending,openingScope)}.onFailure{photoRecoveryNotice()}}
+   finishPhotoOpening()
+  }else{loaded.recycle();if(!activityClosed&&!isFinishing&&!isDestroyed){refreshPhotoRecoveryPanel();note.text="Session changed. Reopen this photo."}}}}catch(e:Exception){runOnUiThread{photoLoading=false;if(!activityClosed&&!isDestroyed&&!isFinishing){refreshPhotoRecoveryPanel();note.text="Unable to open this image. Check access and try again."}}}catch(e:OutOfMemoryError){runOnUiThread{photoLoading=false;if(!activityClosed&&!isDestroyed&&!isFinishing){refreshPhotoRecoveryPanel();note.text="Not enough memory to open this photo. Try a smaller image."}}}}
  }
  private fun Int.dp()=(this*resources.displayMetrics.density).toInt()
- private fun change(next:PhotoEdit){if(photoProjectBusy){note.text="Wait for the photo project operation to finish.";return};clearObjectPick();placingLight=null;placingOn=null;placingScope=null;if(next==edit){before=false;preview();return};undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
+ private fun change(next:PhotoEdit){if(photoRecovery!=null){photoRecoveryNotice();return};if(photoProjectBusy){note.text="Wait for the photo project operation to finish.";return};clearObjectPick();placingLight=null;placingOn=null;placingScope=null;if(next==edit){before=false;preview();return};undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
  private fun adjustmentValue(name:String,progress:Int):String=when(name){
   "Exposure"->String.format(java.util.Locale.ROOT,"%+.2f EV",(progress-200)/100.0)
   "Contrast","Saturation"->"$progress%"
@@ -257,6 +272,7 @@ class PhotoEditorActivity:Activity(){
    }.show()
  }
  private fun navigateHistory(forward:Boolean){
+  if(photoRecovery!=null){photoRecoveryNotice();return}
   if(photoProjectBusy)return
   val from=if(forward)redo else undo
   if(from.isEmpty())return
@@ -270,7 +286,7 @@ class PhotoEditorActivity:Activity(){
  private fun preview() {
   listOf((edit.brightness/1.28f+100).toInt(),(edit.contrast*100).toInt(),(edit.saturation*100).toInt(),(edit.exposure*100+200).toInt()).forEachIndexed{i,v->sliders.getOrNull(i)?.progress=v}
   val input=bitmap?:return
-  val state=if(before)PhotoEdit()else edit
+  val state=if(before||photoRecovery!=null)PhotoEdit()else edit
   if(state.needsPersonMask&&personMask==null){note.text="Restoring person cutout on this device…";cutOutPerson(true);return}
   image.background=if(state.personCutout||state.alphaGradient.enabled||input.hasAlpha())TransparencyGridDrawable(12.dp())else null
   val request=++revision
@@ -284,7 +300,7 @@ class PhotoEditorActivity:Activity(){
       val old=rendered;rendered=result
       if(accessMode==EditorAccessMode.ACCOUNT)SafeBetaTelemetry.duration(this,"EDITOR_RESPONSE",started)
       image.setImageBitmap(result);renderedEdit=state;old?.recycle()
-      if(!photoProjectBusy&&!readingText&&!cuttingOut&&exportEdit==null)note.text=if(placingLight!=null&&placingOn==state)"Tap the edited photo to place the local light." else if(pickingObjectOn==state)"Tap a visible shape or text box. Front object wins; text uses its box." else if(before)"Original preview" else if(state.background!=null)"Person background · check hair and edges before saving a copy" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
+      if(photoRecovery!=null)photoRecoveryNotice()else if(!photoProjectBusy&&!readingText&&!cuttingOut&&exportEdit==null)note.text=if(placingLight!=null&&placingOn==state)"Tap the edited photo to place the local light." else if(pickingObjectOn==state)"Tap a visible shape or text box. Front object wins; text uses its box." else if(before)"Original preview" else if(state.background!=null)"Person background · check hair and edges before saving a copy" else if(state.personCutout)"Person cutout · check edges before saving a PNG copy" else "Edited preview · original preserved"
      }else result.recycle()
     }
    }catch(e:OutOfMemoryError){
@@ -689,7 +705,7 @@ class PhotoEditorActivity:Activity(){
   return loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";null}
  }
  private fun photoControlUnchanged(base:PhotoEdit,scope:String)=canFinish()&&!isDestroyed&&edit==base&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
- private fun canFinish()=!activityClosed&&!photoProjectBusy&&bitmap!=null&&exportEdit==null&&!readingText&&!enhancing&&!cuttingOut&&!isFinishing
+ private fun canFinish()=photoRecovery==null&&!activityClosed&&!photoProjectBusy&&bitmap!=null&&exportEdit==null&&!readingText&&!enhancing&&!cuttingOut&&!isFinishing
  private fun chooseCreative(){if(!canFinish())return
   val tools=PhotoCreativeTool.values()
   android.app.AlertDialog.Builder(this).setTitle("Creative color").setItems(tools.map{it.title}.toTypedArray()){_,index->creativeAdjust(tools[index])}.setNegativeButton("Cancel",null).show()
@@ -944,6 +960,7 @@ class PhotoEditorActivity:Activity(){
  override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
   super.onActivityResult(requestCode,resultCode,data)
   if(requestCode!=20)return
+  markPhotoRecoveryPickerResult()
   waitingForPicker=false
   if(exportEdit==null){pendingDestination=null;note.text="Save interrupted. Choose Save copy again.";return}
   if(resultCode!=RESULT_OK||data?.data==null){exportEdit=null;return}
@@ -951,6 +968,7 @@ class PhotoEditorActivity:Activity(){
   resumePendingExport()
  }
  private fun resumePendingExport(){
+  if(photoRecovery!=null)return
   val destination=pendingDestination?:return
   if(bitmap==null||exportInProgress||isDestroyed)return
   if(loadedScope!=null&&currentScope()!=loadedScope){pendingDestination=null;exportEdit=null;note.text="Account changed. Reopen this photo before saving.";return}
@@ -987,6 +1005,8 @@ class PhotoEditorActivity:Activity(){
   outState.putString("pendingStartLook",startLook?.name);outState.putString("pendingQuickStart",quickStart?.name)
    if(accessMode==EditorAccessMode.GUEST_BASIC)guestInstance?.let{outState.putString("guestEditorInstance",it)}
   outState.putInt("photoEncoding",exportEncoding.ordinal);outState.putInt("photoQuality",exportQuality)
+  if(savePhotoRecoveryState(outState))return
+  outState.remove("photoRecoveryExportInvalidated")
   runCatching {
    val scope=currentScope()?:return@runCatching
    val pending=restoredSession?.takeIf{it.scope==scope}
@@ -996,13 +1016,80 @@ class PhotoEditorActivity:Activity(){
    if(loadedScope==null||loadedScope==scope)outState.putByteArray("photoSession",PhotoSessionCodec.encodeForRecovery(snapshot))
   }
  }
+ private fun restorePhotoRecovery(bytes:ByteArray?,exportInvalidated:Boolean){
+  photoRecovery=bytes?.let(::PhotoSessionRecovery);recoveryExportInvalidated=exportInvalidated
+  restoredSession=photoRecovery?.decode(currentScope())?.getOrNull()
+  exportEdit=if(recoveryExportInvalidated)null else restoredSession?.pendingExport;waitingForPicker=exportEdit!=null
+ }
+ private fun markPhotoRecoveryPickerResult(){if(photoRecovery!=null)recoveryExportInvalidated=true}
+ private fun photoRecoveryNotice(){if(::note.isInitialized)note.text="Previous photo edits are still kept for recovery. Retry recovery or review Start original before editing or saving."}
+ private fun canRequestPhotoRecovery()=photoRecovery!=null&&copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing&&!photoLoading&&!photoProjectBusy&&!readingText&&!enhancing&&!cuttingOut&&!exportInProgress
+ private fun refreshPhotoRecoveryPanel(){
+  photoRecoveryPanel?.visibility=if(photoRecovery==null)View.GONE else View.VISIBLE
+  val ready=canRequestPhotoRecovery();photoRecoveryRetry?.isEnabled=ready;photoRecoveryStart?.isEnabled=ready
+  sliders.forEach{it.isEnabled=photoRecovery==null}
+ }
+ private fun savePhotoRecoveryState(outState:Bundle):Boolean {
+  val pending=photoRecovery?:return false
+  outState.putByteArray("photoSession",pending.bytesForState())
+  outState.putBoolean("photoRecoveryExportInvalidated",recoveryExportInvalidated||!waitingForPicker)
+  return true
+ }
+ private fun photoRecoveryCurrent(pending:PhotoSessionRecovery,scope:String)=photoRecovery===pending&&!activityClosed&&!isDestroyed&&!isFinishing&&bitmap!=null&&loadedScope==scope&&currentScope()==scope
+ private fun applyPhotoRecovery(pending:PhotoSessionRecovery,scope:String):Int {
+  check(photoRecoveryCurrent(pending,scope)){"Photo session changed"}
+  val saved=pending.decode(scope).getOrThrow();val previous=saved.undo.toMutableList();val future=saved.redo.toMutableList()
+  check(photoRecoveryCurrent(pending,scope)){"Photo session changed"}
+  edit=saved.edit;undo=previous;redo=future;before=saved.compareOriginal;activeTool=saved.activeTool
+  // Picker results may have arrived or been cancelled while the original loaded. Keep that live state.
+  restoredSession=null;photoRecovery=null
+  return activeTool
+ }
+ private fun finishPhotoOpening(){
+  refreshPhotoRecoveryPanel()
+  if(photoRecovery!=null){preview();photoRecoveryNotice();return}
+  recoveryToolSelection?.invoke(activeTool);preview();resumePendingExport()
+  startLook?.let{look->startLook=null;enhanceScene(look)}
+  quickStart?.let{preset->quickStart=null;tool("quick_${preset.name.lowercase()}");change(PhotoQuickStart.apply(edit,preset))}
+ }
+ private fun retryPhotoRecovery(){
+  if(!canRequestPhotoRecovery())return
+  val pending=photoRecovery?:return
+  if(bitmap==null){recreate();return}
+  val scope=loadedScope?:run{photoRecoveryNotice();return}
+  runCatching{applyPhotoRecovery(pending,scope)}.onSuccess{finishPhotoOpening()}.onFailure{photoRecoveryNotice();refreshPhotoRecoveryPanel()}
+ }
+ private fun canApprovePhotoRecoveryDiscard(token:Any,pending:PhotoSessionRecovery,captured:PhotoCloseState)=photoRecoveryDiscardToken===token&&canRequestPhotoRecovery()&&photoRecovery===pending&&captured.stillMatches(photoCloseState())
+ private fun discardPhotoRecovery(token:Any,pending:PhotoSessionRecovery,captured:PhotoCloseState):Boolean {
+  if(!canApprovePhotoRecoveryDiscard(token,pending,captured))return false
+  edit=PhotoEdit();undo=mutableListOf();redo=mutableListOf();before=false;activeTool=0
+  restoredSession=null;photoRecovery=null;exportEdit=null;pendingDestination=null;waitingForPicker=false;recoveryExportInvalidated=true;startLook=null;quickStart=null
+  return true
+ }
+ private fun closePhotoRecoveryDiscard(){photoRecoveryDiscardToken=null;val dialog=photoRecoveryDiscard;photoRecoveryDiscard=null;runCatching{dialog?.dismiss()}}
+ private fun requestPhotoRecoveryDiscard(){
+  if(!canRequestPhotoRecovery()||photoRecoveryDiscardToken!=null)return
+  val pending=photoRecovery?:return;val captured=photoCloseState();val token=Any()
+  val dialog=android.app.AlertDialog.Builder(this).setTitle("Discard unrecovered photo session?")
+   .setMessage("Discards the retained session edits and Undo history so you can start from the original image. This cannot be undone here. Existing saved projects, exported copies and original media are kept.")
+   .setNegativeButton("Keep recovery"){_,_->if(photoRecoveryDiscardToken===token)closePhotoRecoveryDiscard()}
+   .setPositiveButton("Start original"){_,_->
+    if(photoRecoveryDiscardToken!==token)return@setPositiveButton
+    val discarded=discardPhotoRecovery(token,pending,captured);closePhotoRecoveryDiscard()
+    if(discarded){finishPhotoOpening();note.text=if(bitmap==null)"Recovery discarded. Reopen the original to load it again."else "Started from the original. Saved projects and original media were kept."}else photoRecoveryNotice()
+   }.create()
+  photoRecoveryDiscardToken=token;photoRecoveryDiscard=dialog
+  dialog.setOnCancelListener{if(photoRecoveryDiscardToken===token)closePhotoRecoveryDiscard()}
+  dialog.setOnDismissListener{if(photoRecoveryDiscardToken===token){photoRecoveryDiscardToken=null;photoRecoveryDiscard=null}}
+  dialog.show()
+ }
  private fun canRequestPhotoClose()=copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing
  private fun photoCloseState():PhotoCloseState {
   val operations=(if(photoProjectBusy)1 else 0)or(if(readingText)2 else 0)or(if(enhancing)4 else 0)or(if(cuttingOut)8 else 0)or
    (if(exportInProgress)16 else 0)or(if(waitingForPicker)32 else 0)or(if(exportEdit!=null)64 else 0)or(if(pendingDestination!=null)128 else 0)
   val original=if(::source.isInitialized)source else null
   val unsaved=canvasProjectId==null&&original?.authority?.endsWith(".creation")==true&&original.authority==packageName+".creation"
-  return PhotoCloseState.capture(edit,undo,redo,operations,restoredSession,original?.toString(),loadedScope,accessMode,canvasProjectId,unsaved,
+  return PhotoCloseState.capture(edit,undo,redo,operations,photoRecovery?:restoredSession,original?.toString(),loadedScope,accessMode,canvasProjectId,unsaved,
    protectedOriginals.map{it.toString()},copyGeneration,revision,bitmap,exportEdit,pendingDestination?.toString())
  }
  private fun canApprovePhotoClose(token:Any,captured:PhotoCloseState)=photoCloseToken===token&&canRequestPhotoClose()&&captured.stillMatches(photoCloseState())
@@ -1033,7 +1120,7 @@ class PhotoEditorActivity:Activity(){
  @Deprecated("Legacy Back path before the platform callback API")
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
- override fun onResume(){super.onResume();copyGeneration++;copyForeground=true}
- override fun onPause(){closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel()}
+ override fun onPause(){closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }
