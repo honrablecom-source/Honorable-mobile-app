@@ -52,6 +52,8 @@ class PhotoEditorActivity:Activity(){
  private var photoRestoreReviewToken:Any?=null
  private var photoCloseDialog:android.app.AlertDialog?=null
  private var photoCloseToken:Any?=null
+ private var photoSettingsDialog:android.app.AlertDialog?=null
+ private var photoSettingsToken:Any?=null
  private var releasePhotoBack:(()->Unit)?=null
  private var pendingDestination:Uri?=null
  private var exportEncoding=SafePhotoCopy.Encoding.PNG
@@ -252,7 +254,14 @@ class PhotoEditorActivity:Activity(){
   }else{loaded.recycle();if(!activityClosed&&!isFinishing&&!isDestroyed){refreshPhotoRecoveryPanel();note.text="Session changed. Reopen this photo."}}}}catch(e:Exception){runOnUiThread{photoLoading=false;if(!activityClosed&&!isDestroyed&&!isFinishing){refreshPhotoRecoveryPanel();note.text="Unable to open this image. Check access and try again."}}}catch(e:OutOfMemoryError){runOnUiThread{photoLoading=false;if(!activityClosed&&!isDestroyed&&!isFinishing){refreshPhotoRecoveryPanel();note.text="Not enough memory to open this photo. Try a smaller image."}}}}
  }
  private fun Int.dp()=(this*resources.displayMetrics.density).toInt()
- private fun change(next:PhotoEdit){if(photoRecovery!=null){photoRecoveryNotice();return};if(photoProjectBusy){note.text="Wait for the photo project operation to finish.";return};clearObjectPick();placingLight=null;placingOn=null;placingScope=null;if(next==edit){before=false;preview();return};undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next;before=false;preview()}
+ private fun commitPhotoChange(next:PhotoEdit):Boolean {
+  if(photoRecovery!=null){photoRecoveryNotice();return false}
+  if(photoProjectBusy){note.text="Wait for the photo project operation to finish.";return false}
+  clearObjectPick();placingLight=null;placingOn=null;placingScope=null
+  if(next!=edit){undo.add(edit);if(undo.size>50)undo.removeAt(0);redo.clear();edit=next}
+  before=false;return true
+ }
+ private fun change(next:PhotoEdit){if(commitPhotoChange(next))preview()}
  private fun adjustmentValue(name:String,progress:Int):String=when(name){
   "Exposure"->String.format(java.util.Locale.ROOT,"%+.2f EV",(progress-200)/100.0)
   "Contrast","Saturation"->"$progress%"
@@ -524,7 +533,7 @@ class PhotoEditorActivity:Activity(){
    "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
    "Composition objects" to listOf(t("Text and shape objects"){manageObjects()},t("Pick object on photo"){armObjectPick()},t("Local effect regions"){manageRegions()},t("Local region recipes"){manageRegionRecipes()}),
    "Create & compose" to PhotoCompositionTool.values().map{kind->t(kind.title){compositionAdjust(kind)}},
-   "Editable project" to listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){requestPhotoRestore()},t("Delete saved photo edits"){deletePhotoProject()}),
+   "Editable project" to listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){requestPhotoRestore()},t("Delete saved photo edits"){deletePhotoProject()},t("Copy editable photo settings"){copyPhotoSettings()},t("Paste editable photo settings"){pastePhotoSettings()}),
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
     "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()},t("Create before/after image"){createComparison()})
@@ -534,6 +543,50 @@ class PhotoEditorActivity:Activity(){
   if(!canFinish())return
   android.app.AlertDialog.Builder(this).setTitle("Delete saved photo edits?").setMessage("Deletes the saved editable project for this original in the current local guest or account shelf. The original photo and current edits are kept.")
    .setNegativeButton("Cancel",null).setPositiveButton("Delete saved edits"){_,_->photoProjectOperation("delete")}.show()
+ }
+ private fun canRequestPhotoSettings()=copyForeground&&canFinish()&&!isDestroyed
+ private fun canApprovePhotoSettings(token:Any,captured:PhotoCloseState,scope:String,mode:EditorAccessMode)=photoSettingsToken===token&&canRequestPhotoSettings()&&accessMode==mode&&currentScope()==scope&&captured.stillMatches(photoCloseState())
+ private fun applyPhotoSettings(token:Any,captured:PhotoCloseState,scope:String,mode:EditorAccessMode,settings:PhotoEdit):Boolean {
+  if(!canApprovePhotoSettings(token,captured,scope,mode)||settings==edit)return false
+  return commitPhotoChange(settings)
+ }
+ private fun closePhotoSettingsReview(){photoSettingsToken=null;val dialog=photoSettingsDialog;photoSettingsDialog=null;runCatching{dialog?.dismiss()}}
+ private fun reviewPhotoSettings(title:String,message:String,positive:String,scope:String,mode:EditorAccessMode,captured:PhotoCloseState,action:(Any)->Unit){
+  closePhotoSettingsReview();val token=Any()
+  val dialog=android.app.AlertDialog.Builder(this).setTitle(title).setMessage(message)
+   .setNegativeButton("Keep current"){_,_->if(photoSettingsToken===token)closePhotoSettingsReview()}
+   .setPositiveButton(positive){_,_->
+    if(photoSettingsToken!==token)return@setPositiveButton
+    if(!canApprovePhotoSettings(token,captured,scope,mode))note.text="Photo or session changed. Open photo settings again."
+    else runCatching{action(token)}.onFailure{note.text="Photo settings transfer could not finish. Check the current photo and clipboard before retrying."}
+    closePhotoSettingsReview()
+   }.create()
+  photoSettingsToken=token;photoSettingsDialog=dialog
+  dialog.setOnCancelListener{if(photoSettingsToken===token)closePhotoSettingsReview()}
+  dialog.setOnDismissListener{if(photoSettingsToken===token){photoSettingsToken=null;photoSettingsDialog=null}}
+  dialog.show()
+ }
+ private fun copyPhotoSettings(){
+  if(!canRequestPhotoSettings())return
+  val scope=photoControlScope()?:return;val mode=accessMode?:return;val captured=photoCloseState();val settings=edit
+  reviewPhotoSettings("Copy editable photo settings?","Copies all adjustments, crop, captions, objects and local regions, including hidden object text, to the clipboard. Photo pixels, original locations, account details and Undo history are excluded. Copy only settings you intend to reuse.","Copy settings",scope,mode,captured){token->
+   val clip=PhotoEditClipboard.create(settings)
+   check(canApprovePhotoSettings(token,captured,scope,mode))
+   (getSystemService(CLIPBOARD_SERVICE)as android.content.ClipboardManager).setPrimaryClip(clip)
+   note.text="Editable settings copied. Open another photo and choose Paste editable photo settings."
+  }
+ }
+ private fun pastePhotoSettings(){
+  if(!canRequestPhotoSettings())return
+  val scope=photoControlScope()?:return;val mode=accessMode?:return;val captured=photoCloseState()
+  val settings=runCatching{PhotoEditClipboard.read((getSystemService(CLIPBOARD_SERVICE)as android.content.ClipboardManager).primaryClip)}.getOrElse{
+   note.text="Clipboard does not contain compatible Noble photo settings. Copy editable settings in Noble first.";return
+  }
+  if(!canRequestPhotoSettings()||currentScope()!=scope||!captured.stillMatches(photoCloseState())){note.text="Photo or session changed. Open Paste again.";return}
+  reviewPhotoSettings("Replace photo settings?","Uses the copied adjustments, crop, captions, objects and regions on this photo. Replaces current settings; original pixels and saved projects are kept. Undo restores current settings in this editor session. Person effects are recomputed on this device when needed.","Apply settings",scope,mode,captured){token->
+   if(applyPhotoSettings(token,captured,scope,mode,settings)){val ready=runCatching{preview()}.isSuccess;note.text=if(ready)"Editable settings applied. Undo restores your previous photo settings."else"Settings applied, but preview is unavailable. Undo restores your previous settings."}
+   else note.text="These settings already match this photo, or the editor changed. Current photo was kept."
+  }
  }
  private fun canRequestPhotoRestore()=copyForeground&&canFinish()&&!isDestroyed
  private fun photoRestoreNeedsReview()=edit!=PhotoEdit()||undo.isNotEmpty()||redo.isNotEmpty()||canvasProjectId!=null
@@ -1145,6 +1198,6 @@ class PhotoEditorActivity:Activity(){
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel();if(photoExport?.isCancelled==true&&::note.isInitialized)note.text="Stopping the previous export. Check Files before retrying.";publishPhotoExportNotice();resumePendingExport()}
- override fun onPause(){photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }
