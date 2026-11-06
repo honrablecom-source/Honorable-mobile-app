@@ -34,12 +34,13 @@ const initialItems = [
 ];
 let mockItems = initialItems;
 let mockTotal = initialItems.length;
+let mockLoading = false;
 const mockLoadMore = jest.fn();
 jest.mock('../src/library/LibraryContext', () => ({
   useLibrary: () => ({
     items: mockItems,
     total: mockTotal,
-    loading: false,
+    loading: mockLoading,
     error: '',
     loadMore: mockLoadMore,
   }),
@@ -98,6 +99,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
   mockItems = initialItems;
   mockTotal = initialItems.length;
+  mockLoading = false;
   mockLoadMore.mockResolvedValue(undefined);
   mockEdit.mockResolvedValue({ opened: true });
   mockCanvasSetups.mockResolvedValue('[]');
@@ -628,4 +630,91 @@ test('same-frame chooser opening blocks retained editor/import launches and pend
   });
   await act(async () => button('Choose canvas size').props.onPress());
   expect(button('Back to Studio')).toBeDefined();
+});
+
+test.each(['removed', 'uri', 'type', 'filter', 'mode', 'loading'])(
+  'retained source callbacks cannot edit or inspect a source after %s changes',
+  async change => {
+    const stale = button('Edit Second.jpg').props;
+    if (change === 'removed') mockItems = [initialItems[0], initialItems[2]];
+    if (change === 'uri')
+      mockItems = initialItems.map(item =>
+        item.mediaId === 2
+          ? { ...item, mediaUri: 'content://fixture/replacement' }
+          : item,
+      );
+    if (change === 'type')
+      mockItems = initialItems.map(item =>
+        item.mediaId === 2 ? { ...item, mediaType: 'VIDEO' } : item,
+      );
+    if (change === 'loading') mockLoading = true;
+    if (change === 'filter')
+      await act(async () => filterInput().props.onChangeText('First'));
+    if (change === 'mode')
+      await act(async () => button('Video workspace').props.onPress());
+    await updateLibrary();
+    await act(async () => {
+      await stale.onPress();
+      stale.onLongPress();
+    });
+    expect(mockEdit).not.toHaveBeenCalled();
+    expect(button('Close source details')).toBeUndefined();
+  },
+);
+
+test('retained source callback cannot edit a previous page but current refreshed identity still opens', async () => {
+  const stale = button('Edit Second.jpg').props.onPress;
+  mockItems = [
+    ...initialItems,
+    ...Array.from({ length: 13 }, (_, i) => ({
+      ...initialItems[0],
+      mediaId: 10 + i,
+      displayName: `Extra ${i}.jpg`,
+    })),
+  ];
+  mockTotal = mockItems.length;
+  await updateLibrary();
+  await act(async () => button('Next loaded sources').props.onPress());
+  await act(async () => stale());
+  expect(mockEdit).not.toHaveBeenCalled();
+  await act(async () => button('Previous loaded sources').props.onPress());
+  mockItems = mockItems.map(item => ({ ...item }));
+  await updateLibrary();
+  await act(async () => button('Edit Second.jpg').props.onPress());
+  expect(mockEdit).toHaveBeenCalledWith({
+    id: '2',
+    mediaUri: 'content://fixture/photo2',
+    type: 'IMAGE',
+  });
+});
+
+test('an open inspector never substitutes a new original sharing the old media ID', async () => {
+  await act(async () => button('Edit Second.jpg').props.onLongPress());
+  const stale = button('Open editor from inspector').props.onPress;
+  mockItems = initialItems.map(item =>
+    item.mediaId === 2
+      ? {
+          ...item,
+          mediaUri: 'content://fixture/replacement',
+          displayName: 'Replacement.jpg',
+        }
+      : item,
+  );
+  await updateLibrary();
+  expect(button('Open editor from inspector').props.disabled).toBe(true);
+  expect(JSON.stringify(tree.toJSON())).toContain(
+    'This source changed or left this view. Close details and choose it again.',
+  );
+  await act(async () => {
+    await stale();
+    await button('Open editor from inspector').props.onPress();
+  });
+  expect(mockEdit).not.toHaveBeenCalled();
+  await act(async () => button('Close source details').props.onPress());
+  await act(async () => button('Edit Replacement.jpg').props.onPress());
+  expect(mockEdit).toHaveBeenCalledWith({
+    id: '2',
+    mediaUri: 'content://fixture/replacement',
+    type: 'IMAGE',
+  });
 });

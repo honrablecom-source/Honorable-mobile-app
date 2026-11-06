@@ -1,5 +1,11 @@
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,7 +42,13 @@ import { creativeStyles } from '../design-system/CreativeChrome';
 import { useLibrary } from '../library/LibraryContext';
 import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
+import type { LibraryItem } from '../native/HonorableNative';
 import { CanvasCreationScreen } from './GuestEditingScreen';
+
+const sameSource = (a: LibraryItem, b: LibraryItem) =>
+  a.mediaId === b.mediaId &&
+  a.mediaUri === b.mediaUri &&
+  a.mediaType === b.mediaType;
 
 export function StudioScreen({
   onReturnToLibrary,
@@ -62,7 +74,7 @@ export function StudioScreen({
     videoProjects,
   } = useOpenWorkspace();
   const [mode, setMode] = useState<WorkspaceKind>('IMAGE');
-  const [selectedId, setSelectedId] = useState<number>();
+  const [selectedSource, setSelectedSource] = useState<LibraryItem>();
   const [details, setDetails] = useState(false);
   useEffect(() => {
     if (!onReturnToLibrary) return;
@@ -107,7 +119,7 @@ export function StudioScreen({
   const filterSources = (value: string) => {
     setSourceFilter(value);
     setSourceStart(0);
-    setSelectedId(undefined);
+    setSelectedSource(undefined);
   };
   const loadSources = async () => {
     if (!sourceActive.current || sourcePending.current || busy || !moreLibrary)
@@ -129,8 +141,18 @@ export function StudioScreen({
       if (sourceActive.current) setBrowsing(false);
     }
   };
-  const selected =
-    assets.find(item => item.mediaId === selectedId) ?? assets[0];
+  // An explicitly inspected original must never silently become a reused-ID record.
+  const selected = selectedSource
+    ? assets.find(item => sameSource(item, selectedSource))
+    : assets[0];
+  const sourceView = useRef({ assets, loading, importing });
+  useLayoutEffect(() => {
+    sourceView.current = { assets, loading, importing };
+  });
+  const currentSource = (source: LibraryItem) =>
+    !sourceView.current.loading &&
+    !sourceView.current.importing &&
+    sourceView.current.assets.some(item => sameSource(item, source));
   const busy = importing || opening || canvasOpen;
   const chooseCanvas = () => {
     if (
@@ -166,12 +188,13 @@ export function StudioScreen({
     if (
       !sourceActive.current ||
       !source ||
+      !currentSource(source) ||
       pending.current ||
       importing ||
       canvasOpenRef.current
     )
       return;
-    setSelectedId(source.mediaId);
+    setSelectedSource(source);
     pending.current = true;
     setOpening(true);
     try {
@@ -280,7 +303,14 @@ export function StudioScreen({
       disabled={busy}
       onPress={() => editSelected(item)}
       onLongPress={() => {
-        setSelectedId(item.mediaId);
+        if (
+          !sourceActive.current ||
+          pending.current ||
+          canvasOpenRef.current ||
+          !currentSource(item)
+        )
+          return;
+        setSelectedSource(item);
         showInspector('source');
       }}
       style={[
@@ -470,7 +500,7 @@ export function StudioScreen({
               accessibilityState={{ selected: mode === kind }}
               onPress={() => {
                 setMode(kind);
-                setSelectedId(undefined);
+                setSelectedSource(undefined);
                 setSourceFilter('');
                 setSourceStart(0);
               }}
@@ -571,7 +601,7 @@ export function StudioScreen({
                 disabled={busy || browsing}
                 onPress={() => {
                   setSourceStart(Math.max(0, pageStart - 12));
-                  setSelectedId(undefined);
+                  setSelectedSource(undefined);
                 }}
                 style={s.sourcePagingButton}
               >
@@ -596,7 +626,7 @@ export function StudioScreen({
                     moreLoaded
                       ? () => {
                           setSourceStart(pageStart + 12);
-                          setSelectedId(undefined);
+                          setSelectedSource(undefined);
                         }
                       : loadSources
                   }
@@ -723,6 +753,12 @@ export function StudioScreen({
                   <Text style={s.sourceName}>
                     {selected?.displayName ?? 'No media selected'}
                   </Text>
+                  {selectedSource && !selected && (
+                    <Text accessibilityRole="alert" style={s.toolDetail}>
+                      This source changed or left this view. Close details and
+                      choose it again.
+                    </Text>
+                  )}
                   <Text style={s.toolDetail}>
                     Saving creates a new copy. The original remains unchanged.
                   </Text>
@@ -733,12 +769,16 @@ export function StudioScreen({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open editor from inspector"
-              disabled={!selected || busy}
+              disabled={!selected || busy || loading}
               onPress={() => {
+                if (!selected || !currentSource(selected)) return;
                 setDetails(false);
                 editSelected();
               }}
-              style={[s.editButton, (!selected || busy) && s.disabled]}
+              style={[
+                s.editButton,
+                (!selected || busy || loading) && s.disabled,
+              ]}
             >
               <Text style={s.editLabel}>
                 {selected ? `Open ${kindName} editor` : 'Choose media first'}

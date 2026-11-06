@@ -1,3 +1,11 @@
+## November 6 — Studio preserves exact source identity
+
+**0 new user-facing features; 1 correctness fix; 0 scaffolding. Source87/500, batch49 unchanged.** Studio rejects retained edit/inspect callbacks after source removal, URI/type replacement, filename/page/type changes or library loading. An inspected original is bound to its exact ID/URI/type instead of silently becoming another record with the same ID; invalid sources ask for a deliberate new selection.
+
+All266Jest/24suites pass, typecheck0, lint0errors/38warnings. Eight actual-screen regressions fail before/pass after; tests mock library/native boundaries. [Evidence and limits](STUDIO_SOURCE_IDENTITY.md); `.context/studio-source-identity/verification.json`. No full native/APK build, device/provider or native launch proof; broad builds remain deferred to~138. Existing ranking/credits/ledger/privacy behavior is preserved.
+
+Correction: the earlier Library footer-fix claim was inaccurate. Controlled proposed-style comparison showed0changedpixels and no hit obstruction; unnecessary edits were removed. Library/preview source remains unchanged and no layout fix is counted. Own prior standalone evidence wording is corrected; peer REA/C089 work is preserved.
+
 ## November 6 — Library photos to existing video creator
 
 **0 newly added user-facing features; 1 creation-flow integration; 1 native entry adapter. Source87/500, batch49 unchanged.** Selected Library photos now open the existing C028 creator for review without repicking. Mixed video selections are refused; exact original references and order are retained. Shared pending guards prevent duplicate launches; failures retain picks. Saved state overrides incoming photos on recreation. No encoding starts automatically.
