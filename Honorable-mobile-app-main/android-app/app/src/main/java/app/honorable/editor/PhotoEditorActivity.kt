@@ -39,6 +39,8 @@ class PhotoEditorActivity:Activity(){
  private var placingScope:String?=null
  private var activeTool=-1
  private var restoredSession:PhotoSessionSnapshot?=null
+ private var photoRestoreReviewDialog:android.app.AlertDialog?=null
+ private var photoRestoreReviewToken:Any?=null
  private var pendingDestination:Uri?=null
  private var exportEncoding=SafePhotoCopy.Encoding.PNG
  private var exportQuality=95
@@ -500,7 +502,7 @@ class PhotoEditorActivity:Activity(){
    "Photo effects" to PhotoEffectTool.values().map{kind->t(kind.title){effectAdjust(kind)}},
    "Composition objects" to listOf(t("Text and shape objects"){manageObjects()},t("Pick object on photo"){armObjectPick()},t("Local effect regions"){manageRegions()},t("Local region recipes"){manageRegionRecipes()}),
    "Create & compose" to PhotoCompositionTool.values().map{kind->t(kind.title){compositionAdjust(kind)}},
-   "Editable project" to listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){photoProjectOperation("restore")},t("Delete saved photo edits"){deletePhotoProject()}),
+   "Editable project" to listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){requestPhotoRestore()},t("Delete saved photo edits"){deletePhotoProject()}),
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
     "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()},t("Create before/after image"){createComparison()})
@@ -511,17 +513,47 @@ class PhotoEditorActivity:Activity(){
   android.app.AlertDialog.Builder(this).setTitle("Delete saved photo edits?").setMessage("Deletes the saved editable project for this original in the current local guest or account shelf. The original photo and current edits are kept.")
    .setNegativeButton("Cancel",null).setPositiveButton("Delete saved edits"){_,_->photoProjectOperation("delete")}.show()
  }
+ private fun canRequestPhotoRestore()=copyForeground&&canFinish()&&!isDestroyed
+ private fun photoRestoreNeedsReview()=edit!=PhotoEdit()||undo.isNotEmpty()||redo.isNotEmpty()||canvasProjectId!=null
+ private fun canApprovePhotoRestore(token:Any,base:PhotoEdit,original:Uri,scope:String,namespace:String,generation:Long,projectId:String?,origins:List<String>,mode:EditorAccessMode):Boolean=
+  photoRestoreReviewToken===token&&canRequestPhotoRestore()&&copyGeneration==generation&&edit==base&&source==original&&loadedScope==scope&&canvasProjectId==projectId&&protectedOriginals.map{it.toString()}==origins&&accessMode==mode&&currentPresetNamespace()==namespace&&currentScope()==scope
+ private fun closePhotoRestoreReview(){
+  photoRestoreReviewToken=null;val dialog=photoRestoreReviewDialog;photoRestoreReviewDialog=null;runCatching{dialog?.dismiss()}
+ }
+ private fun requestPhotoRestore(){
+  if(!canRequestPhotoRestore())return
+  val scope=loadedScope?:return
+  val namespace=currentPresetNamespace()?:run{note.text="Session changed. Reopen the photo.";return}
+  if(currentScope()!=scope){note.text="Session changed. Reopen the photo.";return}
+  closePhotoRestoreReview()
+  if(!photoRestoreNeedsReview()){photoProjectOperation("restore");return}
+  val token=Any();val base=edit;val original=source;val generation=copyGeneration;val projectId=canvasProjectId;val origins=protectedOriginals.map{it.toString()};val mode=accessMode?:return
+  val dialog=android.app.AlertDialog.Builder(this).setTitle("Restore saved photo edits?")
+   .setMessage("Replaces the current adjustments, crop, captions and added objects. Export a photo copy first to keep the current rendered result. Saving editable edits can replace the existing save. Undo returns to this edit only while this editor session stays open.")
+   .setNegativeButton("Keep current"){_,_->if(photoRestoreReviewToken===token){closePhotoRestoreReview();note.text="Current photo edits kept."}}
+   .setPositiveButton("Restore saved"){_,_->
+    if(photoRestoreReviewToken!==token)return@setPositiveButton
+    val approved=canApprovePhotoRestore(token,base,original,scope,namespace,generation,projectId,origins,mode)
+    closePhotoRestoreReview()
+    if(approved)photoProjectOperation("restore")else note.text="Photo or session changed. Current edits were kept. Open Restore again."
+   }.create()
+  photoRestoreReviewToken=token;photoRestoreReviewDialog=dialog
+  dialog.setOnCancelListener{if(photoRestoreReviewToken===token)closePhotoRestoreReview()}
+  dialog.setOnDismissListener{if(photoRestoreReviewToken===token){photoRestoreReviewToken=null;photoRestoreReviewDialog=null}}
+  dialog.show()
+ }
  private fun photoProjectOperation(action:String){
-  if(!canFinish())return
+  if(!canFinish()||(action=="restore"&&!copyForeground))return
   val namespace=currentPresetNamespace()?:run{note.text="Session changed. Reopen the photo.";return}
   if(currentScope()!=loadedScope){note.text="Session changed. Reopen the photo.";return}
   if(source.authority==packageName+".creation"){
    when(action){"save"->saveCanvasProject();"restore"->restoreCanvasProject();else->note.text="Close this editor, then use Saved image projects to delete a canvas project and its source copy."}
    return
   }
+  val restoreGeneration=copyGeneration
   val base=edit;val original=source;val store=PhotoProjectStore(java.io.File(noBackupFilesDir,"photo-projects"),namespace,original.toString())
   photoProjectBusy=true;note.text=when(action){"save"->"Saving editable photo edits…";"restore"->"Checking original and restoring saved edits…";else->"Deleting saved photo edits…"}
-  fun current()=!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&currentPresetNamespace()==namespace&&currentScope()==loadedScope
+  fun current()=(action!="restore"||(copyForeground&&copyGeneration==restoreGeneration))&&!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&currentPresetNamespace()==namespace&&currentScope()==loadedScope
   fun hasDurableRead():Boolean {
    if(contentResolver.persistedUriPermissions.any{it.uri==original&&it.isReadPermission})return true
    if(original.authority!="media")return false
@@ -586,12 +618,13 @@ class PhotoEditorActivity:Activity(){
   }};dialog.show()
  }
  private fun restoreCanvasProject(){
-  if(!canFinish()||accessMode!=EditorAccessMode.GUEST_BASIC)return
+  if(!canRequestPhotoRestore()||accessMode!=EditorAccessMode.GUEST_BASIC)return
   val id=canvasProjectId?:run{note.text="Save this image project first, or reopen one from Saved image projects.";return}
-  val base=edit;val origins=protectedOriginals.map{it.toString()};photoProjectBusy=true;note.text="Checking saved image project…"
-  worker.execute{val saved=runCatching{CanvasProjectStore(java.io.File(filesDir,"canvas-projects")).load(id){check(!isDestroyed&&!isFinishing&&edit==base&&accessMode==EditorAccessMode.GUEST_BASIC)}.let{it to ImportedPhotoOriginals.validate((origins+it.protectedOriginals).distinct())}}
-   runOnUiThread{photoProjectBusy=false;if(isDestroyed||isFinishing)return@runOnUiThread
-    if(edit!=base||accessMode!=EditorAccessMode.GUEST_BASIC||protectedOriginals.map{it.toString()}!=origins){note.text="Editor changed. Current edits were kept.";return@runOnUiThread}
+  val base=edit;val original=source;val scope=loadedScope;val generation=copyGeneration;val origins=protectedOriginals.map{it.toString()};photoProjectBusy=true;note.text="Checking saved image project…"
+  fun current()=copyForeground&&copyGeneration==generation&&!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&loadedScope==scope&&scope!=null&&currentScope()==scope&&canvasProjectId==id&&accessMode==EditorAccessMode.GUEST_BASIC&&protectedOriginals.map{it.toString()}==origins
+  worker.execute{val saved=runCatching{CanvasProjectStore(java.io.File(filesDir,"canvas-projects")).load(id){check(current()){"Photo or session changed. Current edits were kept."}}.let{it to ImportedPhotoOriginals.validate((origins+it.protectedOriginals).distinct())}}
+   runOnUiThread{val unchanged=current();photoProjectBusy=false;if(isDestroyed||isFinishing)return@runOnUiThread
+    if(!unchanged){note.text="Editor changed. Current edits were kept.";return@runOnUiThread}
     saved.onSuccess{(project,restoredOriginals)->canvasProjectName=project.name;protectedOriginals=restoredOriginals.map(Uri::parse);intent.putStringArrayListExtra(ImportedPhotoOriginals.EXTRA,ArrayList(restoredOriginals));change(project.edit);note.text="Saved image project restored. Undo returns to the previous edit."}.onFailure{note.text=it.message?:"Saved project could not be restored. Current edits were kept."}
    }
   }
@@ -963,6 +996,6 @@ class PhotoEditorActivity:Activity(){
  }
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true}
- override fun onPause(){copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }
