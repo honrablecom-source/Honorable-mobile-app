@@ -1,5 +1,5 @@
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -64,6 +64,7 @@ export function HomeScreen() {
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState<SearchResponse>();
   const [loading, setLoading] = useState(false);
+  const searchPending = useRef(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
   const [selected, setSelected] = useState<MediaItem>();
@@ -140,7 +141,8 @@ export function HomeScreen() {
   );
   const search = async (value = query) => {
     const clean = value.trim();
-    if (!clean || loading) return;
+    if (!clean || loading || searchPending.current) return;
+    searchPending.current = true;
     setQuery(clean);
     Keyboard.dismiss();
     setLoading(true);
@@ -165,6 +167,7 @@ export function HomeScreen() {
       setError(reason instanceof Error ? reason.message : 'Search unavailable');
       setResponse(undefined);
     } finally {
+      searchPending.current = false;
       setLoading(false);
     }
   };
