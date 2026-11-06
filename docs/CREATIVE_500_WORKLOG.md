@@ -1,3 +1,9 @@
+## November 6 — Library photos to existing video creator
+
+**0 newly added user-facing features; 1 creation-flow integration; 1 native entry adapter. Source87/500, batch49 unchanged.** Selected Library photos now open the existing C028 creator for review without repicking. Mixed video selections are refused; exact original references and order are retained. Shared pending guards prevent duplicate launches; failures retain picks. Saved state overrides incoming photos on recreation. No encoding starts automatically.
+
+Validation:258 Jest tests/24 suites,43 Android helper/model host tests,67 required Node tests,typecheck pass,lint0errors/38warnings; Library browser checks pass at320/390/844 widths. Creator API compatibility compile uses retained reference APIs,not a full current native-module build. Native provider/grant/device/encoding/full-app/APK behavior remains unverified. [Details and limitations](LIBRARY_PHOTO_VIDEO_ENTRY.md). Broad builds remain deferred to the owner's batch boundary.
+
 ## November 6 — C088 full editable photo settings transfer
 
 **1 new experimental source workflow; 0 separate app fixes; 0 scaffolding. Shared source87/500, batch49 beyond38; next broad native/APK target~138.** Native photo Editable project now offers explicit Copy/Paste of full settings across originals:adjustments/crop/captions/objects/regions, reviewed replacement and one actual Undo/Redo. Pixels/source locations/account identity/history/pending export/masks are excluded. Canonical flat JSON/native64KiB payload/SHA/90KBtext bound rejects invalid data;plain-text single-item clipboard read occurs only on foreground Paste,with no URI/Intent/HTMLcoercion. Copy discloses text including hidden objects and marks the clip sensitive. Android controls clipboard access/sync;this is not encrypted storage. Approval binds exact current target/session/dialog/generation;pause/destroy invalidates it. Target source/protected originals remain unchanged.

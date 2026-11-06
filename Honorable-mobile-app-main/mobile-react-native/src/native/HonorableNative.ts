@@ -169,6 +169,9 @@ type NativeBoundary = {
     uri: string,
     timestampMs: number,
   ): Promise<{ opened: boolean }>;
+  createPhotoVideoFromLibraryGuest(
+    payload: string,
+  ): Promise<{ opened: boolean }>;
   shareMediaBatch(payload: string): Promise<{ opened: boolean }>;
   shareMedia(
     uri: string,
@@ -266,6 +269,9 @@ export const honorableNative = {
       | 'cover'
       | 'wallpaper',
   ) => boundary().createImageGuest(format),
+  createPhotoVideoFromLibraryGuest: (
+    items: { mediaUri: string; mediaType: 'IMAGE' | 'VIDEO' }[],
+  ) => boundary().createPhotoVideoFromLibraryGuest(JSON.stringify(items)),
   shareMediaBatch: (
     items: { mediaUri: string; mediaType: 'IMAGE' | 'VIDEO' }[],
   ) => boundary().shareMediaBatch(JSON.stringify(items)),

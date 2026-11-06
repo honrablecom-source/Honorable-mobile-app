@@ -26,10 +26,13 @@ let mockItems = fixtures,
   mockLoading = false,
   mockIndexing = false,
   mockError = '';
-const mockShare = jest.fn();
+const mockShare = jest.fn(),
+  mockCreateVideo = jest.fn();
 jest.mock('../src/native/HonorableNative', () => ({
   honorableNative: {
     shareMediaBatch: (...args: unknown[]) => mockShare(...args),
+    createPhotoVideoFromLibraryGuest: (...args: unknown[]) =>
+      mockCreateVideo(...args),
   },
 }));
 const mockLoadMore = jest.fn(),
@@ -156,6 +159,7 @@ beforeEach(() => {
   mockIndexing = false;
   mockError = '';
   mockShare.mockResolvedValue({ opened: true });
+  mockCreateVideo.mockResolvedValue({ opened: true });
   mockLoadMore.mockResolvedValue(undefined);
   mockReload.mockResolvedValue(undefined);
 });
@@ -561,4 +565,120 @@ test('a reused library ID cannot silently substitute a different original into a
   expect(mockShare).toHaveBeenCalledWith([
     { mediaUri: 'content://synthetic/replacement', mediaType: 'VIDEO' },
   ]);
+});
+
+test('selected photos open the existing creator in chosen order across filters without another picker', async () => {
+  mockItems = [
+    fixtures[0],
+    {
+      ...fixtures[0],
+      mediaId: 3,
+      mediaUri: 'content://synthetic/photo3',
+      displayName: 'Photo3.jpg',
+    },
+  ];
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => {
+    chooseTile(1);
+    chooseTile(0);
+  });
+  await act(async () => filter().props.onChangeText('Photo3'));
+  await act(async () =>
+    button('Make video from selected photos').props.onPress(),
+  );
+  expect(mockCreateVideo).toHaveBeenCalledWith([
+    { mediaUri: 'content://synthetic/photo3', mediaType: 'IMAGE' },
+    { mediaUri: fixtures[0].mediaUri, mediaType: 'IMAGE' },
+  ]);
+  expect(mockShare).not.toHaveBeenCalled();
+  expect(mockLoadMore).not.toHaveBeenCalled();
+  expect(mockReload).not.toHaveBeenCalled();
+  expect(viewer().props.item).toBeUndefined();
+  expect(
+    tree.root.findAll(
+      node =>
+        typeof node.props.children === 'string' &&
+        node.props.children.includes('Review order, holds and format'),
+    ).length,
+  ).toBeGreaterThan(0);
+});
+test('video or mixed selection refuses photo-video creation without silently dropping any chosen file', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => {
+    chooseTile(0);
+    chooseTile(1);
+  });
+  expect(button('Make video from selected photos').props.disabled).toBe(true);
+  await act(async () =>
+    button('Make video from selected photos').props.onPress(),
+  );
+  expect(mockCreateVideo).not.toHaveBeenCalled();
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare.mock.calls[0][0]).toHaveLength(2);
+});
+test('pending creator opening shares admission with Share and selection changes, then failure permits exact retry', async () => {
+  let reject!: (error: Error) => void;
+  mockCreateVideo.mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail;
+      }),
+  );
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button('Make video from selected photos').props.onPress();
+    button('Make video from selected photos').props.onPress();
+    button('Share selected originals').props.onPress();
+    button('Done selecting originals').props.onPress();
+    chooseTile(1);
+  });
+  expect(mockCreateVideo).toHaveBeenCalledTimes(1);
+  expect(mockShare).not.toHaveBeenCalled();
+  expect(
+    button('Make video from selected photos').props.accessibilityState.busy,
+  ).toBe(true);
+  await act(async () => {
+    reject(new Error('Synthetic creator access failure'));
+    await pending;
+  });
+  await act(async () =>
+    button('Make video from selected photos').props.onPress(),
+  );
+  expect(mockCreateVideo).toHaveBeenCalledTimes(2);
+  expect(mockCreateVideo.mock.calls[1][0]).toEqual([
+    { mediaUri: fixtures[0].mediaUri, mediaType: 'IMAGE' },
+  ]);
+});
+test('retained Make video cannot launch a creator after the Library closes', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  const create = button('Make video from selected photos').props.onPress;
+  await act(async () => tree.unmount());
+  await act(async () => create());
+  expect(mockCreateVideo).not.toHaveBeenCalled();
+});
+test('a refused creator opening is reported rather than claiming a prepared video', async () => {
+  mockCreateVideo.mockResolvedValueOnce({ opened: false });
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  await act(async () =>
+    button('Make video from selected photos').props.onPress(),
+  );
+  expect(
+    tree.root
+      .findAllByProps({ accessibilityRole: 'alert' })
+      .some(
+        node =>
+          node.props.children ===
+          'The photo video creator could not open. Try again.',
+      ),
+  ).toBe(true);
+  expect(button('Make video from selected photos').props.disabled).toBe(false);
 });

@@ -12,6 +12,7 @@ const output =
   path.join(root, '.context/library-viewer-preview/browser');
 await fs.mkdir(output, { recursive: true });
 const batchMode = process.env.NOBLE_LIBRARY_BATCH_PREVIEW === '1';
+const videoMode = process.env.NOBLE_LIBRARY_VIDEO_PREVIEW === '1';
 const require = createRequire(path.join(here, 'package.json'));
 const { build } = require('esbuild');
 const { chromium } = createRequire(
@@ -34,19 +35,20 @@ import {createRoot} from 'react-dom/client';
 import {MemoriesScreen} from ${JSON.stringify(
     path.resolve(here, '../src/screens/MemoriesScreen.tsx'),
   )};
-const Context=createContext(null);export const useLibrary=()=>useContext(Context);
+const Context=createContext(null);export const useLibrary=()=>useContext(Context);export const useNavigation=()=>({canGoBack:()=>false,goBack:()=>{},navigate:()=>{}});
 const image='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#eee"/><circle cx="200" cy="200" r="100" fill="#555"/></svg>');
 const item=(id,type,name)=>({mediaId:id,mediaUri:'content://synthetic/original/'+id,thumbnailUri:image,mediaType:type,displayName:name,capturedAt:Date.UTC(2026,10,6),durationMs:12000});
 const initial=[item(1,'IMAGE','Photo1.jpg'),item(2,'VIDEO','Clip.mp4'),item(3,'IMAGE','Photo3.jpg')];
 window.__routes=[];window.__pages=0;window.__reloads=0;
-const route=async(kind,value)=>{window.__routes.push({kind,value});if(kind==='batch'&&window.__failShare){window.__failShare=false;throw Error('Synthetic batch share failure');}if(window.__hold){window.__hold=false;await new Promise(resolve=>{window.__finish=resolve;});}return {opened:true};};
-export const honorableNative={shareMediaBatch:value=>route('batch',value),openMedia:value=>route('open',value),shareMedia:value=>route('share',value),editPhoto:value=>route('photo',value),editVideo:value=>route('video',value)};
+const route=async(kind,value)=>{window.__routes.push({kind,value});if(kind==='creator'&&window.__failCreator){window.__failCreator=false;throw Error('Synthetic creator access failure');}if(kind==='batch'&&window.__failShare){window.__failShare=false;throw Error('Synthetic batch share failure');}if(window.__hold){window.__hold=false;await new Promise(resolve=>{window.__finish=resolve;});}return {opened:true};};
+export const honorableNative={createPhotoVideoFromLibraryGuest:value=>route('creator',value),shareMediaBatch:value=>route('batch',value),openMedia:value=>route('open',value),shareMedia:value=>route('share',value),editPhoto:value=>route('photo',value),editVideo:value=>route('video',value)};
 function App(){const[items,setItems]=useState(initial);return <Context.Provider value={{items,total:4,loading:false,indexing:false,error:'',reload:async()=>{window.__reloads++;},loadMore:async()=>{window.__pages++;setItems([...initial,item(4,'IMAGE','Photo4.jpg')]);}}}><MemoriesScreen/></Context.Provider>;}
 createRoot(document.getElementById('root')).render(<App/>);
 `,
 );
 await build({
   entryPoints: [fixture],
+  tsconfigRaw: {compilerOptions:{jsx:'react'}},
   outfile: path.join(output, 'app.js'),
   bundle: true,
   minify: true,
@@ -62,6 +64,7 @@ await build({
           { filter: /(?:^|\/)LibraryContext$|(?:^|\/)HonorableNative$/ },
           () => ({ path: fixture }),
         );
+        builder.onResolve({filter:/^@react-navigation\/native$/},()=>({path:fixture}));
         builder.onResolve({ filter: /^react$/ }, () => ({
           path: require.resolve('react'),
         }));
@@ -137,6 +140,90 @@ try {
       );
     });
     await page.goto(url);
+    if (videoMode) {
+      await button('Select library originals').click();
+      await page
+        .getByRole('checkbox', { name: 'image Photo1.jpg', exact: true })
+        .click();
+      await page
+        .getByRole('checkbox', { name: 'video Clip.mp4', exact: true })
+        .click();
+      assert(await button('Make video from selected photos').isDisabled());
+      assert.equal(await page.evaluate(() => window.__routes.length), 0);
+      await page
+        .getByRole('checkbox', { name: 'video Clip.mp4', exact: true })
+        .click();
+      await page
+        .getByRole('checkbox', { name: 'image Photo3.jpg', exact: true })
+        .click();
+      await page
+        .getByRole('textbox', {
+          name: 'Search filenames in your library',
+          exact: true,
+        })
+        .fill('Photo3');
+      await page.evaluate(() => {
+        window.__hold = true;
+      });
+      await button('Make video from selected photos').click();
+      assert(await button('Share selected originals').isDisabled());
+      assert(await button('Done selecting originals').isDisabled());
+      await page.evaluate(() => window.__finish());
+      await page.evaluate(() => {
+        window.__failCreator = true;
+      });
+      await button('Make video from selected photos').click();
+      await page
+        .getByRole('alert')
+        .filter({ hasText: 'Synthetic creator access failure' })
+        .waitFor();
+      await page.screenshot({
+        path: path.join(output, `creator-error-${viewport.width}.png`),
+      });
+      await button('Make video from selected photos').click();
+      await page
+        .getByText(
+          'Photo video creator opened. Review order, holds and format before preparing clips.',
+          { exact: true },
+        )
+        .waitFor();
+      const calls = await page.evaluate(() => window.__routes);
+      assert.equal(calls.length, 3);
+      for (const call of calls)
+        assert.deepEqual(call, {
+          kind: 'creator',
+          value: [
+            { mediaUri: 'content://synthetic/original/1', mediaType: 'IMAGE' },
+            { mediaUri: 'content://synthetic/original/3', mediaType: 'IMAGE' },
+          ],
+        });
+      const box = await button('Make video from selected photos').boundingBox();
+      assert(box && box.y >= 0 && box.y + box.height <= viewport.height + 1);
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      );
+      await page.screenshot({
+        path: path.join(output, `creator-${viewport.width}.png`),
+      });
+      await button('Done selecting originals').click();
+      await page.getByLabel('image Photo3.jpg', { exact: true }).click();
+      await button('Close viewer').waitFor();
+      await button('Close viewer').click();
+      assert.deepEqual(await page.evaluate(() => window.__alerts), []);
+      assert.deepEqual(errors, []);
+      assert.deepEqual(external, []);
+      results.push({
+        viewport,
+        mode: 'selected-photos-to-creator',
+        errors,
+        external,
+        passed: true,
+      });
+      await page.close();
+      continue;
+    }
     if (batchMode) {
       await button('Select library originals').click();
       await page

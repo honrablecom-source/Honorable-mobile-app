@@ -195,6 +195,23 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
         context.startActivity(Intent(context,PhotoVideoCreatorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
         Arguments.createMap().apply{putBoolean("opened",true)}
     }}
+    @ReactMethod fun createPhotoVideoFromLibraryGuest(payload:String,promise:Promise)=work.execute {
+        try {
+            val activity=context.currentActivity?:error("Open the library before making a photo video")
+            val launch=PhotoVideoEntry.prepare(payload,android.content.ComponentName(context,PhotoVideoCreatorActivity::class.java),
+                {context.contentResolver.getType(it)}, {uri->context.contentResolver.openFileDescriptor(uri,"r").use{requireNotNull(it){"A selected original could not be read"}}})
+                .putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)
+            activity.runOnUiThread {
+                guarded(promise) {
+                    check(context.currentActivity===activity && context.lifecycleState==com.facebook.react.common.LifecycleState.RESUMED && !activity.isFinishing && !activity.isDestroyed) { "The creation screen closed. Open the library and try again." }
+                    activity.startActivity(launch)
+                    Arguments.createMap().apply{putBoolean("opened",true)}
+                }
+            }
+        } catch(error:Throwable) {
+            promise.reject("PHOTO_VIDEO_LIBRARY_ERROR","The selected photos could not open. Check access and choose photos only.",error)
+        }
+    }
     @ReactMethod fun openPhotoVideoProjectsGuest(promise:Promise)=work.execute{guarded(promise){
         context.startActivity(Intent(context,PhotoVideoProjectsActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
         Arguments.createMap().apply{putBoolean("opened",true)}

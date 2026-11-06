@@ -39,7 +39,7 @@ export function MemoriesScreen() {
   const [filter, setFilter] = useState<Filter>('All');
   const [selected, setSelected] = useState<MediaItem>();
   const [operation, setOperation] = useState<
-    'refresh' | 'more' | 'share' | null
+    'refresh' | 'more' | 'share' | 'video' | null
   >(null);
   const [localError, setLocalError] = useState('');
   const [selecting, setSelecting] = useState(false);
@@ -214,7 +214,7 @@ export function MemoriesScreen() {
     setShareError('');
     setShareNotice('');
   }, []);
-  const shareSelection = async () => {
+  const runSelection = async (kind: 'share' | 'video') => {
     if (
       !active.current ||
       pending.current ||
@@ -243,30 +243,50 @@ export function MemoriesScreen() {
       mediaUri: item!.mediaUri!,
       mediaType: item!.type,
     }));
+    if (kind === 'video' && payload.some(item => item.mediaType !== 'IMAGE')) {
+      setShareError(
+        'Choose photos only to make a video. Unselect videos first.',
+      );
+      return;
+    }
     pending.current = true;
-    setOperation('share');
+    setOperation(kind);
     setShareError('');
     setShareNotice('');
     try {
-      const result = await honorableNative.shareMediaBatch(payload);
+      const result =
+        kind === 'share'
+          ? await honorableNative.shareMediaBatch(payload)
+          : await honorableNative.createPhotoVideoFromLibraryGuest(payload);
       if (!result.opened)
-        throw Error('The share sheet could not open. Try again.');
+        throw Error(
+          kind === 'share'
+            ? 'The share sheet could not open. Try again.'
+            : 'The photo video creator could not open. Try again.',
+        );
       if (active.current)
         setShareNotice(
-          'Share sheet opened. Sending depends on the app and destination you choose.',
+          kind === 'share'
+            ? 'Share sheet opened. Sending depends on the app and destination you choose.'
+            : 'Photo video creator opened. Review order, holds and format before preparing clips.',
         );
     } catch (reason) {
       if (active.current)
         setShareError(
           reason instanceof Error
             ? reason.message
-            : 'The selected originals could not be shared. Try again.',
+            : 'The selected originals could not open. Check access and try again.',
         );
     } finally {
       pending.current = false;
       if (active.current) setOperation(null);
     }
   };
+  const shareSelection = () => runSelection('share');
+  const videoSelection = () => runSelection('video');
+  const photosOnly =
+    picked.length > 0 &&
+    picked.every(id => mediaById.get(id)?.type === 'IMAGE');
   const renderRow = useCallback(
     ({ item, index }: { item: MemoryRow; index: number }) =>
       item.kind === 'month' ? (
@@ -330,6 +350,22 @@ export function MemoriesScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Make video from selected photos"
+              accessibilityHint="Photos only. Review order and timing before preparing clips."
+              disabled={!photosOnly || operation !== null || loading}
+              accessibilityState={{
+                disabled: !photosOnly || operation !== null || loading,
+                busy: operation === 'video',
+              }}
+              onPress={videoSelection}
+              style={styles.selectionAction}
+            >
+              <Text style={styles.selectionActionText}>
+                {operation === 'video' ? 'Opening creator…' : 'Make video'}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Clear library selection"
               disabled={operation !== null}
               accessibilityState={{ disabled: operation !== null }}
@@ -352,6 +388,13 @@ export function MemoriesScreen() {
           <Text style={styles.selectionCopy}>
             Choose up to 20 loaded originals. Sharing includes full files and
             metadata. Export edits from the editor first.
+          </Text>
+          <Text style={styles.selectionCopy}>
+            {photosOnly
+              ? 'Make video opens the creator to review photo order and timing.'
+              : picked.length
+              ? 'Make video requires photos only. Unselect any selected videos first.'
+              : 'Select photos to make a video, then review their order and timing.'}
           </Text>
           {!!shareError && (
             <Text accessibilityRole="alert" style={styles.selectionCopy}>

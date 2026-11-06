@@ -62,7 +62,7 @@ class PhotoVideoCreatorActivity:Activity(){
         start=button("Create editable video project"){if(job==null)begin()}
         button("Cancel preparation"){job?.let{cancel(it,"Preparation cancelled. Original photos and completed projects were kept.")}}
         note=TextView(this).apply{setTextColor(Color.DKGRAY)};body.addView(note)
-        val recovered=runCatching{PhotoVideoSelection.restore(state?.getStringArrayList("photos")?:emptyList(),state?.getLongArray("photoHolds"))}
+        val recovered=runCatching{PhotoVideoEntry.initial(state,intent)}
         selectionHistory.reset(recovered.getOrElse{PhotoVideoSelection.of(emptyList())})
         note.text=if(photos.isEmpty())"No photos selected."else"${photos.size} photos selected. Start again when ready."
         if(recovered.isFailure)note.text="The previous selection could not be restored. Choose your photos again; originals were kept."
