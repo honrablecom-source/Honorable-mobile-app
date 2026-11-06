@@ -554,12 +554,10 @@ class PhotoEditorActivity:Activity(){
   val base=edit;val original=source;val store=PhotoProjectStore(java.io.File(noBackupFilesDir,"photo-projects"),namespace,original.toString())
   photoProjectBusy=true;note.text=when(action){"save"->"Saving editable photo edits…";"restore"->"Checking original and restoring saved edits…";else->"Deleting saved photo edits…"}
   fun current()=(action!="restore"||(copyForeground&&copyGeneration==restoreGeneration))&&!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&currentPresetNamespace()==namespace&&currentScope()==loadedScope
-  fun hasDurableRead():Boolean {
-   if(contentResolver.persistedUriPermissions.any{it.uri==original&&it.isReadPermission})return true
-   if(original.authority!="media")return false
-   val permission=if(android.os.Build.VERSION.SDK_INT>=33)android.Manifest.permission.READ_MEDIA_IMAGES else android.Manifest.permission.READ_EXTERNAL_STORAGE
-   return checkSelfPermission(permission)==android.content.pm.PackageManager.PERMISSION_GRANTED
-  }
+  fun hasDurableRead():Boolean=PhotoProjectReadAccess.hasExistingRead(original,
+   contentResolver.persistedUriPermissions.any{it.uri==original&&it.isReadPermission}){
+    app.honorable.search.MediaCapabilityManager(this).current().canReadImages
+   }
   fun requireCurrent(){check(current()){"Photo or session changed. Reopen the project controls."}}
   worker.execute{
    val result=runCatching{
@@ -583,7 +581,7 @@ class PhotoEditorActivity:Activity(){
     if(!unchanged){note.text="Photo or session changed. Current edits were kept.";return@runOnUiThread}
     result.onSuccess{saved->
      if(action=="restore"&&saved!=null){change(saved);note.text="Saved editable photo restored. Undo returns to the previous edit."}
-     else note.text=when(action){"save"->"Editable edits saved privately. Reopen this same original through Files, then choose Restore editable photo edits.";"restore"->"No saved editable project exists for this original.";else->"Saved edits deleted. Original photo and current edit kept."}
+     else note.text=when(action){"save"->"Editable edits saved privately. Reopen this same original, then choose Restore editable photo edits. The original must remain available.";"restore"->"No saved editable project exists for this original.";else->"Saved edits deleted. Original photo and current edit kept."}
     }.onFailure{note.text=it.message?:"Photo project operation failed. Current edits were kept."}
    }
   }
