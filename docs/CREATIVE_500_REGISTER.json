@@ -684,7 +684,7 @@
       "id": "C086",
       "outcome": "Browse adjacent loaded filtered Library originals in the viewer while preserving exact Open/Edit/Share sources",
       "status": "implemented-source",
-      "local_web_checked": false,
+      "local_web_checked": true,
       "full_app_build_checked": false,
       "device_checked": false
     }

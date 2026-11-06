@@ -35,6 +35,9 @@ export function MediaViewer({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [chrome, setChrome] = useState(true);
+  const sidePanel = chrome && width >= 600 && width > height;
+  const panelWidth = Math.min(360, Math.floor(width * 0.46));
+  const mediaWidth = sidePanel ? width - panelWidth - 24 : width;
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const lifecycle = useRef({ active: false, generation: 0, item });
@@ -133,7 +136,7 @@ export function MediaViewer({
             chrome ? 'Hide viewer controls' : 'Show viewer controls'
           }
           onPress={() => setChrome(v => !v)}
-          style={styles.mediaSurface}
+          style={[styles.mediaSurface, sidePanel && { right: panelWidth + 24 }]}
         >
           {crop === undefined && item.uri ? (
             <Image
@@ -142,15 +145,17 @@ export function MediaViewer({
               style={styles.fill}
             />
           ) : crop !== undefined ? (
-            <View style={{ width, height, overflow: 'hidden' }}>
+            <View style={{ width: mediaWidth, height, overflow: 'hidden' }}>
               <Image
                 source={item.source}
                 style={{
                   position: 'absolute',
-                  width: width * 3,
-                  height: width * 3,
-                  left: -(crop % 3) * width,
-                  top: (height - width) / 2 - Math.floor(crop / 3) * width,
+                  width: mediaWidth * 3,
+                  height: mediaWidth * 3,
+                  left: -(crop % 3) * mediaWidth,
+                  top:
+                    (height - mediaWidth) / 2 -
+                    Math.floor(crop / 3) * mediaWidth,
                 }}
               />
             </View>
@@ -158,7 +163,13 @@ export function MediaViewer({
         </Pressable>
         {chrome && (
           <>
-            <View style={[styles.top, { top: insets.top + 8 }]}>
+            <View
+              style={[
+                styles.top,
+                { top: insets.top + 8 },
+                sidePanel && { right: panelWidth + 24 },
+              ]}
+            >
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close viewer"
@@ -173,23 +184,38 @@ export function MediaViewer({
               <View style={styles.controlPlaceholder} />
             </View>
             {item.type === 'VIDEO' && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Play video"
-                onPress={openVideo}
-                disabled={busy}
-                accessibilityState={{ disabled: busy, busy }}
-                style={styles.play}
+              <View
+                pointerEvents="box-none"
+                style={[
+                  styles.playRegion,
+                  sidePanel && { right: panelWidth + 24 },
+                ]}
               >
-                <Play color="#000000" fill="#000000" size={25} />
-                {item.result?.bestTimestampMs !== undefined && (
-                  <Text style={styles.moment}>
-                    Play from {formatDuration(item.result.bestTimestampMs)}
-                  </Text>
-                )}
-              </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Play video"
+                  onPress={openVideo}
+                  disabled={busy}
+                  accessibilityState={{ disabled: busy, busy }}
+                  style={styles.play}
+                >
+                  <Play color="#000000" fill="#000000" size={25} />
+                  {item.result?.bestTimestampMs !== undefined && (
+                    <Text style={styles.moment}>
+                      Play from {formatDuration(item.result.bestTimestampMs)}
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
             )}
-            <View style={[styles.details, { bottom: insets.bottom + 8 }]}>
+            <View
+              style={[
+                styles.details,
+                { bottom: insets.bottom + 8 },
+                sidePanel && styles.sideDetails,
+                sidePanel && { width: panelWidth },
+              ]}
+            >
               {navigation && (
                 <View style={styles.navigation}>
                   <Pressable
@@ -358,6 +384,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 6,
+  },
+  sideDetails: { left: 'auto' },
+  playRegion: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   play: {
     position: 'absolute',
