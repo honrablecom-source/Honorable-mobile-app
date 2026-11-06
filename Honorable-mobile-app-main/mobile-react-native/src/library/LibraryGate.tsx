@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { colors } from '../design-system/tokens';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +14,83 @@ import { Images, ShieldCheck } from 'lucide-react-native';
 import { useLibrary } from './LibraryContext';
 import { useOpenWorkspace } from '../native/openWorkspace';
 import { StudioScreen } from '../screens/StudioScreen';
+
+function AccessRecovery({ onCheck }: { onCheck: () => Promise<void> }) {
+  const [busy, setBusy] = useState<'settings' | 'check' | null>(null);
+  const [error, setError] = useState('');
+  const pending = useRef(false),
+    active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  const run = async (action: 'settings' | 'check') => {
+    if (!active.current || pending.current) return;
+    pending.current = true;
+    setBusy(action);
+    setError('');
+    try {
+      if (action === 'settings') await Linking.openSettings();
+      else await onCheck();
+    } catch {
+      if (active.current)
+        setError(
+          action === 'settings'
+            ? 'Could not open device settings. Open Settings on your device and choose Noble, then return.'
+            : 'Could not check photo access. Try again.',
+        );
+    } finally {
+      pending.current = false;
+      if (active.current) setBusy(null);
+    }
+  };
+  return (
+    <View testID="library-access-recovery" style={s.accessRecovery}>
+      <Text style={s.noteText}>
+        If the permission prompt no longer appears, change photo access in
+        Noble’s device settings. Returning checks access again.
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open device settings"
+        accessibilityState={{
+          disabled: busy !== null,
+          busy: busy === 'settings',
+        }}
+        disabled={busy !== null}
+        onPress={() => run('settings')}
+        style={s.editorButton}
+      >
+        {busy === 'settings' ? (
+          <ActivityIndicator color={colors.textPrimary} />
+        ) : (
+          <Text style={s.editorText}>Open device settings</Text>
+        )}
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Check photo access again"
+        accessibilityState={{ disabled: busy !== null, busy: busy === 'check' }}
+        disabled={busy !== null}
+        onPress={() => run('check')}
+        style={s.editorButton}
+      >
+        {busy === 'check' ? (
+          <ActivityIndicator color={colors.textPrimary} />
+        ) : (
+          <Text style={s.editorText}>Check access again</Text>
+        )}
+      </Pressable>
+      {!!error && (
+        <Text accessibilityRole="alert" style={s.error}>
+          {error}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 function StudioEntry({
   onOpen,
@@ -70,7 +148,8 @@ function DirectEditors({ onStudio }: { onStudio: () => void }) {
 
 export function LibraryGate({ children }: { children: React.ReactNode }) {
   const [studioOpen, setStudioOpen] = useState(false);
-  const { status, loading, indexing, error, requestAccess, reindex } =
+  const [accessAttempted, setAccessAttempted] = useState(false);
+  const { status, loading, indexing, error, requestAccess, reindex, reload } =
     useLibrary();
   if (studioOpen)
     return <StudioScreen onReturnToLibrary={() => setStudioOpen(false)} />;
@@ -98,7 +177,11 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={requestAccess}
+            accessibilityLabel="Choose photos & videos"
+            onPress={() => {
+              setAccessAttempted(true);
+              return requestAccess();
+            }}
             style={s.button}
           >
             <Text style={s.buttonText}>Choose photos & videos</Text>
@@ -107,6 +190,7 @@ export function LibraryGate({ children }: { children: React.ReactNode }) {
             <ShieldCheck color={colors.textPrimary} size={17} />
             <Text style={s.noteText}>You can change access at any time.</Text>
           </View>
+          {accessAttempted && <AccessRecovery onCheck={reload} />}
           <DirectEditors onStudio={() => setStudioOpen(true)} />
           {!!error && <Text style={s.error}>{error}</Text>}
         </ScrollView>
@@ -212,6 +296,15 @@ const s = StyleSheet.create({
   disabled: { opacity: 0.55 },
   buttonText: { color: colors.canvas, fontSize: 14, fontWeight: '500' },
   editors: { marginTop: 24, gap: 10 },
+  accessRecovery: {
+    marginTop: 20,
+    padding: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+  },
   editorButton: {
     minHeight: 48,
     borderWidth: 1,

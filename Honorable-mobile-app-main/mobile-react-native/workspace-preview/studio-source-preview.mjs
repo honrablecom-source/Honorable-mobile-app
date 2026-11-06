@@ -11,13 +11,24 @@ const output =
   process.env.NOBLE_STUDIO_PREVIEW_OUTPUT ||
   path.join(root, '.context/studio-source-browser/browser');
 await fs.mkdir(output, { recursive: true });
-const setupMode = process.env.NOBLE_STUDIO_GATE_PREVIEW === '1';
+const settingsMode = process.env.NOBLE_STUDIO_SETTINGS_PREVIEW === '1';
+const setupMode = process.env.NOBLE_STUDIO_GATE_PREVIEW === '1' || settingsMode;
 const require = createRequire(path.join(here, 'package.json'));
 const { build } = require('esbuild');
 const { chromium } = createRequire(
   path.resolve(here, '../../ui-previews/package.json'),
 )('playwright');
 const fixture = path.join(output, 'fixture.jsx');
+const rnBoundary = settingsMode
+  ? path.join(output, 'settings-boundary.mjs')
+  : path.join(here, 'rn-web.mjs');
+if (settingsMode)
+  await fs.writeFile(
+    rnBoundary,
+    `export * from ${JSON.stringify(
+      path.join(here, 'rn-web.mjs'),
+    )};export const Linking={openSettings:async()=>{window.__settingsCalls=(window.__settingsCalls||0)+1;await new Promise(r=>setTimeout(r,100));if(window.__failSettings){window.__failSettings=false;throw Error('Synthetic settings failure');}}};`,
+  );
 await fs.writeFile(
   fixture,
   `
@@ -39,7 +50,7 @@ export const useLibrary=()=>useContext(Context);
 const route=(kind,value)=>{window.__routes.push({kind,value});return Promise.resolve({opened:true});};
 export const editMemory=value=>route('edit',value);
 export const useOpenWorkspace=()=>({busy:false,open:kind=>route('picker',kind),create:value=>route('canvas',value),draw:()=>route('draw'),photoVideo:()=>route('sequence'),projects:()=>route('projects'),videoProjects:()=>route('videoProjects')});
-function App(){const[items,setItems]=useState(initial);const loadMore=async()=>{window.__pageCalls++;await new Promise(r=>setTimeout(r,200));if(window.__failNext){window.__failNext=false;throw Error('Synthetic page failure');}setItems([...initial,item(50,'IMAGE','Later photo.jpg'),item(51,'VIDEO','Later video.mp4')]);};return <Context.Provider value={{items:setupMode?[]:items,total:setupMode?0:29,loading:false,indexing:false,status:{engine:'REAL',permissionGranted:!setupMode,indexedCount:setupMode?0:29,status:'READY'},requestAccess:()=>route('permission'),reindex:()=>route('index'),error:'',loadMore}}>{setupMode?<LibraryGate><div data-testid='search-shell'>Search shell fixture</div></LibraryGate>:<StudioScreen/>}</Context.Provider>;}
+function App(){const[items,setItems]=useState(initial);const loadMore=async()=>{window.__pageCalls++;await new Promise(r=>setTimeout(r,200));if(window.__failNext){window.__failNext=false;throw Error('Synthetic page failure');}setItems([...initial,item(50,'IMAGE','Later photo.jpg'),item(51,'VIDEO','Later video.mp4')]);};return <Context.Provider value={{items:setupMode?[]:items,total:setupMode?0:29,loading:false,indexing:false,status:{engine:'REAL',permissionGranted:!setupMode,indexedCount:setupMode?0:29,status:'READY'},requestAccess:()=>route('permission'),reindex:()=>route('index'),reload:()=>route('reload'),error:'',loadMore}}>{setupMode?<LibraryGate><div data-testid='search-shell'>Search shell fixture</div></LibraryGate>:<StudioScreen/>}</Context.Provider>;}
 createRoot(document.getElementById('root')).render(<App/>);
 `,
 );
@@ -58,7 +69,7 @@ await build({
         builder.onResolve(
           {
             filter:
-            /(?:^|\/)LibraryContext$|\/native\/openWorkspace$|\/native\/editMemory$/,
+              /(?:^|\/)LibraryContext$|\/native\/openWorkspace$|\/native\/editMemory$/,
           },
           () => ({ path: fixture }),
         );
@@ -69,7 +80,7 @@ await build({
           path: require.resolve('react-dom/client'),
         }));
         builder.onResolve({ filter: /^react-native$/ }, () => ({
-          path: path.join(here, 'rn-web.mjs'),
+          path: rnBoundary,
         }));
         builder.onResolve(
           { filter: /^react-native-safe-area-context$/ },
@@ -121,12 +132,60 @@ try {
   });
   await page.goto(url);
   if (setupMode) {
+    if (settingsMode) {
+      const settings = page.getByRole('button', {
+        name: 'Open device settings',
+        exact: true,
+      });
+      assert.equal(await settings.count(), 0);
+      await page
+        .getByRole('button', { name: 'Choose photos & videos', exact: true })
+        .click();
+      await settings.waitFor();
+      await page.evaluate(() => {
+        window.__failSettings = true;
+      });
+      await settings.click();
+      await page
+        .getByRole('alert')
+        .filter({ hasText: 'Could not open device settings' })
+        .waitFor();
+      await page.screenshot({
+        path: path.join(output, 'settings-error-390.png'),
+      });
+      await settings.click();
+      await page
+        .getByRole('button', { name: 'Check photo access again', exact: true })
+        .click();
+      assert.equal(await page.evaluate(() => window.__settingsCalls), 2);
+      assert.deepEqual(
+        await page.evaluate(() => window.__routes.map(route => route.kind)),
+        ['permission', 'reload'],
+      );
+      assert.equal(await page.getByTestId('search-shell').count(), 0);
+      for (const width of [320, 390, 844]) {
+        await page.setViewportSize({ width, height: 844 });
+        await settings.scrollIntoViewIfNeeded();
+        assert(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+        await page.screenshot({
+          path: path.join(output, `settings-${width}.png`),
+        });
+      }
+    }
     for (const width of [320, 390, 844]) {
       await page.setViewportSize({ width, height: 844 });
       const entry = page.getByRole('button', {
         name: 'Open Studio without library setup',
         exact: true,
       });
+      const permissionsBefore = await page.evaluate(
+        () =>
+          window.__routes.filter(route => route.kind === 'permission').length,
+      );
       await entry.click();
       const back = page.getByRole('button', {
         name: 'Back to library setup',
@@ -150,10 +209,27 @@ try {
         ])
           await page.getByRole('button', { name: label, exact: true }).click();
         assert.deepEqual(
-          await page.evaluate(() => window.__routes.map(route => route.kind)),
+          await page.evaluate(() =>
+            window.__routes
+              .filter(route => !['permission', 'reload'].includes(route.kind))
+              .map(route => route.kind),
+          ),
           ['draw', 'canvas', 'sequence', 'projects', 'videoProjects'],
         );
       }
+      assert.equal(
+        await page.evaluate(
+          () =>
+            window.__routes.filter(route => route.kind === 'permission').length,
+        ),
+        permissionsBefore,
+      );
+      assert.equal(
+        await page.evaluate(
+          () => window.__routes.filter(route => route.kind === 'index').length,
+        ),
+        0,
+      );
       await back.click();
       await entry.waitFor();
       assert.equal(await page.getByTestId('search-shell').count(), 0);
@@ -180,7 +256,10 @@ try {
             'projects',
             'videoProjects',
           ],
-          permissionOrIndexRequested: false,
+          automaticPermissionOrIndexRequested: false,
+          explicitSettingsRecovery: settingsMode,
+          settingsCalls: settingsMode ? 2 : 0,
+          explicitAccessRecheck: settingsMode,
           viewportWidths: [320, 390, 844],
           pageErrors: errors,
           externalRequests: external,
@@ -192,7 +271,7 @@ try {
       ),
     );
     console.log(
-      'PASS: actual Gate opens existing Studio creators and saved projects without permission/index requests, returns to gated setup;320/390/844 widths;no page/external errors. RNWeb only.',
+      'PASS: actual Gate opens existing Studio creators and saved projects without automatic permission/index requests, returns to gated setup;320/390/844 widths;no page/external errors. RNWeb only.',
     );
   } else {
     const edit = name =>

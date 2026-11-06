@@ -1,5 +1,11 @@
 import React from 'react';
-import { AccessibilityInfo, Alert, BackHandler, Text } from 'react-native';
+import {
+  AccessibilityInfo,
+  Alert,
+  BackHandler,
+  Linking,
+  Text,
+} from 'react-native';
 import Renderer, { act } from 'react-test-renderer';
 import { LibraryGate } from '../src/library/LibraryGate';
 import {
@@ -15,6 +21,7 @@ let mockBack: Parameters<typeof BackHandler.addEventListener>[1] | undefined;
 const mockBackRemove = jest.fn();
 const mockRequestAccess = jest.fn();
 const mockReindex = jest.fn();
+const mockReload = jest.fn();
 jest.mock('../src/library/LibraryContext', () => ({
   useLibrary: () => ({
     status: mockStatus,
@@ -26,6 +33,7 @@ jest.mock('../src/library/LibraryContext', () => ({
     loadMore: jest.fn().mockResolvedValue(undefined),
     requestAccess: mockRequestAccess,
     reindex: mockReindex,
+    reload: mockReload,
   }),
 }));
 jest.mock('../src/native/HonorableNative', () => ({
@@ -87,6 +95,8 @@ const render = async () => {
 beforeEach(() => {
   jest.resetAllMocks();
   mockLoading = false;
+  mockReload.mockResolvedValue(undefined);
+  jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined);
   mockIndexing = false;
   mockError = '';
   jest
@@ -305,4 +315,116 @@ test('leaving setup Studio invalidates a pending picker instead of opening its l
   expect(native.editPhoto).not.toHaveBeenCalled();
   expect(button('Open Studio without library setup')).toBeDefined();
   expect(tree.root.findAllByProps({ testID: 'main-app' })).toHaveLength(0);
+});
+async function attemptAccess() {
+  await render();
+  await act(async () => button('Choose photos & videos').props.onPress());
+}
+test('settings recovery appears after a denied access attempt and explicit checking never prompts or indexes', async () => {
+  await render();
+  expect(button('Open device settings')).toBeUndefined();
+  await act(async () => button('Choose photos & videos').props.onPress());
+  expect(mockRequestAccess).toHaveBeenCalledTimes(1);
+  await act(async () => button('Open device settings').props.onPress());
+  expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+  await act(async () => button('Check photo access again').props.onPress());
+  expect(mockReload).toHaveBeenCalledTimes(1);
+  expect(mockRequestAccess).toHaveBeenCalledTimes(1);
+  expect(mockReindex).not.toHaveBeenCalled();
+  expect(tree.root.findAllByProps({ testID: 'main-app' })).toHaveLength(0);
+});
+test('settings and access checking share same-tick admission until the active action settles', async () => {
+  let finish!: () => void;
+  jest.mocked(Linking.openSettings).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  );
+  await attemptAccess();
+  let pending!: Promise<void>;
+  await act(async () => {
+    const settings = button('Open device settings');
+    const check = button('Check photo access again');
+    pending = settings.props.onPress();
+    settings.props.onPress();
+    check.props.onPress();
+  });
+  expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+  expect(mockReload).not.toHaveBeenCalled();
+  expect(button('Check photo access again').props.disabled).toBe(true);
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(button('Check photo access again').props.disabled).toBe(false);
+  await act(async () => button('Check photo access again').props.onPress());
+  expect(mockReload).toHaveBeenCalledTimes(1);
+});
+test('settings failure gives actionable feedback and remains retryable without unlocking search', async () => {
+  jest
+    .mocked(Linking.openSettings)
+    .mockRejectedValueOnce(new Error('Synthetic settings failure'));
+  await attemptAccess();
+  await act(async () => button('Open device settings').props.onPress());
+  expect(
+    tree.root.findAllByProps({ accessibilityRole: 'alert' }).length,
+  ).toBeGreaterThan(0);
+  await act(async () => button('Open device settings').props.onPress());
+  expect(Linking.openSettings).toHaveBeenCalledTimes(2);
+  expect(tree.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(
+    0,
+  );
+  expect(tree.root.findAllByProps({ testID: 'main-app' })).toHaveLength(0);
+});
+test('late settings failure and retained actions cannot affect Studio after leaving recovery', async () => {
+  let fail!: (reason: Error) => void;
+  jest.mocked(Linking.openSettings).mockImplementationOnce(
+    () =>
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+  );
+  await attemptAccess();
+  const retained = button('Open device settings').props.onPress;
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = retained();
+  });
+  await act(async () =>
+    button('Open Studio without library setup').props.onPress(),
+  );
+  await act(async () => {
+    fail(new Error('Late failure'));
+    await pending;
+    await retained();
+  });
+  expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+  expect(tree.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(
+    0,
+  );
+  expect(button('Back to library setup')).toBeDefined();
+  await act(async () => button('Back to library setup').props.onPress());
+  expect(button('Open device settings').props.disabled).toBe(false);
+  expect(mockRequestAccess).toHaveBeenCalledTimes(1);
+});
+test('access recheck follows the existing readiness gate instead of granting access itself', async () => {
+  await attemptAccess();
+  await act(async () => button('Check photo access again').props.onPress());
+  expect(tree.root.findAllByProps({ testID: 'main-app' })).toHaveLength(0);
+  mockStatus.permissionGranted = true;
+  mockStatus.indexedCount = 1;
+  await act(async () =>
+    tree.update(
+      <LibraryGate>
+        <Text testID="main-app">Main app</Text>
+      </LibraryGate>,
+    ),
+  );
+  expect(
+    tree.root.findAllByProps({ testID: 'main-app' }).length,
+  ).toBeGreaterThan(0);
+  expect(button('Open device settings')).toBeUndefined();
+  expect(mockReload).toHaveBeenCalledTimes(1);
+  expect(mockReindex).not.toHaveBeenCalled();
 });
