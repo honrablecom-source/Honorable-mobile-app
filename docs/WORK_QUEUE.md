@@ -1,3 +1,9 @@
+## November 6 — Photo destructive reviews stay with their original session
+
+**0 new features; 1 core approval correctness fix; 0 scaffolding. Source 88/500 and batch 50 unchanged at this checkpoint.** Reset and Delete saved photo edits now require foreground/idle admission and an owned full photo/session snapshot; stale/replaced approvals cannot act on a later editor state. Pause/destroy invalidates their review. Reset retains actual Undo and protected originals; saved-edit deletion retains originals/current edits/named versions and checks the original foreground generation in its worker. Existing background Save policy is retained.
+
+**445 focused host tests pass: 10 new + 435 retained**, current Activity API compilation and six source-wiring checks. Both actual paused-entry regressions fail before/pass after. [Evidence and limitations](PHOTO_DESTRUCTIVE_REVIEW.md); `.context/noble-fast-photo-destructive/verification.json`. Constructor-free metadata tests do not establish actual dialog/lifecycle/provider/storage/render/device behavior or full native/APK integration. Cancellation is cooperative, with no rollback guarantee after storage work begins. No full app build, benchmark or upload; broad native/APK build remains deferred to approximately 138 source workflows. Peer C090/REA changes and all existing note tails are preserved.
+
 ## November 6 — C089 keep named photo editing alternatives
 
 **1 new experimental source workflow; 0 separate fixes; 0 scaffolding. Source 88/500, batch 50 beyond 38.** Imported-photo Editable project now saves named full editing alternatives separately from the existing single saved-edit slot. Reviewed Open uses photo Undo; save-new refuses duplicate names, and metadata-only deletion has conflict-safe in-shelf Undo. Private guest/account-and-original shelves cap at 20 entries/512 KB, validate original bytes and retain protected sources. Created canvases keep their existing project workflow.

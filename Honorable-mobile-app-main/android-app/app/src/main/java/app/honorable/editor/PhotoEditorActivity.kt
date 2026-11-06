@@ -55,6 +55,8 @@ class PhotoEditorActivity:Activity(){
  private var photoSettingsDialog:android.app.AlertDialog?=null
  private var photoSettingsToken:Any?=null
  private var photoVersions:PhotoVersionShelf?=null
+ private var photoDestructiveDialog:android.app.AlertDialog?=null
+ private var photoDestructiveToken:Any?=null
  private var releasePhotoBack:(()->Unit)?=null
  private var pendingDestination:Uri?=null
  private var exportEncoding=SafePhotoCopy.Encoding.PNG
@@ -268,20 +270,38 @@ class PhotoEditorActivity:Activity(){
   "Contrast","Saturation"->"$progress%"
   else->String.format(java.util.Locale.ROOT,"%+d",progress-100)
  }
+ private fun canRequestPhotoDestructive()=copyForeground&&canFinish()&&!isDestroyed&&!waitingForPicker&&pendingDestination==null&&::source.isInitialized
+ private fun canApprovePhotoDestructive(token:Any,captured:PhotoCloseState,scope:String,mode:EditorAccessMode)=photoDestructiveToken===token&&canRequestPhotoDestructive()&&accessMode==mode&&currentScope()==scope&&captured.stillMatches(photoCloseState())
+ private fun closePhotoDestructiveReview(){photoDestructiveToken=null;val dialog=photoDestructiveDialog;photoDestructiveDialog=null;runCatching{dialog?.dismiss()}}
+ private fun applyPhotoReset(token:Any,captured:PhotoCloseState,scope:String,mode:EditorAccessMode):Boolean {
+  if(!canApprovePhotoDestructive(token,captured,scope,mode))return false
+  return commitPhotoChange(PhotoEdit())
+ }
  private fun confirmPhotoReset(){
-  if(!canFinish()||isDestroyed)return
-  val snapshot=edit;val original=source
-  val scope=loadedScope?.takeIf{runCatching{currentScope()==it}.getOrDefault(false)}?:run{note.text="Session changed. Reopen this photo.";return}
-  if(snapshot==PhotoEdit()){note.text="This photo already has no edits to reset.";return}
-  android.app.AlertDialog.Builder(this).setTitle("Reset photo edits?")
-   .setMessage("Removes adjustments, crop, rotation, mirroring, cutout, transparency fade, composition, captions and added objects from this edit. Returns to the source image for this workspace. Original media and saved projects are kept. Undo restores the previous edit.")
-   .setNegativeButton("Keep editing",null).setPositiveButton("Reset edits"){_,_->
-    if(!canFinish()||isDestroyed||edit!=snapshot||source!=original||loadedScope!=scope||!runCatching{currentScope()==scope}.getOrDefault(false)){
-     if(!isDestroyed&&!isFinishing)note.text="Photo or session changed. Open Reset again."
-     return@setPositiveButton
-    }
-    tool("reset");change(PhotoEdit());note.text="Photo edits reset. Undo restores the previous edit."
-   }.show()
+  if(!canRequestPhotoDestructive())return
+  if(edit==PhotoEdit()){note.text="This photo already has no edits to reset.";return}
+  showPhotoDestructiveReview(false)
+ }
+ private fun showPhotoDestructiveReview(delete:Boolean){
+  if(!canRequestPhotoDestructive())return
+  val scope=photoControlScope()?:return;val mode=accessMode?:return;val captured=photoCloseState()
+  closePhotoDestructiveReview();val token=Any()
+  val dialog=android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete saved photo edits?"else"Reset photo edits?")
+   .setMessage(if(delete)"Deletes the saved editable project for this original in the current local guest or account shelf. The original photo and current edits are kept. Named photo versions are kept."
+    else"Removes adjustments, crop, rotation, mirroring, cutout, transparency fade, composition, captions and added objects from this edit. Returns to the source image for this workspace. Original media and saved projects are kept. Undo restores the previous edit.")
+   .setNegativeButton("Keep current"){_,_->if(photoDestructiveToken===token)closePhotoDestructiveReview()}
+   .setPositiveButton(if(delete)"Delete saved edits"else"Reset edits"){_,_->
+    if(photoDestructiveToken!==token)return@setPositiveButton
+    val approved=canApprovePhotoDestructive(token,captured,scope,mode)
+    val reset=if(approved&&!delete)applyPhotoReset(token,captured,scope,mode)else false
+    closePhotoDestructiveReview()
+    if(!approved){if(copyForeground&&!isDestroyed&&!isFinishing)note.text="Photo or session changed. Current edits and saved data were kept. Open the control again.";return@setPositiveButton}
+    if(delete)photoProjectOperation("delete")else if(reset){tool("reset");val ready=runCatching{preview()}.isSuccess;note.text=if(ready)"Photo edits reset. Undo restores the previous edit."else"Photo edits reset, but preview is unavailable. Undo restores the previous edit."}
+   }.create()
+  photoDestructiveToken=token;photoDestructiveDialog=dialog
+  dialog.setOnCancelListener{if(photoDestructiveToken===token)closePhotoDestructiveReview()}
+  dialog.setOnDismissListener{if(photoDestructiveToken===token){photoDestructiveToken=null;photoDestructiveDialog=null}}
+  dialog.show()
  }
  private fun navigateHistory(forward:Boolean){
   if(photoRecovery!=null){photoRecoveryNotice();return}
@@ -541,9 +561,8 @@ class PhotoEditorActivity:Activity(){
    ).filter{it.second.isNotEmpty()})
  }
  private fun deletePhotoProject(){
-  if(!canFinish())return
-  android.app.AlertDialog.Builder(this).setTitle("Delete saved photo edits?").setMessage("Deletes the saved editable project for this original in the current local guest or account shelf. The original photo and current edits are kept.")
-   .setNegativeButton("Cancel",null).setPositiveButton("Delete saved edits"){_,_->photoProjectOperation("delete")}.show()
+  if(!canRequestPhotoDestructive())return
+  showPhotoDestructiveReview(true)
  }
  private fun hasPhotoProjectRead(original:Uri)=PhotoProjectReadAccess.hasExistingRead(original,contentResolver.persistedUriPermissions.any{it.uri==original&&it.isReadPermission}){app.honorable.search.MediaCapabilityManager(this).current().canReadImages}
  private fun isCreatedPhotoSource()=::source.isInitialized&&source.authority?.endsWith(".creation")==true&&source.authority==packageName+".creation"
@@ -653,18 +672,19 @@ class PhotoEditorActivity:Activity(){
   dialog.setOnDismissListener{if(photoRestoreReviewToken===token){photoRestoreReviewToken=null;photoRestoreReviewDialog=null}}
   dialog.show()
  }
+ private fun photoProjectForegroundMatches(action:String,generation:Long)=action=="save"||(copyForeground&&copyGeneration==generation)
  private fun photoProjectOperation(action:String){
-  if(!canFinish()||(action=="restore"&&!copyForeground))return
+  if(!canFinish()||(action!="save"&&!copyForeground))return
   val namespace=currentPresetNamespace()?:run{note.text="Session changed. Reopen the photo.";return}
   if(currentScope()!=loadedScope){note.text="Session changed. Reopen the photo.";return}
   if(source.authority==packageName+".creation"){
    when(action){"save"->saveCanvasProject();"restore"->restoreCanvasProject();else->note.text="Close this editor, then use Saved image projects to delete a canvas project and its source copy."}
    return
   }
-  val restoreGeneration=copyGeneration
+  val operationGeneration=copyGeneration
   val base=edit;val original=source;val store=PhotoProjectStore(java.io.File(noBackupFilesDir,"photo-projects"),namespace,original.toString())
   photoProjectBusy=true;note.text=when(action){"save"->"Saving editable photo edits…";"restore"->"Checking original and restoring saved edits…";else->"Deleting saved photo edits…"}
-  fun current()=(action!="restore"||(copyForeground&&copyGeneration==restoreGeneration))&&!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&currentPresetNamespace()==namespace&&currentScope()==loadedScope
+  fun current()=photoProjectForegroundMatches(action,operationGeneration)&&!activityClosed&&!isDestroyed&&!isFinishing&&photoProjectBusy&&edit==base&&source==original&&currentPresetNamespace()==namespace&&currentScope()==loadedScope
   fun hasDurableRead():Boolean=hasPhotoProjectRead(original)
   fun requireCurrent(){check(current()){"Photo or session changed. Reopen the project controls."}}
   worker.execute{
@@ -1231,6 +1251,6 @@ class PhotoEditorActivity:Activity(){
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel();if(photoExport?.isCancelled==true&&::note.isInitialized)note.text="Stopping the previous export. Check Files before retrying.";publishPhotoExportNotice();resumePendingExport()}
- override fun onPause(){photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }
