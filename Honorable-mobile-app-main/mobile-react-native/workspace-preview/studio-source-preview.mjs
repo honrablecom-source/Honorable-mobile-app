@@ -12,6 +12,7 @@ const output =
   path.join(root, '.context/studio-source-browser/browser');
 await fs.mkdir(output, { recursive: true });
 const settingsMode = process.env.NOBLE_STUDIO_SETTINGS_PREVIEW === '1';
+const canvasMode = process.env.NOBLE_STUDIO_CANVAS_PREVIEW === '1';
 const setupMode = process.env.NOBLE_STUDIO_GATE_PREVIEW === '1' || settingsMode;
 const require = createRequire(path.join(here, 'package.json'));
 const { build } = require('esbuild');
@@ -45,11 +46,12 @@ const Context=createContext(null);
 const image='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#eee"/><circle cx="100" cy="75" r="30" fill="#555"/></svg>');
 const item=(id,type,name)=>({mediaId:id,mediaUri:'content://synthetic/'+id,thumbnailUri:image,mediaType:type,displayName:name,capturedAt:0,durationMs:1000});
 const initial=[...Array.from({length:25},(_,i)=>item(i+1,'IMAGE','Source '+i+'.jpg')),item(30,'VIDEO','First clip.mp4'),item(31,'VIDEO','Second clip.mp4')];
-window.__routes=[];window.__pageCalls=0;
+window.__routes=[];window.__pageCalls=0;window.__setupCalls=0;
 export const useLibrary=()=>useContext(Context);
 const route=(kind,value)=>{window.__routes.push({kind,value});return Promise.resolve({opened:true});};
+export const honorableNative={canvasSetups:async()=>{window.__setupCalls++;return JSON.stringify([{name:'Preview wide',width:1200,height:700,background:'black'}]);}};
 export const editMemory=value=>route('edit',value);
-export const useOpenWorkspace=()=>({busy:false,open:kind=>route('picker',kind),create:value=>route('canvas',value),draw:()=>route('draw'),photoVideo:()=>route('sequence'),projects:()=>route('projects'),videoProjects:()=>route('videoProjects')});
+export const useOpenWorkspace=()=>({busy:false,open:kind=>route('picker',kind),create:value=>route('canvas',value),createCustom:(width,height,background)=>route('customCanvas',{width,height,background}),draw:()=>route('draw'),photoVideo:()=>route('sequence'),projects:()=>route('projects'),videoProjects:()=>route('videoProjects')});
 function App(){const[items,setItems]=useState(initial);const loadMore=async()=>{window.__pageCalls++;await new Promise(r=>setTimeout(r,200));if(window.__failNext){window.__failNext=false;throw Error('Synthetic page failure');}setItems([...initial,item(50,'IMAGE','Later photo.jpg'),item(51,'VIDEO','Later video.mp4')]);};return <Context.Provider value={{items:setupMode?[]:items,total:setupMode?0:29,loading:false,indexing:false,status:{engine:'REAL',permissionGranted:!setupMode,indexedCount:setupMode?0:29,status:'READY'},requestAccess:()=>route('permission'),reindex:()=>route('index'),reload:()=>route('reload'),error:'',loadMore}}>{setupMode?<LibraryGate><div data-testid='search-shell'>Search shell fixture</div></LibraryGate>:<StudioScreen/>}</Context.Provider>;}
 createRoot(document.getElementById('root')).render(<App/>);
 `,
@@ -69,7 +71,7 @@ await build({
         builder.onResolve(
           {
             filter:
-              /(?:^|\/)LibraryContext$|\/native\/openWorkspace$|\/native\/editMemory$/,
+              /(?:^|\/)LibraryContext$|\/native\/openWorkspace$|\/native\/editMemory$|(?:^|\/)HonorableNative$/,
           },
           () => ({ path: fixture }),
         );
@@ -131,7 +133,104 @@ try {
     return route.continue();
   });
   await page.goto(url);
-  if (setupMode) {
+  if (canvasMode) {
+    const button = name => page.getByRole('button', { name, exact: true });
+    for (const width of [320, 390, 844]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(url);
+      const sourceFilter = page.getByRole('textbox', {
+        name: 'Filter loaded source filenames',
+        exact: true,
+      });
+      await sourceFilter.fill('Source 24');
+      await button('Choose canvas size').click();
+      await page.screenshot({
+        path: path.join(output, `canvas-formats-${width}.png`),
+        fullPage: true,
+      });
+      assert.equal(await button('Back to sign in').count(), 0);
+      await button('Create Landscape canvas').click();
+      await page
+        .getByRole('tab', { name: 'Custom canvas and setups', exact: true })
+        .click();
+      await page
+        .getByRole('textbox', { name: 'Canvas width in pixels', exact: true })
+        .fill('800');
+      await page
+        .getByRole('textbox', { name: 'Canvas height in pixels', exact: true })
+        .fill('600');
+      await page
+        .getByRole('radio', {
+          name: 'transparent canvas background',
+          exact: true,
+        })
+        .click();
+      await button('Create custom canvas').click();
+      await button('Load canvas setup Preview wide').click();
+      await button('Create custom canvas').click();
+      assert.deepEqual(await page.evaluate(() => window.__routes), [
+        { kind: 'canvas', value: 'landscape' },
+        {
+          kind: 'customCanvas',
+          value: { width: 800, height: 600, background: 'transparent' },
+        },
+        {
+          kind: 'customCanvas',
+          value: { width: 1200, height: 700, background: 'black' },
+        },
+      ]);
+      await page
+        .getByRole('textbox', { name: 'Canvas width in pixels', exact: true })
+        .fill('0');
+      assert(await button('Create custom canvas').isDisabled());
+      await page
+        .getByRole('textbox', { name: 'Canvas width in pixels', exact: true })
+        .fill('1200');
+      assert.equal(await page.evaluate(() => window.__setupCalls), 1);
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      );
+      await page.screenshot({
+        path: path.join(output, `canvas-${width}.png`),
+        fullPage: true,
+      });
+      await button('Back to Studio').click();
+      assert.equal(await sourceFilter.inputValue(), 'Source 24');
+      await button('Edit Source 24.jpg').click();
+      assert.deepEqual(await page.evaluate(() => window.__routes.at(-1)), {
+        kind: 'edit',
+        value: { id: '25', mediaUri: 'content://synthetic/25', type: 'IMAGE' },
+      });
+    }
+    assert.deepEqual(errors, []);
+    assert.deepEqual(external, []);
+    await fs.writeFile(
+      path.join(output, 'canvas-review.json'),
+      JSON.stringify(
+        {
+          actualComponents: [
+            'StudioScreen',
+            'CanvasCreationScreen',
+            'GuestEditingScreen',
+          ],
+          viewportWidths: [320, 390, 844],
+          formatsCustomSavedSetupBack: true,
+          sourceFilterRetained: true,
+          nativeRoutesSynthetic: true,
+          pageErrors: errors,
+          externalRequests: external,
+          nativeDeviceAccepted: false,
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+    console.log(
+      'PASS: actual Studio/shared canvas chooser formats/custom/saved setup/back/exact-source checks at320/390/844;no page/external errors.RNWeb synthetic boundaries only.',
+    );
+  } else if (setupMode) {
     if (settingsMode) {
       const settings = page.getByRole('button', {
         name: 'Open device settings',

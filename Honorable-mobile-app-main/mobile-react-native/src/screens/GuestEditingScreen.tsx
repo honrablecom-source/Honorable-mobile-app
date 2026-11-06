@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
   Platform,
@@ -42,7 +42,8 @@ const canvasFormats = [
 ] as const;
 
 /** Guest editing never mounts the account, search or paid-feature navigation. */
-export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
+type CreationRoute = {onSignIn: () => void; onCanvasClose?: never} | {onCanvasClose: () => void; onSignIn?: never};
+export function GuestEditingScreen({ onSignIn, onCanvasClose }: CreationRoute) {
   const [setups, setSetups] = useState<CanvasSetup[]>([]);
   const [setupName, setSetupName] = useState('');
   const [setupError, setSetupError] = useState('');
@@ -58,7 +59,8 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
       setupReviewRef.current = null;
     };
   }, []);
-  const [choosingCanvas, setChoosingCanvas] = useState(false);
+  const [choosingCanvas, setChoosingCanvas] = useState(!!onCanvasClose);
+  const initialCanvasRead = useRef(!!onCanvasClose);
   const [canvasMode, setCanvasMode] = useState<'formats' | 'custom'>('formats');
   const [canvasQuery, setCanvasQuery] = useState('');
   const [background, setBackground] = useState<'white' | 'black' | 'transparent'>('white');
@@ -77,18 +79,18 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
   useEffect(() => {
     if (!choosingCanvas || Platform.OS !== 'android') return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!busy) setChoosingCanvas(false);
+      if (!busy) { if (onCanvasClose) onCanvasClose(); else setChoosingCanvas(false); }
       return true;
     });
     return () => subscription.remove();
-  }, [choosingCanvas, busy]);
+  }, [choosingCanvas, busy, onCanvasClose]);
   const fitCanvas = () => {
     if (busy || !dimensionsValid || customValid) return;
     const scale = Math.sqrt(4194304 / canvasPixels);
     setCanvasWidth(String(Math.floor(Number(canvasWidth) * scale)));
     setCanvasHeight(String(Math.floor(Number(canvasHeight) * scale)));
   };
-  const updateSetups = async (action: 'list' | 'save' | 'delete', name = '', replacement?: CanvasSetup) => {
+  const updateSetups = useCallback(async (action: 'list' | 'save' | 'delete', name = '', replacement?: CanvasSetup) => {
     if (!setupActive.current || setupPending.current || busy) return;
     if (action === 'list') { setupReviewRef.current = null; setSetupReview(null); }
     setupPending.current = true;
@@ -112,6 +114,15 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
       setupPending.current = false;
       if (setupActive.current) setSetupBusy(false);
     }
+  }, [busy, canvasWidth, canvasHeight, background]);
+  useEffect(() => {
+    if (!initialCanvasRead.current) return;
+    initialCanvasRead.current = false;
+    updateSetups('list');
+  }, [updateSetups]);
+  const leaveCanvas = () => {
+    if (busy) return;
+    if (onCanvasClose) onCanvasClose(); else setChoosingCanvas(false);
   };
   const reviewSetup = (action: 'save' | 'delete', saved: CanvasSetup, replacement?: CanvasSetup) => {
     if (!setupActive.current || busy || setupPending.current) return;
@@ -235,13 +246,13 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
           <View style={s.canvasChoices}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close canvas choices"
+              accessibilityLabel={onCanvasClose ? "Back to Studio" : "Close canvas choices"}
               accessibilityState={{ disabled: busy }}
               disabled={busy}
               style={s.canvasChoice}
-              onPress={() => setChoosingCanvas(false)}
+              onPress={leaveCanvas}
             >
-              <Text style={s.returnText}>Close canvas choices</Text>
+              <Text style={s.returnText}>{onCanvasClose ? "Back to Studio" : "Close canvas choices"}</Text>
             </Pressable>
             <Text accessibilityRole="header" style={s.buttonText}>Choose a canvas</Text>
             <View style={s.canvasTabs}>
@@ -347,10 +358,9 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
           </View>
         )}
         <Text style={s.note}>
-          Your files stay here. Exports create a new copy. Free on-device AI is
-          included; search and account features require sign-in.
+          {onCanvasClose ? 'Your files stay here. Exports create a new copy.' : 'Your files stay here. Exports create a new copy. Free on-device AI is included; search and account features require sign-in.'}
         </Text>
-        <Pressable
+        {onSignIn && <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back to sign in"
           disabled={busy}
@@ -359,12 +369,16 @@ export function GuestEditingScreen({ onSignIn }: { onSignIn: () => void }) {
           style={[s.returnButton, busy && s.disabled]}
         >
           <Text style={s.returnText}>Back to sign in</Text>
-        </Pressable>
+        </Pressable>}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/** Reuse the full existing canvas workflow without guest/account navigation chrome. */
+export function CanvasCreationScreen({onClose}: {onClose: () => void}) {
+  return <GuestEditingScreen onCanvasClose={onClose} />;
+}
 const s = StyleSheet.create({
   setupReview: { padding: 12, gap: 8, borderWidth: 1, borderColor: colors.textPrimary, borderRadius: 12 },
   canvasTabs: { flexDirection: 'row', gap: 8 },

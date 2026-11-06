@@ -1,5 +1,5 @@
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +36,7 @@ import { creativeStyles } from '../design-system/CreativeChrome';
 import { useLibrary } from '../library/LibraryContext';
 import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
+import { CanvasCreationScreen } from './GuestEditingScreen';
 
 export function StudioScreen({
   onReturnToLibrary,
@@ -43,6 +44,12 @@ export function StudioScreen({
   onReturnToLibrary?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const canvasOpenRef = useRef(false);
+  const closeCanvas = useCallback(() => {
+    canvasOpenRef.current = false;
+    setCanvasOpen(false);
+  }, []);
   const { width } = useWindowDimensions();
   const { items, total, loading, error, loadMore } = useLibrary();
   const {
@@ -62,6 +69,7 @@ export function StudioScreen({
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
+        if (canvasOpenRef.current) return false;
         if (details) setDetails(false);
         else onReturnToLibrary();
         return true;
@@ -123,11 +131,28 @@ export function StudioScreen({
   };
   const selected =
     assets.find(item => item.mediaId === selectedId) ?? assets[0];
-  const busy = importing || opening;
+  const busy = importing || opening || canvasOpen;
+  const chooseCanvas = () => {
+    if (
+      !sourceActive.current ||
+      pending.current ||
+      importing ||
+      canvasOpenRef.current
+    )
+      return;
+    canvasOpenRef.current = true;
+    setCanvasOpen(true);
+  };
   const kindName = mode === 'IMAGE' ? 'photo' : 'video';
   // Import and library routes share one synchronous guard, including same-frame taps.
   const launchWorkspace = async (action: () => Promise<unknown>) => {
-    if (!sourceActive.current || pending.current || importing) return;
+    if (
+      !sourceActive.current ||
+      pending.current ||
+      importing ||
+      canvasOpenRef.current
+    )
+      return;
     pending.current = true;
     try {
       await action();
@@ -138,7 +163,13 @@ export function StudioScreen({
   const importMedia = (kind: WorkspaceKind) =>
     launchWorkspace(() => open(kind));
   const editSelected = async (source = selected) => {
-    if (!sourceActive.current || !source || pending.current || importing)
+    if (
+      !sourceActive.current ||
+      !source ||
+      pending.current ||
+      importing ||
+      canvasOpenRef.current
+    )
       return;
     setSelectedId(source.mediaId);
     pending.current = true;
@@ -285,6 +316,7 @@ export function StudioScreen({
       </Text>
     </Pressable>
   );
+  if (canvasOpen) return <CanvasCreationScreen onClose={closeCanvas} />;
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
       <View style={s.launchHeader}>
@@ -360,6 +392,23 @@ export function StudioScreen({
           <Text style={s.creationCopy}>
             Create on this device. Keep your work editable.
           </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose canvas size"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={chooseCanvas}
+            style={[s.creationCard, busy && s.disabled]}
+          >
+            <Plus size={22} color={colors.textPrimary} strokeWidth={1.5} />
+            <View style={s.creationCardCopy}>
+              <Text style={s.creationTitle}>Choose canvas size</Text>
+              <Text style={s.creationCopy}>
+                Formats, custom dimensions and saved setups
+              </Text>
+            </View>
+            <ChevronRight size={16} color={colors.textSecondary} />
+          </Pressable>
           {creations.map(({ title, detail, Icon, launch }) => (
             <Pressable
               key={title}

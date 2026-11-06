@@ -2,6 +2,7 @@ import React from 'react';
 import { AccessibilityInfo, Alert, BackHandler, Platform, Text } from 'react-native';
 import Renderer, { act } from 'react-test-renderer';
 import { AccountGate } from '../src/auth/AccountGate';
+import { CanvasCreationScreen } from '../src/screens/GuestEditingScreen';
 import { honorableNative } from '../src/native/HonorableNative';
 
 // Resolve the lazy native module outside individual event-test timeout windows.
@@ -865,4 +866,28 @@ test('retained canvas setup refresh cannot read storage after guest unmount', as
   await act(async () => tree.unmount());
   await act(async () => refresh());
   expect(native.canvasSetups.mock.calls.map(call=>call[0])).toEqual(['list']);
+});
+
+
+test('shared Studio canvas route consumes Back and blocks header return during native creation', async () => {
+  const close = jest.fn();
+  let back: () => boolean | null | undefined = () => false;
+  jest.spyOn(hardwareBack, 'addEventListener').mockImplementation((_event, listener) => {
+    back = () => listener({type:'hardwareBackPress',timeStamp:0});
+    return {remove:jest.fn()};
+  });
+  let finish!: (value:{opened:boolean}) => void;
+  native.createImageGuest.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+  await act(async()=>{tree=Renderer.create(<CanvasCreationScreen onClose={close}/>);});
+  expect(button('Back to sign in')).toBeUndefined();
+  let pending!:Promise<void>;
+  await act(async()=>{pending=button('Create Square canvas').props.onPress();});
+  expect(button('Back to Studio').props.disabled).toBe(true);
+  await act(async()=>{button('Back to Studio').props.onPress();expect(back()).toBe(true);});
+  expect(close).not.toHaveBeenCalled();
+  await act(async()=>{finish({opened:true});await pending;});
+  expect(native.createImageGuest).toHaveBeenCalledWith('square');
+  expect(button('Back to Studio').props.disabled).toBe(false);
+  await act(async()=>{expect(back()).toBe(true);});
+  expect(close).toHaveBeenCalledTimes(1);
 });

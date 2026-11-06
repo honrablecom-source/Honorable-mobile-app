@@ -6,6 +6,8 @@ import { StudioScreen } from '../src/screens/StudioScreen';
 const mockOpen = jest.fn();
 const mockDraw = jest.fn();
 const mockCreate = jest.fn();
+const mockCreateCustom = jest.fn();
+const mockCanvasSetups = jest.fn();
 const mockPhotoVideo = jest.fn();
 const mockProjects = jest.fn();
 const mockVideoProjects = jest.fn();
@@ -48,10 +50,16 @@ jest.mock('../src/native/openWorkspace', () => ({
     open: mockOpen,
     draw: mockDraw,
     create: mockCreate,
+    createCustom: mockCreateCustom,
     photoVideo: mockPhotoVideo,
     projects: mockProjects,
     videoProjects: mockVideoProjects,
   }),
+}));
+jest.mock('../src/native/HonorableNative', () => ({
+  honorableNative: {
+    canvasSetups: (...args: unknown[]) => mockCanvasSetups(...args),
+  },
 }));
 jest.mock('../src/native/editMemory', () => ({
   editMemory: (...args: unknown[]) => mockEdit(...args),
@@ -92,6 +100,8 @@ beforeEach(async () => {
   mockTotal = initialItems.length;
   mockLoadMore.mockResolvedValue(undefined);
   mockEdit.mockResolvedValue({ opened: true });
+  mockCanvasSetups.mockResolvedValue('[]');
+  mockCreateCustom.mockResolvedValue(undefined);
   for (const action of [
     mockOpen,
     mockDraw,
@@ -536,4 +546,86 @@ test('a current Studio library failure still alerts and permits an exact-source 
   } finally {
     alert.mockRestore();
   }
+});
+
+const canvasInput = (label: string) =>
+  tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === label &&
+      typeof node.props.onChangeText === 'function',
+  )[0];
+test('Studio reuses all canvas formats and returns with its source filter intact', async () => {
+  await act(async () => filterInput().props.onChangeText('First'));
+  await act(async () => button('Choose canvas size').props.onPress());
+  expect(button('Back to sign in')).toBeUndefined();
+  expect(mockCanvasSetups).toHaveBeenCalledTimes(1);
+  expect(mockCreate).not.toHaveBeenCalled();
+  await act(async () => button('Create Landscape canvas').props.onPress());
+  expect(mockCreate).toHaveBeenCalledWith('landscape');
+  await act(async () => button('Back to Studio').props.onPress());
+  expect(filterInput().props.value).toBe('First');
+  expect(button('Edit First.jpg')).toBeDefined();
+});
+test('Studio custom canvas uses the shared bounded dimensions and transparent background', async () => {
+  await act(async () => button('Choose canvas size').props.onPress());
+  await act(async () => button('Custom canvas and setups').props.onPress());
+  await act(async () => {
+    canvasInput('Canvas width in pixels').props.onChangeText('800');
+    canvasInput('Canvas height in pixels').props.onChangeText('600');
+  });
+  await act(async () =>
+    button('transparent canvas background').props.onPress(),
+  );
+  await act(async () => button('Create custom canvas').props.onPress());
+  expect(mockCreateCustom).toHaveBeenCalledWith(800, 600, 'transparent');
+  await act(async () =>
+    canvasInput('Canvas width in pixels').props.onChangeText('0'),
+  );
+  expect(button('Create custom canvas').props.disabled).toBe(true);
+});
+test('Studio can reuse an existing saved canvas setup through the same native metadata boundary', async () => {
+  mockCanvasSetups.mockResolvedValueOnce(
+    JSON.stringify([
+      { name: 'My wide canvas', width: 1200, height: 700, background: 'black' },
+    ]),
+  );
+  await act(async () => button('Choose canvas size').props.onPress());
+  await act(async () => button('Custom canvas and setups').props.onPress());
+  await act(async () =>
+    button('Load canvas setup My wide canvas').props.onPress(),
+  );
+  await act(async () => button('Create custom canvas').props.onPress());
+  expect(mockCreateCustom).toHaveBeenCalledWith(1200, 700, 'black');
+  expect(mockCanvasSetups.mock.calls[0][0]).toBe('list');
+});
+test('same-frame chooser opening blocks retained editor/import launches and pending work blocks the chooser', async () => {
+  const edit = button('Edit First.jpg').props.onPress,
+    importMedia = button('Import media').props.onPress;
+  await act(async () => {
+    button('Choose canvas size').props.onPress();
+    edit();
+    importMedia();
+  });
+  expect(mockEdit).not.toHaveBeenCalled();
+  expect(mockOpen).not.toHaveBeenCalled();
+  await act(async () => button('Back to Studio').props.onPress());
+  let finish!: () => void;
+  mockEdit.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        finish = resolve;
+      }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button('Edit First.jpg').props.onPress();
+    button('Choose canvas size').props.onPress();
+  });
+  expect(button('Back to Studio')).toBeUndefined();
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  await act(async () => button('Choose canvas size').props.onPress());
+  expect(button('Back to Studio')).toBeDefined();
 });
