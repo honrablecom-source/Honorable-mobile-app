@@ -95,6 +95,40 @@ function Tile({
     </Pressable>
   );
 }
+/** A three-thumbnail row for an owning virtualized list; no nested scroll/list container. */
+export const MediaGridRow = React.memo(function MediaGridRow({
+  items,
+  onPress,
+  edgeToEdge = false,
+}: {
+  items: MediaItem[];
+  onPress: (item: MediaItem) => void;
+  edgeToEdge?: boolean;
+}) {
+  const { width } = useWindowDimensions();
+  const inset = edgeToEdge ? 2 : 16;
+  const gap = edgeToEdge ? 2 : grid.gap;
+  const size = Math.max(0, (width - inset * 2 - gap * 2) / 3);
+  return (
+    <View
+      style={[
+        styles.mediaRow,
+        { paddingHorizontal: inset, gap, marginBottom: gap },
+      ]}
+    >
+      {items.map(item => (
+        <Tile
+          key={item.id}
+          item={item}
+          size={size}
+          onPress={onPress}
+          squareEdges={edgeToEdge}
+        />
+      ))}
+    </View>
+  );
+});
+
 export function MediaGrid({
   items,
   onPress,
@@ -136,6 +170,7 @@ export function MediaGrid({
   );
 }
 const styles = StyleSheet.create({
+  mediaRow: { flexDirection: 'row' },
   squareTile: { borderRadius: 2 },
   row: { gap: grid.gap, marginBottom: grid.gap },
   tile: {

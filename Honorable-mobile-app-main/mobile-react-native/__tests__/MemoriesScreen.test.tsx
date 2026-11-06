@@ -96,7 +96,7 @@ jest.mock('../src/components/HonorableSearchBar', () => ({
   },
 }));
 jest.mock('../src/components/MediaGrid', () => ({
-  MediaGrid: (props: Record<string, unknown>) => {
+  MediaGridRow: (props: Record<string, unknown>) => {
     const create = require('react').createElement;
     return create(require('react-native').View, {
       ...props,
@@ -306,4 +306,31 @@ test('indexing blocks page loading but does not trigger a new scan on refresh', 
   await act(async () => refresh().onRefresh());
   expect(mockReload).toHaveBeenCalledTimes(1);
   expect(mockLoadMore).not.toHaveBeenCalled();
+});
+test('one owning virtualized list receives complete small rows for a larger library', async () => {
+  mockItems = Array.from({ length: 90 }, (_, i) => ({
+    ...fixtures[0],
+    mediaId: i + 1,
+  }));
+  mockTotal = 90;
+  await mount();
+  const list = tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === 'Library media' &&
+      Array.isArray(node.props.data),
+  )[0];
+  const rows = list.props.data as Array<{ kind: string; items?: unknown[] }>;
+  expect(list.props.initialNumToRender).toBeLessThan(rows.length);
+  expect(
+    rows.filter(row => row.kind === 'media').flatMap(row => row.items ?? []),
+  ).toHaveLength(90);
+  expect(
+    rows.every(
+      row =>
+        row.kind === 'month' ||
+        (row.items!.length > 0 && row.items!.length <= 3),
+    ),
+  ).toBe(true);
+  expect(list.props.ListHeaderComponent).toBeDefined();
+  expect(list.props.ListFooterComponent).toBeDefined();
 });

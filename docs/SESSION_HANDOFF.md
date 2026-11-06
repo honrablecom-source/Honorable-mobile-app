@@ -1,3 +1,7 @@
+## November 6 — One owning Library list
+
+**0 new features; 1 rendering fix; 0 scaffolding. Source84/500, batch46 unchanged.** Memories uses one virtualized list for month headings and three-thumbnail rows, preserving filename/type/order/original-URI/selection/refresh/paging contracts. Metadata preparation is memoized and grouping avoids repeated accumulated-array copies. All206 Jest tests/21suites pass (11new checks), typecheck exits0 and lint exits0. [Evidence and limits](LIBRARY_VIRTUALIZATION.md). Initial focused timeout passed unchanged on rerun; no timeout increase or list-mock substitution. No device heap/frame/gesture/provider acceptance or full native/APK build. Next broad build target remains~138; physical validation is pending.
+
 ## November 6 — Review before replacing photo edits
 
 **0 new features; 1 restore/usability fix; 0 scaffolding. Source84/500, batch46 beyond38 unchanged.** Native photo Restore now reviews edited/history-bearing originals and saved canvas projects before replacing current adjustments/crop/captions/objects. Untouched originals restore directly. Approval requires the current dialog plus exact edit/source/scope/namespace/mode/foreground generation/project/protected originals; pause/destroy invalidates it. Started original/canvas restores reject background-generation results. Keep current retains edits; guidance explains exported copies, one-slot save replacement and session-only Undo.

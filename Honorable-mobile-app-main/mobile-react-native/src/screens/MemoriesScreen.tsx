@@ -1,6 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,27 +17,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { HonorableSearchBar } from '../components/HonorableSearchBar';
-import { MediaGrid, MediaItem } from '../components/MediaGrid';
+import { MediaGridRow, MediaItem } from '../components/MediaGrid';
 import { MediaViewer } from '../components/MediaViewer';
 import { colors, WorkspaceHeader } from '../design-system';
 import { useLibrary } from '../library/LibraryContext';
 import { FilterTabs } from '../design-system/CreativeChrome';
+import {
+  memoryRows,
+  prepareMemoryEntries,
+  type MemoryRow,
+} from '../library/memoryRows';
 
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
 type Filter = (typeof filters)[number];
-
-function duration(ms?: number) {
-  if (ms === undefined) return undefined;
-  const seconds = Math.floor(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-function monthLabel(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export function MemoriesScreen() {
   const { items, total, loadMore, reload, loading, indexing, error } =
@@ -98,44 +97,156 @@ export function MemoriesScreen() {
     { label: 'Exported media', query: 'honorable', filter: 'All' as Filter },
   ];
 
-  const sections = useMemo(() => {
-    const cleanQuery = query.trim().toLowerCase();
-    const visible = items.filter(item => {
-      const screenshot = item.displayName.toLowerCase().includes('screenshot');
-      const kindMatches =
-        filter === 'All' ||
-        (filter === 'Photos' && item.mediaType === 'IMAGE') ||
-        (filter === 'Videos' && item.mediaType === 'VIDEO') ||
-        (filter === 'Screenshots' && screenshot);
-      return (
-        kindMatches &&
-        (!cleanQuery || item.displayName.toLowerCase().includes(cleanQuery))
-      );
-    });
-    const grouped = new Map<string, MediaItem[]>();
-    visible.forEach(item => {
-      const label = monthLabel(item.capturedAt);
-      const media: MediaItem = {
-        id: String(item.mediaId),
-        uri:
-          item.thumbnailUri ??
-          (item.mediaType === 'IMAGE' ? item.mediaUri : undefined),
-        mediaUri: item.mediaUri,
-        type: item.mediaType,
-        duration: duration(item.durationMs),
-        capturedAt: item.capturedAt,
-        displayName: item.displayName,
-      };
-      grouped.set(label, [...(grouped.get(label) ?? []), media]);
-    });
-    return [...grouped.entries()];
-  }, [filter, items, query]);
+  const entries = useMemo(() => prepareMemoryEntries(items), [items]);
+  const rows = useMemo(
+    () => memoryRows(entries, query, filter),
+    [entries, query, filter],
+  );
+  const renderRow = useCallback(
+    ({ item, index }: { item: MemoryRow; index: number }) =>
+      item.kind === 'month' ? (
+        <Text
+          accessibilityRole="header"
+          style={[styles.monthHeading, index > 0 && styles.laterMonth]}
+        >
+          {item.label}
+        </Text>
+      ) : (
+        <MediaGridRow edgeToEdge items={item.items} onPress={setSelected} />
+      ),
+    [],
+  );
 
+  const header = (
+    <View>
+      <WorkspaceHeader
+        title="Library"
+        section={`${total.toLocaleString()} items on your device`}
+      />
+
+      <HonorableSearchBar
+        compact
+        value={query}
+        onChangeText={setQuery}
+        onSubmit={() => undefined}
+      />
+      <View style={{ height: 8 }} />
+      <FilterTabs items={filters} value={filter} onChange={setFilter} />
+      <ScrollView
+        horizontal
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.collections}
+      >
+        {smartCollections.map(collection => (
+          <Pressable
+            key={collection.label}
+            accessibilityRole="button"
+            accessibilityLabel={`Show ${collection.label}`}
+            onPress={() => {
+              setFilter(collection.filter);
+              setQuery(collection.query);
+            }}
+            style={styles.collectionChip}
+          >
+            <Text className="text-[11px] font-semibold">
+              {collection.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <View style={{ height: 16 }} />
+      {!loading && (
+        <Text style={styles.loadedNotice}>
+          {items.length} of {total} library items loaded. Filename filters apply
+          to loaded items.
+        </Text>
+      )}
+      {indexing && (
+        <Text accessibilityLiveRegion="polite" style={styles.loadedNotice}>
+          Indexing is running on this device. More items can load when it
+          finishes.
+        </Text>
+      )}
+      {!!libraryError && (
+        <View style={styles.recovery}>
+          <Text accessibilityRole="alert" style={styles.error}>
+            {libraryError}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading library"
+            disabled={operation !== null || loading}
+            accessibilityState={{
+              disabled: operation !== null || loading,
+              busy: operation === 'refresh',
+            }}
+            onPress={() => readLibrary('refresh')}
+            style={styles.more}
+          >
+            <Text className="font-semibold">Retry library</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+  const empty = loading ? (
+    <ActivityIndicator
+      accessibilityLabel="Loading library"
+      color={colors.textPrimary}
+    />
+  ) : !libraryError ? (
+    <View style={styles.empty}>
+      <Text className="text-[17px] font-semibold">
+        No loaded memories match
+      </Text>
+      <Text variant="muted" className="mt-1 text-center">
+        Try another filter or filename. Pull down to refresh the library.
+      </Text>
+    </View>
+  ) : null;
+  const footer = (
+    <View>
+      {items.length < total && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Load more memories"
+          accessibilityState={{
+            disabled: operation !== null || loading || indexing,
+            busy: operation === 'more',
+          }}
+          disabled={operation !== null || loading || indexing}
+          onPress={() => readLibrary('more')}
+          style={styles.more}
+        >
+          {operation === 'more' ? (
+            <ActivityIndicator
+              accessibilityLabel="Loading more memories"
+              color={colors.textPrimary}
+            />
+          ) : (
+            <Text className="font-semibold">Load more</Text>
+          )}
+        </Pressable>
+      )}
+    </View>
+  );
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <ScrollView
+      <FlatList
+        accessibilityLabel="Library media"
+        data={rows}
+        keyExtractor={row => row.key}
+        renderItem={renderRow}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty ?? undefined}
+        ListFooterComponent={footer}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews={false}
         refreshControl={
           <RefreshControl
             accessibilityLabel="Refresh library"
@@ -145,123 +256,7 @@ export function MemoriesScreen() {
             colors={[colors.textPrimary]}
           />
         }
-      >
-        <WorkspaceHeader
-          title="Library"
-          section={`${total.toLocaleString()} items on your device`}
-        />
-
-        <HonorableSearchBar
-          compact
-          value={query}
-          onChangeText={setQuery}
-          onSubmit={() => undefined}
-        />
-        <View style={{ height: 8 }} />
-        <FilterTabs items={filters} value={filter} onChange={setFilter} />
-        <ScrollView
-          horizontal
-          keyboardShouldPersistTaps="handled"
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.collections}
-        >
-          {smartCollections.map(collection => (
-            <Pressable
-              key={collection.label}
-              accessibilityRole="button"
-              accessibilityLabel={`Show ${collection.label}`}
-              onPress={() => {
-                setFilter(collection.filter);
-                setQuery(collection.query);
-              }}
-              style={styles.collectionChip}
-            >
-              <Text className="text-[11px] font-semibold">
-                {collection.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-        <View style={{ height: 16 }} />
-        {!loading && (
-          <Text style={styles.loadedNotice}>
-            {items.length} of {total} library items loaded. Filename filters
-            apply to loaded items.
-          </Text>
-        )}
-        {indexing && (
-          <Text accessibilityLiveRegion="polite" style={styles.loadedNotice}>
-            Indexing is running on this device. More items can load when it
-            finishes.
-          </Text>
-        )}
-        {!!libraryError && (
-          <View style={styles.recovery}>
-            <Text accessibilityRole="alert" style={styles.error}>
-              {libraryError}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Retry loading library"
-              disabled={operation !== null || loading}
-              accessibilityState={{
-                disabled: operation !== null || loading,
-                busy: operation === 'refresh',
-              }}
-              onPress={() => readLibrary('refresh')}
-              style={styles.more}
-            >
-              <Text className="font-semibold">Retry library</Text>
-            </Pressable>
-          </View>
-        )}
-        {loading ? (
-          <ActivityIndicator
-            accessibilityLabel="Loading library"
-            color={colors.textPrimary}
-          />
-        ) : sections.length === 0 && !libraryError ? (
-          <View style={styles.empty}>
-            <Text className="text-[17px] font-semibold">
-              No loaded memories match
-            </Text>
-            <Text variant="muted" className="mt-1 text-center">
-              Try another filter or filename, or load more library items.
-            </Text>
-          </View>
-        ) : (
-          sections.map(([label, media]) => (
-            <View key={label} style={styles.section}>
-              <Text className="mb-4 px-4 text-[13px] font-semibold">
-                {label}
-              </Text>
-              <MediaGrid edgeToEdge items={media} onPress={setSelected} />
-            </View>
-          ))
-        )}
-        {items.length < total && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Load more memories"
-            accessibilityState={{
-              disabled: operation !== null || loading || indexing,
-              busy: operation === 'more',
-            }}
-            disabled={operation !== null || loading || indexing}
-            onPress={() => readLibrary('more')}
-            style={styles.more}
-          >
-            {operation === 'more' ? (
-              <ActivityIndicator
-                accessibilityLabel="Loading more memories"
-                color={colors.textPrimary}
-              />
-            ) : (
-              <Text className="font-semibold">Load more</Text>
-            )}
-          </Pressable>
-        )}
-      </ScrollView>
+      />
       <MediaViewer item={selected} onClose={() => setSelected(undefined)} />
     </SafeAreaView>
   );
@@ -306,7 +301,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceRaised,
   },
-  section: { marginBottom: 20 },
+  monthHeading: {
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  laterMonth: { marginTop: 20 },
   empty: {
     margin: 16,
     padding: 24,
