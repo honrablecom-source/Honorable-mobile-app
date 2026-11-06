@@ -41,6 +41,9 @@ class PhotoEditorActivity:Activity(){
  private var restoredSession:PhotoSessionSnapshot?=null
  private var photoRestoreReviewDialog:android.app.AlertDialog?=null
  private var photoRestoreReviewToken:Any?=null
+ private var photoCloseDialog:android.app.AlertDialog?=null
+ private var photoCloseToken:Any?=null
+ private var releasePhotoBack:(()->Unit)?=null
  private var pendingDestination:Uri?=null
  private var exportEncoding=SafePhotoCopy.Encoding.PNG
  private var exportQuality=95
@@ -100,7 +103,7 @@ class PhotoEditorActivity:Activity(){
   return control
  }
  val top=row()
- button(top,"‹"){finish()}.apply{contentDescription="Close photo editor";layoutParams=LinearLayout.LayoutParams(48.dp(),48.dp())}
+ button(top,"‹"){requestPhotoClose()}.apply{contentDescription="Close photo editor";layoutParams=LinearLayout.LayoutParams(48.dp(),48.dp());setOnClickListener{requestPhotoClose()}}
  top.addView(TextView(this).apply{text="Photo editor";textSize=16f;typeface=Typeface.create("sans-serif-medium",0);setTextColor(Color.BLACK);gravity=android.view.Gravity.CENTER_VERTICAL},LinearLayout.LayoutParams(0,48.dp(),1f))
  button(top,"Tools"){openInspector()}.apply{layoutParams=LinearLayout.LayoutParams(64.dp(),48.dp())}
  val export=button(top,"Export"){chooseExport()}
@@ -210,6 +213,7 @@ class PhotoEditorActivity:Activity(){
  selectCategory("Adjust");toolButtons.first().performClick()
 
  setContentView(root)
+ runCatching{PhotoEditorBack.install(this){requestPhotoClose()}}.onSuccess{releasePhotoBack=it}.onFailure{note.text="System Back protection is unavailable. Use the editor Close button to review edits before leaving."}
  NativeWorkspaceInsets.install(this,root)
  emit("editor_opened",JSONObject().put("mediaType","IMAGE"));
  val openingOriginals=protectedOriginals.map{it.toString()}
@@ -992,8 +996,44 @@ class PhotoEditorActivity:Activity(){
    if(loadedScope==null||loadedScope==scope)outState.putByteArray("photoSession",PhotoSessionCodec.encodeForRecovery(snapshot))
   }
  }
+ private fun canRequestPhotoClose()=copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing
+ private fun photoCloseState():PhotoCloseState {
+  val operations=(if(photoProjectBusy)1 else 0)or(if(readingText)2 else 0)or(if(enhancing)4 else 0)or(if(cuttingOut)8 else 0)or
+   (if(exportInProgress)16 else 0)or(if(waitingForPicker)32 else 0)or(if(exportEdit!=null)64 else 0)or(if(pendingDestination!=null)128 else 0)
+  val original=if(::source.isInitialized)source else null
+  val unsaved=canvasProjectId==null&&original?.authority?.endsWith(".creation")==true&&original.authority==packageName+".creation"
+  return PhotoCloseState.capture(edit,undo,redo,operations,restoredSession,original?.toString(),loadedScope,accessMode,canvasProjectId,unsaved,
+   protectedOriginals.map{it.toString()},copyGeneration,revision,bitmap,exportEdit,pendingDestination?.toString())
+ }
+ private fun canApprovePhotoClose(token:Any,captured:PhotoCloseState)=photoCloseToken===token&&canRequestPhotoClose()&&captured.stillMatches(photoCloseState())
+ private fun closePhotoCloseReview(){photoCloseToken=null;val dialog=photoCloseDialog;photoCloseDialog=null;runCatching{dialog?.dismiss()}}
+ private fun requestPhotoClose(){
+  if(!canRequestPhotoClose()||photoCloseToken!=null)return
+  val captured=photoCloseState()
+  if(!captured.needsConfirmation()){finish();return}
+  val message=when{
+   captured.recoveryPending->"Photo session recovery is still pending. Leaving discards this in-memory recovery. Saved projects, exported copies and original media are kept."
+   captured.working->"An operation is in progress. Leaving may interrupt it; check Files for an empty or partial copy. Saved projects and original media are kept."
+   captured.unsavedCreatedSource->"This image workspace may not be saved. Keep editing to save an editable image project or export a copy first. Existing saved projects and original media are kept."
+   else->"Current photo edits and Undo history may be lost when you leave. Keep editing to save editable edits or export a copy first. Existing saved projects, exported copies and original media are kept."
+  }
+  val token=Any()
+  val dialog=android.app.AlertDialog.Builder(this).setTitle("Leave photo editor?").setMessage(message)
+   .setNegativeButton("Keep editing"){_,_->if(photoCloseToken===token)closePhotoCloseReview()}
+   .setPositiveButton("Leave editor"){_,_->
+    if(photoCloseToken!==token)return@setPositiveButton
+    val approved=canApprovePhotoClose(token,captured);closePhotoCloseReview()
+    if(approved)finish()else if(::note.isInitialized)note.text="Photo or operation changed. Review it before closing again."
+   }.create()
+  photoCloseToken=token;photoCloseDialog=dialog
+  dialog.setOnCancelListener{if(photoCloseToken===token)closePhotoCloseReview()}
+  dialog.setOnDismissListener{if(photoCloseToken===token){photoCloseToken=null;photoCloseDialog=null}}
+  dialog.show()
+ }
+ @Deprecated("Legacy Back path before the platform callback API")
+ override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true}
- override fun onPause(){closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }

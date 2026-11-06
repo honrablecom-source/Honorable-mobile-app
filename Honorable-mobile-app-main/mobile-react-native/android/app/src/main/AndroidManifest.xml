@@ -41,7 +41,7 @@
       <activity android:name=".VoiceoverRecorderActivity" android:exported="false" android:theme="@style/AppTheme" />
       <provider android:name=".VoiceoverProvider" android:authorities="${applicationId}.voiceovers" android:exported="false" android:grantUriPermissions="false" />
     <activity android:name="app.honorable.editor.CanvasProjectsActivity" android:exported="false" />
-    <activity android:name="app.honorable.editor.PhotoEditorActivity" android:exported="false" />
+    <activity android:name="app.honorable.editor.PhotoEditorActivity" android:exported="false" android:enableOnBackInvokedCallback="true" />
         <activity android:name=".PhotoVideoCreatorActivity" android:exported="false" />
         <activity android:name=".PhotoVideoProjectsActivity" android:exported="false" />
     </application>
