@@ -959,7 +959,7 @@ class HonorableVideoEditorActivity : Activity() {
             return false
         }
         return request.apply(dialog,requireNotNull(project)){
-            check(batchReviewRequest===request&&batchReviewDialog===dialog&&activeCaptionReviewDialog(dialog,review)){"Project or session changed. Open the batch tool again."}
+            check(batchReviewRequest===request&&batchReviewDialog===dialog&&activeCaptionReviewDialog(dialog,review)){"Project or session changed. Prepare this edit again."}
         }
     }
     private fun batchOptions(){
@@ -1155,28 +1155,33 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun montageOptions() {
-        if (!editorIdle() || isDestroyed || isFinishing) return
-        val current = project ?: return
-        val snapshot = current.segments
-        val music = current.soundtrack
-        val mode = accessMode
-        val owner = if (mode == EditorAccessMode.ACCOUNT) runCatching { VideoDraftPersistence(this, source.toString()) }
-            .getOrElse { status.text = "Account changed. Reopen this video."; return } else null
-        val targets = listOf(15_000L, 30_000L, 60_000L)
-        android.app.AlertDialog.Builder(this).setTitle("Build a montage")
-            .setItems(arrayOf("15 seconds", "30 seconds", "60 seconds")) { _, choice ->
-                if (!editorIdle() || isDestroyed || isFinishing || project !== current || current.segments != snapshot || current.soundtrack != music || accessMode != mode || runCatching { owner?.requireCurrentOwner() }.isFailure) return@setItems
-                val proposed = runCatching { VideoStoryTools.montage(snapshot, targets[choice]) }.getOrElse { status.text = "Cannot build a montage from this project."; return@setItems }
-                val seconds = String.format(java.util.Locale.ROOT, "%.2f", proposed.sumOf { it.durationUs } / 1_000_000.0)
-                android.app.AlertDialog.Builder(this).setTitle("Review montage")
+        val captured=captureCaptionReview()?:return
+        val current=project?:return;val snapshot=current.segments;val music=current.soundtrack
+        batchReviewRequest?.close();batchReviewDialog?.dismiss()
+        val request=VideoBatchReview(snapshot,music);batchReviewRequest=request
+        val targets=listOf(15_000L,30_000L,60_000L)
+        lateinit var chooser:android.app.AlertDialog
+        chooser=android.app.AlertDialog.Builder(this).setTitle("Build a montage")
+            .setItems(arrayOf("15 seconds","30 seconds","60 seconds")){_,choice->
+                if(!canUseBatchStage(chooser,request,captured))return@setItems
+                val proposed=runCatching{VideoStoryTools.montage(snapshot,targets[choice])}.getOrElse{status.text="Cannot build a montage from this project.";return@setItems}
+                if(proposed==snapshot){status.text="These clips already fit this montage length. Current edits are unchanged.";return@setItems}
+                val seconds=String.format(java.util.Locale.ROOT,"%.2f",proposed.sumOf{it.durationUs}/1_000_000.0)
+                lateinit var confirmation:android.app.AlertDialog
+                confirmation=android.app.AlertDialog.Builder(this).setTitle("Review montage")
                     .setMessage("$seconds seconds · ${proposed.size} clips. Uses balanced centre excerpts in your current order. Short footage stays shorter; nothing is repeated or generated. Existing color, speed, titles, visible captions and music are kept. Replaces the timeline as one undoable edit. Preview before exporting.")
-                    .setNegativeButton("Cancel", null).setPositiveButton("Apply and preview") { _, _ ->
-                        if (!editorIdle() || isDestroyed || isFinishing || project !== current || current.segments != snapshot || current.soundtrack != music || accessMode != mode || runCatching { owner?.requireCurrentOwner() }.isFailure) { status.text = "Project or session changed. Build the montage again."; return@setPositiveButton }
-                        runCatching { current.applyDraft(proposed, soundtrack = music) }
-                            .onSuccess { selectedClip = 0; showClip(); previewProject(); status.text = "Montage applied. Undo restores the full timeline." }
-                            .onFailure { status.text = "Montage could not be applied; existing edits are unchanged." }
-                    }.show()
-            }.setNegativeButton("Cancel", null).show()
+                    .setNegativeButton("Cancel",null).setPositiveButton("Apply and preview"){_,_->
+                        runCatching{commitBatchReview(confirmation,request,captured)}.onSuccess{applied->
+                            if(!applied)return@onSuccess
+                            selectedClip=0;val refreshed=runCatching{showClip();previewProject()}.isSuccess
+                            status.text=if(refreshed)"Montage applied. Undo restores the full timeline."else"Montage applied. Preview is unavailable; Undo restores the full timeline."
+                        }.onFailure{status.text=it.message?:"Montage could not be applied; existing edits are unchanged."}
+                    }.create()
+                if(showBatchStage(confirmation,request,captured))runCatching{check(request.propose(confirmation,proposed))}.onFailure{
+                    request.close();confirmation.dismiss();status.text="Montage could not be prepared. Existing edits are unchanged."
+                }
+            }.setNegativeButton("Cancel",null).create()
+        showBatchStage(chooser,request,captured)
     }
 
     private var scriptCaptionEditor:android.app.AlertDialog?=null

@@ -26,7 +26,7 @@ internal class VideoBatchReview(clips:List<VideoSegment>,val music:VideoSoundtra
         val next=proposed?:return false
         close() // A failed/stale approval is also consumed; Undo cannot revive it.
         requireCurrent()
-        require(project.segments==base&&project.soundtrack==music){"Project changed. Open the batch tool again."}
+        require(project.segments==base&&project.soundtrack==music){"Project changed. Prepare this edit again."}
         require(next!=base){"These settings leave the project unchanged."}
         project.applyDraft(next,soundtrack=music);return true
     }
