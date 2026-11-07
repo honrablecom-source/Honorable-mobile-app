@@ -1830,7 +1830,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun captionOptions() {
         val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments[index]
-        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline","Synchronize subtitle timing") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
+        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline","Synchronize subtitle timing","Build highlights from caption text") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
         val dialog=android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
             .setItems(choices.toTypedArray()){_,choice->
                 if(!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return@setItems
@@ -1844,10 +1844,61 @@ class HonorableVideoEditorActivity : Activity() {
                     6->copyCaptionText()
                     7->requestTimelineCaptionImport()
                     8->requestCaptionSync()
-                    else->editCaption(current,index,clip,choice-9)
+                    9->requestCaptionHighlights()
+                    else->editCaption(current,index,clip,choice-10)
                 }
             }.setNegativeButton("Close",null).create()
         showCaptionReview(dialog,review)
+    }
+
+    private fun activeCaptionHighlightDialog(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=captionReviewDialogs?.contains(dialog)==true&&canApplyCaptionReview(review)
+    private fun commitCaptionHighlights(review:VideoCaptionReviewState,plan:VideoCaptionHighlights):Boolean {
+        if(!canApplyCaptionReview(review)||!plan.changed)return false
+        plan.apply(requireNotNull(project)){check(canApplyCaptionReview(review)){"Video or session changed. Select caption moments again."}}
+        return true
+    }
+    private fun requestCaptionHighlights(){
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val clips=current.segments;val clip=clips.getOrNull(selectedClip)?:return
+        if(!::start.isInitialized||!::end.isInitialized)return
+        if(!timelineCaptionRangeMatches(clip,start.progress,end.progress)){status.text="Apply or reset the selected trim before building caption highlights.";return}
+        if(clips.none{it.captions.isNotEmpty()}){status.text="Add or import captions before choosing captioned moments.";return}
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Find existing visible caption text on this device, then explicitly select moments to keep in timeline order. This replaces the whole timeline with those caption ranges as one Undo. Only cues intersecting kept moments carry into highlights; originals remain. No speech detection or upload.";setTextColor(Color.BLACK)})
+        val query=EditText(this).apply{hint="Caption text to find";contentDescription="Caption text for highlights";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(160));body.addView(this)}
+        val matchCase=android.widget.CheckBox(this).apply{text="Match letter case";setTextColor(Color.BLACK);body.addView(this)}
+        val input=android.app.AlertDialog.Builder(this).setTitle("Highlights from caption text").setView(ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)}).setNegativeButton("Keep timeline",null).setPositiveButton("Find moments",null).create()
+        input.setOnShowListener{input.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!activeCaptionHighlightDialog(input,review)){input.dismiss();return@setOnClickListener}
+            runCatching{VideoCaptionSearch.find(clips,query.text.toString(),matchCase.isChecked).also{require(it.isNotEmpty()){"No visible matches. Try different caption text."};require(it.size<=VideoCaptionHighlights.MAX_SELECTION){"More than 200 matches. Refine the text before selecting moments."}}}
+                .onSuccess{matches->input.dismiss();selectCaptionHighlights(review,clips,matches)}.onFailure{query.error=it.message?:"Check caption text"}
+        }};showCaptionReview(input,review)
+    }
+    private fun selectCaptionHighlights(review:VideoCaptionReviewState,clips:List<VideoSegment>,matches:List<VideoCaptionSearch.Match>){
+        if(!canApplyCaptionReview(review))return
+        val chosen=BooleanArray(matches.size)
+        val selection=android.app.AlertDialog.Builder(this).setTitle("Select caption moments to keep")
+            .setMultiChoiceItems(matches.map{it.label()}.toTypedArray(),chosen){dialog,which,checked->if(!canApplyCaptionReview(review))dialog.dismiss()else chosen[which]=checked}
+            .setNegativeButton("Keep timeline",null).setPositiveButton("Review highlights",null).create()
+        selection.setOnShowListener{selection.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!activeCaptionHighlightDialog(selection,review)){selection.dismiss();return@setOnClickListener}
+            runCatching{VideoCaptionHighlights.prepare(clips,matches.filterIndexed{i,_->chosen[i]}.map{VideoCaptionHighlights.Selection(it.clipIndex,it.cueIndex)},project?.soundtrack){check(canApplyCaptionReview(review)){"Video or session changed"}}}
+                .onSuccess{plan->if(!plan.changed)status.text="Selected moments already match this timeline. Nothing changed."else{selection.dismiss();reviewCaptionHighlights(review,plan)}}
+                .onFailure{status.text=it.message?:"Select at least one caption moment"}
+        }};showCaptionReview(selection,review)
+    }
+    private fun reviewCaptionHighlights(review:VideoCaptionReviewState,plan:VideoCaptionHighlights){
+        if(!canApplyCaptionReview(review))return
+        val sample=plan.excerpts.take(12).joinToString("\n"){"Clip ${it.clipIndex+1}: source ${VideoCaptions.formatTime(it.startMs)}–${VideoCaptions.formatTime(it.endMs)}"}
+        val extra=if(plan.excerpts.size>12)"\nFirst 12 of ${plan.excerpts.size} included excerpts shown."else""
+        val body=TextView(this).apply{setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12));contentDescription="Caption highlight timeline review";text="${plan.selectedCues} selected caption moments become ${plan.excerpts.size} ordered excerpts. Playback ${VideoCaptions.formatTime(plan.beforeUs/1000)} → ${VideoCaptions.formatTime(plan.afterUs/1000)}. Touching ranges merge only within the same original timeline clip; repeated clips stay separate.\n\nReplaces the whole timeline. Only caption cues intersecting kept excerpts carry over, using unchanged source times/text. Clip appearance, speed, audio settings and subtitle-document protection stay. Music keeps its existing excerpt/loop and begins at project start on the shorter timeline; check the mix. Originals are unchanged. One Undo restores the previous timeline.\n\n"+sample+extra}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Replace timeline with caption highlights?").setView(ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)}).setNegativeButton("Keep timeline",null).setPositiveButton("Apply highlights"){_,_->
+            if(!activeCaptionHighlightDialog(dialog,review))return@setPositiveButton
+            runCatching{check(commitCaptionHighlights(review,plan)){"Video or session changed. Select caption moments again."}}
+                .onSuccess{selectedClip=0;val ready=runCatching{showClip();previewProject()}.isSuccess;status.text=if(ready)"Caption highlights applied. Preview to check cuts and sound; Undo restores the timeline."else"Highlights applied, but preview is unavailable. Undo restores the timeline."}
+                .onFailure{if(workspaceActive)status.text=it.message?:"Highlights were not applied"}
+        }.create();showCaptionReview(dialog,review)
     }
 
     private fun ownsCaptionSync(owner:VideoCaptionSyncControls)=captionSyncControls===owner&&importing&&!saving&&!analyzing&&!draftBusy&&pendingRange==null&&recoveryBytes==null&&!recoveryBlocked&&!recoveryChecking&&!isDestroyed&&!isFinishing

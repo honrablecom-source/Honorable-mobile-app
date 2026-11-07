@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-94 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+95 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -145,3 +145,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C094** — Import whole edited-playback SRT across source clips and speeds with reviewed caption replacement and one Undo. [Scope and limits](FEATURE_C094_PLAYBACK_CAPTION_IMPORT.md). Experimental source; full-app/device acceptance pending.
 
 - **C095** — Synchronize selected-clip subtitle delay and linear drift using two original-source start anchors, with reviewed all-cue retiming and one Undo. [Evidence and limits](FEATURE_C095_CAPTION_SYNC.md). Experimental source; full-app/device acceptance pending.
+
+- **C096** — Build a reviewed whole-project highlight timeline from explicitly selected visible caption-text matches, preserving ordered source excerpts and one Undo. [Evidence and limits](FEATURE_C096_CAPTION_HIGHLIGHTS.md). Experimental source; full-app/device acceptance pending.
