@@ -1133,34 +1133,46 @@ class HonorableVideoEditorActivity : Activity() {
             }.setNegativeButton("Cancel", null).show()
     }
 
+    private var scriptCaptionEditor:android.app.AlertDialog?=null
+    private var scriptCaptionConfirmation:android.app.AlertDialog?=null
+    private fun commitScriptCaptionReview(editor:android.app.AlertDialog,confirmation:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,cues:List<VideoCaption>):Boolean {
+        if(scriptCaptionEditor!==editor||scriptCaptionConfirmation!==confirmation||!activeCaptionReviewDialog(editor,review)||!activeCaptionReviewDialog(confirmation,review))return false
+        return commitCaptionReview(review,current,index,clip,cues)
+    }
     private fun scriptCaptionOptions() {
-        if (!editorIdle() || isDestroyed || isFinishing) return
-        val current = project ?: return
-        val index = selectedClip
-        val clip = current.segments.getOrNull(index) ?: return
-        val mode = accessMode
-        val owner = if (mode == EditorAccessMode.ACCOUNT) runCatching { VideoDraftPersistence(this, source.toString()) }
-            .getOrElse { status.text = "Account changed. Reopen this video."; return } else null
-        fun valid() = editorIdle() && !isDestroyed && !isFinishing && project === current && selectedClip == index && current.segments.getOrNull(index) == clip && accessMode == mode && runCatching { owner?.requireCurrentOwner() }.isSuccess
-        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(12), dp(20), dp(12)) }
-        panel.addView(TextView(this).apply { text = "Paste one caption per line, up to 100 lines and 240 characters per line. Timing is estimated from text length across this clip, not speech recognition. Review and adjust in Captions. Applying replaces this clip's captions; Undo restores them."; setTextColor(Color.DKGRAY) })
-        val script = EditText(this).apply { hint = "Write or paste your script"; contentDescription = "Caption script, one caption per line"; minLines = 4; maxLines = 7; gravity = Gravity.TOP; inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE; filters = arrayOf(android.text.InputFilter.LengthFilter(16_000)) }
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        panel.addView(TextView(this).apply{text="Paste one caption per line, up to 100 lines and 240 characters per line. Timing is estimated from text length across this clip's stored trim, not speech recognition. Live trim sliders do not change this range. Review and adjust in Captions. Applying replaces this clip's captions; Undo restores them.";setTextColor(Color.DKGRAY)})
+        val script=EditText(this).apply{hint="Write or paste your script";contentDescription="Caption script, one caption per line";minLines=4;maxLines=7;gravity=Gravity.TOP;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(16_000))}
         panel.addView(script)
-        val dialog = android.app.AlertDialog.Builder(this).setTitle("Script to captions").setView(panel).setNegativeButton("Cancel", null).setPositiveButton("Review timing", null).create()
-        dialog.setOnShowListener { dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            if (!valid()) { status.text = "Clip or session changed. Open Script to captions again."; dialog.dismiss(); return@setOnClickListener }
-            val proposed = runCatching { VideoStoryTools.scriptCaptions(clip, script.text.toString()) }.getOrElse { script.error = it.message; return@setOnClickListener }
-            val overview = proposed.take(4).joinToString("\n\n") { "${VideoTrimRange.format(it.startMs)}–${VideoTrimRange.format(it.endMs)} source seconds\n${it.text}" }
-            android.app.AlertDialog.Builder(this).setTitle("Review ${proposed.size} captions")
-                .setMessage("$overview${if (proposed.size > 4) "\n\nPlus ${proposed.size - 4} more. All captions remain editable." else ""}\n\nEstimated timing, not synchronized to speech. Replaces ${clip.captions.size} existing captions on this clip.")
-                .setNegativeButton("Back", null).setPositiveButton("Apply and preview") { _, _ ->
-                    if (!valid()) { status.text = "Clip or session changed. Open Script to captions again."; dialog.dismiss(); return@setPositiveButton }
-                    runCatching { current.setCaptions(index, proposed, null) }
-                        .onSuccess { dialog.dismiss(); showClip(); previewProject(); status.text = "Script captions applied. Review timing in Captions; Undo restores previous captions." }
-                        .onFailure { script.error = "Caption limits reached. Existing edits are unchanged." }
-                }.show()
-        } }
-        dialog.show()
+        lateinit var editor:android.app.AlertDialog
+        editor=android.app.AlertDialog.Builder(this).setTitle("Script to captions").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Review timing",null).create()
+        editor.setOnShowListener{editor.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(scriptCaptionEditor!==editor||!activeCaptionReviewDialog(editor,review)){editor.dismiss();return@setOnClickListener}
+            val proposed=runCatching{VideoStoryTools.scriptCaptions(clip,script.text.toString())}.getOrElse{script.error=it.message;return@setOnClickListener}
+            val overview=proposed.mapIndexed{i,cue->"${i+1}. ${VideoTrimRange.format(cue.startMs)}–${VideoTrimRange.format(cue.endMs)} source seconds\n${cue.text}"}.joinToString("\n\n")
+            val body=TextView(this).apply{text="Estimated timing, not synchronized to speech. Replaces ${clip.captions.size} existing captions on this clip with ${proposed.size} cues. Originals and audio stay unchanged. One Undo restores previous captions.\n\n$overview";setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12))}
+            scriptCaptionConfirmation?.dismiss()
+            lateinit var confirmation:android.app.AlertDialog
+            confirmation=android.app.AlertDialog.Builder(this).setTitle("Review ${proposed.size} captions")
+                .setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+                .setNegativeButton("Back",null).setPositiveButton("Apply and preview"){_,_->
+                    runCatching{commitScriptCaptionReview(editor,confirmation,review,current,index,clip,proposed)}.onSuccess{applied->
+                        if(!applied){confirmation.dismiss();return@onSuccess}
+                        editor.dismiss();val refreshed=runCatching{showClip();previewProject()}.isSuccess
+                        status.text=if(refreshed)"Script captions applied. Review timing in Captions; Undo restores previous captions."else"Script captions applied. Preview is unavailable; reopen it to check timing. Undo restores previous captions."
+                    }.onFailure{script.error="Caption limits reached. Existing edits are unchanged."}
+                }.create()
+            scriptCaptionConfirmation=confirmation
+            showCaptionReview(confirmation,review){body.text="";if(scriptCaptionConfirmation===confirmation)scriptCaptionConfirmation=null}
+        }}
+        scriptCaptionConfirmation?.dismiss();scriptCaptionConfirmation=null
+        scriptCaptionEditor?.dismiss();scriptCaptionEditor=editor
+        showCaptionReview(editor,review){
+            script.text?.clear()
+            if(scriptCaptionEditor===editor){scriptCaptionEditor=null;val confirmation=scriptCaptionConfirmation;scriptCaptionConfirmation=null;confirmation?.dismiss()}
+        }
     }
 
     private fun rollCut(){
