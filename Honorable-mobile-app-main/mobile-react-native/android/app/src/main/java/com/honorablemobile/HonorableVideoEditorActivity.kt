@@ -1327,21 +1327,37 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
+    private var preciseTrimEditor:android.app.AlertDialog?=null
+    private fun commitPreciseTrimReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,range:VideoTrimRange):Boolean {
+        if(preciseTrimEditor!==dialog)return false
+        preciseTrimEditor=null // Consume only this approval, including stale/failed attempts.
+        if(!activeCaptionReviewDialog(dialog,review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return false
+        val checked=VideoTrimRange.parse(VideoTrimRange.format(range.startMs),VideoTrimRange.format(range.endMs),clip,sourceDuration(clip.sourceId))
+        if(checked.startMs==clip.startMs&&checked.endMs==clip.endMs)return false
+        current.trim(index,checked.startMs,checked.endMs);return true
+    }
     private fun preciseTrim() {
-        if(!editorIdle()||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
-        val originalDuration=sourceDuration(clip.sourceId);val mode=accessMode
-        val accountOwner=if(mode==EditorAccessMode.ACCOUNT)runCatching{VideoDraftPersistence(this,source.toString())}.getOrElse{status.text="Account changed. Reopen this video before trimming.";return}else null
+        val originalDuration=sourceDuration(clip.sourceId)
         val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
         panel.addView(TextView(this).apply{text="Original-source seconds, up to 3 decimal places. This trims inside the current clip and is undoable. Codec output is not guaranteed frame-exact.";textSize=12f;setTextColor(Color.DKGRAY)})
         fun field(name:String,value:Long)=EditText(this).apply{hint=name;contentDescription=name;inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;setText(VideoTrimRange.format(value));setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(16));panel.addView(this)}
         val from=field("Trim start in source seconds",clip.startMs);val to=field("Trim end in source seconds",clip.endMs)
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Precise trim").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Precise trim").setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!editorIdle()||isDestroyed||isFinishing||accessMode!=mode||project!==current||selectedClip!=index||current.segments.getOrNull(index)!=clip||runCatching{accountOwner?.requireCurrentOwner()}.isFailure){status.text="Clip or session changed. Open Precise trim again.";dialog.dismiss();return@setOnClickListener}
+            if(preciseTrimEditor!==dialog||!activeCaptionReviewDialog(dialog,review)){status.text="Clip or session changed. Open Precise trim again.";dialog.dismiss();return@setOnClickListener}
             val range=runCatching{VideoTrimRange.parse(from.text.toString(),to.text.toString(),clip,originalDuration)}.getOrElse{to.error=it.message;return@setOnClickListener}
-            runCatching{current.trim(index,range.startMs,range.endMs)}.onSuccess{showClip();status.text="Trim applied: ${VideoTrimRange.format(range.startMs)}–${VideoTrimRange.format(range.endMs)} source seconds. Undo restores the clip.";dialog.dismiss()}.onFailure{to.error="Trim could not be applied; existing edits are unchanged."}
-        }};dialog.show()
+            if(range.startMs==clip.startMs&&range.endMs==clip.endMs){dialog.dismiss();status.text="This clip already uses that range. Current edits are unchanged.";return@setOnClickListener}
+            runCatching{commitPreciseTrimReview(dialog,review,current,index,clip,range)}.onSuccess{applied->
+                if(!applied){dialog.dismiss();return@onSuccess}
+                dialog.dismiss();val refreshed=runCatching{showClip()}.isSuccess
+                status.text=if(refreshed)"Trim applied: ${VideoTrimRange.format(range.startMs)}–${VideoTrimRange.format(range.endMs)} source seconds. Undo restores the clip."else"Trim applied. Preview could not refresh; reopen it to check the range. Undo restores the clip."
+            }.onFailure{to.error="Trim could not be applied; existing edits are unchanged."}
+        }}
+        preciseTrimEditor?.dismiss();preciseTrimEditor=dialog
+        showCaptionReview(dialog,review){from.text?.clear();to.text?.clear();if(preciseTrimEditor===dialog)preciseTrimEditor=null}
     }
     private fun allowOnDeviceAi():Boolean {
         if(accessMode.allowsOnDeviceAi)return true
