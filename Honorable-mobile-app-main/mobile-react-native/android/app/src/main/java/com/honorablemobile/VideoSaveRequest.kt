@@ -7,6 +7,10 @@ import java.util.Collections
 /** One destination picker and one immutable render request. No provider or media I/O. */
 internal class VideoSaveRequest(val requestCode:Int,val state:VideoCloseState,val mode:EditorAccessMode,val namespace:String,
     clips:List<VideoSegment>,val music:VideoSoundtrack?,sources:Map<String,Uri>,durations:Map<String,Long>,catalog:Map<String,VideoSource>){
+    enum class Kind(val mime:String,val filename:String){VIDEO("video/mp4","Noble-video-copy.mp4"),AUDIO("audio/mp4","Noble-audio-copy.m4a")}
+    var kind:Kind=Kind.VIDEO
+        private set
+    constructor(requestCode:Int,state:VideoCloseState,mode:EditorAccessMode,namespace:String,clips:List<VideoSegment>,music:VideoSoundtrack?,sources:Map<String,Uri>,durations:Map<String,Long>,catalog:Map<String,VideoSource>,kind:Kind):this(requestCode,state,mode,namespace,clips,music,sources,durations,catalog){this.kind=kind}
     val clips:List<VideoSegment> = Collections.unmodifiableList(clips.map{it.copy(captions=Collections.unmodifiableList(it.captions.toList()))})
     val sources:Map<String,Uri> = Collections.unmodifiableMap(sources.toMap())
     val durations:Map<String,Long> = Collections.unmodifiableMap(durations.toMap())

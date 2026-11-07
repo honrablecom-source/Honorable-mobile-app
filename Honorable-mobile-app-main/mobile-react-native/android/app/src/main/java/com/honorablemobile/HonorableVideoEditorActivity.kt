@@ -98,8 +98,6 @@ class HonorableVideoEditorActivity : Activity() {
     private val workspaceTick=object:Runnable{override fun run(){if(!workspaceActive)return;updateWorkspace();previewHandler.postDelayed(this,100)}}
     private lateinit var clipStatus: TextView
     private var exporter: VideoCompositionExporter? = null
-    private data class PendingAudio(val clips:List<VideoSegment>,val sources:Map<String,Uri>,val durations:Map<String,Long>,val soundtrack:VideoSoundtrack?)
-    private var pendingAudio:PendingAudio?=null
     private var audioExporter:VideoAudioExporter?=null
     private val exportCancellation = CancellationSignal()
     private val analysisCancellation = AtomicBoolean(false)
@@ -1443,46 +1441,7 @@ class HonorableVideoEditorActivity : Activity() {
         }.start()
     }
 
-    private fun saveAudioCopy() {
-        if(!editorIdle() || durationMs<=0)return
-        val current=project?:return
-        val clip=current.segments.getOrNull(selectedClip)?:return
-        val from=maxOf(start.progress*1000L,clip.startMs)
-        val to=minOf(end.progress*1000L,clip.endMs)
-        if(to<=from){status.text="End must be after start";return}
-        val exportClips=runCatching{VideoExportSnapshot.clips(current.segments,selectedClip,from,to)}
-            .getOrElse{status.text=it.message?:"Choose a valid audio range";return}
-        pendingAudio=PendingAudio(exportClips,sourceUris().toMap(),sourceDurations().toMap(),current.soundtrack)
-        importing=true;video.pause();stopProjectPreview()
-        start.isEnabled=false;end.isEnabled=false
-        try {
-            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE);type="audio/mp4"
-                putExtra(Intent.EXTRA_TITLE,"Noble-audio-copy.m4a")
-            },27)
-        }catch(error:Exception){pendingAudio=null;importing=false;start.isEnabled=true;end.isEnabled=true;status.text="No app is available to save audio"}
-    }
-    private fun finishAudioCopy(resultCode:Int,data:Intent?) {
-        val snapshot=pendingAudio;pendingAudio=null;importing=false
-        start.isEnabled=true;end.isEnabled=true
-        if(isDestroyed||isFinishing||saving)return
-        if(resultCode!=RESULT_OK||data?.data==null){
-            if(snapshot!=null)status.text="Audio save cancelled. Current edits are unchanged."
-            return
-        }
-        if(snapshot==null){status.text="Audio save was interrupted. Choose Export audio copy again. Check Files for an empty or partial copy.";return}
-        saving=true;start.isEnabled=false;end.isEnabled=false;status.text="Saving audio copy..."
-        val worker=VideoAudioExporter(this);audioExporter=worker
-        runCatching {
-            worker.export(snapshot.sources,requireNotNull(data.data),snapshot.clips,snapshot.durations,snapshot.soundtrack){result->
-                saving=false;audioExporter=null
-                if(!isDestroyed&&!isFinishing){
-                    start.isEnabled=true;end.isEnabled=true
-                    status.text=result.fold({"Audio copy saved. Original preserved. Check playback in Files."},{"Audio export stopped: ${it.message?:"Unknown error"}. Check Files for a partial copy."})
-                }
-            }
-        }.onFailure{saving=false;audioExporter=null;start.isEnabled=true;end.isEnabled=true;status.text="Audio export could not start: ${it.message}"}
-    }
+    private fun saveAudioCopy()=beginMediaCopy(VideoSaveRequest.Kind.AUDIO)
 
     private fun videoFinishGuide(){
         if(!canRequestTimelineCaptionImport()||durationMs<=0||!::start.isInitialized||!::end.isInitialized)return
@@ -1531,12 +1490,12 @@ class HonorableVideoEditorActivity : Activity() {
         val writing=request.isWriting;request.close()
         if(videoSaveRequest!==request)return false
         videoSaveRequest=null;pendingRange=null
-        if(writing){saving=false;exporter=null}
+        if(writing){saving=false;if(request.kind==VideoSaveRequest.Kind.AUDIO)audioExporter=null else exporter=null}
         restoreVideoSaveControls=true;syncVideoSaveControls();return true
     }
     private fun flushVideoSaveNotice(){
         if(!workspaceActive||!editorIdle()||!::status.isInitialized||isDestroyed||isFinishing||captionReviewDialogs?.isNotEmpty()==true)return
-        if(interruptedVideoSave){interruptedVideoSave=false;status.text="Video export was interrupted. Export again; check Files for an empty or partial copy."}
+        if(interruptedVideoSave){interruptedVideoSave=false;status.text="Export was interrupted. Export again; check Files for an empty or partial copy."}
         val notice=videoSaveNotice?:return;videoSaveNotice=null
         if(accessMode==notice.first.mode&&videoLookNamespace()==notice.first.namespace)status.text=notice.second
     }
@@ -1555,32 +1514,38 @@ class HonorableVideoEditorActivity : Activity() {
     private fun resumeVideoSave(){
         val request=videoSaveRequest?:return
         if(!request.isReady||!workspaceActive)return
-        if(!canDispatchVideoSave(request)){if(releaseVideoSave(request))notifyVideoSave(request,"Video or session changed. Export again; check Files for an empty destination.");return}
+        if(!canDispatchVideoSave(request)){if(releaseVideoSave(request))notifyVideoSave(request,"Media or session changed. Export again; check Files for an empty destination.");return}
         val destination=request.beginWriting()?:return
+        val audio=request.kind==VideoSaveRequest.Kind.AUDIO
         saving=true;videoSaveNotice=null
         if(::start.isInitialized)start.isEnabled=false;if(::end.isInitialized)end.isEnabled=false
-        if(::status.isInitialized)status.text="Saving copy…"
-        val writer=runCatching{VideoCompositionExporter(this)}.getOrElse{if(releaseVideoSave(request))notifyVideoSave(request,"Export could not start: ${it.message?:"Try again"}");return};exporter=writer
+        if(::status.isInitialized)status.text=if(audio)"Saving audio copy…"else"Saving video copy…"
         fun complete(result:Result<Unit>){
             if(videoSaveRequest!==request)return
-            if(releaseVideoSave(request))notifyVideoSave(request,result.fold({"Copy saved. Original preserved. Check playback and audio."},{"Export failed: ${it.message?:"Unknown error"}. Check Files for a partial copy."}))
+            if(releaseVideoSave(request))notifyVideoSave(request,result.fold(
+                {if(audio)"Audio copy saved. Originals preserved. Check the sound."else"Copy saved. Original preserved. Check playback and audio."},
+                {"${if(audio)"Audio export"else"Export"} failed: ${it.message?:"Unknown error"}. Check Files for a partial copy."}))
         }
-        runCatching{writer.export(request.sources,destination,request.clips,request.durations,request.music,::complete)}
-            .onFailure{complete(Result.failure(it))}
+        runCatching{when(request.kind){
+            VideoSaveRequest.Kind.VIDEO->{val writer=VideoCompositionExporter(this);exporter=writer;writer.export(request.sources,destination,request.clips,request.durations,request.music,::complete)}
+            VideoSaveRequest.Kind.AUDIO->{val writer=VideoAudioExporter(this);audioExporter=writer;writer.export(request.sources,destination,request.clips,request.durations,request.music,::complete)}
+        }}.onFailure{complete(Result.failure(it))}
     }
-    private fun saveCopy() {
+    private fun saveCopy()=beginMediaCopy(VideoSaveRequest.Kind.VIDEO)
+    private fun beginMediaCopy(kind:VideoSaveRequest.Kind) {
         if(!canRequestTimelineCaptionImport()||durationMs<=0||!::start.isInitialized||!::end.isInitialized)return
         val current=project?:return;val clip=current.segments.getOrNull(selectedClip)?:return
         val from=maxOf(start.progress*1000L,clip.startMs);val to=minOf(end.progress*1000L,clip.endMs)
         if(to<=from){status.text="End must be after start";return}
         val clips=runCatching{VideoExportSnapshot.clips(current.segments,selectedClip,from,to)}.getOrElse{status.text=it.message?:"Choose a valid video range";return}
         val namespace=videoLookNamespace()?:return
+        if(kind==VideoSaveRequest.Kind.AUDIO)runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
         val code=runCatching{allocateVideoSaveCode()}.getOrElse{status.text=it.message;return}
         pendingRange=from to to
-        val request=runCatching{VideoSaveRequest(code,closeState(),accessMode,namespace,clips,current.soundtrack,sourceUris(),sourceDurations(),importedSources)}.getOrElse{pendingRange=null;status.text="Video export could not be prepared. Current edits were kept.";return}
+        val request=runCatching{VideoSaveRequest(code,closeState(),accessMode,namespace,clips,current.soundtrack,sourceUris(),sourceDurations(),importedSources,kind)}.getOrElse{pendingRange=null;status.text="Export could not be prepared. Current edits were kept.";return}
         videoSaveRequest=request;videoSaveNotice=null;interruptedVideoSave=false;interruptedVideoSaveCode=null
         start.isEnabled=false;end.isEnabled=false
-        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="video/mp4";putExtra(Intent.EXTRA_TITLE,"Noble-video-copy.mp4")},code)}
+        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=kind.mime;putExtra(Intent.EXTRA_TITLE,kind.filename)},code)}
         catch(_:Exception){if(releaseVideoSave(request))notifyVideoSave(request,"No app is available to save a copy. Current edits were kept.")}
     }
 
@@ -1594,7 +1559,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE||requestCode==VideoTimelineCaptionControls.SOURCE_REQUEST_CODE){timelineCaptionImport?.takeIf{it.requestCode==requestCode}?.accept(resultCode,data);return}
         if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
-        if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
+        if(requestCode == 27)return // Unbound legacy audio result cannot release another operation.
         if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
         if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
         if(requestCode == 23) { finishImport(resultCode, data); return }
@@ -2619,7 +2584,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(recoveryBytes==null||requestCode !in 22..28)return false
         mediaImportTarget?.let{finishMediaImportTarget(it)}
         videoSaveRequest?.let{releaseVideoSave(it)}
-        pendingRange=null;pendingAudio=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
+        pendingRange=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
         voiceoverTarget=null;importing=false
         if(::status.isInitialized)status.text="Finish session recovery before importing or saving again. Check Files for an empty or partial copy."
         return true
