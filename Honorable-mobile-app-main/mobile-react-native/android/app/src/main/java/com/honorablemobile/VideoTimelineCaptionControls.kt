@@ -12,7 +12,9 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class VideoTimelineCaptionControls(private val activity:Activity,private val clips:List<VideoSegment>,private val music:VideoSoundtrack?,
     private val isCurrent:()->Boolean,private val isForeground:()->Boolean,private val canReview:()->Boolean,
     private val launch:(Intent)->Unit,private val apply:(VideoTimelineCaptionImport,()->Unit)->Unit,private val committed:(VideoTimelineCaptionImport)->Unit,
-    private val release:()->Unit,private val message:(String)->Unit){
+    private val release:()->Unit,private val message:(String)->Unit,private val sourceTarget:VideoTimelineCaptionImport.SourceTarget?=null){
+    val requestCode:Int get()=if(sourceTarget==null)REQUEST_CODE else SOURCE_REQUEST_CODE
+    private val label:String get()=if(sourceTarget==null)"Playback" else "Clip"
     private val phase=AtomicInteger(DISCLOSURE)
     private val worker=Executors.newSingleThreadExecutor()
     private var dialog:AlertDialog?=null
@@ -28,15 +30,15 @@ internal class VideoTimelineCaptionControls(private val activity:Activity,privat
     private fun show(value:AlertDialog,next:Any){
         if(!active()){close();return}
         token=null;dialog?.dismiss();dialog=value;token=next
-        value.setOnCancelListener{if(owns(next)){say("Playback subtitle import cancelled. Existing captions were kept.");close()}};value.show()
+        value.setOnCancelListener{if(owns(next)){say("$label subtitle import cancelled. Existing captions were kept.");close()}};value.show()
     }
     fun open(){
         if(!active()){close();return}
         val next=Any()
-        show(AlertDialog.Builder(activity).setTitle("Import playback-timed SRT?")
-            .setMessage("Use subtitles timed to this whole edited project, after its stored trims, clip order and speeds. This replaces all project captions as one Undo. Titles, music, video settings and originals are kept. Up to 128 KB UTF-8 / 1000 input cues; mapped clip/project limits still apply. Source timing uses a one-millisecond grid, which can shift display boundaries slightly. A local Files document must allow lasting read access. You will review before replacement; no transcription or upload.")
+        show(AlertDialog.Builder(activity).setTitle(if(sourceTarget==null)"Import playback-timed SRT?"else"Import original-source SRT?")
+            .setMessage(if(sourceTarget!=null)"Replace captions only on clip ${sourceTarget.index+1}, as one Undo. Times refer to the original video before trimming or speed changes; cues outside its trim stay stored. Other clips, music and originals are kept. UTF-8, up to 128 KB / 200 non-overlapping cues. Choose a local Files document allowing lasting read access. Review before replacement; no upload."else "Use subtitles timed to this whole edited project, after its stored trims, clip order and speeds. This replaces all project captions as one Undo. Titles, music, video settings and originals are kept. Up to 128 KB UTF-8 / 1000 input cues; mapped clip/project limits still apply. Source timing uses a one-millisecond grid, which can shift display boundaries slightly. A local Files document must allow lasting read access. You will review before replacement; no transcription or upload.")
             .setNegativeButton("Keep captions"){_,_->if(owns(next)){say("Kept existing project captions.");close()}}
-            .setPositiveButton("Choose playback SRT"){_,_->
+            .setPositiveButton(if(sourceTarget==null)"Choose playback SRT"else"Choose clip SRT"){_,_->
                 if(!owns(next))return@setPositiveButton
                 if(!active()||!phase.compareAndSet(DISCLOSURE,PICKER)){close();return@setPositiveButton}
                 token=null;dialog?.dismiss();dialog=null
@@ -53,13 +55,13 @@ internal class VideoTimelineCaptionControls(private val activity:Activity,privat
     }
     fun resume(){
         if(phase.get()!=RESULT||!isForeground())return
-        if(!active()){say("Timeline or session changed. Import playback subtitles again.");close();return}
+        if(!active()){say("Timeline or session changed. Import subtitles again.");close();return}
         val result=pending?:run{close();return};if(!phase.compareAndSet(RESULT,CHECKING))return;pending=null
-        val uri=Uri.parse(result.first);say("Reading playback subtitles on this device…")
+        val uri=Uri.parse(result.first);say("Reading ${label.lowercase()} subtitles on this device…")
         val reading=Any()
-        show(AlertDialog.Builder(activity).setTitle("Reading playback subtitles")
+        show(AlertDialog.Builder(activity).setTitle("Reading ${label.lowercase()} subtitles")
             .setMessage("Reading and mapping the chosen document on this device. Existing captions are unchanged. Cancel stops this import; a provider read may take time to finish.")
-            .setNegativeButton("Cancel import"){_,_->if(owns(reading)){say("Playback subtitle import cancelled. Existing captions were kept.");close()}}.create(),reading)
+            .setNegativeButton("Cancel import"){_,_->if(owns(reading)){say("$label subtitle import cancelled. Existing captions were kept.");close()}}.create(),reading)
         if(phase.get()!=CHECKING)return
         try{worker.execute{
             val prepared=runCatching{
@@ -69,7 +71,7 @@ internal class VideoTimelineCaptionControls(private val activity:Activity,privat
                     override fun read():Int{guard();return source.read()}
                     override fun read(buffer:ByteArray,offset:Int,length:Int):Int{guard();return source.read(buffer,offset,length)}
                 })}?:error("Cannot read subtitle document")
-                VideoTimelineCaptionImport.prepare(clips,bytes,result.first,music,::guard)
+                sourceTarget?.let{VideoTimelineCaptionImport.prepareSourceClip(clips,it,bytes,result.first,music,::guard)}?:VideoTimelineCaptionImport.prepare(clips,bytes,result.first,music,::guard)
             }
             activity.runOnUiThread{
                 if(phase.get()!=CHECKING)return@runOnUiThread
@@ -77,20 +79,20 @@ internal class VideoTimelineCaptionControls(private val activity:Activity,privat
                 prepared.onSuccess{plan->
                     if(!plan.changed){say("This document already matches the project captions. Nothing changed.");close()}
                     else if(phase.compareAndSet(CHECKING,REVIEW))review(plan,result.second)
-                }.onFailure{say("Playback subtitles could not be imported: ${it.message?:"Check document access and timing"}. Existing captions were kept.");close()}
+                }.onFailure{say("$label subtitles could not be imported: ${it.message?:"Check document access and timing"}. Existing captions were kept.");close()}
             }
         }}catch(_:java.util.concurrent.RejectedExecutionException){close()}
     }
     private fun review(plan:VideoTimelineCaptionImport,flags:Int){
-        say("Review playback subtitles before replacing existing project captions.")
-        val next=Any();val sample=plan.segments.flatMapIndexed{index,clip->clip.captions.map{index+1 to it}}.take(8)
+        say(if(plan.sourceClip==null)"Review playback subtitles before replacing existing project captions."else"Review original-source subtitles before replacing selected-clip captions.")
+        val next=Any();val sample=plan.segments.flatMapIndexed{index,clip->if(plan.sourceClip==null||index==plan.sourceClip)clip.captions.map{index+1 to it}else emptyList()}.take(8)
             .joinToString("\n\n"){(index,cue)->"Clip $index · source ${VideoCaptions.formatTime(cue.startMs)}–${VideoCaptions.formatTime(cue.endMs)}\n${cue.text}"}
         val extra=if(plan.mappedCues>8)"\n\nPreview shows 8 of ${plan.mappedCues} source fragments; all are included."else""
-        val old=plan.base.sumOf{it.captions.size}
-        val summary="${plan.inputCues} playback cues map to ${plan.mappedCues} source fragments in ${plan.changedClips} changed clips. Replaces $old existing caption entries across the project. ${plan.adjustedFragments} fragments need source-millisecond rounding; boundaries can move by up to one source millisecond (up to 2 playback milliseconds). The last playback millisecond is clipped to the actual project end. One Undo restores previous captions. Titles, music and clip settings stay. Check timing in preview.\n\n"
-        show(AlertDialog.Builder(activity).setTitle("Replace whole-project captions?").setMessage(summary+sample+extra)
+        val old=plan.sourceClip?.let{plan.base[it].captions.size}?:plan.base.sumOf{it.captions.size}
+        val summary=if(plan.sourceClip!=null)"${plan.inputCues} original-source cues replace $old captions only on clip ${plan.sourceClip+1}. Source times are preserved, including cues outside the current trim. Other clips, music and clip settings stay. One Undo restores previous captions. Check timing in preview.\n\n"else"${plan.inputCues} playback cues map to ${plan.mappedCues} source fragments in ${plan.changedClips} changed clips. Replaces $old existing caption entries across the project. ${plan.adjustedFragments} fragments need source-millisecond rounding; boundaries can move by up to one source millisecond (up to 2 playback milliseconds). The last playback millisecond is clipped to the actual project end. One Undo restores previous captions. Titles, music and clip settings stay. Check timing in preview.\n\n"
+        show(AlertDialog.Builder(activity).setTitle(if(plan.sourceClip==null)"Replace whole-project captions?"else"Replace selected-clip captions?").setMessage(summary+sample+extra)
             .setNegativeButton("Keep captions"){_,_->if(owns(next)){say("Kept existing project captions.");close()}}
-            .setPositiveButton("Replace project captions"){_,_->
+            .setPositiveButton(if(plan.sourceClip==null)"Replace project captions"else"Replace clip captions"){_,_->
                 if(!owns(next))return@setPositiveButton
                 if(!active()){say("Timeline or session changed. Existing captions were kept.");close();return@setPositiveButton}
                 val uri=Uri.parse(plan.document)
@@ -101,8 +103,8 @@ internal class VideoTimelineCaptionControls(private val activity:Activity,privat
                     applyCaptions={guard();apply(plan,::guard)}
                 )}
                 close()
-                result.onSuccess{committed(plan)}.onFailure{say("Playback captions were not replaced: ${it.message?:"Check subtitle access"}. Existing captions were kept.")}
+                result.onSuccess{committed(plan)}.onFailure{say("$label captions were not replaced: ${it.message?:"Check subtitle access"}. Existing captions were kept.")}
             }.create(),next)
     }
-    companion object{private const val DISCLOSURE=0;private const val PICKER=1;private const val RESULT=2;private const val CHECKING=3;private const val REVIEW=4;private const val CLOSED=5;const val REQUEST_CODE=29}
+    companion object{private const val DISCLOSURE=0;private const val PICKER=1;private const val RESULT=2;private const val CHECKING=3;private const val REVIEW=4;private const val CLOSED=5;const val REQUEST_CODE=29;const val SOURCE_REQUEST_CODE=25}
 }

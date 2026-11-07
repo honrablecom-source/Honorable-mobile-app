@@ -3,13 +3,26 @@ package com.honorablemobile
 import java.util.Collections
 
 /** Whole edited-playback SRT mapped back onto each source clip; no original media I/O. */
-internal class VideoTimelineCaptionImport private constructor(base:List<VideoSegment>,segments:List<VideoSegment>,val document:String,val inputCues:Int,val mappedCues:Int,val adjustedFragments:Int){
+internal class VideoTimelineCaptionImport private constructor(base:List<VideoSegment>,segments:List<VideoSegment>,val document:String,val inputCues:Int,val mappedCues:Int,val adjustedFragments:Int,val sourceClip:Int?=null){
     val base:List<VideoSegment> = immutable(base)
     val segments:List<VideoSegment> = immutable(segments)
     val changedClips:Int get()=base.indices.count{base[it]!=segments[it]}
     val changed:Boolean get()=base!=segments
     fun apply(project:VideoEditProject,requireCurrent:()->Unit){requireCurrent();require(project.segments==base){"Timeline changed. Import playback subtitles again."};project.applyDraft(segments,soundtrack=project.soundtrack)}
+    data class SourceTarget(val index:Int,val durationMs:Long){init{require(index>=0&&durationMs in 1..Int.MAX_VALUE.toLong()){ "Invalid subtitle source target" }}}
     companion object {
+        fun prepareSourceClip(clips:List<VideoSegment>,target:SourceTarget,bytes:ByteArray,document:String,soundtrack:VideoSoundtrack?=null,requireCurrent:()->Unit={}):VideoTimelineCaptionImport {
+            validateDocument(document);requireCurrent()
+            val clip=requireNotNull(clips.getOrNull(target.index)){"Selected clip changed"}
+            require(target.durationMs>=clip.endMs){"Subtitle source duration changed"}
+            val cues=VideoCaptions.parseSrt(bytes,target.durationMs)
+            val proposed=clips.mapIndexed{index,value->requireCurrent();if(index==target.index)value.copy(captions=cues,captionSourceUri=document)else value}
+            require(proposed.sumOf{it.captions.size}<=VideoCaptions.MAX_PROJECT_CUES){"Project caption limit exceeded"}
+            require(proposed.sumOf{it.captions.sumOf{cue->cue.text.toByteArray(Charsets.UTF_8).size.toLong()}}<=VideoCaptions.MAX_PROJECT_TEXT_BYTES){"Project caption text limit exceeded"}
+            require(proposed.mapNotNull{it.captionSourceUri}.distinct().size<=32){"Project subtitle document limit exceeded"}
+            VideoDraftCodec.requireRecoverableCaptions(proposed,soundtrack?.loop==false,soundtrack?.hasExcerpt==true)
+            requireCurrent();return VideoTimelineCaptionImport(clips,proposed,document,cues.size,cues.size,0,target.index)
+        }
         private fun immutable(values:List<VideoSegment>)=Collections.unmodifiableList(values.map{it.copy(captions=Collections.unmodifiableList(it.captions.toList()))})
         fun validateDocument(value:String){
             require(value.toByteArray(Charsets.UTF_8).size<=2048&&value.toByteArray(Charsets.UTF_8).toString(Charsets.UTF_8)==value&&value.none{it.isISOControl()}){"Choose a readable subtitle document."}

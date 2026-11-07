@@ -77,8 +77,6 @@ class HonorableVideoEditorActivity : Activity() {
     private val draftWorker = Executors.newSingleThreadExecutor()
     private var pendingRange: Pair<Long, Long>? = null
     private var pendingSegments: List<VideoSegment>? = null
-    private var captionImportTarget: Pair<Int, VideoSegment>? = null
-    private var captionImportProject: VideoEditProject? = null
     private var pendingSubtitleBytes: ByteArray? = null
     private var pendingSubtitleOriginals: Set<Uri>? = null
     private var project: VideoEditProject? = null
@@ -1452,11 +1450,10 @@ class HonorableVideoEditorActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         // Older picker results must not release busy/recovery state owned by this import.
         if(timelineCaptionImport!=null&&!allowsMediaImportResult(requestCode))return
-        if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE){timelineCaptionImport?.accept(resultCode,data);return}
+        if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE||requestCode==VideoTimelineCaptionControls.SOURCE_REQUEST_CODE){timelineCaptionImport?.takeIf{it.requestCode==requestCode}?.accept(resultCode,data);return}
         if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
         if(requestCode == 27) { finishAudioCopy(resultCode,data); return }
-        if(requestCode == 25) { finishCaptionImport(resultCode,data); return }
         if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
         if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
         if(requestCode == 23) { finishImport(resultCode, data); return }
@@ -1828,22 +1825,23 @@ class HonorableVideoEditorActivity : Activity() {
         return true
     }
     private fun timelineCaptionRangeMatches(clip:VideoSegment,from:Int,to:Int)=maxOf(from*1000L,clip.startMs)==clip.startMs&&minOf(to*1000L,clip.endMs)==clip.endMs
-    private fun requestTimelineCaptionImport(){
+    private fun requestTimelineCaptionImport()=requestCaptionImport(null)
+    private fun requestCaptionImport(sourceTarget:VideoTimelineCaptionImport.SourceTarget?){
         if(!canRequestTimelineCaptionImport())return
         val current=project?:return;val clips=current.segments;val clip=clips.getOrNull(selectedClip)?:return
         if(!::start.isInitialized||!::end.isInitialized)return
-        if(!timelineCaptionRangeMatches(clip,start.progress,end.progress)){status.text="Apply or reset the selected trim before importing playback subtitles. Existing captions were kept.";return}
-        val mode=accessMode;val namespace=videoLookNamespace()?:return;val primary=source.toString();val duration=primaryDurationMs;val index=selectedClip;val music=current.soundtrack;val sources=sourceUris().toMap();val catalog=importedSources.toMap()
+        if(sourceTarget==null&&!timelineCaptionRangeMatches(clip,start.progress,end.progress)){status.text="Apply or reset the selected trim before importing playback subtitles. Existing captions were kept.";return}
+        val mode=accessMode;val namespace=videoLookNamespace()?:return;val primary=source.toString();val duration=primaryDurationMs;val index=selectedClip;val music=current.soundtrack;val sources=sourceUris().toMap();val catalog=importedSources.toMap();val from=start.progress;val to=end.progress
         runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
         importing=true;val captured=closeState()
         lateinit var controls:VideoTimelineCaptionControls
         controls=VideoTimelineCaptionControls(this,clips,music,
             isCurrent={ownsTimelineCaptionImport(controls)&&project===current&&current.segments===clips&&current.soundtrack===music&&accessMode==mode&&source.toString()==primary&&primaryDurationMs==duration&&selectedClip==index&&importedSources==catalog},
-            isForeground={workspaceActive},canReview={canApproveTimelineCaptionImport(controls,captured,mode,namespace)&&sourceUris()==sources},
-            launch={intent->startActivityForResult(intent,VideoTimelineCaptionControls.REQUEST_CODE)},
+            isForeground={workspaceActive},canReview={canApproveTimelineCaptionImport(controls,captured,mode,namespace)&&sourceUris()==sources&&start.progress==from&&end.progress==to},
+            launch={intent->startActivityForResult(intent,controls.requestCode)},
             apply={plan,guard->guard();check(commitTimelineCaptionImport(controls,captured,mode,namespace,plan)){"Timeline or session changed. Existing captions were kept."}},
-            committed={plan->if(workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&accessMode==mode&&videoLookNamespace()==namespace){val ready=runCatching{showClip();previewProject()}.isSuccess;status.text=if(ready)"Imported ${plan.inputCues} playback cues as ${plan.mappedCues} source captions. Undo restores previous captions. Check timing."else"Playback captions imported, but preview is unavailable. Undo restores previous captions."}},
-            release={releaseTimelineCaptionImport(controls)},message={status.text=it})
+            committed={plan->if(workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&accessMode==mode&&videoLookNamespace()==namespace){val ready=runCatching{showClip();start.progress=from;end.progress=to;showRange();previewProject()}.isSuccess;status.text=if(ready)"Imported ${plan.inputCues} ${if(sourceTarget==null)"playback"else"original-source"} cues. Undo restores previous captions. Check timing."else"Captions imported, but preview is unavailable. Undo restores previous captions."}},
+            release={releaseTimelineCaptionImport(controls)},message={status.text=it},sourceTarget=sourceTarget)
         timelineCaptionImport=controls;controls.open()
     }
 
@@ -1959,46 +1957,9 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun importCaptions(current:VideoEditProject,index:Int,clip:VideoSegment) {
-        android.app.AlertDialog.Builder(this).setTitle("Import SRT")
-            .setMessage("Replaces captions on this clip as one undoable edit. SRT times refer to the original video before trimming or speed changes. UTF-8, up to 128 KB / 200 non-overlapping cues.")
-            .setNegativeButton("Cancel",null).setPositiveButton("Choose SRT"){_,_->
-                if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip)return@setPositiveButton
-                importing=true;captionImportTarget=index to clip;captionImportProject=current;video.pause();stopProjectPreview()
-                try{startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="*/*";addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)},25)}
-                catch(error:Exception){importing=false;captionImportTarget=null;captionImportProject=null;status.text="No subtitle document picker is available."}
-            }.show()
-    }
-
-    private fun finishCaptionImport(resultCode:Int,data:Intent?) {
-        val target=captionImportTarget;val current=captionImportProject;val uri=data?.data
-        captionImportTarget=null;captionImportProject=null
-        if(resultCode!=RESULT_OK||uri==null||target==null||current==null||isDestroyed||isFinishing){importing=false;return}
-        val sourceDuration=sourceDuration(target.second.sourceId)
-        status.text="Reading subtitles on this device..."
-        draftWorker.execute{
-            val result=runCatching{
-                require(uri.scheme=="content")
-                contentResolver.openFileDescriptor(uri,"r").use{input->requireNotNull(input);require(android.system.Os.fstat(input.fileDescriptor).st_ino!=0L){"Cannot protect this subtitle original"}}
-                val bytes=contentResolver.openInputStream(uri)?.use{VideoSubtitleDocuments.readBounded(it)}?:error("Cannot read SRT")
-                VideoCaptions.parseSrt(bytes,sourceDuration)
-            }
-            runOnUiThread{
-                importing=false
-                if(isDestroyed||isFinishing)return@runOnUiThread
-                if(project!==current||selectedClip!=target.first||current.segments.getOrNull(target.first)!=target.second){status.text="Clip changed. Import subtitles again.";return@runOnUiThread}
-                result.onSuccess{cues->runCatching{
-                    VideoCaptionImportPermissions.commit(
-                        hasReadGrant={contentResolver.persistedUriPermissions.any{it.uri==uri&&it.isReadPermission}},
-                        takeReadGrant={contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)},
-                        releaseReadGrant={contentResolver.releasePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)},
-                        applyCaptions={current.setCaptions(target.first,cues,uri.toString())},
-                    )
-                }
-                    .onSuccess{showClip();previewProject();status.text="Imported ${cues.size} captions. Preview before exporting."}
-                    .onFailure{status.text="Could not keep subtitles: ${it.message?:"Check document access and project limits"}. Existing captions are unchanged."}}
-                    .onFailure{status.text="SRT import failed: ${it.message?:"Unreadable file"}. Existing captions are unchanged."}
-            }
-        }
+        if(!canRequestTimelineCaptionImport()||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return
+        val target=runCatching{VideoTimelineCaptionImport.SourceTarget(index,sourceDuration(clip.sourceId))}.getOrElse{return}
+        requestCaptionImport(target)
     }
 
     private fun exportSubtitles() {
@@ -2260,7 +2221,7 @@ class HonorableVideoEditorActivity : Activity() {
         }catch(_:Exception){finishMediaImportTarget(target);status.text="No document picker is available. Current edits were kept."}
     }
     private fun allowsMediaImportResult(requestCode:Int):Boolean {
-        if(timelineCaptionImport!=null)return requestCode !in 22..28
+        timelineCaptionImport?.let{return requestCode !in 22..29||requestCode==it.requestCode}
         return mediaImportTarget?.let{requestCode !in 22..28||requestCode==it.kind.requestCode}?:true
     }
     private fun finishMediaImportTarget(target:VideoMediaImportTarget):Boolean {
@@ -2430,7 +2391,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(recoveryBytes==null||requestCode !in 22..28)return false
         mediaImportTarget?.let{finishMediaImportTarget(it)}
         pendingRange=null;pendingSegments=null;pendingAudio=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
-        captionImportTarget=null;captionImportProject=null;voiceoverTarget=null;importing=false
+        voiceoverTarget=null;importing=false
         if(::status.isInitialized)status.text="Finish session recovery before importing or saving again. Check Files for an empty or partial copy."
         return true
     }
