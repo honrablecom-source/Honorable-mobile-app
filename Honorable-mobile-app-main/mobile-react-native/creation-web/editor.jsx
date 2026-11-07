@@ -45,7 +45,7 @@ function initial() {
 }
 function Editor() {
   const api = useRef(null), timer = useRef(null), latest = useRef(null), portable = useRef(null), panelHeading = useRef(null);
-  const photoInput = useRef(null), photoRequest = useRef(0), photoTarget = useRef(null), busyRef = useRef(false), mounted = useRef(true);
+  const photoInput = useRef(null), photoRequest = useRef(0), pendingPhoto = useRef(null), photoTarget = useRef(null), busyRef = useRef(false), mounted = useRef(true);
   const [ready, setReady] = useState(false);
   const resetPending = useRef(false);
   const [transparentImage, setTransparentImage] = useState(false);
@@ -138,6 +138,12 @@ function Editor() {
     busyRef.current = true; window.honorableDrawingBusy = true; setBusy(true); return true;
   };
   const finishBusy = () => { if (resetPending.current) return; photoTarget.current = null; busyRef.current = false; window.honorableDrawingBusy = false; if (mounted.current) setBusy(false); };
+  const completePhotoAttempt = attempt => {
+    if (pendingPhoto.current !== attempt) return false;
+    pendingPhoto.current = null;
+    if (attempt.guarded && attempt.admitted) { try { window.HonorableDrawing?.releasePhotoImport?.(attempt.id); } catch { /* Native lifecycle cleanup also releases ownership. */ } }
+    finishBusy(); return true;
+  };
   const finishOutput = () => { if (outputSelection.current) setOutputUnlocking(true); else finishBusy(); };
   const captureOutputSelection = (editor, snapshot) => {
     const state = editor.getAppState();
@@ -185,7 +191,7 @@ function Editor() {
       return true;
     } catch { setStatus('Could not start a new drawing. Your current work was kept. Try again.'); return false; }
   };
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; pendingSvg.current = null; pendingImage.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; pendingSvg.current = null; pendingImage.current = null; pendingPhoto.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
   const scene = () => [api.current.getSceneElements(), api.current.getAppState(), api.current.getFiles()];
   const commit = elements => {
     if (busyRef.current) throw Error('Wait for the current image operation to finish.');
@@ -338,16 +344,18 @@ function Editor() {
       throw Error('The complete drawing is in your saved draft. Reopen the drawing to restore it.');
     }
   };
-  const addPhoto = async (source, native = false, placement = null) => {
+  const addPhoto = async (source, native = false, placement = null, ownership = null) => {
     if (!native && !beginBusy()) return;
     const editor = api.current, target = photoTarget.current;
     try {
+      ownership?.current();
       if (target && encodeDraft(...scene()) !== target.scene) throw Error('The drawing changed. Choose Replace photo again.');
       if (preservedDraft.current) throw Error('Reopen the preserved drawing before adding a photo.');
       const original = encodeDraft(...scene()), previous = editor.getSceneElementsIncludingDeleted(), state = editor.getAppState();
       if (!target && previous.filter(element => !element.isDeleted).length >= MAX_ELEMENTS) throw Error('Remove an object before adding another photo.');
       const objectId = target ? target.id : makeObjectId(); let proposed;
       const accepts = file => {
+        ownership?.current();
         if (!mounted.current || api.current !== editor) throw Error('The drawing was closed.');
         const info = photoBytes(file.dataURL), files = mergePhotoFiles(editor.getFiles(), { [file.id]: file });
         const factor = Math.min(1, Math.min(480, Math.max(80, state.width * 0.75)) / Math.max(info.width, info.height));
@@ -365,31 +373,51 @@ function Editor() {
       setStatus('Preparing a local photo copy…');
       if (native) await prepareNativePhoto(source, accepts); else await prepareLocalPhoto(source, accepts);
       if (!mounted.current || api.current !== editor || encodeDraft(...scene()) !== original) throw Error('The drawing changed. Add the photo again.');
+      ownership?.current();
       publishPhotoScene(editor, proposed.elements, { ...state, selectedElementIds: { [objectId]: true } }, proposed.files);
       setPanel(null);
       requestAnimationFrame(() => requestAnimationFrame(() => { if (mounted.current && api.current === editor) editor.scrollToContent([proposed.image], { fitToViewport: true, viewportZoomFactor: 0.85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); }));
       setStatus(`Photo ${target ? 'replaced' : 'added'} as a local ${proposed.info.width} × ${proposed.info.height} copy. Original preserved.`);
       return true;
-    } catch (failure) { if (mounted.current) error(failure); return false; }
-    finally { finishBusy(); }
+    } catch (failure) { if (mounted.current && (!ownership || ownership.owns())) error(failure); return false; }
+    finally { if (ownership) ownership.finish(); else finishBusy(); }
   };
   const choosePhoto = (targetId = null) => {
     if (busyRef.current || !api.current) return;
     try {
       photoTarget.current = targetId ? { id: replaceablePhoto(api.current.getSceneElements(), targetId).id, scene: encodeDraft(...scene()) } : null;
     } catch (failure) { photoTarget.current = null; error(failure); return; }
-    if (window.HonorableDrawing?.choosePhoto) {
+    const bridge = window.HonorableDrawing;
+    const guarded = ['choosePhotoOwned', 'isPhotoImportCurrent', 'releasePhotoImport'].every(name => typeof bridge?.[name] === 'function');
+    if (guarded || typeof bridge?.choosePhoto === 'function') {
       if (!beginBusy()) return;
-      const request = ++photoRequest.current;
+      const attempt = { id: ++photoRequest.current, phase: 'picker', guarded, admitted: false, cancelled: false };
+      pendingPhoto.current = attempt;
       setStatus('Choose a photo. Its original stays unchanged.');
-      try { window.HonorableDrawing.choosePhoto(request); } catch { finishBusy(); setStatus('The photo picker could not open. Try again.'); }
+      try {
+        if (guarded) { if (bridge.choosePhotoOwned(attempt.id) !== true) throw Error('Open the drawing and finish the current operation before choosing a photo.'); attempt.admitted = true; }
+        else bridge.choosePhoto(attempt.id);
+      } catch (failure) { if (completePhotoAttempt(attempt)) error(failure); }
     } else photoInput.current?.click();
   };
   window.honorablePhotoImportResult = result => {
-    if (!mounted.current || !busyRef.current || result?.requestId !== photoRequest.current) return;
-    if (result.cancelled) { finishBusy(); setStatus('Photo selection cancelled. Drawing unchanged.'); return; }
-    if (result.error || typeof result.dataURL !== 'string') { finishBusy(); setStatus(result.error || 'The photo could not be prepared.'); return; }
-    addPhoto(result.dataURL, true);
+    const attempt = pendingPhoto.current;
+    if (!mounted.current || !busyRef.current || !attempt || result?.requestId !== attempt.id) return;
+    if (attempt.phase === 'applying') {
+      if (result.cancelled || result.error) { attempt.cancelled = true; setStatus(result.error || 'Photo selection cancelled. Drawing unchanged.'); }
+      return;
+    }
+    if (result.cancelled || result.error || typeof result.dataURL !== 'string') {
+      if (completePhotoAttempt(attempt)) setStatus(result.error || (result.cancelled ? 'Photo selection cancelled. Drawing unchanged.' : 'The photo could not be prepared.'));
+      return;
+    }
+    attempt.phase = 'applying';
+    const owns = () => mounted.current && pendingPhoto.current === attempt;
+    const current = () => {
+      if (!owns() || attempt.cancelled || (attempt.guarded && window.HonorableDrawing.isPhotoImportCurrent(attempt.id) !== true)) throw Error('Photo import stopped. Your drawing stays here; choose the photo again when active.');
+    };
+    try { current(); } catch (failure) { if (completePhotoAttempt(attempt)) error(failure); return; }
+    addPhoto(result.dataURL, true, null, { owns, current, finish: () => completePhotoAttempt(attempt) });
   };
   const undoProjectChange = () => {
     try {

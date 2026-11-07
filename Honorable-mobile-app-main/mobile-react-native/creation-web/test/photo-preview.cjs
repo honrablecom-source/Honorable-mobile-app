@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {createHash}=require('node:crypto');
-const output=path.resolve(__dirname,'../../../../.context/photo-placement/browser');fs.mkdirSync(output,{recursive:true});
+const output=process.env.NOBLE_PHOTO_OUTPUT?path.resolve(process.env.NOBLE_PHOTO_OUTPUT):path.resolve(__dirname,'../../../../.context/photo-placement/browser');fs.mkdirSync(output,{recursive:true});
 const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4177/drawing/',origin=new URL(url).origin;
 const fixture={id:'original',type:'rectangle',x:-40,y:-40,width:30,height:30,angle:0,opacity:100,strokeColor:'#111111',backgroundColor:'#ddd',fillStyle:'solid',strokeWidth:1,strokeStyle:'solid',roughness:0,seed:1,version:1,versionNonce:1,isDeleted:false,groupIds:[],boundElements:null,link:null,locked:false};
 (async()=>{const browser=await chromium.launch({args:['--no-sandbox']});let page;try{

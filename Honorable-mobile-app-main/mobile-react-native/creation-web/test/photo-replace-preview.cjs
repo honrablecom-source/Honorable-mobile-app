@@ -2,7 +2,7 @@ const { withProjectView } = require('./project-navigation.cjs');
 // Actual replacement/recovery/export with synthetic images; no system picker/device claims.
 const {chromium}=require('../../../ui-previews/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createHash}=require('node:crypto');
-const output=path.resolve(__dirname,'../../../../.context/photo-replace/browser');fs.mkdirSync(output,{recursive:true});
+const output=process.env.NOBLE_PHOTO_REPLACE_OUTPUT?path.resolve(process.env.NOBLE_PHOTO_REPLACE_OUTPUT):path.resolve(__dirname,'../../../../.context/photo-replace/browser');fs.mkdirSync(output,{recursive:true});
 const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4177/drawing/',origin=new URL(url).origin;
 (async()=>{const browser=await chromium.launch({args:['--no-sandbox']});let page;try{
  page=await browser.newPage({viewport:{width:390,height:844}});const errors=[],external=[];

@@ -50,7 +50,8 @@ class HonorableDrawingActivity : Activity() {
     @Volatile private var svgOperation:SvgOperation?=null
     private class ImageOperation { var launching=false }
     @Volatile private var imageOperation:ImageOperation?=null
-    private var photoRequest:Int?=null
+    private class PhotoOperation(val id:Int,val leased:Boolean){var received=false;var started=false;var ready=false;var uri:android.net.Uri?=null}
+    @Volatile private var photoOperation:PhotoOperation?=null
     private data class ProjectOperation(val id:Int,val saving:Boolean,val value:String?=null){
         var received=false;var started=false;var uri:android.net.Uri?=null
     }
@@ -75,6 +76,7 @@ class HonorableDrawingActivity : Activity() {
         val message=TextView(this).apply{text=interruptedFileKind?.let{interruptedFileMessage(it)}?:idleMessage;accessibilityLiveRegion=android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE;setTextColor(Color.DKGRAY);setPadding(16,8,16,8)}
         if(state?.getBoolean("noble-drawing-print-pending")==true)message.text="Printing was interrupted by screen recreation. Check Android print status before retrying; your saved drawing draft stays here."
         if(state?.getBoolean("noble-drawing-svg-pending")==true)message.text="SVG sharing was interrupted by screen recreation. Check your drawing and share again when ready."
+        if(state?.getBoolean("noble-drawing-photo-pending")==true)message.text="Photo selection or preparation was interrupted. Your saved drawing stays here; choose the photo again when ready."
         nativeMessage=message
         web=WebView(this).apply {
             setBackgroundColor(Color.WHITE)
@@ -285,12 +287,21 @@ class HonorableDrawingActivity : Activity() {
         }
 
         @JavascriptInterface fun choosePhoto(requestId:Int) {runOnUiThread {
-            if(isDestroyed||isFinishing||!DrawingPhotoPolicy.acceptsRequest(requestId))return@runOnUiThread
-            if(!claimImport()){photoReply(requestId,error="Another image operation is running.");return@runOnUiThread}
-            photoRequest=requestId
-            runCatching{startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply{type="image/*";addCategory(Intent.CATEGORY_OPENABLE);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},DrawingPhotoPolicy.REQUEST_CODE)}
-                .onFailure{photoRequest=null;importing.set(false);photoReply(requestId,error="The photo picker could not open. Try again.")}
+            if(!DrawingPhotoPolicy.acceptsRequest(requestId)||printClosed||isDestroyed||isFinishing)return@runOnUiThread
+            val operation=beginPhotoOperation(requestId,false)?:run{photoReply(requestId,error="Open the drawing and finish the current operation before choosing a photo.");return@runOnUiThread}
+            openPhotoPicker(operation)
         }}
+        @JavascriptInterface fun choosePhotoOwned(requestId:Int):Boolean {
+            val operation=beginPhotoOperation(requestId,true)?:return false
+            return try{runOnUiThread{openPhotoPicker(operation)};true}catch(_:Exception){releasePhotoOperation(operation);false}
+        }
+        @JavascriptInterface fun isPhotoImportCurrent(requestId:Int):Boolean=synchronized(operationLock){
+            photoOperation?.let{it.id==requestId&&it.leased&&it.ready&&currentPhotoOperation(it)}?:false
+        }
+        @JavascriptInterface fun releasePhotoImport(requestId:Int):Boolean=synchronized(operationLock){
+            val operation=photoOperation?.takeIf{it.id==requestId&&it.leased}?:return@synchronized false
+            releasePhotoOperation(operation)
+        }
         @JavascriptInterface fun beginProjectFileSave(requestId:Int,name:String,length:Int):Boolean=synchronized(operationLock){
             if(!printForeground||printClosed||isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId)||!claimImport())return@synchronized false
             runCatching{DrawingProjectUpload(requestId,name,length)}.fold({upload->projectUpload=upload;runOnUiThread{if(currentProjectUpload(upload))clearFileNotice()};true},{importing.set(false);false})
@@ -436,21 +447,55 @@ class HonorableDrawingActivity : Activity() {
         if(error!=null)result.put("error",error)
         web.evaluateJavascript("window.honorableProjectFileResult && window.honorableProjectFileResult($result)",null)
     }
+    private fun beginPhotoOperation(requestId:Int,leased:Boolean):PhotoOperation?=synchronized(operationLock){
+        if(!DrawingPhotoPolicy.acceptsRequest(requestId)||!printForeground||printClosed||isDestroyed||isFinishing||photoOperation!=null||!claimImport())return@synchronized null
+        PhotoOperation(requestId,leased).also{photoOperation=it}
+    }
+    private fun currentPhotoOperation(value:PhotoOperation)=photoOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing
+    private fun releasePhotoOperation(value:PhotoOperation):Boolean=synchronized(operationLock){if(photoOperation!==value)false else{photoOperation=null;importing.set(false);true}}
+    private fun cancelPhotoTransfer(){
+        val operation=photoOperation?.takeIf{it.started}?:return
+        if(releasePhotoOperation(operation))photoReply(operation.id,error="Photo preparation stopped. Your drawing stays here; choose the photo again when active.")
+    }
+    private fun openPhotoPicker(operation:PhotoOperation){
+        if(!currentPhotoOperation(operation)){if(releasePhotoOperation(operation))photoReply(operation.id,error="Open the drawing before choosing a photo.");return}
+        runCatching{startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply{type="image/*";addCategory(Intent.CATEGORY_OPENABLE);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},DrawingPhotoPolicy.REQUEST_CODE)}
+            .onFailure{if(releasePhotoOperation(operation))photoReply(operation.id,error="The photo picker could not open. Try again.")}
+    }
+    private fun photoResult(resultCode:Int,data:Intent?){
+        if(printClosed||isDestroyed||isFinishing)return
+        val operation=photoOperation?.takeIf{!it.received}?:return
+        operation.received=true
+        val uri=data?.data?:data?.clipData?.takeIf{it.itemCount==1}?.getItemAt(0)?.uri
+        if(resultCode!=RESULT_OK||uri==null){if(releasePhotoOperation(operation))photoReply(operation.id,cancelled=true);return}
+        if(!DrawingPhotoPolicy.acceptsSource(uri.scheme)){if(releasePhotoOperation(operation))photoReply(operation.id,error="Choose a photo from Photos or Files.");return}
+        operation.uri=uri;startPhotoOperation(operation)
+    }
+    private fun deliverPhotoCopy(operation:PhotoOperation,dataURL:String){
+        if(!currentPhotoOperation(operation))return
+        if(operation.leased){
+            val owned=synchronized(operationLock){if(!currentPhotoOperation(operation)||operation.ready)false else{operation.ready=true;true}}
+            if(owned)photoReply(operation.id,dataURL=dataURL)
+        }else if(releasePhotoOperation(operation))photoReply(operation.id,dataURL=dataURL)
+    }
+    private fun startPhotoOperation(operation:PhotoOperation){
+        val uri=operation.uri?:return
+        if(!currentPhotoOperation(operation)||!operation.received||operation.started)return
+        operation.started=true
+        try{worker.execute{
+            val prepared=runCatching{check(currentPhotoOperation(operation)&&!Thread.currentThread().isInterrupted);DrawingPhotoCopy.prepare(this,uri){!currentPhotoOperation(operation)}}
+            runOnUiThread{
+                if(!currentPhotoOperation(operation))return@runOnUiThread
+                prepared.onSuccess{dataURL->deliverPhotoCopy(operation,dataURL)
+                }.onFailure{if(releasePhotoOperation(operation))photoReply(operation.id,error=if(it is OutOfMemoryError)"Not enough memory. Close other tools and try again."else"This photo could not be prepared. Try another photo.")}
+            }
+        }}catch(_:java.util.concurrent.RejectedExecutionException){if(releasePhotoOperation(operation))photoReply(operation.id,error="Photo preparation stopped. Try again.")}
+    }
     @Deprecated("Uses the Activity result API for this local picker")
     override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){
         super.onActivityResult(requestCode,resultCode,data)
         if(requestCode==DrawingProjectFiles.OPEN_REQUEST||requestCode==DrawingProjectFiles.SAVE_REQUEST){projectResult(requestCode,resultCode,data);return}
-        if(requestCode!=DrawingPhotoPolicy.REQUEST_CODE)return
-        val request=photoRequest?:return;photoRequest=null
-        val uri=data?.data?:data?.clipData?.takeIf{it.itemCount==1}?.getItemAt(0)?.uri
-        if(resultCode!=RESULT_OK||uri==null){importing.set(false);photoReply(request,cancelled=true);return}
-        if(!DrawingPhotoPolicy.acceptsSource(uri.scheme)){importing.set(false);photoReply(request,error="Choose a photo from Photos or Files.");return}
-        try{worker.execute{
-            val prepared=runCatching{DrawingPhotoCopy.prepare(this,uri){isDestroyed||isFinishing}}
-            runOnUiThread{importing.set(false);if(isDestroyed||isFinishing)return@runOnUiThread
-                prepared.onSuccess{photoReply(request,dataURL=it)}.onFailure{photoReply(request,error=if(it is OutOfMemoryError)"Not enough memory. Close other tools and try again."else"This photo could not be prepared. Try another photo.")}
-            }
-        }}catch(_:java.util.concurrent.RejectedExecutionException){importing.set(false);photoReply(request,error="Photo preparation stopped. Try again.")}
+        if(requestCode==DrawingPhotoPolicy.REQUEST_CODE)photoResult(resultCode,data)
     }
     private fun photoReply(requestId:Int,dataURL:String?=null,error:String?=null,cancelled:Boolean=false){
         if(isDestroyed||isFinishing||!::web.isInitialized)return
@@ -465,10 +510,11 @@ class HonorableDrawingActivity : Activity() {
         val kind=projectOperation?.let{if(it.saving)"save"else"open"}?:if(projectUpload!=null)"save"else if(projectRead!=null)"open"else interruptedFileKind
         if(kind!=null)outState.putString(fileStateKey,kind)
         if(printUpload!=null||activePrint!=null)outState.putBoolean("noble-drawing-print-pending",true)
+        if(photoOperation!=null)outState.putBoolean("noble-drawing-photo-pending",true)
         if(svgOperation!=null)outState.putBoolean("noble-drawing-svg-pending",true)
         super.onSaveInstanceState(outState)
     }
-    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();projectOperation?.let{startProjectOperation(it)}}}
-    override fun onPause(){printForeground=false;invalidateResetReview();cancelProjectTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();projectOperation?.let{startProjectOperation(it)};photoOperation?.let{startPhotoOperation(it)}}}
+    override fun onPause(){printForeground=false;invalidateResetReview();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }
