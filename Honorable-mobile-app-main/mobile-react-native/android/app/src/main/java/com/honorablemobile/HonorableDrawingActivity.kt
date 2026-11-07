@@ -51,11 +51,13 @@ class HonorableDrawingActivity : Activity() {
     private class ImageOperation { var launching=false }
     @Volatile private var imageOperation:ImageOperation?=null
     private var photoRequest:Int?=null
-    private data class ProjectOperation(val id:Int,val saving:Boolean,val value:String?=null)
+    private data class ProjectOperation(val id:Int,val saving:Boolean,val value:String?=null){
+        var received=false;var started=false;var uri:android.net.Uri?=null
+    }
     private data class ProjectRead(val id:Int,val text:String)
     @Volatile private var projectUpload:DrawingProjectUpload?=null
     @Volatile private var projectRead:ProjectRead?=null
-    private var projectOperation:ProjectOperation?=null
+    @Volatile private var projectOperation:ProjectOperation?=null
     private val csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     @Suppress("SetJavaScriptEnabled")
     override fun onCreate(state:Bundle?) {
@@ -289,23 +291,28 @@ class HonorableDrawingActivity : Activity() {
             runCatching{startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply{type="image/*";addCategory(Intent.CATEGORY_OPENABLE);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},DrawingPhotoPolicy.REQUEST_CODE)}
                 .onFailure{photoRequest=null;importing.set(false);photoReply(requestId,error="The photo picker could not open. Try again.")}
         }}
-        @JavascriptInterface fun beginProjectFileSave(requestId:Int,name:String,length:Int):Boolean {
-            if(isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId)||!claimImport())return false
-            return runCatching{projectUpload=DrawingProjectUpload(requestId,name,length);runOnUiThread{clearFileNotice()};true}.getOrElse{importing.set(false);false}
+        @JavascriptInterface fun beginProjectFileSave(requestId:Int,name:String,length:Int):Boolean=synchronized(operationLock){
+            if(!printForeground||printClosed||isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId)||!claimImport())return@synchronized false
+            runCatching{DrawingProjectUpload(requestId,name,length)}.fold({upload->projectUpload=upload;runOnUiThread{if(currentProjectUpload(upload))clearFileNotice()};true},{importing.set(false);false})
         }
-        @JavascriptInterface fun appendProjectFileChunk(requestId:Int,value:String):Boolean {
-            val upload=projectUpload?.takeIf{it.id==requestId}?:return false
-            return runCatching{upload.append(value);true}.getOrElse{projectUpload=null;importing.set(false);false}
+        @JavascriptInterface fun appendProjectFileChunk(requestId:Int,value:String):Boolean=synchronized(operationLock){
+            val upload=projectUpload?.takeIf{it.id==requestId}?:return@synchronized false
+            if(!currentProjectUpload(upload))return@synchronized false
+            runCatching{upload.append(value);true}.getOrElse{releaseProjectUpload(upload);false}
         }
         @JavascriptInterface fun finishProjectFileSave(requestId:Int){runOnUiThread{
-            val upload=projectUpload?.takeIf{it.id==requestId}
-            if(isDestroyed||isFinishing||upload==null)return@runOnUiThread
-            val value=runCatching{upload.finish()};projectUpload=null
+            val upload=projectUpload?.takeIf{it.id==requestId}?:return@runOnUiThread
+            if(!currentProjectUpload(upload)){if(releaseProjectUpload(upload))projectReply(requestId,error="Project transfer stopped. Your drawing stays here; save again when active.");return@runOnUiThread}
+            val value=synchronized(operationLock){
+                if(!currentProjectUpload(upload))return@runOnUiThread
+                runCatching{upload.finish()}.also{projectUpload=null}
+            }
             value.onSuccess{openProjectPicker(ProjectOperation(requestId,true,it),DrawingProjectFiles.filename(upload.name))}
                 .onFailure{importing.set(false);projectReply(requestId,error="Project transfer is incomplete or too large. Save again.")}
         }}
         @JavascriptInterface fun chooseProjectFile(requestId:Int){runOnUiThread{
-            if(isDestroyed||isFinishing||!DrawingProjectFiles.acceptsRequest(requestId))return@runOnUiThread
+            if(!DrawingProjectFiles.acceptsRequest(requestId)||printClosed||isDestroyed||isFinishing)return@runOnUiThread
+            if(!printForeground){projectReply(requestId,error="Open the drawing before choosing a project file.");return@runOnUiThread}
             if(!claimImport()){projectReply(requestId,error="Another image or file operation is running.");return@runOnUiThread}
             openProjectPicker(ProjectOperation(requestId,false))
         }}
@@ -353,7 +360,23 @@ class HonorableDrawingActivity : Activity() {
         }
 
     }
+    private fun currentProjectUpload(value:DrawingProjectUpload)=synchronized(operationLock){projectUpload===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
+    private fun releaseProjectUpload(value:DrawingProjectUpload):Boolean=synchronized(operationLock){if(projectUpload!==value)false else{projectUpload=null;importing.set(false);true}}
+    private fun currentProjectOperation(value:ProjectOperation)=projectOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing
+    private fun releaseProjectOperation(value:ProjectOperation,read:ProjectRead?=null):Boolean=synchronized(operationLock){
+        if(projectOperation!==value)false else{projectOperation=null;projectRead=read;if(read==null)importing.set(false);true}
+    }
+    private fun cancelProjectTransfer(){
+        projectUpload?.let{upload->if(releaseProjectUpload(upload)){interruptedFileKind="save";projectReply(upload.id,error="Project transfer stopped. Your drawing stays here; save again when active.")}}
+        val operation=projectOperation?.takeIf{it.started}?:return
+        if(releaseProjectOperation(operation)){
+            interruptedFileKind=if(operation.saving)"save"else"open"
+            if(::nativeMessage.isInitialized)nativeMessage.text=interruptedFileMessage(requireNotNull(interruptedFileKind))
+            projectReply(operation.id,error=if(operation.saving)"Project save was interrupted. Check the selected destination for an incomplete file; your drawing stays here."else "Project reading stopped. Your drawing stays here; choose the file again when active.")
+        }
+    }
     private fun openProjectPicker(operation:ProjectOperation,filename:String?=null){
+        if(!printForeground||printClosed||isDestroyed||isFinishing){importing.set(false);projectReply(operation.id,error="Open the drawing before choosing a project file.");return}
         clearFileNotice()
         projectOperation=operation
         runCatching{startActivityForResult(Intent(if(operation.saving)Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT).apply{
@@ -362,38 +385,49 @@ class HonorableDrawingActivity : Activity() {
             else {type="*/*";putExtra(Intent.EXTRA_MIME_TYPES,arrayOf("application/json","text/plain","application/octet-stream"))}
             addFlags(if(operation.saving)Intent.FLAG_GRANT_WRITE_URI_PERMISSION else Intent.FLAG_GRANT_READ_URI_PERMISSION)
         },if(operation.saving)DrawingProjectFiles.SAVE_REQUEST else DrawingProjectFiles.OPEN_REQUEST)}.onFailure{
-            projectOperation=null;importing.set(false);projectReply(operation.id,error="The project file picker could not open. Try again.")
+            if(releaseProjectOperation(operation))projectReply(operation.id,error="The project file picker could not open. Try again.")
         }
     }
     private fun projectResult(requestCode:Int,resultCode:Int,data:Intent?){
+        if(printClosed||isDestroyed||isFinishing)return
         val operation=projectOperation?:run{
             interruptedFileKind=if(requestCode==DrawingProjectFiles.SAVE_REQUEST&&resultCode==RESULT_OK)"save" else "open"
             if(::nativeMessage.isInitialized)nativeMessage.text=interruptedFileMessage(requireNotNull(interruptedFileKind))
             return
         }
-        if(requestCode!=(if(operation.saving)DrawingProjectFiles.SAVE_REQUEST else DrawingProjectFiles.OPEN_REQUEST))return
+        if(requestCode!=(if(operation.saving)DrawingProjectFiles.SAVE_REQUEST else DrawingProjectFiles.OPEN_REQUEST)||operation.received)return
+        operation.received=true
         val uri=data?.data
-        if(resultCode!=RESULT_OK||uri==null){projectOperation=null;importing.set(false);projectReply(operation.id,cancelled=true);return}
-        if(uri.scheme!="content"){projectOperation=null;importing.set(false);projectReply(operation.id,error="Choose a project file in Files.");return}
+        if(resultCode!=RESULT_OK||uri==null){if(releaseProjectOperation(operation))projectReply(operation.id,cancelled=true);return}
+        if(uri.scheme!="content"){if(releaseProjectOperation(operation))projectReply(operation.id,error="Choose a project file in Files.");return}
+        operation.uri=uri
+        startProjectOperation(operation)
+    }
+    /** Picker metadata may arrive before onResume; provider I/O starts only once in foreground. */
+    private fun startProjectOperation(operation:ProjectOperation){
+        val uri=operation.uri?:return
+        if(!currentProjectOperation(operation)||!operation.received||operation.started)return
+        operation.started=true
         try{worker.execute{
+            fun active(){check(currentProjectOperation(operation)&&!Thread.currentThread().isInterrupted){"Project transfer stopped"}}
             val result=runCatching{
-                check(!isDestroyed&&!isFinishing&&!Thread.currentThread().isInterrupted)
+                active()
                 if(operation.saving){
-                    val bytes=DrawingProjectFiles.bytes(requireNotNull(operation.value))
-                    requireNotNull(contentResolver.openOutputStream(uri,"wt")).use{it.write(bytes);it.flush()};null
-                }else requireNotNull(contentResolver.openInputStream(uri)).use{DrawingProjectFiles.read(it){isDestroyed||isFinishing}}
+                    // Validate before opening a potentially truncating provider stream.
+                    val bytes=DrawingProjectFiles.bytes(requireNotNull(operation.value));active()
+                    requireNotNull(contentResolver.openOutputStream(uri,"wt")).use{DrawingProjectFiles.write(it,bytes){!currentProjectOperation(operation)}};null
+                }else {active();requireNotNull(contentResolver.openInputStream(uri)).use{DrawingProjectFiles.read(it){!currentProjectOperation(operation)}}}
             }
             runOnUiThread{
-                projectOperation=null
-                if(isDestroyed||isFinishing){importing.set(false);return@runOnUiThread}
+                if(!currentProjectOperation(operation))return@runOnUiThread
                 result.onSuccess{value->
-                    if(value!=null){projectRead=ProjectRead(operation.id,value);projectReply(operation.id,length=value.length)}
-                    else {importing.set(false);projectReply(operation.id,saved=true)}
+                    val read=value?.let{ProjectRead(operation.id,it)}
+                    if(releaseProjectOperation(operation,read)){if(read!=null)projectReply(operation.id,length=read.text.length)else projectReply(operation.id,saved=true)}
                 }.onFailure{
-                    importing.set(false);projectReply(operation.id,error=if(operation.saving)"Project file could not be saved completely. Check the selected destination. Your drawing stays here."else"This file could not be read as bounded UTF-8 text. Choose a Noble project file.")
+                    if(releaseProjectOperation(operation))projectReply(operation.id,error=if(operation.saving)"Project file could not be saved completely. Check the selected destination. Your drawing stays here."else"This file could not be read as bounded UTF-8 text. Choose a Noble project file.")
                 }
             }
-        }}catch(_:java.util.concurrent.RejectedExecutionException){projectOperation=null;importing.set(false);projectReply(operation.id,error="Project file operation stopped. Try again.")}
+        }}catch(_:java.util.concurrent.RejectedExecutionException){if(releaseProjectOperation(operation))projectReply(operation.id,error="Project file operation stopped. Try again.")}
     }
     private fun projectReply(requestId:Int,length:Int?=null,saved:Boolean=false,cancelled:Boolean=false,error:String?=null){
         if(isDestroyed||isFinishing||!::web.isInitialized)return
@@ -434,7 +468,7 @@ class HonorableDrawingActivity : Activity() {
         if(svgOperation!=null)outState.putBoolean("noble-drawing-svg-pending",true)
         super.onSaveInstanceState(outState)
     }
-    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch()}}
-    override fun onPause(){printForeground=false;invalidateResetReview();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();projectOperation?.let{startProjectOperation(it)}}}
+    override fun onPause(){printForeground=false;invalidateResetReview();cancelProjectTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
     override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

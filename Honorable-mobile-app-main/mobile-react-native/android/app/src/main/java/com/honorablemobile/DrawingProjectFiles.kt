@@ -2,6 +2,7 @@ package com.honorablemobile
 
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
@@ -23,6 +24,14 @@ internal object DrawingProjectFiles {
         val encoded=Charsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(text))
         require(encoded.remaining()<=MAX_BYTES) { "Project file is too large." }
         return ByteArray(encoded.remaining()).also{encoded.get(it)}
+    }
+    /** Caller validates text before opening/truncating a destination and retains stream ownership. */
+    fun write(output:OutputStream,data:ByteArray,cancelled:()->Boolean={false}) {
+        require(data.isNotEmpty()&&data.size<=MAX_BYTES){"Project file is empty or too large."}
+        fun active(){check(!cancelled()&&!Thread.currentThread().isInterrupted){"Project file writing stopped."}}
+        var offset=0
+        while(offset<data.size){active();val count=minOf(8192,data.size-offset);output.write(data,offset,count);offset+=count}
+        active();output.flush();active()
     }
     fun read(input:InputStream,cancelled:()->Boolean={false}):String {
         val out=ByteArrayOutputStream();val buffer=ByteArray(8192)

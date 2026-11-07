@@ -1,3 +1,7 @@
+## November 7 — Drawing project transfers retain exact ownership
+
+**0 new features; 1 correctness fix; 0 app scaffolding. Source 94/500, batch 56 unchanged by this fix.** Project file results are single-use and defer provider work until foreground. Expected picker pause is retained; started transfers and incomplete uploads cancel on pause, while stale workers/releases cannot clear later work. Saves validate UTF8 before destination opening and use bounded cancellable writes; partial destinations are explicitly possible and must be checked. **98 focused host/API tests pass (25 new + 73 retained)**, three unchanged before failures reproduced, plus actual project/recovery browser regressions. [Evidence and limits](DRAWING_PROJECT_TRANSFER_OWNERSHIP.md). No real SAF/provider/FD/lifecycle/device/full native APK acceptance; broad build remains deferred to approximately138 source workflows.
+
 ## November 7 — Manual caption reviews reject stale lifecycle callbacks
 
 **0 new features; 1 callback correctness fix; 0 scaffolding. Source 94/500, batch 56 unchanged.** Legacy caption menu and Add/Edit/Delete/Clear dialogs now capture full project/source/session state plus a foreground generation. Pause/destroy invalidates and dismisses their tracked dialogs, so an old callback cannot act after resume merely because values match again. Exact selected-clip identity and imported URI/duration catalogs are checked before mutations. Existing caption validation, Undo/Redo, music and subtitle-document protection remain.
