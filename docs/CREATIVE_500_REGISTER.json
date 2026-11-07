@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 93,
+  "source_implemented": 94,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 407,
+  "remaining_not_source_complete": 406,
   "features": [
     {
       "id": "C001",
@@ -747,6 +747,14 @@
     {
       "id": "C094",
       "outcome": "Import whole edited-playback SRT across source clips and speeds with reviewed caption replacement and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C095",
+      "outcome": "Synchronize selected-clip subtitle delay and linear drift from two original-source start anchors with reviewed all-cue retiming and one Undo",
       "status": "implemented-source",
       "local_web_checked": false,
       "full_app_build_checked": false,
