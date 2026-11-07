@@ -1279,33 +1279,52 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
+    private var slipWindowEditor:android.app.AlertDialog?=null
+    private var slipWindowConfirmation:android.app.AlertDialog?=null
+    private fun commitSlipWindowReview(editor:android.app.AlertDialog,confirmation:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,startMs:Long):Boolean {
+        if(slipWindowEditor!==editor||slipWindowConfirmation!==confirmation)return false
+        slipWindowConfirmation=null // Consume only this approval, including stale/failed attempts.
+        if(!activeCaptionReviewDialog(editor,review)||!activeCaptionReviewDialog(confirmation,review)||project!==current||selectedClip!=index)return false
+        current.slipSourceWindow(index,startMs);return true
+    }
     private fun slipSourceWindow(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        if(!canRequestTimelineCaptionImport())return
         video.pause();previewPlayer?.pause();updateWorkspace()
+        val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips[index]
-        val duration=sourceDuration(clip.sourceId);val uri=sourceUris()[clip.sourceId]?:return
+        val duration=sourceDuration(clip.sourceId);if(sourceUris()[clip.sourceId]==null)return
         val latest=runCatching{VideoClipWindow.latestStart(clip,duration)}.getOrElse{status.text="Original source metadata changed. Reopen the video.";return}
         if(latest==0L){status.text="Trim a shorter clip first to leave alternative source footage.";return}
-        val mode=accessMode;val owner=videoLookNamespace()?:return;val music=current.soundtrack
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()[clip.sourceId]==uri
         val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
         body.addView(TextView(this).apply{text="Choose different footage from this same original while keeping this clip's length and neighboring playback positions. Current source range ${VideoTrimRange.format(clip.startMs)}–${VideoTrimRange.format(clip.endMs)} seconds. New start: 0–${VideoTrimRange.format(latest)} source seconds.";setTextColor(Color.DKGRAY)})
         val from=EditText(this).apply{hint="New window start, source seconds";contentDescription="New window start, source seconds";setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(16));setText(VideoTrimRange.format(clip.startMs));setTextColor(Color.BLACK);body.addView(this)}
         body.addView(TextView(this).apply{text="Source video and its audio move together. Grade, framing, title, volume and fades remain. Captions and motion keep their original-source timestamps, so what is visible may change. Removed cues are not regenerated. Preview after applying; this does not promise frame-exact seeking.";setTextColor(Color.DKGRAY)})
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Slip source window").setView(android.widget.ScrollView(this).apply{addView(body)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Slip source window").setView(android.widget.ScrollView(this).apply{addView(body)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!valid()){dialog.dismiss();return@setOnClickListener}
+            if(slipWindowEditor!==dialog||!activeCaptionReviewDialog(dialog,review)){dialog.dismiss();return@setOnClickListener}
             runCatching{VideoClipWindow.move(clip,VideoCaptions.seconds(from.text.toString()),duration)}.onSuccess{proposal->
-                android.app.AlertDialog.Builder(this).setTitle("Use this source window?")
+                slipWindowConfirmation?.dismiss()
+                lateinit var confirmation:android.app.AlertDialog
+                confirmation=android.app.AlertDialog.Builder(this).setTitle("Use this source window?")
                     .setMessage("${VideoTrimRange.format(proposal.startMs)}–${VideoTrimRange.format(proposal.endMs)} source seconds, same ${String.format(java.util.Locale.ROOT,"%.3f",clip.durationUs/1000000.0)} seconds of playback. Other clips and the project soundtrack stay in place. Existing captions/motion retain source timestamps. Undo restores this window.")
                     .setNegativeButton("Keep editing",null).setPositiveButton("Apply window"){_,_->
-                        if(!valid()){dialog.dismiss();return@setPositiveButton}
-                        runCatching{current.slipSourceWindow(index,proposal.startMs)}
-                            .onSuccess{dialog.dismiss();showClip();status.text="Source window changed with playback length kept. Preview project; Undo restores the old window."}
-                            .onFailure{from.error="This window could not be saved. Existing edits were kept."}
-                    }.show()
+                        runCatching{commitSlipWindowReview(dialog,confirmation,review,current,index,proposal.startMs)}.onSuccess appliedResult@{applied->
+                            if(!applied){confirmation.dismiss();return@appliedResult}
+                            dialog.dismiss();val refreshed=runCatching{showClip()}.isSuccess
+                            status.text=if(refreshed)"Source window changed with playback length kept. Preview project; Undo restores the old window."else"Source window changed. Preview could not refresh; reopen it to check footage. Undo restores the old window."
+                        }.onFailure{from.error="This window could not be saved. Existing edits were kept."}
+                    }.create()
+                slipWindowConfirmation=confirmation
+                showCaptionReview(confirmation,review){if(slipWindowConfirmation===confirmation)slipWindowConfirmation=null}
             }.onFailure{from.error=it.message?:"Choose a start inside the original source"}
-        }};dialog.show()
+        }}
+        slipWindowConfirmation?.dismiss();slipWindowConfirmation=null
+        slipWindowEditor?.dismiss();slipWindowEditor=dialog
+        showCaptionReview(dialog,review){
+            from.text?.clear()
+            if(slipWindowEditor===dialog){slipWindowEditor=null;val confirmation=slipWindowConfirmation;slipWindowConfirmation=null;confirmation?.dismiss()}
+        }
     }
 
     private fun preciseTrim() {
