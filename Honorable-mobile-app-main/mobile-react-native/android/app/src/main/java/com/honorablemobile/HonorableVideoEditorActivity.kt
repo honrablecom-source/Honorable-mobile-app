@@ -1228,34 +1228,55 @@ class HonorableVideoEditorActivity : Activity() {
         }
     }
 
+    private var rollCutEditor:android.app.AlertDialog?=null
+    private var rollCutConfirmation:android.app.AlertDialog?=null
+    private fun commitRollCutReview(editor:android.app.AlertDialog,confirmation:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,delta:Long):Boolean {
+        if(rollCutEditor!==editor||rollCutConfirmation!==confirmation)return false
+        rollCutConfirmation=null // Consume only this approval, including stale/failed attempts.
+        if(!activeCaptionReviewDialog(editor,review)||!activeCaptionReviewDialog(confirmation,review)||project!==current||selectedClip!=index)return false
+        current.rollCut(index,delta);return true
+    }
     private fun rollCut(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        if(!canRequestTimelineCaptionImport())return
         video.pause();previewPlayer?.pause();updateWorkspace()
+        val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments.toList();val index=selectedClip
         if(index>=clips.lastIndex){status.text="Select a clip with a following neighbor to roll their cut.";return}
-        val mode=accessMode;val owner=videoLookNamespace()?:return;val music=current.soundtrack;val sources=sourceUris();val durations=sourceDurations()
+        val durations=sourceDurations()
         val limits=runCatching{VideoRollCut.bounds(clips,index,durations)}.getOrElse{status.text="Source metadata changed. Reopen this video.";return}
         if(limits.first==0L&&limits.second==0L){status.text="Trim a boundary first to leave original source footage for rolling this cut.";return}
         val initial=if(limits.second>0)minOf(500L,limits.second)else maxOf(-500L,limits.first)
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner&&sourceUris()==sources
         val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
         body.addView(TextView(this).apply{text="Move the cut between clips ${index+1} and ${index+2} without changing their combined playback length or later clip positions. Positive offsets extend the first clip and shorten the next; negative offsets do the reverse. Each source needs enough original footage at the boundary. Available offset: ${String.format(java.util.Locale.ROOT,"%+.3f",limits.first/1000.0)} to ${String.format(java.util.Locale.ROOT,"%+.3f",limits.second/1000.0)} playback seconds.";setTextColor(Color.DKGRAY)})
         val offset=EditText(this).apply{hint="Signed cut offset, playback seconds";contentDescription="Signed cut offset, playback seconds";setSingleLine(true);setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED;filters=arrayOf(android.text.InputFilter.LengthFilter(16));setText(String.format(java.util.Locale.ROOT,"%.3f",initial/1000.0));body.addView(this)}
         body.addView(TextView(this).apply{text="Use 0.002-second steps, for example 0.500 or -0.250. Each side follows its own speed; different speeds may leave a gap or overlap in same-source footage. Clip settings and source-anchored captions/motion remain, so visible cues may change. Video/audio move together. Preview after applying; codec output is not guaranteed frame-exact.";setTextColor(Color.DKGRAY)})
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Roll cut").setView(android.widget.ScrollView(this).apply{addView(body)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Roll cut").setView(android.widget.ScrollView(this).apply{addView(body)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!valid()){status.text="Project or session changed. Reopen Roll cut.";dialog.dismiss();return@setOnClickListener}
+            if(rollCutEditor!==dialog||!activeCaptionReviewDialog(dialog,review)){status.text="Project or session changed. Reopen Roll cut.";dialog.dismiss();return@setOnClickListener}
             runCatching{val delta=VideoRollCut.offset(offset.text.toString());delta to VideoRollCut.propose(clips,index,delta,durations)}.onSuccess{(delta,proposal)->
                 val left=proposal[index];val right=proposal[index+1]
-                android.app.AlertDialog.Builder(this).setTitle("Move this cut?")
+                rollCutConfirmation?.dismiss()
+                lateinit var confirmation:android.app.AlertDialog
+                confirmation=android.app.AlertDialog.Builder(this).setTitle("Move this cut?")
                     .setMessage("Clip ${index+1}: ${VideoTrimRange.format(left.startMs)}–${VideoTrimRange.format(left.endMs)} source seconds.\nClip ${index+2}: ${VideoTrimRange.format(right.startMs)}–${VideoTrimRange.format(right.endMs)} source seconds.\n\nTheir combined playback length, later clips and project soundtrack stay in place. Existing caption/motion source timestamps stay anchored. Undo restores both ranges.")
                     .setNegativeButton("Keep editing",null).setPositiveButton("Apply roll cut"){_,_->
-                        if(!valid()){status.text="Project or session changed. Reopen Roll cut.";dialog.dismiss();return@setPositiveButton}
-                        runCatching{current.rollCut(index,delta)}.onSuccess{dialog.dismiss();showClip();status.text="Cut moved with combined playback length kept. Preview project; Undo restores both ranges."}
-                            .onFailure{offset.error="This cut could not be saved. Existing edits were kept."}
-                    }.show()
+                        runCatching{commitRollCutReview(dialog,confirmation,review,current,index,delta)}.onSuccess appliedResult@{applied->
+                            if(!applied){confirmation.dismiss();return@appliedResult}
+                            dialog.dismiss();val refreshed=runCatching{showClip()}.isSuccess
+                            status.text=if(refreshed)"Cut moved with combined playback length kept. Preview project; Undo restores both ranges."else"Cut moved. Preview could not refresh; reopen it to check the cut. Undo restores both ranges."
+                        }.onFailure{offset.error="This cut could not be saved. Existing edits were kept."}
+                    }.create()
+                rollCutConfirmation=confirmation
+                showCaptionReview(confirmation,review){if(rollCutConfirmation===confirmation)rollCutConfirmation=null}
             }.onFailure{offset.error=it.message?:"Choose an offset with available source footage"}
-        }};dialog.show()
+        }}
+        rollCutConfirmation?.dismiss();rollCutConfirmation=null
+        rollCutEditor?.dismiss();rollCutEditor=dialog
+        showCaptionReview(dialog,review){
+            offset.text?.clear()
+            if(rollCutEditor===dialog){rollCutEditor=null;val confirmation=rollCutConfirmation;rollCutConfirmation=null;confirmation?.dismiss()}
+        }
     }
 
     private fun slipSourceWindow(){
