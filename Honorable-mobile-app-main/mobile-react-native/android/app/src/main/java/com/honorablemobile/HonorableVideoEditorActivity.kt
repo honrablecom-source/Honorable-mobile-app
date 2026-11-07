@@ -1819,11 +1819,15 @@ class HonorableVideoEditorActivity : Activity() {
         if(!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return false
         current.setCaptions(index,cues);return true
     }
+    private fun activeCaptionReviewDialog(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=captionReviewDialogs?.contains(dialog)==true&&dialog.isShowing&&canApplyCaptionReview(review)
+    private fun commitVisibleCaptionReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,cues:List<VideoCaption>):Boolean =
+        activeCaptionReviewDialog(dialog,review)&&commitCaptionReview(review,current,index,clip,cues)
     private fun clearCaptionReview(current:VideoEditProject,index:Int,clip:VideoSegment){
         if(!canRequestTimelineCaptionImport()||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return
         val review=captureCaptionReview()?:return
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Clear clip captions?").setMessage("Removes ${clip.captions.size} captions from this clip. Undo restores them.")
-            .setNegativeButton("Cancel",null).setPositiveButton("Clear"){_,_->if(commitCaptionReview(review,current,index,clip,emptyList())){showClip();previewProject()}}.create()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Clear clip captions?").setMessage("Removes ${clip.captions.size} captions from this clip. Undo restores them.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Clear"){_,_->if(commitVisibleCaptionReview(dialog,review,current,index,clip,emptyList())){showClip();previewProject()}}.create()
         showCaptionReview(dialog,review)
     }
 
@@ -1831,9 +1835,10 @@ class HonorableVideoEditorActivity : Activity() {
         val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments[index]
         val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline","Synchronize subtitle timing","Build highlights from caption text") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
             .setItems(choices.toTypedArray()){_,choice->
-                if(!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return@setItems
+                if(!activeCaptionReviewDialog(dialog,review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return@setItems
                 when(choice){
                     0->editCaption(current,index,clip,null)
                     1->importCaptions(current,index,clip)
@@ -1851,7 +1856,7 @@ class HonorableVideoEditorActivity : Activity() {
         showCaptionReview(dialog,review)
     }
 
-    private fun activeCaptionHighlightDialog(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=captionReviewDialogs?.contains(dialog)==true&&canApplyCaptionReview(review)
+    private fun activeCaptionHighlightDialog(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=activeCaptionReviewDialog(dialog,review)
     private fun commitCaptionHighlights(review:VideoCaptionReviewState,plan:VideoCaptionHighlights):Boolean {
         if(!canApplyCaptionReview(review)||!plan.changed)return false
         plan.apply(requireNotNull(project)){check(canApplyCaptionReview(review)){"Video or session changed. Select caption moments again."}}
@@ -2054,15 +2059,16 @@ class HonorableVideoEditorActivity : Activity() {
         val a=timeField("Caption start, source seconds",from);val b=timeField("Caption end, source seconds",to)
         val text=EditText(this).apply{hint="Caption text";contentDescription="Caption text";setText(cue?.text.orEmpty());maxLines=3;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(240))}
         body.addView(text)
+        lateinit var dialog:android.app.AlertDialog
         val builder=android.app.AlertDialog.Builder(this).setTitle(if(cue==null)"Add caption" else "Edit caption").setView(body).setNegativeButton("Cancel",null).setPositiveButton("Apply",null)
-        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(canApply()&&commitCaptionReview(review,current,index,clip,clip.captions.filterIndexed{i,_->i!=cueIndex})){showClip();previewProject()}}
-        val dialog=builder.create()
+        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(canApply()&&commitVisibleCaptionReview(dialog,review,current,index,clip,clip.captions.filterIndexed{i,_->i!=cueIndex})){showClip();previewProject()}}
+        dialog=builder.create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!canApply()||!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip){dialog.dismiss();return@setOnClickListener}
+            if(!canApply()||!activeCaptionReviewDialog(dialog,review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip){dialog.dismiss();return@setOnClickListener}
             runCatching{
                 val next=VideoCaption(VideoCaptions.seconds(a.text.toString()),VideoCaptions.seconds(b.text.toString()),text.text.toString().trim())
                 val cues=clip.captions.toMutableList().apply{if(cueIndex==null)add(next)else set(cueIndex,next)}.sortedBy{it.startMs}
-                check(commitCaptionReview(review,current,index,clip,cues)){"Video or session changed. Reopen captions before editing."}
+                check(commitVisibleCaptionReview(dialog,review,current,index,clip,cues)){"Video or session changed. Reopen captions before editing."}
             }.onSuccess{dialog.dismiss();showClip();previewProject();status.text="Captions updated. Preview the project before exporting."}.onFailure{text.error=it.message?:"Check caption timing and text"}
         }}
         showCaptionReview(dialog,review)
