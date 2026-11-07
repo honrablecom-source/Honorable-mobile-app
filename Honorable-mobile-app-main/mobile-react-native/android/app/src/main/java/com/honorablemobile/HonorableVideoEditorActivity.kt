@@ -223,6 +223,7 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(Button(this).apply{text="Output format";setOnClickListener{outputFormat()}})
         projectTools.addView(Button(this).apply{text="Apply clip color to all";setOnClickListener{copyGradeToAll()}})
         projectTools.addView(Button(this).apply { text = "+ Add video"; setOnClickListener { importVideo() } })
+        projectTools.addView(Button(this).apply{text="Keep or export this video";setOnClickListener{videoFinishGuide()}})
         projectTools.addView(Button(this).apply { text = "Build a montage"; setOnClickListener { montageOptions() } })
         projectTools.addView(Button(this).apply { text = "Batch editing"; setOnClickListener { batchOptions() } })
         projectTools.addView(Button(this).apply{text="Moment notes";setOnClickListener{momentNotes()}})
@@ -628,7 +629,7 @@ class HonorableVideoEditorActivity : Activity() {
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
-            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Project" to (listOf(t("Keep or export"){videoFinishGuide()},t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
@@ -1481,6 +1482,34 @@ class HonorableVideoEditorActivity : Activity() {
                 }
             }
         }.onFailure{saving=false;audioExporter=null;start.isEnabled=true;end.isEnabled=true;status.text="Audio export could not start: ${it.message}"}
+    }
+
+    private fun videoFinishGuide(){
+        if(!canRequestTimelineCaptionImport()||durationMs<=0||!::start.isInitialized||!::end.isInitialized)return
+        runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        val review=captureCaptionReview()?:return
+        val clips=project?.segments?:return;val clip=clips.getOrNull(selectedClip)?:return
+        val fromProgress=start.progress;val toProgress=end.progress
+        val info=runCatching{VideoFinishGuide.describe(clips,selectedClip,maxOf(fromProgress*1000L,clip.startMs),minOf(toProgress*1000L,clip.endMs),accessMode)}
+            .getOrElse{status.text=it.message?:"Choose a valid range before keeping this video.";return}
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12));setBackgroundColor(Color.WHITE)}
+        body.addView(TextView(this).apply{text=info.summary;setTextColor(Color.BLACK);setPadding(0,0,0,dp(12));contentDescription="Video finishing choices"})
+        lateinit var dialog:android.app.AlertDialog
+        val route=VideoFinishGuide.Route(info.choices.map{it.action}){activeCaptionReviewDialog(dialog,review)&&start.progress==fromProgress&&end.progress==toProgress}
+        for(choice in info.choices){
+            body.addView(TextView(this).apply{text=choice.title;setTextColor(Color.BLACK);textSize=16f;setTypeface(typeface,android.graphics.Typeface.BOLD);setPadding(0,dp(12),0,dp(4))})
+            body.addView(TextView(this).apply{text=choice.detail;setTextColor(Color.DKGRAY)})
+            body.addView(Button(this).apply{text=choice.button;contentDescription=choice.button;setTextColor(Color.BLACK);setAllCaps(false);minimumHeight=dp(48);setOnClickListener{
+                runCatching{route.choose(choice.action,{dialog.dismiss()}){action->when(action){
+                    VideoFinishGuide.Action.VIDEO_COPY->saveCopy()
+                    VideoFinishGuide.Action.NAMED_VERSION->savedVideoVersions()
+                    VideoFinishGuide.Action.QUICK_SAVE->if(accessMode==EditorAccessMode.GUEST_BASIC)guestProjectOperation(false)else draftOperation(false)
+                }}}.onFailure{if(workspaceActive)status.text="This option could not be opened. Close the guide and try again."}
+            }})
+        }
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Keep or export this video").setView(ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Keep editing"){_,_->route.close()}.create()
+        dialog.setOnCancelListener{route.close()};showCaptionReview(dialog,review)
     }
 
     private fun restoreVideoSaveState(state:Bundle?){
