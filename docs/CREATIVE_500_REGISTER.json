@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 96,
+  "source_implemented": 97,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 404,
+  "remaining_not_source_complete": 403,
   "features": [
     {
       "id": "C001",
@@ -773,6 +773,14 @@
       "outcome": "Review and move explicitly selected timeline clips together as a stable block to an original clip boundary with one Undo",
       "status": "implemented-source",
       "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C098",
+      "outcome": "Preview and combine selected drawing shapes into separately editable unions, cutouts, intersections or odd-overlap paths while preserving originals and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
       "full_app_build_checked": false,
       "device_checked": false
     }
