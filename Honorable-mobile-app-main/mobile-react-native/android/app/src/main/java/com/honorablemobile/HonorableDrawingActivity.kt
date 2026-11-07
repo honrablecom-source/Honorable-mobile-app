@@ -14,6 +14,7 @@ import app.honorable.editor.EditorAccessMode
 import app.honorable.editor.PhotoEditorActivity
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONObject
@@ -47,6 +48,8 @@ class HonorableDrawingActivity : Activity() {
     @Volatile private var activePrint:PrintOperation?=null
     private class SvgOperation(val upload:DrawingSvgUpload){var preparing=false}
     @Volatile private var svgOperation:SvgOperation?=null
+    private class ImageOperation { var launching=false }
+    @Volatile private var imageOperation:ImageOperation?=null
     private var photoRequest:Int?=null
     private data class ProjectOperation(val id:Int,val saving:Boolean,val value:String?=null)
     private data class ProjectRead(val id:Int,val text:String)
@@ -147,6 +150,21 @@ class HonorableDrawingActivity : Activity() {
         }catch(_:Exception){synchronized(operationLock){if(resetDispatch===dispatch)resetDispatch=null};false}
     }
     private fun blocked()=WebResourceResponse("text/plain","UTF-8",403,"Blocked",mapOf("Cache-Control" to "no-store"),ByteArrayInputStream(ByteArray(0)))
+    private fun beginImageOperation():ImageOperation?=synchronized(operationLock){
+        if(!printForeground||printClosed||isDestroyed||isFinishing||imageOperation!=null||!claimExport())return@synchronized null
+        ImageOperation().also{imageOperation=it}
+    }
+    private fun currentImageOperation(value:ImageOperation)=synchronized(operationLock){imageOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
+    private fun releaseImageOperation(value:ImageOperation):Boolean=synchronized(operationLock){
+        if(imageOperation!==value)false else{imageOperation=null;exporting.set(false);true}
+    }
+    private fun abandonImageOperation():Boolean=synchronized(operationLock){
+        val value=imageOperation?:return@synchronized false
+        if(value.launching)false else releaseImageOperation(value)
+    }
+    private fun launchImageOperation(value:ImageOperation):Boolean=synchronized(operationLock){
+        if(!currentImageOperation(value)||value.launching)false else{value.launching=true;true}
+    }
     private fun currentPrintUpload(value:DrawingPrintUpload)=synchronized(operationLock){printUpload===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
     private fun releasePrintUpload(value:DrawingPrintUpload,error:String?=null){
         val owned=synchronized(operationLock){if(printUpload!==value)false else{printUpload=null;if(printPreparing===value)printPreparing=null;exporting.set(false);true}}
@@ -298,31 +316,42 @@ class HonorableDrawingActivity : Activity() {
         @JavascriptInterface fun releaseProjectFile(requestId:Int){runOnUiThread{
             if(projectUpload?.id==requestId||projectRead?.id==requestId){projectUpload=null;projectRead=null;importing.set(false)}
         }}
-        @JavascriptInterface fun usePng(value:String) {
-            if(isDestroyed||isFinishing||!claimExport())return
-            try { worker.execute {
+        @JavascriptInterface fun usePng(value:String):Boolean {
+            val operation=beginImageOperation()?:return false
+            return try { worker.execute {
                 var file:File?=null;var bitmap:Bitmap?=null
+                fun active(){check(currentImageOperation(operation)&&!Thread.currentThread().isInterrupted){"Image preparation cancelled"}}
                 val result=runCatching {
-                    check(!isDestroyed&&!Thread.currentThread().isInterrupted)
-                    val bytes=Base64.decode(DrawingPolicy.base64Payload(value),Base64.NO_WRAP)
-                    val size=DrawingPolicy.validatePng(bytes)
-                    val decoded=requireNotNull(BitmapFactory.decodeByteArray(bytes,0,bytes.size)){"Drawing PNG could not be read"};bitmap=decoded
-                    require(decoded.width==size.first&&decoded.height==size.second)
-                    val dir=File(cacheDir,"created-images");check(dir.isDirectory||dir.mkdirs())
-                    val target=File.createTempFile("honorable-drawing-",".png",dir);file=target
-                    target.outputStream().use{check(decoded.compress(Bitmap.CompressFormat.PNG,100,it))}
-                    FileProvider.getUriForFile(this@HonorableDrawingActivity,packageName+".creation",target)
+                    try {
+                        active()
+                        val payload=DrawingPolicy.base64Payload(value)
+                        val bytes=Base64.decode(payload,Base64.NO_WRAP)
+                        require(Base64.encodeToString(bytes,Base64.NO_WRAP)==payload){"Invalid image encoding"}
+                        val size=DrawingPolicy.validatePng(bytes)
+                        active()
+                        val decoded=requireNotNull(BitmapFactory.decodeByteArray(bytes,0,bytes.size)){"Drawing PNG could not be read"};bitmap=decoded
+                        require(decoded.width==size.first&&decoded.height==size.second)
+                        active()
+                        val dir=File(cacheDir,"created-images");check(dir.isDirectory||dir.mkdirs())
+                        val target=File.createTempFile("honorable-drawing-",".png",dir);file=target
+                        FileOutputStream(target).use{output->active();check(decoded.compress(Bitmap.CompressFormat.PNG,100,output));active();output.fd.sync()}
+                        require(target.length() in 33..DrawingPolicy.MAX_BYTES.toLong()){"Prepared image exceeds its file budget"}
+                        active()
+                        FileProvider.getUriForFile(this@HonorableDrawingActivity,packageName+".creation",target)
+                    }finally{bitmap?.recycle()}
                 }
-                bitmap?.recycle()
                 runOnUiThread {
-                    exporting.set(false)
-                    if(isDestroyed||isFinishing){file?.delete();return@runOnUiThread}
+                    if(!currentImageOperation(operation)){file?.delete();return@runOnUiThread}
                     result.onSuccess { uri ->
-                        runCatching{startActivity(Intent(this@HonorableDrawingActivity,PhotoEditorActivity::class.java).apply{putExtra("uri",uri.toString());putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)})}.onSuccess{finish()}.onFailure{file?.delete();showError("Could not open the photo editor. Your drawing draft stays on this device.")}
-                    }.onFailure{file?.delete();showError(if(it is OutOfMemoryError)"Not enough memory. Try a smaller drawing."else it.message?:"Image creation failed. Your draft stays local.")}
+                        if(!launchImageOperation(operation)){file?.delete();return@onSuccess}
+                        runCatching{startActivity(Intent(this@HonorableDrawingActivity,PhotoEditorActivity::class.java).apply{putExtra("uri",uri.toString());putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)})}
+                            .onSuccess{releaseImageOperation(operation);finish()}
+                            .onFailure{file?.delete();if(releaseImageOperation(operation))showError("Could not open the photo editor. Your drawing draft stays on this device.")}
+                    }.onFailure{failure->file?.delete();if(releaseImageOperation(operation))showError(if(failure is OutOfMemoryError)"Not enough memory. Try a smaller drawing."else "Image creation failed. Your draft stays local; try again.")}
                 }
-            } } catch(_:java.util.concurrent.RejectedExecutionException){exporting.set(false)}
+            };true } catch(_:java.util.concurrent.RejectedExecutionException){releaseImageOperation(operation);false}
         }
+
     }
     private fun openProjectPicker(operation:ProjectOperation,filename:String?=null){
         clearFileNotice()
@@ -396,7 +425,7 @@ class HonorableDrawingActivity : Activity() {
         if(error!=null)result.put("error",error)
         web.evaluateJavascript("window.honorablePhotoImportResult && window.honorablePhotoImportResult($result)",null)
     }
-    private fun showError(message:String){web.evaluateJavascript("window.honorableExportResult && window.honorableExportResult(${JSONObject.quote(message)})",null)}
+    private fun showError(message:String){if(printClosed||isDestroyed||isFinishing||!::web.isInitialized)return;web.evaluateJavascript("window.honorableExportResult && window.honorableExportResult(${JSONObject.quote(message)})",null)}
     override fun onSaveInstanceState(outState:Bundle){
         // Add only an operation label here; no project text, photo bytes or URIs are added by this override.
         val kind=projectOperation?.let{if(it.saving)"save"else"open"}?:if(projectUpload!=null)"save"else if(projectRead!=null)"open"else interruptedFileKind
@@ -406,6 +435,6 @@ class HonorableDrawingActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
     override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch()}}
-    override fun onPause(){printForeground=false;invalidateResetReview();svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onPause(){printForeground=false;invalidateResetReview();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoRequest=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

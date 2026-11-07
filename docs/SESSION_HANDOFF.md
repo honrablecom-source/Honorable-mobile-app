@@ -1,3 +1,7 @@
+## November 7 — Drawing image handoff ownership
+
+**0 new features; 1 correctness integration fix; 0 app scaffolding. Source 93/500, batch 55 unchanged by this fix.** Use image now binds rendering/FileReader completion to the current drawing and restores selection on failure. Native foreground ownership and pause cancellation prevent stale workers from launching or clearing later work; committed launch is a separate phase. Orphan image callbacks cannot unlock printing. **73 focused host/API tests (16 new + 57 retained), 189 drawing JS and 67 Node tests pass**, plus actual image/print/SVG browser regressions. [Evidence and limitations](DRAWING_IMAGE_HANDOFF.md). No real Android graphics/provider/launch/lifecycle/device or full native/APK acceptance; paired drawing assets remain deferred to approximately138 workflows.
+
 ## November 7 — Clip subtitle import shares lifecycle ownership
 
 **0 new features; 1 existing-workflow correctness/usability fix; 0 scaffolding. Source 93/500, batch 55 unchanged.** Original-source clip SRT import now shares the owned picker/read/review controller with playback import. Paused or stale targets cannot open its disclosure. Source request 25 and playback request 29 only reach the matching current owner; read/review cancels on pause, while picker metadata waits for foreground. Explicit review replaces only the selected clip and retains READ access on approval, preserving original timestamps, off-trim cues, the 200-cue limit, other clips, music and one Undo/Redo. Temporary trim selection is restored after commit.

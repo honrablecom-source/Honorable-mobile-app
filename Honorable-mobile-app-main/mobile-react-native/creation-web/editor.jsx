@@ -14,7 +14,6 @@ import { barcodePlan } from './barcode.mjs';
 import { tablePlan } from './table.mjs';
 import { starterPlan } from './starters.mjs';
 import { StarterPreview } from './StarterPreview.jsx';
-import { imageArtwork } from './image-export.mjs';
 import { printArtworkSnapshot, sendPrintArtwork, MAX_PRINT_BYTES } from './print-artwork.mjs';
 import { sendSvgArtwork } from './svg-share.mjs';
 import { projectFilename, decodeProjectFile, sendProjectFile, receiveProjectFile, projectFileArtwork, recoveryFile, sendRecoveryFile } from './project-files.mjs';
@@ -54,7 +53,7 @@ function Editor() {
   const [projectTool, setProjectTool] = useState('saved');
   const projectTaskHeading = useRef(null), previousProjectTool = useRef('saved');
   const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', advanced: 'Advanced transfer' };
-  const printRequest = useRef(0), pendingPrint = useRef(null), svgRequest = useRef(0), pendingSvg = useRef(null), outputSelection = useRef(null);
+  const printRequest = useRef(0), pendingPrint = useRef(null), svgRequest = useRef(0), pendingSvg = useRef(null), pendingImage = useRef(null), outputSelection = useRef(null);
   const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
   const [preparedProjectFile, setPreparedProjectFile] = useState(null);
   const [pendingOpen, setPendingOpen] = useState(null);
@@ -169,7 +168,10 @@ function Editor() {
     pendingPrint.current = null; finishOutput();
     setStatus(result.error || 'Print dialog closed. Check Android print status or your saved PDF; saving or delivery is not confirmed here.');
   };
-  window.honorableExportResult = message => { if (resetPending.current) return; finishBusy(); setStatus(message); };
+  window.honorableExportResult = message => {
+    if (resetPending.current || !pendingImage.current) return;
+    pendingImage.current = null; finishOutput(); setStatus(message);
+  };
   window.honorableNewDrawing = () => {
     if (!mounted.current || !api.current || busyRef.current || resetPending.current) return false;
     try {
@@ -183,7 +185,7 @@ function Editor() {
       return true;
     } catch { setStatus('Could not start a new drawing. Your current work was kept. Try again.'); return false; }
   };
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; pendingSvg.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pendingPrint.current = null; pendingSvg.current = null; pendingImage.current = null; photoRequest.current++; clearTimeout(timer.current); }; }, []);
   const scene = () => [api.current.getSceneElements(), api.current.getAppState(), api.current.getFiles()];
   const commit = elements => {
     if (busyRef.current) throw Error('Wait for the current image operation to finish.');
@@ -674,24 +676,37 @@ function Editor() {
   };
   const useImage = async (selectionOnly = false) => {
     if (!beginBusy()) return;
+    const editor = api.current, attempt = {};
+    pendingImage.current = attempt;
+    const failed = failure => {
+      if (!mounted.current || pendingImage.current !== attempt) return;
+      pendingImage.current = null; finishOutput(); error(failure);
+    };
     setStatus('Preparing image...');
     try {
-      const elements = api.current.getSceneElements();
-      const files = api.current.getFiles();
-      const artwork = imageArtwork(elements, files, selectionOnly ? (api.current.getAppState().selectedElementIds || {}) : null, getCommonBounds);
-      if (!save(false)) { finishBusy(); return; }
-      const blob = await exportToBlob({ elements: artwork.elements, files: artwork.files, appState: { ...api.current.getAppState(), exportBackground: !transparentImage, viewBackgroundColor: '#ffffff', exportWithDarkMode: false }, mimeType: 'image/png', maxWidthOrHeight: 2048 });
-      if (!blob || blob.size > 8 * 1024 * 1024) throw Error('The image is too large. Use a smaller drawing.');
+      const snapshot = printArtworkSnapshot(editor, selectionOnly, getCommonBounds);
+      captureOutputSelection(editor, snapshot);
+      const requireCurrent = () => {
+        if (!mounted.current || pendingImage.current !== attempt || !snapshot.current(api.current)) throw Error('The drawing changed while preparing the image. Try again from the current drawing.');
+      };
+      if (!save(false)) { pendingImage.current = null; finishOutput(); return; }
+      const blob = await exportToBlob({ elements: snapshot.elements, files: snapshot.files, appState: { ...editor.getAppState(), exportBackground: !transparentImage, viewBackgroundColor: '#ffffff', exportWithDarkMode: false, exportEmbedScene: false }, mimeType: 'image/png', maxWidthOrHeight: 2048 });
+      requireCurrent();
+      if (!blob || !blob.size || blob.size > 8 * 1024 * 1024) throw Error('The image is too large. Use a smaller drawing.');
       const reader = new FileReader();
-      reader.onerror = () => { finishBusy(); if (mounted.current) setStatus('Could not prepare the image.'); };
+      reader.onerror = () => failed(Error('Could not prepare the image. Try again.'));
+      reader.onabort = () => failed(Error('Image preparation stopped. Try again.'));
       reader.onload = () => {
-        if (!mounted.current) return;
-        if (!window.HonorableDrawing?.usePng) { finishBusy(); setStatus('Open this workspace in the Android app to use the image.'); return; }
-        try { window.HonorableDrawing.usePng(String(reader.result)); }
-        catch (failure) { finishBusy(); if (mounted.current) error(failure); }
+        try {
+          requireCurrent();
+          if (typeof reader.result !== 'string') throw Error('Could not read the prepared image. Try again.');
+          if (typeof window.HonorableDrawing?.usePng !== 'function') throw Error('Open this workspace in the Android app to use the image.');
+          // Earlier app versions return undefined; current native code returns false on refused admission.
+          if (window.HonorableDrawing.usePng(reader.result) === false) throw Error('The drawing is not active or another operation is running. Try again when ready.');
+        } catch (failure) { failed(failure); }
       };
       reader.readAsDataURL(blob);
-    } catch (failure) { finishBusy(); if (mounted.current) error(failure); }
+    } catch (failure) { failed(failure); }
   };
   const printArtwork = async (selectionOnly = false) => {
     if (!beginBusy()) return;
