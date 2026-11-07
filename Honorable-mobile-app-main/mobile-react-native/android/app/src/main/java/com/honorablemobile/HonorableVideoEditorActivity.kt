@@ -919,22 +919,24 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun chapterList(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
-        val current=project?:return;val clips=current.segments.toList();val mode=accessMode
-        val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video before copying chapters.";return}
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
-        runCatching{VideoChapters.text(clips)}.onSuccess{text->
-            android.app.AlertDialog.Builder(this).setTitle("Clip chapter list").setMessage(text)
-                .setPositiveButton("Copy list"){_,_->
-                    if(!valid()){status.text="Project or session changed. Reopen the chapter list before copying.";return@setPositiveButton}
-                    runCatching{
-                        val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                            ?: error("Clipboard is unavailable")
+        val review=captureCaptionReview()?:return
+        val clips=project?.segments?.toList()?:return
+        var prepared:String?=runCatching{VideoChapters.text(clips)}.getOrElse{status.text=it.message?:"Chapter list is unavailable.";return}
+        val body=TextView(this).apply{text=prepared;setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12));contentDescription="Edited video chapter list"}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Clip chapter list")
+            .setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setPositiveButton("Copy list"){_,_->
+                val text=prepared?:return@setPositiveButton
+                runCatching{
+                    check(performCaptionClipboardCopy(dialog,review){
+                        val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager?:error("Clipboard is unavailable")
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Video clip chapters",text))
-                    }.onSuccess{status.text="Chapter list copied. Times refer to edited playback."}
-                        .onFailure{status.text="Could not copy the chapter list. Try again."}
-                }.setNegativeButton("Close",null).show()
-        }.onFailure{status.text=it.message?:"Chapter list is unavailable."}
+                    }){"Project or session changed. Reopen the chapter list before copying."}
+                }.onSuccess{status.text="Chapter list copied. Times refer to edited playback."}
+                    .onFailure{status.text="Could not copy the chapter list. Reopen it and try again."}
+            }.setNegativeButton("Close",null).create()
+        showCaptionReview(dialog,review){prepared=null;body.text=""}
     }
 
     private var batchReviewRequest:VideoBatchReview?=null
