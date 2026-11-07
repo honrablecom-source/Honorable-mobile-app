@@ -1,3 +1,9 @@
+## November 7 — Soundtrack excerpt approvals require the current visible pair
+
+**0 new features; 1 soundtrack excerpt approval correctness fix; 0 scaffolding. Source97/500, batch59 unchanged.** Apply excerpt now requires the exact visible tracked editor and confirmation plus the full foreground project/source/range/session/generation snapshot. Dismissed/replaced/cancelled approvals cannot revive after Undo. Commit preserves the audio source, duration and volume, rechecks repeat/recovery limits and keeps one Undo/Redo. A later preview-refresh failure reports the successful edit accurately.
+
+**346 focused host tests pass:8 new +338 retained**, with current Activity/test API34 compilation,15 source-wiring checks and current hashes. [Evidence and limits](SOUNDTRACK_EXCERPT_REVIEW_OWNERSHIP.md); `.context/noble-fast-soundtrack-review/verification.json`. Original before evidence is a source audit. Constructor-free decor/Activity/project tests do not execute Android dialogs/buttons/dismiss/lifecycle, audio preview or device behavior; post-commit wording has source evidence. No full native/APK build, dependencies, upload, benchmark, search/ranking or credit/ledger changes. Broad build remains approximately138 workflows. Peer SVG/package/REA/story and previous note tails remain preserved.
+
 ## November 7 — Caption clipboard approvals belong to a visible review
 
 **0 new features; 1 caption clipboard review correctness fix; 0 scaffolding. Source97/500, batch59 unchanged.** Caption text and readability copies now require the exact tracked visible dialog and a current foreground project/source/range/private-session/generation snapshot. Paused readability entry stops before widgets; dismissed or replaced callbacks cannot copy after project values return through Undo. Both dialogs join pause/destroy invalidation and drop prepared references/displayed text when dismissed. Explicit Copy actions, text/report formats and project history remain unchanged.

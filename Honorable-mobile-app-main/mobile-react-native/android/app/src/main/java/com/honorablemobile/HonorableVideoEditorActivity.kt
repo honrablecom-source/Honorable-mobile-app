@@ -2199,12 +2199,20 @@ class HonorableVideoEditorActivity : Activity() {
     }
     private fun importSoundtrack(){beginMediaPicker(VideoMediaImportKind.SOUNDTRACK)}
 
+    private var soundtrackExcerptEditor:android.app.AlertDialog?=null
+    private var soundtrackExcerptConfirmation:android.app.AlertDialog?=null
+    private fun commitSoundtrackExcerpt(editor:android.app.AlertDialog,confirmation:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,track:VideoSoundtrack,next:VideoSoundtrack):Boolean {
+        if(soundtrackExcerptEditor!==editor||soundtrackExcerptConfirmation!==confirmation||!activeCaptionReviewDialog(editor,review)||!activeCaptionReviewDialog(confirmation,review)||project!==current||current.soundtrack!=track)return false
+        require(next!=track){"Choose a different range or loop setting"}
+        require(next.copy(startMs=track.startMs,endMs=track.endMs,loop=track.loop)==track){"Soundtrack source or mix changed"}
+        VideoTimeline.soundtrackRepeatCount(current.segments,next)
+        VideoDraftCodec.requireRecoverableCaptions(current.segments,!next.loop,next.hasExcerpt)
+        current.setSoundtrack(next);return true
+    }
     private fun soundtrackExcerpt(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments.toList()
         val track=current.soundtrack?:run{status.text="Add music or a voiceover first.";return}
-        val mode=accessMode;val owner=videoLookNamespace()?:return
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==track&&accessMode==mode&&videoLookNamespace()==owner
         val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
         body.addView(TextView(this).apply{text="Choose source-audio seconds, from 0 to ${String.format(java.util.Locale.ROOT,"%.3f",track.durationMs/1000.0)}. The excerpt starts at project time zero. Original clip audio stays attached; this edits no audio file.";setTextColor(Color.DKGRAY)})
         fun field(label:String,value:Long)=EditText(this).apply{hint=label;contentDescription=label;setSingleLine(true);setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;setText(String.format(java.util.Locale.ROOT,"%.3f",value/1000.0));body.addView(this)}
@@ -2213,12 +2221,13 @@ class HonorableVideoEditorActivity : Activity() {
         val to=field("Soundtrack excerpt end, source seconds",track.endMs)
         val loop=android.widget.CheckBox(this).apply{text="Loop this excerpt to fill the video";setTextColor(Color.BLACK);isChecked=track.loop;body.addView(this)}
         body.addView(TextView(this).apply{text="When Loop is off, audio plays once and stops at the excerpt end or video end. Looping supports up to 1,000 repeats. Preview project to check cuts and the mix; speech is not analyzed.";setTextColor(Color.DKGRAY)})
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Soundtrack excerpt").setView(android.widget.ScrollView(this).apply{addView(body)})
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Soundtrack excerpt").setView(android.widget.ScrollView(this).apply{addView(body)})
             .setNegativeButton("Cancel",null).setNeutralButton("Full audio",null).setPositiveButton("Review",null).create()
         dialog.setOnShowListener{
-            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener{from.setText("0.000");to.setText(String.format(java.util.Locale.ROOT,"%.3f",track.durationMs/1000.0))}
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener{if(soundtrackExcerptEditor!==dialog||!activeCaptionReviewDialog(dialog,review))return@setOnClickListener;from.setText("0.000");to.setText(String.format(java.util.Locale.ROOT,"%.3f",track.durationMs/1000.0))}
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-                if(!valid()){dialog.dismiss();return@setOnClickListener}
+                if(soundtrackExcerptEditor!==dialog||!activeCaptionReviewDialog(dialog,review)){dialog.dismiss();return@setOnClickListener}
                 runCatching{
                     track.copy(startMs=VideoCaptions.seconds(from.text.toString()),endMs=VideoCaptions.seconds(to.text.toString()),loop=loop.isChecked).also{
                         require(it!=track){"Choose a different range or loop setting"}
@@ -2226,16 +2235,28 @@ class HonorableVideoEditorActivity : Activity() {
                         VideoDraftCodec.requireRecoverableCaptions(clips,!it.loop,it.hasExcerpt)
                     }
                 }.onSuccess{next->
-                    android.app.AlertDialog.Builder(this).setTitle("Use this soundtrack excerpt?")
+                    soundtrackExcerptConfirmation?.dismiss()
+                    lateinit var confirmation:android.app.AlertDialog
+                    confirmation=android.app.AlertDialog.Builder(this).setTitle("Use this soundtrack excerpt?")
                         .setMessage("${VideoSoundtrackReport.inspect(clips,next).text()}\n\n${VideoCaptions.formatTime(next.startMs)} → ${VideoCaptions.formatTime(next.endMs)} of the original audio, ${if(next.loop)"looping"else "playing once"} from project start. Volume and original clip audio stay unchanged. Undo restores the previous soundtrack range.")
                         .setNegativeButton("Keep editing",null).setPositiveButton("Apply excerpt"){_,_->
-                            if(!valid()){dialog.dismiss();return@setPositiveButton}
-                            runCatching{current.setSoundtrack(next)}.onSuccess{dialog.dismiss();showClip();status.text="Soundtrack excerpt applied. Preview project to check the mix; Undo restores the previous range."}
-                                .onFailure{to.error="This range cannot be saved within project limits."}
-                        }.show()
+                            runCatching{commitSoundtrackExcerpt(dialog,confirmation,review,current,track,next)}.onSuccess appliedResult@{applied->
+                                if(!applied){confirmation.dismiss();return@appliedResult}
+                                dialog.dismiss()
+                                val refreshed=runCatching{showClip()}.isSuccess
+                                status.text=if(refreshed)"Soundtrack excerpt applied. Preview project to check the mix; Undo restores the previous range."else"Soundtrack excerpt applied. Preview could not refresh; reopen preview to check the mix. Undo restores the previous range."
+                            }.onFailure{to.error=it.message?:"This range cannot be saved within project limits."}
+                        }.create()
+                    soundtrackExcerptConfirmation=confirmation
+                    showCaptionReview(confirmation,review){if(soundtrackExcerptConfirmation===confirmation)soundtrackExcerptConfirmation=null}
                 }.onFailure{to.error=it.message?:"Choose a valid audio range"}
             }
-        };dialog.show()
+        }
+        soundtrackExcerptConfirmation?.dismiss();soundtrackExcerptConfirmation=null
+        soundtrackExcerptEditor?.dismiss();soundtrackExcerptEditor=dialog
+        showCaptionReview(dialog,review){
+            if(soundtrackExcerptEditor===dialog){soundtrackExcerptEditor=null;val confirmation=soundtrackExcerptConfirmation;soundtrackExcerptConfirmation=null;confirmation?.dismiss()}
+        }
     }
 
     private fun visualStoryboard(){
