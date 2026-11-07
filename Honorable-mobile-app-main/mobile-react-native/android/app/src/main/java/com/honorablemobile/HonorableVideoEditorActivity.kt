@@ -621,7 +621,7 @@ class HonorableVideoEditorActivity : Activity() {
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
-            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Project" to (listOf(t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
@@ -1050,6 +1050,56 @@ class HonorableVideoEditorActivity : Activity() {
             VideoBatchTool.STORYBOARD_TITLES->textInput("Exactly one nonempty title line for each of the ${snapshot.size} clips. This replaces their current titles.",snapshot.joinToString("\n"){it.title.replace('\n',' ')}){VideoAuthoringTools.storyboardTitles(snapshot,it)}
 
         }
+    }
+
+    private fun commitClipBlockMove(review:VideoCaptionReviewState,plan:VideoClipBlockMove):Boolean {
+        if(!canApplyCaptionReview(review)||!plan.changed)return false
+        plan.apply(requireNotNull(project)){check(canApplyCaptionReview(review)){"Video or session changed. Select the clip group again."}}
+        return true
+    }
+    private fun requestClipBlockMove(){
+        val review=captureCaptionReview()?:return
+        val clips=project?.segments?:return;val clip=clips.getOrNull(selectedClip)?:return
+        if(clips.size<2){status.text="Add or split clips before moving a clip group.";return}
+        if(!::start.isInitialized||!::end.isInitialized)return
+        if(!timelineCaptionRangeMatches(clip,start.progress,end.progress)){status.text="Apply or reset the selected trim before moving a clip group.";return}
+        val chosen=BooleanArray(clips.size)
+        val labels=clips.mapIndexed{i,value->"Clip ${i+1} · source ${sourceNumber(value.sourceId)} · ${VideoCaptions.formatTime(value.startMs)}–${VideoCaptions.formatTime(value.endMs)}${if(value.title.isBlank())""else" · ${value.title}"}"}
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Select clips to move together")
+            .setMultiChoiceItems(labels.toTypedArray(),chosen){d,which,checked->if(!canApplyCaptionReview(review))d.dismiss()else chosen[which]=checked}
+            .setNegativeButton("Keep order",null).setPositiveButton("Choose destination",null).create()
+        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!activeCaptionReviewDialog(dialog,review)){dialog.dismiss();return@setOnClickListener}
+            val selected=clips.indices.filter{chosen[it]}
+            if(selected.size !in 1..VideoClipBlockMove.MAX_SELECTION){status.text="Select 1–200 clips to move as a group.";return@setOnClickListener}
+            dialog.dismiss();chooseClipBlockDestination(review,clips,selected)
+        }};showCaptionReview(dialog,review)
+    }
+    private fun chooseClipBlockDestination(review:VideoCaptionReviewState,clips:List<VideoSegment>,selected:List<Int>){
+        if(!canApplyCaptionReview(review))return
+        val destinations=clips.indices.filter{it !in selected}+clips.size
+        val labels=destinations.map{if(it==clips.size)"At timeline end"else"Before original clip ${it+1}${if(clips[it].title.isBlank())""else" · ${clips[it].title}"}"}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Where should the clip group go?").setItems(labels.toTypedArray()){_,which->
+            if(!activeCaptionReviewDialog(dialog,review))return@setItems
+            runCatching{VideoClipBlockMove.prepare(clips,selected,destinations[which]){check(canApplyCaptionReview(review)){"Video or session changed"}}}
+                .onSuccess{plan->if(!plan.changed)status.text="This destination keeps the current clip order. Nothing changed."else reviewClipBlockMove(review,plan)}
+                .onFailure{status.text=it.message?:"Clip group could not be prepared"}
+        }.setNegativeButton("Keep order",null).create();showCaptionReview(dialog,review)
+    }
+    private fun reviewClipBlockMove(review:VideoCaptionReviewState,plan:VideoClipBlockMove){
+        if(!canApplyCaptionReview(review))return
+        val before=plan.order.getOrNull(plan.insertionIndex-1)?.let{"original clip ${it+1}"}?:"timeline start"
+        val after=plan.order.getOrNull(plan.insertionIndex+plan.selected.size)?.let{"original clip ${it+1}"}?:"timeline end"
+        val order=plan.order.take(16).joinToString(" → "){"${it+1}"};val extra=if(plan.order.size>16)"\nFirst 16 of ${plan.order.size} clips shown; all clips are retained."else""
+        val body=TextView(this).apply{setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12));contentDescription="Clip group move review";text="Move original clips ${plan.selected.joinToString{(it+1).toString()}} together, keeping their relative order. The group will sit between $before and $after.\n\nNew original-clip order: $order$extra\n\nAll ${plan.segments.size} clips stay, with unchanged source ranges, speed, appearance, captions and source audio. Unselected clips keep their relative order. Total playback length stays ${VideoCaptions.formatTime(plan.durationUs/1000)}. The separate soundtrack stays tied to project time and does not move with the group; preview the mix. Originals and saved versions stay unchanged. One Undo restores the previous order."}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Move selected clip group?").setView(ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)}).setNegativeButton("Keep order",null).setPositiveButton("Move group"){_,_->
+            if(!activeCaptionReviewDialog(dialog,review))return@setPositiveButton
+            runCatching{check(commitClipBlockMove(review,plan)){"Video or session changed. Select the clip group again."}}
+                .onSuccess{selectedClip=plan.insertionIndex;val ready=runCatching{showClip();previewProject()}.isSuccess;status.text=if(ready)"Clip group moved. Preview to check cuts and sound; Undo restores order."else"Clip group moved, but preview is unavailable. Undo restores order."}
+                .onFailure{if(workspaceActive)status.text=it.message?:"Clip group was not moved"}
+        }.create();showCaptionReview(dialog,review)
     }
 
     private fun montageOptions() {

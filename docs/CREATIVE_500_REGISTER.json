@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 95,
+  "source_implemented": 96,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 405,
+  "remaining_not_source_complete": 404,
   "features": [
     {
       "id": "C001",
@@ -763,6 +763,14 @@
     {
       "id": "C096",
       "outcome": "Build a reviewed whole-project highlight timeline from explicitly selected visible caption-text matches, preserving ordered source excerpts and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C097",
+      "outcome": "Review and move explicitly selected timeline clips together as a stable block to an original clip boundary with one Undo",
       "status": "implemented-source",
       "local_web_checked": false,
       "full_app_build_checked": false,
