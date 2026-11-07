@@ -1,0 +1,21 @@
+# Beginner drawing finish guide
+
+November 7: **0 new user-facing features; 0 separate fixes; 1 usability improvement; 0 app scaffolding.** Existing save/export outcomes are not recounted. Source 96/500, batch 58 remains unchanged at this checkpoint.
+
+A compact Finish drawing action now opens a purpose-based guide once artwork exists. Four choices explain named designs on this device, an editable project file including hidden objects/photo copies, a flattened visible image through the photo editor, and white-page PDF/printing. Choices route to the existing tools; opening the guide or choosing a task does not itself export/download or start a native image/print operation. Local saved designs are explicitly distinguished from an external backup. All six existing project tools remain reachable. Normal Projects navigation retains its prior behavior.
+
+The entry remains outside the live status region, is disabled during preparation, and is hidden when the stored draft requires recovery. Opening focuses the guide heading; Close/Escape returns focus to its footer trigger. The white/black/neutral cards use existing panel/task animation, including reduced-motion behavior. New footer flex styling is scoped to the app footer so it does not restyle Excalidraw’s own footer. Existing draft/source/privacy and save/export contracts remain.
+
+## Verified checks
+
+All 189 drawing JavaScript tests and 67 required Node tests pass. One actual browser journey starts with an empty canvas, inserts a personalized editable starter, opens the guide, saves a named design, downloads the exact editable scene, renders a real PNG for a synthetic native handoff, and prepares the existing print transfer. It checks no external output/native dispatch from guide routing alone, exact in-session draft preservation, six existing tools, disabled busy actions, toggle/focus/Escape, reduced motion and recovery protection. Four viewport sizes pass: 320×768,390×844,844×390 and320×568. The footer is physically visible, at least 44px tall, and directly tappable at every size; each size also clicks through the editable-file route. Screenshots at 390px overview, 320px and 844×390 and the generated PNG were reviewed.
+
+The retained photo-ownership browser regression also passes against the same bundle: delayed actual bitmap cancellation, duplicate/stale copy handling, legacy chooser, refused-admission cleanup, exact source/replacement and pending-print ownership. Browser runs have zero page/external errors. Native boundaries remain simulated. No new native API/device test run is claimed.
+
+Reload initially failed a byte-equality oracle. Field-level inspection proved the only differences were empty boundElements changing from null to []. The pinned Excalidraw 0.18.1 restore source explicitly uses element.boundElements??[]. The final check allows only that documented normalization and asserts every other field unchanged. Words, geometry, IDs and actual bindings remain identical. In-session and downloaded scenes still require exact bytes. This is an oracle correction, not a new persistence fix or silent broad normalization. The initial selector also matched the renderer footer; it was narrowed to the real Finish action, with failed logs retained.
+
+Evidence: `.context/drawing-finish-guide/verification.json`, current isolated drawing manifest, js.log/node.log, browser-verified.log, photo-browser.log, renderer-normalization.json, field-level reload-diff.json and screenshot/download artifacts. Temporary dependencies were restored from the unchanged lock after confirmed environment loss; app packages/lockfiles were not updated.
+
+## Remaining acceptance
+
+No actual Android WebView/insets/font-scale/keyboard/screen-reader/device behavior, photo-editor launch, final export destination or PDF/service/provider acceptance. No full native/APK build; tracked drawing assets remain deferred to the approximately 138-source-workflow batch. Test the paired current app/assets and the complete finish journey on device at that boundary. Existing search engine/ranking, holdout, credits/server ledger, personal-media upload policy, other chat work and private signing remain untouched. Investor/production readiness is not established by this UI preview.

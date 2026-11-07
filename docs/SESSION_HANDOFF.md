@@ -1,3 +1,7 @@
+## November 7 — Beginner drawing finish guide
+
+**0 new features; 0 separate fixes; 1 usability improvement; 0 app scaffolding. Source 96/500, batch 58 unchanged.** Finish drawing explains and routes the four existing named-design/editable-file/image/PDF outcomes. It preserves drafts, returns keyboard focus, respects busy/recovery state and reduced motion, and keeps controls outside live status. **189 drawing tests,67 Node tests and actual guide/owned-photo browser regressions pass**, including real starter/named save/exact editable download and four viewport taps. Reload differs only by the pinned renderer’s null-to-empty binding-list normalization; every other field stays exact. [Evidence and device limits](DRAWING_FINISH_GUIDE.md). No native/device/full APK acceptance; paired assets remain deferred to approximately138 source workflows.
+
 ## November 7 — Reset video edits requires its current visible approval
 
 **0 new features; 1 reset-approval correctness fix; 0 scaffolding. Source 96/500, batch 58 unchanged.** Reset video edits now captures full project/source URI/duration/session/range/generation state and requires its exact tracked confirmation to still be showing. Cancelled, replaced, paused or stale approvals cannot reset later work or revive after Undo. Normal reset retains the original primary/source catalog, protected subtitle/music history and one Undo/Redo. A later preview-refresh failure now reports that the reset succeeded, rather than presenting it as a failed reset.

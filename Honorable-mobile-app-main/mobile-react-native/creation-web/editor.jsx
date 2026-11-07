@@ -52,7 +52,7 @@ function Editor() {
   const [selectionFile, setSelectionFile] = useState(false);
   const [projectTool, setProjectTool] = useState('saved');
   const projectTaskHeading = useRef(null), previousProjectTool = useRef('saved');
-  const projectViews = { saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', advanced: 'Advanced transfer' };
+  const projectViews = { finish: 'Finish options', saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', advanced: 'Advanced transfer' };
   const printRequest = useRef(0), pendingPrint = useRef(null), svgRequest = useRef(0), pendingSvg = useRef(null), pendingImage = useRef(null), outputSelection = useRef(null);
   const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
   const [preparedProjectFile, setPreparedProjectFile] = useState(null);
@@ -63,7 +63,7 @@ function Editor() {
   const preservedDraft = useRef(restoreError);
   const [hasArtwork, setHasArtwork] = useState(Boolean(restored?.elements?.some(element => !element.isDeleted)));
   const [startDismissed, setStartDismissed] = useState(false);
-  const canvasRegion = useRef(null);
+  const canvasRegion = useRef(null), finishTrigger = useRef(null), finishOpened = useRef(false);
   const [status, setStatus] = useState(restoreError ? 'Saved draft could not be read. It is preserved. Start a new drawing to replace it.' : restored ? 'Local drawing restored.' : 'Draw, add shapes or write text.');
   const [busy, setBusy] = useState(false), [panel, setPanel] = useState(null);
   const [outputUnlocking, setOutputUnlocking] = useState(false);
@@ -100,6 +100,7 @@ function Editor() {
     if (changed && panel === 'projects') projectTaskHeading.current?.focus();
   }, [projectTool, panel]);
   useEffect(() => { if (panel) panelHeading.current?.focus({ preventScroll: true }); }, [panel]);
+  useEffect(() => { if (panel === 'projects' && projectTool === 'finish') projectTaskHeading.current?.focus(); }, [panel, projectTool]);
   const [objects, setObjects] = useState([]), [projects, setProjects] = useState([]);
   const [objectQuery, setObjectQuery] = useState(''), [objectType, setObjectType] = useState('all');
   const [contrastOpen, setContrastOpen] = useState(false), [contrastBackground, setContrastBackground] = useState('#ffffff');
@@ -306,11 +307,14 @@ function Editor() {
   };
   const closePanel = () => {
     if (busyRef.current) return;
-    const trigger = document.querySelector(`[data-panel-trigger="${panel}"]`);
+    const trigger = (finishOpened.current && finishTrigger.current) || document.querySelector(`[data-panel-trigger="${panel}"]`);
+    finishOpened.current = false;
     setPendingOpen(null); setPanel(null);
     trigger?.focus({ preventScroll: true });
   };
   const showPanel = value => {
+    finishOpened.current = false;
+    if (value === 'projects' && projectTool === 'finish') setProjectTool('saved');
     setPendingOpen(null);
     if (panel === value) { setPanel(null); return; }
     if (value === 'objects' || value === 'arrange') setObjects(api.current.getSceneElements());
@@ -858,6 +862,13 @@ function Editor() {
     if (pendingSave || pendingOpen) setStatus('Replacement review dismissed. Your drawing and saved work are unchanged.');
     setPendingOpen(null); setPendingSave(null); setProjectTool(value);
   };
+  const openFinish = () => {
+    if (busyRef.current || !ready || preservedDraft.current) return;
+    if (panel === 'projects' && projectTool === 'finish') { finishOpened.current = true; closePanel(); return; }
+    if (panel !== 'projects') showPanel('projects');
+    if (pendingSave || pendingOpen) setStatus('Replacement review dismissed. Your drawing and saved work are unchanged.');
+    setPendingOpen(null); setPendingSave(null); setProjectTool('finish'); finishOpened.current = true;
+  };
   const foundObjects = panel === 'objects' ? findArtwork(objects, objectQuery, objectType) : [];
   return <main onKeyDownCapture={event => { if (outputUnlocking) { event.preventDefault(); event.stopPropagation(); } }}>
     <header><strong>Noble <span>draw</span></strong><button onClick={() => save()} disabled={busy || !ready}>Save draft</button><button className="primary" onClick={() => useImage()} disabled={busy || !ready}>{busy ? 'Preparing...' : 'Use image'}</button></header>
@@ -912,9 +923,20 @@ function Editor() {
         {pendingOpen && <section className="object-row" aria-label="Review drawing replacement"><h3 ref={openReviewHeading} tabIndex={-1}>Open “{pendingOpen.name}” instead?</h3><p>This replaces your current drawing and its local draft. To keep both, choose Keep current drawing, then save a named design or project file first. Undo restores the previous drawing only during this session.</p><div className="tool-grid"><button disabled={busy} onClick={() => { setPendingOpen(null); projectTaskHeading.current?.focus(); setStatus('Current drawing kept. The project was not opened.'); }}>Keep current drawing</button><button disabled={busy} onClick={() => loadScene(pendingOpen.data, pendingOpen.name, pendingOpen.snapshot)}>Replace current drawing</button></div></section>}
         {pendingSave && <section className="object-row" aria-label="Review saved replacement"><h3 ref={saveReviewHeading} tabIndex={-1}>Replace saved {pendingSave.kind === 'component' ? 'component' : 'composition'} “{pendingSave.savedName}”?</h3><p>The saved version will be replaced. Undo is available in this session until another shelf change; use a different name if you need to keep both versions. Your current drawing stays open.</p><div className="tool-grid"><button disabled={busy} onClick={() => { try { applyShelfSave(pendingSave); } catch (failure) { error(failure); } }}>Replace saved version</button><button disabled={busy} onClick={() => { dismissSaveReview(pendingSave.kind); setStatus('Saved version kept. Your current drawing is unchanged.'); }}>Keep saved version</button></div></section>}
 
-        <div role="group" aria-label="Project tasks" className="tool-grid layout-tools project-tools">{Object.entries(projectViews).map(([value, label]) => <button key={value} aria-pressed={projectTool === value} aria-controls="project-task-view" disabled={busy} onClick={() => chooseProjectView(value)}>{label}</button>)}</div>
+        {projectTool !== 'finish' && <div role="group" aria-label="Project tasks" className="tool-grid layout-tools project-tools">{Object.entries(projectViews).filter(([value]) => value !== 'finish').map(([value, label]) => <button key={value} aria-pressed={projectTool === value} aria-controls="project-task-view" disabled={busy} onClick={() => chooseProjectView(value)}>{label}</button>)}</div>}
         <section id="project-task-view" key={projectTool} className="project-task-view" aria-label={projectViews[projectTool]}>
           <h3 id="project-task-heading" ref={projectTaskHeading} tabIndex={-1}>{projectViews[projectTool]}</h3>
+        {projectTool === 'finish' && <>
+          <p>Your drawing stays editable here. Choose what you want to keep or make next.</p>
+          <div className="finish-choices" aria-label="Ways to finish your drawing">
+            <article><h4>Find it here later</h4><p>Give your design a name in Saved designs on this device. This does not create an external backup file.</p><button disabled={busy} onClick={() => chooseProjectView('saved')}>Save a named design</button></article>
+            <article><h4>Keep an editable copy</h4><p>Save a project file with editable objects, hidden artwork and embedded photo copies. Choose where to keep it.</p><button disabled={busy} onClick={() => chooseProjectView('files')}>Editable project file</button></article>
+            <article><h4>Make an image</h4><p>Turn visible artwork into one image, then use the photo editor for the final export. Hidden objects stay out.</p><button disabled={busy} onClick={() => chooseProjectView('images')}>Image copy options</button></article>
+            <article><h4>Print or save a PDF</h4><p>Fit visible artwork onto a white page. Android lets you choose Save as PDF or a printer.</p><button disabled={busy} onClick={() => chooseProjectView('print')}>Print and PDF options</button></article>
+          </div>
+          <button className="finish-browse" disabled={busy} onClick={() => chooseProjectView('saved')}>Browse all project tools</button>
+        </>}
+
         {projectTool === 'saved' && <>
         <label>Project name<input value={name} maxLength={40} onChange={event => setName(event.target.value)} /></label>
         <button className="primary" data-shelf-save="project" onClick={saveNamed}>Save named composition</button><p>Up to 12 editable projects on this device. Saving an existing name asks you to review replacement first.</p>
@@ -952,7 +974,7 @@ function Editor() {
         </section>
       </>}
     </section>}
-    <footer role="status" aria-live="polite">{status}<small>Local draft on this device. Use image opens the photo editor; export a copy there to keep the PNG.</small></footer>
+    <footer className="drawing-footer"><div className="drawing-status" role="status" aria-live="polite">{status}<small>Local draft on this device. Use image opens the photo editor; export a copy there to keep the PNG.</small></div>{hasArtwork && !preservedDraft.current && <button ref={finishTrigger} className="finish-drawing" disabled={busy || !ready} aria-expanded={panel === 'projects' && projectTool === 'finish'} aria-controls="project-task-view" onClick={openFinish}>Finish drawing</button>}</footer>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<Editor />);
