@@ -47,6 +47,8 @@ class HonorableVideoEditorActivity : Activity() {
     private var titleStyleShelf:VideoTitleStyleShelf?=null
     private var timelineCaptionImport:VideoTimelineCaptionControls?=null
     private var captionSyncControls:VideoCaptionSyncControls?=null
+    private var captionReviewGeneration=0L
+    private var captionReviewDialogs:MutableSet<android.app.AlertDialog>?=null
     private var quietAudioDialog:android.app.AlertDialog?=null
     @Volatile private var guestProjectRequest = 0L
     private lateinit var source: Uri
@@ -1794,19 +1796,49 @@ class HonorableVideoEditorActivity : Activity() {
         },"noble-source-audio-levels").start()
     }
 
+    private fun captureCaptionReview():VideoCaptionReviewState? {
+        if(!canRequestTimelineCaptionImport())return null
+        val namespace=videoLookNamespace()?:return null
+        return VideoCaptionReviewState(closeState(),accessMode,namespace,captionReviewGeneration,sourceUris(),sourceDurations())
+    }
+    private fun canApplyCaptionReview(review:VideoCaptionReviewState):Boolean {
+        if(!canRequestTimelineCaptionImport()||captionReviewGeneration!=review.generation||accessMode!=review.mode||videoLookNamespace()!=review.namespace)return false
+        return review.state.stillMatches(closeState())&&review.sources==sourceUris()&&review.durations==sourceDurations()
+    }
+    private fun invalidateCaptionReviews(){
+        captionReviewGeneration++
+        val old=captionReviewDialogs?.toList().orEmpty();captionReviewDialogs?.clear()
+        old.forEach{runCatching{it.dismiss()}}
+    }
+    private fun showCaptionReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState){
+        if(!canApplyCaptionReview(review)){dialog.dismiss();return}
+        val dialogs=captionReviewDialogs?:linkedSetOf<android.app.AlertDialog>().also{captionReviewDialogs=it}
+        dialogs.add(dialog);dialog.setOnDismissListener{dialogs.remove(dialog)};dialog.show()
+    }
+    private fun commitCaptionReview(review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,cues:List<VideoCaption>):Boolean {
+        if(!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return false
+        current.setCaptions(index,cues);return true
+    }
+    private fun clearCaptionReview(current:VideoEditProject,index:Int,clip:VideoSegment){
+        if(!canRequestTimelineCaptionImport()||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return
+        val review=captureCaptionReview()?:return
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Clear clip captions?").setMessage("Removes ${clip.captions.size} captions from this clip. Undo restores them.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Clear"){_,_->if(commitCaptionReview(review,current,index,clip,emptyList())){showClip();previewProject()}}.create()
+        showCaptionReview(dialog,review)
+    }
+
     private fun captionOptions() {
-        if(!editorIdle()) return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments[index]
         val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline","Synchronize subtitle timing") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
-        android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
+        val dialog=android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
             .setItems(choices.toTypedArray()){_,choice->
-                if(!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip)return@setItems
+                if(!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return@setItems
                 when(choice){
                     0->editCaption(current,index,clip,null)
                     1->importCaptions(current,index,clip)
                     2->exportSubtitles()
-                    3->android.app.AlertDialog.Builder(this).setTitle("Clear clip captions?").setMessage("Removes ${clip.captions.size} captions from this clip. Undo restores them.")
-                        .setNegativeButton("Cancel",null).setPositiveButton("Clear"){_,_->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,emptyList());showClip();previewProject()}}.show()
+                    3->clearCaptionReview(current,index,clip)
                     4->captionReadability()
                     5->findCaptionText()
                     6->copyCaptionText()
@@ -1814,7 +1846,8 @@ class HonorableVideoEditorActivity : Activity() {
                     8->requestCaptionSync()
                     else->editCaption(current,index,clip,choice-9)
                 }
-            }.setNegativeButton("Close",null).show()
+            }.setNegativeButton("Close",null).create()
+        showCaptionReview(dialog,review)
     }
 
     private fun ownsCaptionSync(owner:VideoCaptionSyncControls)=captionSyncControls===owner&&importing&&!saving&&!analyzing&&!draftBusy&&pendingRange==null&&recoveryBytes==null&&!recoveryBlocked&&!recoveryChecking&&!isDestroyed&&!isFinishing
@@ -1959,7 +1992,8 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun editCaption(current:VideoEditProject,index:Int,clip:VideoSegment,cueIndex:Int?,canApply:()->Boolean={true}) {
-        if(!canApply())return
+        if(!canApply()||!canRequestTimelineCaptionImport()||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip||cueIndex!=null&&cueIndex !in clip.captions.indices)return
+        val review=captureCaptionReview()?:return
         val cue=cueIndex?.let{clip.captions[it]}
         val from=cue?.startMs ?: runCatching{splitPosition()}.getOrDefault(clip.startMs).coerceIn(clip.startMs,clip.endMs-1)
         val to=cue?.endMs ?: minOf(from+3000,clip.endMs)
@@ -1970,17 +2004,17 @@ class HonorableVideoEditorActivity : Activity() {
         val text=EditText(this).apply{hint="Caption text";contentDescription="Caption text";setText(cue?.text.orEmpty());maxLines=3;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(240))}
         body.addView(text)
         val builder=android.app.AlertDialog.Builder(this).setTitle(if(cue==null)"Add caption" else "Edit caption").setView(body).setNegativeButton("Cancel",null).setPositiveButton("Apply",null)
-        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(canApply()&&editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setCaptions(index,clip.captions.filterIndexed{i,_->i!=cueIndex});showClip();previewProject()}}
+        if(cueIndex!=null)builder.setNeutralButton("Delete"){_,_->if(canApply()&&commitCaptionReview(review,current,index,clip,clip.captions.filterIndexed{i,_->i!=cueIndex})){showClip();previewProject()}}
         val dialog=builder.create()
         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!canApply()||!editorIdle()||project!==current||selectedClip!=index||current.segments[index]!=clip){dialog.dismiss();return@setOnClickListener}
+            if(!canApply()||!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip){dialog.dismiss();return@setOnClickListener}
             runCatching{
                 val next=VideoCaption(VideoCaptions.seconds(a.text.toString()),VideoCaptions.seconds(b.text.toString()),text.text.toString().trim())
                 val cues=clip.captions.toMutableList().apply{if(cueIndex==null)add(next)else set(cueIndex,next)}.sortedBy{it.startMs}
-                current.setCaptions(index,cues)
+                check(commitCaptionReview(review,current,index,clip,cues)){"Video or session changed. Reopen captions before editing."}
             }.onSuccess{dialog.dismiss();showClip();previewProject();status.text="Captions updated. Preview the project before exporting."}.onFailure{text.error=it.message?:"Check caption timing and text"}
         }}
-        dialog.show()
+        showCaptionReview(dialog,review)
     }
 
     private fun importCaptions(current:VideoEditProject,index:Int,clip:VideoSegment) {
@@ -2478,9 +2512,9 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onBackPressed(){requestClose()}
 
     override fun onResume(){super.onResume();workspaceActive=true;timelineCaptionImport?.resume();previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
-    override fun onPause() { captionSyncControls?.close();timelineCaptionImport?.onPause();versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { invalidateCaptionReviews();captionSyncControls?.close();timelineCaptionImport?.onPause();versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
-        captionSyncControls?.close();captionSyncControls=null;timelineCaptionImport?.close();timelineCaptionImport=null
+        invalidateCaptionReviews();captionSyncControls?.close();captionSyncControls=null;timelineCaptionImport?.close();timelineCaptionImport=null
         versionShelf?.close();versionShelf=null
         runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null
         mediaImportTarget?.let{finishMediaImportTarget(it)}
