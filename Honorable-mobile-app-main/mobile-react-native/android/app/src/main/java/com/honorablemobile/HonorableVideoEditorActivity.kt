@@ -937,17 +937,47 @@ class HonorableVideoEditorActivity : Activity() {
         }.onFailure{status.text=it.message?:"Chapter list is unavailable."}
     }
 
+    private var batchReviewRequest:VideoBatchReview?=null
+    private var batchReviewDialog:android.app.AlertDialog?=null
+    private fun canUseBatchStage(dialog:android.app.AlertDialog,request:VideoBatchReview,review:VideoCaptionReviewState)=
+        batchReviewRequest===request&&batchReviewDialog===dialog&&request.owns(dialog)&&activeCaptionReviewDialog(dialog,review)
+    private fun showBatchStage(dialog:android.app.AlertDialog,request:VideoBatchReview,review:VideoCaptionReviewState,onDismiss:()->Unit={}):Boolean {
+        if(batchReviewRequest!==request||!canApplyCaptionReview(review)||!request.open(dialog)){request.close();onDismiss();dialog.dismiss();return false}
+        val previous=batchReviewDialog;batchReviewDialog=dialog
+        showCaptionReview(dialog,review){
+            request.dismiss(dialog)
+            if(batchReviewRequest===request&&request.isClosed)batchReviewRequest=null
+            if(batchReviewDialog===dialog)batchReviewDialog=null
+            onDismiss()
+        }
+        if(previous!==dialog)previous?.dismiss()
+        return !request.isClosed
+    }
+    private fun commitBatchReview(dialog:android.app.AlertDialog,request:VideoBatchReview,review:VideoCaptionReviewState):Boolean {
+        if(!canUseBatchStage(dialog,request,review)){
+            if(batchReviewRequest===request&&batchReviewDialog===dialog&&request.owns(dialog))request.close()
+            return false
+        }
+        return request.apply(dialog,requireNotNull(project)){
+            check(batchReviewRequest===request&&batchReviewDialog===dialog&&activeCaptionReviewDialog(dialog,review)){"Project or session changed. Open the batch tool again."}
+        }
+    }
     private fun batchOptions(){
-        if(!editorIdle())return
+        val review=captureCaptionReview()?:return
         val tools=VideoBatchTool.values()
-        android.app.AlertDialog.Builder(this).setTitle("Batch editing").setItems(tools.map{it.title}.toTypedArray()){_,index->batchEdit(tools[index])}.setNegativeButton("Cancel",null).show()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Batch editing").setItems(tools.map{it.title}.toTypedArray()){_,index->
+            if(activeCaptionReviewDialog(dialog,review))batchEdit(tools[index])
+        }.setNegativeButton("Cancel",null).create()
+        showCaptionReview(dialog,review)
     }
 
     private fun batchEdit(kind:VideoBatchTool){
-        if(!editorIdle()||isDestroyed||isFinishing)return
-        val current=project?:return;val snapshot=current.segments;val music=current.soundtrack;val index=selectedClip;val mode=accessMode
-        val owner=if(mode==EditorAccessMode.ACCOUNT)runCatching{VideoDraftPersistence(this,source.toString())}.getOrElse{status.text="Account changed. Reopen this video.";return}else null
-        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==snapshot&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&runCatching{owner?.requireCurrentOwner()}.isSuccess
+        val captured=captureCaptionReview()?:return
+        val current=project?:return;val snapshot=current.segments;val music=current.soundtrack;val index=selectedClip
+        batchReviewRequest?.close();batchReviewDialog?.dismiss()
+        val request=VideoBatchReview(snapshot,music);batchReviewRequest=request
+        fun valid()=batchReviewRequest===request&&!request.isClosed&&canApplyCaptionReview(captured)
         fun review(proposal:()->List<VideoSegment>){
             if(!valid())return
             val proposed=runCatching(proposal).getOrElse{status.text=it.message?:"This batch could not be prepared.";return}
@@ -980,27 +1010,40 @@ class HonorableVideoEditorActivity : Activity() {
                 VideoBatchTool.STORYBOARD_TITLES->"Replaces clip titles using one pasted line per clip. Titles remain editable and follow the existing preview/export renderer."
 
             }
-            android.app.AlertDialog.Builder(this).setTitle("Review ${kind.title.lowercase()}")
+            lateinit var dialog:android.app.AlertDialog
+            dialog=android.app.AlertDialog.Builder(this).setTitle("Review ${kind.title.lowercase()}")
                 .setMessage("$explanation\n\n${snapshot.size} → ${proposed.size} clips · $duration seconds. Existing source files are unchanged. Apply as one undoable edit, then preview before export.")
                 .setNegativeButton("Cancel",null).setPositiveButton("Apply and preview"){_,_->
-                    if(!valid()){status.text="Project or session changed. Open the batch tool again.";return@setPositiveButton}
-                    runCatching{current.applyDraft(proposed,soundtrack=music)}
-                        .onSuccess{selectedClip=if(kind in setOf(VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES,VideoBatchTool.CAPTION_HOLDS,VideoBatchTool.CAPTION_CASE,VideoBatchTool.CAPTION_REPLACE))index else 0;showClip();previewProject();status.text="${kind.title} applied. Undo restores the previous project."}
-                        .onFailure{status.text=it.message?:"Project limits reached. Existing edits are unchanged."}
-                }.show()
+                    runCatching{commitBatchReview(dialog,request,captured)}
+                        .onSuccess{applied->
+                            if(!applied)return@onSuccess
+                            selectedClip=if(kind in setOf(VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES,VideoBatchTool.CAPTION_HOLDS,VideoBatchTool.CAPTION_CASE,VideoBatchTool.CAPTION_REPLACE))index else 0
+                            val refreshed=runCatching{showClip();previewProject()}.isSuccess
+                            status.text=if(refreshed)"${kind.title} applied. Undo restores the previous project."else"${kind.title} applied. Preview is unavailable; Undo restores the previous project."
+                        }.onFailure{status.text=it.message?:"Project limits reached. Existing edits are unchanged."}
+                }.create()
+            if(showBatchStage(dialog,request,captured))runCatching{check(request.propose(dialog,proposed))}.onFailure{
+                request.close();dialog.dismiss();status.text=it.message?:"This batch could not be prepared. Existing edits are unchanged."
+            }
         }
-        fun options(labels:Array<String>,choose:(Int)->List<VideoSegment>){android.app.AlertDialog.Builder(this).setTitle(kind.title).setItems(labels){_,i->review{choose(i)}}.setNegativeButton("Cancel",null).show()}
+        fun options(labels:Array<String>,choose:(Int)->List<VideoSegment>){
+            lateinit var dialog:android.app.AlertDialog
+            dialog=android.app.AlertDialog.Builder(this).setTitle(kind.title).setItems(labels){_,i->
+                if(canUseBatchStage(dialog,request,captured))review{choose(i)}
+            }.setNegativeButton("Cancel",null).create()
+            showBatchStage(dialog,request,captured)
+        }
         fun textInput(hint:String,initial:String,choose:(String)->List<VideoSegment>){
             val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
             panel.addView(TextView(this).apply{text=hint;setTextColor(Color.BLACK)})
             val field=EditText(this).apply{setText(initial);setTextColor(Color.BLACK);minLines=3;maxLines=8;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(16000));contentDescription=kind.title};panel.addView(field)
             val dialog=android.app.AlertDialog.Builder(this).setTitle(kind.title).setView(panel).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
             dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-                if(!valid()){dialog.dismiss();return@setOnClickListener}
+                if(!canUseBatchStage(dialog,request,captured)){dialog.dismiss();return@setOnClickListener}
                 val proposed=runCatching{choose(field.text.toString())}
                 if(proposed.isFailure){field.error=proposed.exceptionOrNull()?.message?:"Check these values";return@setOnClickListener}
-                dialog.dismiss();review{proposed.getOrThrow()}
-            }};dialog.show()
+                review{proposed.getOrThrow()}
+            }};showBatchStage(dialog,request,captured){field.text?.clear()}
         }
 
         when(kind){
@@ -1018,11 +1061,11 @@ class HonorableVideoEditorActivity : Activity() {
                 val matchCase=android.widget.CheckBox(this).apply{text="Match case";isChecked=true;setTextColor(Color.BLACK);panel.addView(this)}
                 val dialog=android.app.AlertDialog.Builder(this).setTitle(kind.title).setView(android.widget.ScrollView(this).apply{addView(panel)}).setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
                 dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-                    if(!valid()){dialog.dismiss();return@setOnClickListener}
+                    if(!canUseBatchStage(dialog,request,captured)){dialog.dismiss();return@setOnClickListener}
                     val proposal=runCatching{VideoCaptionReplace.propose(snapshot,find.text.toString(),replacement.text.toString(),if(all.isChecked)null else index,!matchCase.isChecked)}
                     if(proposal.isFailure){find.error=proposal.exceptionOrNull()?.message?:"Check this replacement";return@setOnClickListener}
-                    dialog.dismiss();review{proposal.getOrThrow()}
-                }};dialog.show()
+                    review{proposal.getOrThrow()}
+                }};showBatchStage(dialog,request,captured){find.text?.clear();replacement.text?.clear()}
             }
             VideoBatchTool.DIVIDE->{val values=listOf(2,3,4,5,10);options(values.map{"$it pieces"}.toTypedArray()){VideoBatchTools.divide(snapshot,index,values[it])}}
             VideoBatchTool.LIMIT->{val values=listOf(1_000L,2_000L,3_000L,5_000L,10_000L);options(values.map{"${it/1000} seconds per clip"}.toTypedArray()){VideoBatchTools.limitLengths(snapshot,values[it])}}
@@ -1043,9 +1086,12 @@ class HonorableVideoEditorActivity : Activity() {
             }
             VideoBatchTool.CAPTION_CUT->{val values=listOf(0L,150L,300L,500L,1000L);options(values.map{"$it ms source-time handles"}.toTypedArray()){VideoAuthoringTools.captionCut(snapshot,index,values[it])}}
             VideoBatchTool.BEAT_GRID->{val tempos=listOf(60,90,120,150,180)
-                android.app.AlertDialog.Builder(this).setTitle("Manual tempo").setItems(tempos.map{"$it BPM"}.toTypedArray()){_,tempo->
+                lateinit var dialog:android.app.AlertDialog
+                dialog=android.app.AlertDialog.Builder(this).setTitle("Manual tempo").setItems(tempos.map{"$it BPM"}.toTypedArray()){_,tempo->
+                    if(!canUseBatchStage(dialog,request,captured))return@setItems
                     val beats=listOf(1,2,4);options(beats.map{"$it beat(s) per cut"}.toTypedArray()){VideoAuthoringTools.beatGrid(snapshot,tempos[tempo],beats[it])}
-                }.setNegativeButton("Cancel",null).show()
+                }.setNegativeButton("Cancel",null).create()
+                showBatchStage(dialog,request,captured)
             }
             VideoBatchTool.SPEED_RAMP->options(arrayOf("Accelerate: 0.5x → 2x","Decelerate: 2x → 0.5x")){VideoAuthoringTools.speedRamp(snapshot,index,it==0)}
             VideoBatchTool.INTERLEAVE->review{VideoAuthoringTools.interleaveSources(snapshot)}
@@ -1894,6 +1940,7 @@ class HonorableVideoEditorActivity : Activity() {
         return review.state.stillMatches(closeState())&&review.sources==sourceUris()&&review.durations==sourceDurations()
     }
     private fun invalidateCaptionReviews(){
+        batchReviewRequest?.close();batchReviewRequest=null;batchReviewDialog=null
         captionReviewGeneration++
         val old=captionReviewDialogs?.toList().orEmpty();captionReviewDialogs?.clear()
         old.forEach{runCatching{it.dismiss()}}
