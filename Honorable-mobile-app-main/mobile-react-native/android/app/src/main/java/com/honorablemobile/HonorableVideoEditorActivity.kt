@@ -79,7 +79,12 @@ class HonorableVideoEditorActivity : Activity() {
     private var draftBusy = false
     private val draftWorker = Executors.newSingleThreadExecutor()
     private var pendingRange: Pair<Long, Long>? = null
-    private var pendingSegments: List<VideoSegment>? = null
+    private var videoSaveRequest:VideoSaveRequest?=null
+    private var nextVideoSaveCode=VideoSaveRequest.FIRST_CODE
+    private var videoSaveNotice:Pair<VideoSaveRequest,String>?=null
+    private var interruptedVideoSave=false
+    private var interruptedVideoSaveCode:Int?=null
+    private var restoreVideoSaveControls=false
     private var pendingSubtitleBytes: ByteArray? = null
     private var pendingSubtitleOriginals: Set<Uri>? = null
     private var project: VideoEditProject? = null
@@ -109,6 +114,7 @@ class HonorableVideoEditorActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        restoreVideoSaveState(savedInstanceState)
         accessMode = runCatching { EditorAccessMode.fromExtra(intent.getStringExtra(EditorAccessMode.EXTRA)) }.getOrElse { finish(); return }
         val restoreMode=savedInstanceState?.getString(EditorAccessMode.EXTRA)
         val sameMode=restoreMode==accessMode.name||(restoreMode==null&&accessMode==EditorAccessMode.ACCOUNT)
@@ -539,6 +545,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(timecode.text.toString()!=text)timecode.text=text
     }
     private fun updateWorkspace(){
+        flushVideoSaveNotice();syncVideoSaveControls()
         val clips=project?.segments?:return
         val player=previewPlayer
         val playing=player?.isPlaying==true
@@ -1476,33 +1483,83 @@ class HonorableVideoEditorActivity : Activity() {
         }.onFailure{saving=false;audioExporter=null;start.isEnabled=true;end.isEnabled=true;status.text="Audio export could not start: ${it.message}"}
     }
 
-    private fun saveCopy() {
-        if (saving || analyzing || draftBusy || importing || pendingRange != null || durationMs <= 0) return
-        val current = project?.segments?.getOrNull(selectedClip) ?: return
-        val from = maxOf(start.progress * 1000L, current.startMs)
-        val to = minOf(end.progress * 1000L, current.endMs)
-        if (to <= from) { status.text = "End must be after start"; return }
-        pendingSegments = runCatching{VideoExportSnapshot.clips(requireNotNull(project).segments,selectedClip,from,to)}
-            .getOrElse{status.text=it.message?:"Choose a valid video range";return}
-        pendingRange = from to to
-        start.isEnabled = false; end.isEnabled = false
-        try {
-            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "video/mp4"
-                putExtra(Intent.EXTRA_TITLE, "Noble-video-copy.mp4")
-            }, 22)
-        } catch (error: Exception) {
-            pendingRange = null
-            pendingSegments = null
-            start.isEnabled = true; end.isEnabled = true
-            status.text = "No app is available to save a copy"
+    private fun restoreVideoSaveState(state:Bundle?){
+        nextVideoSaveCode=(state?.getInt("nextVideoSaveCode",VideoSaveRequest.FIRST_CODE)?:VideoSaveRequest.FIRST_CODE).coerceIn(VideoSaveRequest.FIRST_CODE,VideoSaveRequest.LAST_CODE+1)
+        interruptedVideoSave=state?.getBoolean("videoSaveHadDestination",false)==true
+        interruptedVideoSaveCode=if(interruptedVideoSave)null else state?.getInt("videoSaveRequestCode",-1)?.takeIf{VideoSaveRequest.ownsCode(it)}
+    }
+    private fun writeVideoSaveState(state:Bundle){
+        state.putInt("nextVideoSaveCode",nextVideoSaveCode)
+        state.putInt("videoSaveRequestCode",videoSaveRequest?.requestCode?:-1)
+        state.putBoolean("videoSaveHadDestination",videoSaveRequest?.let{it.isReady||it.isWriting}==true)
+    }
+    private fun allocateVideoSaveCode():Int {val code=nextVideoSaveCode;require(VideoSaveRequest.ownsCode(code)){"Reopen this editor before exporting again."};nextVideoSaveCode=code+1;return code}
+    private fun syncVideoSaveControls(){
+        if(!restoreVideoSaveControls||!workspaceActive||isDestroyed||isFinishing||!editorIdle())return
+        if(::start.isInitialized)start.isEnabled=true;if(::end.isInitialized)end.isEnabled=true;restoreVideoSaveControls=false
+    }
+    private fun releaseVideoSave(request:VideoSaveRequest):Boolean {
+        val writing=request.isWriting;request.close()
+        if(videoSaveRequest!==request)return false
+        videoSaveRequest=null;pendingRange=null
+        if(writing){saving=false;exporter=null}
+        restoreVideoSaveControls=true;syncVideoSaveControls();return true
+    }
+    private fun flushVideoSaveNotice(){
+        if(!workspaceActive||!editorIdle()||!::status.isInitialized||isDestroyed||isFinishing||captionReviewDialogs?.isNotEmpty()==true)return
+        if(interruptedVideoSave){interruptedVideoSave=false;status.text="Video export was interrupted. Export again; check Files for an empty or partial copy."}
+        val notice=videoSaveNotice?:return;videoSaveNotice=null
+        if(accessMode==notice.first.mode&&videoLookNamespace()==notice.first.namespace)status.text=notice.second
+    }
+    private fun notifyVideoSave(request:VideoSaveRequest,message:String){videoSaveNotice=request to message;flushVideoSaveNotice()}
+    private fun canDispatchVideoSave(request:VideoSaveRequest):Boolean {
+        if(videoSaveRequest!==request||!request.isReady||!workspaceActive||isDestroyed||isFinishing||saving||analyzing||draftBusy||importing||pendingRange==null||recoveryBytes!=null||recoveryBlocked||recoveryChecking||!::source.isInitialized)return false
+        return request.matches(closeState(),accessMode,videoLookNamespace(),sourceUris(),sourceDurations(),importedSources)
+    }
+    private fun acceptVideoSaveResult(code:Int,resultCode:Int,data:Intent?){
+        val request=videoSaveRequest
+        if(request==null){if(code==interruptedVideoSaveCode){interruptedVideoSaveCode=null;if(resultCode==RESULT_OK){interruptedVideoSave=true;flushVideoSaveNotice()}};return}
+        if(!request.accept(code,resultCode==RESULT_OK,data?.data))return
+        if(request.isClosed){if(releaseVideoSave(request))notifyVideoSave(request,"Video save cancelled or destination unavailable. Current edits are unchanged.");return}
+        resumeVideoSave()
+    }
+    private fun resumeVideoSave(){
+        val request=videoSaveRequest?:return
+        if(!request.isReady||!workspaceActive)return
+        if(!canDispatchVideoSave(request)){if(releaseVideoSave(request))notifyVideoSave(request,"Video or session changed. Export again; check Files for an empty destination.");return}
+        val destination=request.beginWriting()?:return
+        saving=true;videoSaveNotice=null
+        if(::start.isInitialized)start.isEnabled=false;if(::end.isInitialized)end.isEnabled=false
+        if(::status.isInitialized)status.text="Saving copy…"
+        val writer=runCatching{VideoCompositionExporter(this)}.getOrElse{if(releaseVideoSave(request))notifyVideoSave(request,"Export could not start: ${it.message?:"Try again"}");return};exporter=writer
+        fun complete(result:Result<Unit>){
+            if(videoSaveRequest!==request)return
+            if(releaseVideoSave(request))notifyVideoSave(request,result.fold({"Copy saved. Original preserved. Check playback and audio."},{"Export failed: ${it.message?:"Unknown error"}. Check Files for a partial copy."}))
         }
+        runCatching{writer.export(request.sources,destination,request.clips,request.durations,request.music,::complete)}
+            .onFailure{complete(Result.failure(it))}
+    }
+    private fun saveCopy() {
+        if(!canRequestTimelineCaptionImport()||durationMs<=0||!::start.isInitialized||!::end.isInitialized)return
+        val current=project?:return;val clip=current.segments.getOrNull(selectedClip)?:return
+        val from=maxOf(start.progress*1000L,clip.startMs);val to=minOf(end.progress*1000L,clip.endMs)
+        if(to<=from){status.text="End must be after start";return}
+        val clips=runCatching{VideoExportSnapshot.clips(current.segments,selectedClip,from,to)}.getOrElse{status.text=it.message?:"Choose a valid video range";return}
+        val namespace=videoLookNamespace()?:return
+        val code=runCatching{allocateVideoSaveCode()}.getOrElse{status.text=it.message;return}
+        pendingRange=from to to
+        val request=runCatching{VideoSaveRequest(code,closeState(),accessMode,namespace,clips,current.soundtrack,sourceUris(),sourceDurations(),importedSources)}.getOrElse{pendingRange=null;status.text="Video export could not be prepared. Current edits were kept.";return}
+        videoSaveRequest=request;videoSaveNotice=null;interruptedVideoSave=false;interruptedVideoSaveCode=null
+        start.isEnabled=false;end.isEnabled=false
+        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="video/mp4";putExtra(Intent.EXTRA_TITLE,"Noble-video-copy.mp4")},code)}
+        catch(_:Exception){if(releaseVideoSave(request))notifyVideoSave(request,"No app is available to save a copy. Current edits were kept.")}
     }
 
     @Deprecated("Uses the system document picker callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if(videoSaveRequest!=null&&!allowsMediaImportResult(requestCode))return
+        if(VideoSaveRequest.ownsCode(requestCode)){acceptVideoSaveResult(requestCode,resultCode,data);return}
         // Older picker results must not release busy/recovery state owned by this import.
         if((timelineCaptionImport!=null||captionSyncControls!=null)&&!allowsMediaImportResult(requestCode))return
         if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE||requestCode==VideoTimelineCaptionControls.SOURCE_REQUEST_CODE){timelineCaptionImport?.takeIf{it.requestCode==requestCode}?.accept(resultCode,data);return}
@@ -1512,39 +1569,8 @@ class HonorableVideoEditorActivity : Activity() {
         if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
         if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
         if(requestCode == 23) { finishImport(resultCode, data); return }
-        if (requestCode != 22) return
-        val range = pendingRange
-        val clips = pendingSegments
-        pendingRange = null
-        pendingSegments = null
-        start.isEnabled = true; end.isEnabled = true
-        if (saving || isFinishing || isDestroyed) return
-        if (resultCode != RESULT_OK || data?.data == null) {
-            if(range!=null && clips!=null)status.text="Video save cancelled. Current edits are unchanged."
-            return
-        }
-        if(range==null || clips==null){status.text="Video save was interrupted. Choose Export again. Check Files for an empty or partial copy.";return}
-        val destination = data.data!!
-        saving = true
-        start.isEnabled = false; end.isEnabled = false
-        status.text = "Saving copy..."
-        exporter = VideoCompositionExporter(this)
-        runCatching {
-            exporter!!.export(sourceUris(), destination, clips, sourceDurations(), project?.soundtrack) { result ->
-                saving = false
-                exporter = null
-                if (isDestroyed || isFinishing) return@export
-                start.isEnabled = true; end.isEnabled = true
-                status.text = result.fold(
-                    onSuccess = { "Copy saved. Original preserved. Check playback and audio." },
-                    onFailure = { "Export failed: ${it.message ?: "Unknown error"}. Check Files for a partial copy." },
-                )
-            }
-        }.onFailure {
-            saving = false; exporter = null
-            start.isEnabled = true; end.isEnabled = true
-            status.text = "Export could not start: ${it.message ?: "Unknown error"}"
-        }
+        // Legacy code22 has no immutable request after recreation; never start an unbound export.
+        if(requestCode==22)return
     }
 
     private enum class GuestProjectAction { SAVE, RESTORE, DELETE, DELETE_ALL }
@@ -2391,6 +2417,7 @@ class HonorableVideoEditorActivity : Activity() {
         }catch(_:Exception){finishMediaImportTarget(target);status.text="No document picker is available. Current edits were kept."}
     }
     private fun allowsMediaImportResult(requestCode:Int):Boolean {
+        videoSaveRequest?.let{return requestCode !in 22..29&&!VideoSaveRequest.ownsCode(requestCode)||requestCode==it.requestCode}
         if(captionSyncControls!=null)return requestCode !in 22..29
         timelineCaptionImport?.let{return requestCode !in 22..29||requestCode==it.requestCode}
         return mediaImportTarget?.let{requestCode !in 22..28||requestCode==it.kind.requestCode}?:true
@@ -2465,6 +2492,7 @@ class HonorableVideoEditorActivity : Activity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        writeVideoSaveState(outState)
         outState.putString(EditorAccessMode.EXTRA,accessMode.name)
         recoveryStateBytes()?.let { outState.putByteArray("multiSourceProject", it) }
         if (::start.isInitialized) runCatching{outState.putInt("startProgress", start.progress)}
@@ -2561,7 +2589,8 @@ class HonorableVideoEditorActivity : Activity() {
     private fun holdRecoveryResult(requestCode:Int):Boolean {
         if(recoveryBytes==null||requestCode !in 22..28)return false
         mediaImportTarget?.let{finishMediaImportTarget(it)}
-        pendingRange=null;pendingSegments=null;pendingAudio=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
+        videoSaveRequest?.let{releaseVideoSave(it)}
+        pendingRange=null;pendingAudio=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
         voiceoverTarget=null;importing=false
         if(::status.isInitialized)status.text="Finish session recovery before importing or saving again. Check Files for an empty or partial copy."
         return true
@@ -2620,7 +2649,7 @@ class HonorableVideoEditorActivity : Activity() {
     @Deprecated("Legacy Back path for Android versions before the platform callback API")
     override fun onBackPressed(){requestClose()}
 
-    override fun onResume(){super.onResume();workspaceActive=true;timelineCaptionImport?.resume();previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
+    override fun onResume(){super.onResume();workspaceActive=true;resumeVideoSave();syncVideoSaveControls();flushVideoSaveNotice();timelineCaptionImport?.resume();previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
     override fun onPause() { invalidateCaptionReviews();captionSyncControls?.close();timelineCaptionImport?.onPause();versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
         invalidateCaptionReviews();captionSyncControls?.close();captionSyncControls=null;timelineCaptionImport?.close();timelineCaptionImport=null
@@ -2641,6 +2670,7 @@ class HonorableVideoEditorActivity : Activity() {
         stopProjectPreview()
         analysisCancellation.set(true)
         draftWorker.shutdownNow()
+        videoSaveRequest?.close();videoSaveRequest=null;videoSaveNotice=null
         exportCancellation.cancel()
         exporter?.cancel()
         audioExporter?.cancel()
