@@ -7,10 +7,16 @@ import java.util.Collections
 /** One destination picker and one immutable render request. No provider or media I/O. */
 internal class VideoSaveRequest(val requestCode:Int,val state:VideoCloseState,val mode:EditorAccessMode,val namespace:String,
     clips:List<VideoSegment>,val music:VideoSoundtrack?,sources:Map<String,Uri>,durations:Map<String,Long>,catalog:Map<String,VideoSource>){
-    enum class Kind(val mime:String,val filename:String){VIDEO("video/mp4","Noble-video-copy.mp4"),AUDIO("audio/mp4","Noble-audio-copy.m4a")}
+    enum class Kind(val mime:String,val filename:String){VIDEO("video/mp4","Noble-video-copy.mp4"),AUDIO("audio/mp4","Noble-audio-copy.m4a"),SUBTITLES("application/x-subrip","Noble-captions-copy.srt")}
     var kind:Kind=Kind.VIDEO
         private set
-    constructor(requestCode:Int,state:VideoCloseState,mode:EditorAccessMode,namespace:String,clips:List<VideoSegment>,music:VideoSoundtrack?,sources:Map<String,Uri>,durations:Map<String,Long>,catalog:Map<String,VideoSource>,kind:Kind):this(requestCode,state,mode,namespace,clips,music,sources,durations,catalog){this.kind=kind}
+    constructor(requestCode:Int,state:VideoCloseState,mode:EditorAccessMode,namespace:String,clips:List<VideoSegment>,music:VideoSoundtrack?,sources:Map<String,Uri>,durations:Map<String,Long>,catalog:Map<String,VideoSource>,kind:Kind):this(requestCode,state,mode,namespace,clips,music,sources,durations,catalog){require(kind!=Kind.SUBTITLES){"Subtitle copies need captured data"};this.kind=kind}
+    private var subtitlePayload:ByteArray?=null
+    constructor(requestCode:Int,state:VideoCloseState,mode:EditorAccessMode,namespace:String,clips:List<VideoSegment>,music:VideoSoundtrack?,sources:Map<String,Uri>,durations:Map<String,Long>,catalog:Map<String,VideoSource>,bytes:ByteArray):this(requestCode,state,mode,namespace,clips,music,sources,durations,catalog){
+        require(bytes.size in 1..VideoCaptions.MAX_SRT_BYTES){"Subtitle copy exceeds the existing data limit"}
+        kind=Kind.SUBTITLES;subtitlePayload=bytes.copyOf()
+    }
+    fun subtitleBytes():ByteArray=requireNotNull(subtitlePayload){"No captured subtitle data"}.copyOf()
     val clips:List<VideoSegment> = Collections.unmodifiableList(clips.map{it.copy(captions=Collections.unmodifiableList(it.captions.toList()))})
     val sources:Map<String,Uri> = Collections.unmodifiableMap(sources.toMap())
     val durations:Map<String,Long> = Collections.unmodifiableMap(durations.toMap())

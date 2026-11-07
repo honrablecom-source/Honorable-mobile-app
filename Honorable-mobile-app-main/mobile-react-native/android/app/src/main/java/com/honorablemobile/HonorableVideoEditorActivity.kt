@@ -85,8 +85,6 @@ class HonorableVideoEditorActivity : Activity() {
     private var interruptedVideoSave=false
     private var interruptedVideoSaveCode:Int?=null
     private var restoreVideoSaveControls=false
-    private var pendingSubtitleBytes: ByteArray? = null
-    private var pendingSubtitleOriginals: Set<Uri>? = null
     private var project: VideoEditProject? = null
     private var selectedClip = 0
     private lateinit var timeline: VideoFilmstripView
@@ -1490,7 +1488,7 @@ class HonorableVideoEditorActivity : Activity() {
         val writing=request.isWriting;request.close()
         if(videoSaveRequest!==request)return false
         videoSaveRequest=null;pendingRange=null
-        if(writing){saving=false;if(request.kind==VideoSaveRequest.Kind.AUDIO)audioExporter=null else exporter=null}
+        if(writing){saving=false;when(request.kind){VideoSaveRequest.Kind.AUDIO->audioExporter=null;VideoSaveRequest.Kind.VIDEO->exporter=null;VideoSaveRequest.Kind.SUBTITLES->Unit}}
         restoreVideoSaveControls=true;syncVideoSaveControls();return true
     }
     private fun flushVideoSaveNotice(){
@@ -1519,16 +1517,22 @@ class HonorableVideoEditorActivity : Activity() {
         val audio=request.kind==VideoSaveRequest.Kind.AUDIO
         saving=true;videoSaveNotice=null
         if(::start.isInitialized)start.isEnabled=false;if(::end.isInitialized)end.isEnabled=false
-        if(::status.isInitialized)status.text=if(audio)"Saving audio copy…"else"Saving video copy…"
+        if(::status.isInitialized)status.text=when(request.kind){VideoSaveRequest.Kind.AUDIO->"Saving audio copy…";VideoSaveRequest.Kind.VIDEO->"Saving video copy…";VideoSaveRequest.Kind.SUBTITLES->"Saving subtitle copy…"}
         fun complete(result:Result<Unit>){
             if(videoSaveRequest!==request)return
             if(releaseVideoSave(request))notifyVideoSave(request,result.fold(
-                {if(audio)"Audio copy saved. Originals preserved. Check the sound."else"Copy saved. Original preserved. Check playback and audio."},
+                {when(request.kind){VideoSaveRequest.Kind.AUDIO->"Audio copy saved. Originals preserved. Check the sound.";VideoSaveRequest.Kind.VIDEO->"Copy saved. Original preserved. Check playback and audio.";VideoSaveRequest.Kind.SUBTITLES->"Subtitle copy saved. Timings match the edited project."}},
                 {"${if(audio)"Audio export"else"Export"} failed: ${it.message?:"Unknown error"}. Check Files for a partial copy."}))
         }
         runCatching{when(request.kind){
             VideoSaveRequest.Kind.VIDEO->{val writer=VideoCompositionExporter(this);exporter=writer;writer.export(request.sources,destination,request.clips,request.durations,request.music,::complete)}
             VideoSaveRequest.Kind.AUDIO->{val writer=VideoAudioExporter(this);audioExporter=writer;writer.export(request.sources,destination,request.clips,request.durations,request.music,::complete)}
+            VideoSaveRequest.Kind.SUBTITLES->draftWorker.execute{
+                val copied=runCatching{VideoSubtitleDocuments.writeCopy(this,destination,request.subtitleBytes(),request.sources.values.toSet()){
+                    check(request.isWriting&&!Thread.currentThread().isInterrupted){"Subtitle export cancelled"}
+                }}
+                runOnUiThread{complete(copied)}
+            }
         }}.onFailure{complete(Result.failure(it))}
     }
     private fun saveCopy()=beginMediaCopy(VideoSaveRequest.Kind.VIDEO)
@@ -1539,10 +1543,10 @@ class HonorableVideoEditorActivity : Activity() {
         if(to<=from){status.text="End must be after start";return}
         val clips=runCatching{VideoExportSnapshot.clips(current.segments,selectedClip,from,to)}.getOrElse{status.text=it.message?:"Choose a valid video range";return}
         val namespace=videoLookNamespace()?:return
-        if(kind==VideoSaveRequest.Kind.AUDIO)runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        if(kind!=VideoSaveRequest.Kind.VIDEO)runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
         val code=runCatching{allocateVideoSaveCode()}.getOrElse{status.text=it.message;return}
         pendingRange=from to to
-        val request=runCatching{VideoSaveRequest(code,closeState(),accessMode,namespace,clips,current.soundtrack,sourceUris(),sourceDurations(),importedSources,kind)}.getOrElse{pendingRange=null;status.text="Export could not be prepared. Current edits were kept.";return}
+        val request=runCatching{if(kind==VideoSaveRequest.Kind.SUBTITLES)VideoSaveRequest(code,closeState(),accessMode,namespace,clips,current.soundtrack,sourceUris(),sourceDurations(),importedSources,VideoCaptions.exportSrt(clips))else VideoSaveRequest(code,closeState(),accessMode,namespace,clips,current.soundtrack,sourceUris(),sourceDurations(),importedSources,kind)}.getOrElse{pendingRange=null;status.text=it.message?:"Export could not be prepared. Current edits were kept.";return}
         videoSaveRequest=request;videoSaveNotice=null;interruptedVideoSave=false;interruptedVideoSaveCode=null
         start.isEnabled=false;end.isEnabled=false
         try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type=kind.mime;putExtra(Intent.EXTRA_TITLE,kind.filename)},code)}
@@ -1560,7 +1564,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
         if(requestCode == 27)return // Unbound legacy audio result cannot release another operation.
-        if(requestCode == 26) { finishSubtitleExport(resultCode,data); return }
+        if(requestCode == 26)return // Unbound legacy subtitle result cannot release another operation.
         if(requestCode == 24) { finishSoundtrackImport(resultCode,data); return }
         if(requestCode == 23) { finishImport(resultCode, data); return }
         // Legacy code22 has no immutable request after recreation; never start an unbound export.
@@ -2152,40 +2156,7 @@ class HonorableVideoEditorActivity : Activity() {
         requestCaptionImport(target)
     }
 
-    private fun exportSubtitles() {
-        if(!editorIdle())return
-        val current=project?:return
-        val clip=current.segments.getOrNull(selectedClip)?:return
-        val from=maxOf(start.progress*1000L,clip.startMs);val to=minOf(end.progress*1000L,clip.endMs)
-        if(to<=from){status.text="Choose a valid clip range first.";return}
-        val bytes=runCatching{VideoCaptions.exportSrt(VideoExportSnapshot.clips(current.segments,selectedClip,from,to))}
-            .getOrElse{status.text=it.message?:"Add captions first";return}
-        video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)
-        pendingSubtitleBytes=bytes;pendingSubtitleOriginals=sourceUris().values.toSet();importing=true
-        try{startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply{addCategory(Intent.CATEGORY_OPENABLE);type="application/x-subrip";putExtra(Intent.EXTRA_TITLE,"Noble-captions-copy.srt")},26)}
-        catch(error:Exception){importing=false;pendingSubtitleBytes=null;pendingSubtitleOriginals=null;status.text="No app is available to save subtitles."}
-    }
-
-    private fun finishSubtitleExport(resultCode:Int,data:Intent?) {
-        val bytes=pendingSubtitleBytes;val originals=pendingSubtitleOriginals;val destination=data?.data
-        pendingSubtitleBytes=null;pendingSubtitleOriginals=null
-        if(isDestroyed||isFinishing){importing=false;return}
-        if(resultCode!=RESULT_OK||destination==null){
-            importing=false
-            if(bytes!=null && originals!=null)status.text="Subtitle save cancelled. Current edits are unchanged."
-            return
-        }
-        if(bytes==null||originals==null){
-            importing=false
-            status.text="Subtitle save was interrupted. Export subtitles again. Check Files for an empty or partial copy."
-            return
-        }
-        status.text="Saving subtitle copy..."
-        draftWorker.execute{
-            val result=runCatching{VideoSubtitleDocuments.writeCopy(this,destination,bytes,originals)}
-            runOnUiThread{importing=false;if(!isDestroyed&&!isFinishing)status.text=result.fold({"Subtitle copy saved. Timings match the edited project."},{"Subtitle export failed: ${it.message}"})}
-        }
-    }
+    private fun exportSubtitles()=beginMediaCopy(VideoSaveRequest.Kind.SUBTITLES)
 
     private fun currentDraft(): VideoDraft {
         val clips = requireNotNull(project).segments
@@ -2584,7 +2555,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(recoveryBytes==null||requestCode !in 22..28)return false
         mediaImportTarget?.let{finishMediaImportTarget(it)}
         videoSaveRequest?.let{releaseVideoSave(it)}
-        pendingRange=null;pendingSubtitleBytes=null;pendingSubtitleOriginals=null
+        pendingRange=null
         voiceoverTarget=null;importing=false
         if(::status.isInitialized)status.text="Finish session recovery before importing or saving again. Check Files for an empty or partial copy."
         return true
