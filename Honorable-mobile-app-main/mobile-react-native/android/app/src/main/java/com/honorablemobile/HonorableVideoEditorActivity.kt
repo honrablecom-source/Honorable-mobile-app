@@ -1915,7 +1915,7 @@ class HonorableVideoEditorActivity : Activity() {
     private fun captionOptions() {
         val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments[index]
-        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline","Synchronize subtitle timing","Build highlights from caption text") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
+        val choices=listOf("Add caption at playhead","Import SRT for this clip","Export project SRT","Clear this clip's captions","Review project caption readability","Find caption text in project","Copy project caption text","Import SRT for edited playback timeline","Synchronize subtitle timing","Build highlights from caption text","Text to paced captions") + clip.captions.map { "${VideoCaptions.formatTime(it.startMs)}  ${it.text.replace('\n',' ')}" }
         lateinit var dialog:android.app.AlertDialog
         dialog=android.app.AlertDialog.Builder(this).setTitle("Timed captions · clip ${index+1}")
             .setItems(choices.toTypedArray()){_,choice->
@@ -1931,10 +1931,48 @@ class HonorableVideoEditorActivity : Activity() {
                     7->requestTimelineCaptionImport()
                     8->requestCaptionSync()
                     9->requestCaptionHighlights()
-                    else->editCaption(current,index,clip,choice-10)
+                    10->requestPacedCaptions()
+                    else->editCaption(current,index,clip,choice-11)
                 }
             }.setNegativeButton("Close",null).create()
         showCaptionReview(dialog,review)
+    }
+
+    private fun commitPacedCaptions(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,plan:VideoPacedCaptions):Boolean {
+        if(!activeCaptionReviewDialog(dialog,review)||!plan.changed)return false
+        plan.apply(requireNotNull(project)){check(canApplyCaptionReview(review)){"Video or session changed. Prepare captions again."}}
+        return true
+    }
+    private fun requestPacedCaptions(){
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+        body.addView(TextView(this).apply{text="Paste up to 8,000 characters (16 KB) of your own text. Words receive an even pace across this clip's stored trim (${VideoCaptions.formatTime(clip.startMs)} → ${VideoCaptions.formatTime(clip.endMs)} of the source), following its speed. Live trim sliders do not change this range. This does not listen to or align with speech. Review timing and edit cues afterward. Applying replaces all captions on this clip; Undo restores them.";setTextColor(Color.DKGRAY)})
+        val input=EditText(this).apply{hint="Text for this clip";contentDescription="Text to turn into paced captions";setTextColor(Color.BLACK);inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;minLines=3;maxLines=8;filters=arrayOf(android.text.InputFilter.LengthFilter(VideoPacedCaptions.MAX_CHARS));body.addView(this)}
+        val count=EditText(this).apply{hint="Words per caption, 1–12";contentDescription=hint;inputType=android.text.InputType.TYPE_CLASS_NUMBER;setText("6");setTextColor(Color.BLACK);body.addView(this)}
+        lateinit var editor:android.app.AlertDialog
+        editor=android.app.AlertDialog.Builder(this).setTitle("Text to paced captions").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Cancel",null).setPositiveButton("Review",null).create()
+        editor.setOnShowListener{editor.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!activeCaptionReviewDialog(editor,review)){editor.dismiss();return@setOnClickListener}
+            runCatching{VideoPacedCaptions.prepare(current.segments,index,input.text.toString(),count.text.toString().toIntOrNull()?:0,current.soundtrack){check(canApplyCaptionReview(review))}}
+                .onSuccess{plan->
+                    val report=plan.cues.mapIndexed{i,cue->"${i+1}. ${VideoCaptions.formatTime(cue.startMs)} → ${VideoCaptions.formatTime(cue.endMs)} source\n${cue.text}"}.joinToString("\n\n")
+                    val preview=TextView(this).apply{text="${plan.cues.size} proposed cues replace ${clip.captions.size} existing cues. Approximate pacing only; check speech and readability in playback. Original audio, clip appearance and source files stay unchanged.\n\n$report";setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12))}
+                    lateinit var confirmation:android.app.AlertDialog
+                    confirmation=android.app.AlertDialog.Builder(this).setTitle("Review paced captions")
+                        .setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(preview)})
+                        .setNegativeButton("Cancel",null).setPositiveButton("Replace clip captions"){_,_->
+                            runCatching{commitPacedCaptions(confirmation,review,plan)}.onSuccess appliedResult@{applied->
+                                if(!applied){status.text="Video or session changed, or captions already match. Prepare captions again.";return@appliedResult}
+                                val refreshed=runCatching{showClip()}.isSuccess
+                                status.text=if(refreshed)"Paced captions applied. Preview and adjust speech timing; Undo restores the previous captions."else"Paced captions applied. Reopen preview to check timing; Undo restores the previous captions."
+                            }.onFailure{status.text="Captions could not be applied. Existing edits were kept."}
+                        }.create()
+                    editor.dismiss();showCaptionReview(confirmation,review){preview.text=""}
+                }.onFailure{input.error=it.message?:"Check text and word groups."}
+        }}
+        showCaptionReview(editor,review){input.text?.clear()}
     }
 
     private fun activeCaptionHighlightDialog(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=activeCaptionReviewDialog(dialog,review)
