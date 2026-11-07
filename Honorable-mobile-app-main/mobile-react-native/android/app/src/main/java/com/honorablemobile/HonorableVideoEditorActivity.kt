@@ -658,21 +658,23 @@ class HonorableVideoEditorActivity : Activity() {
             .setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(track.volume)){dialog,which->applyVolume(choices[which]);dialog.dismiss()}
             .setNegativeButton("Cancel",null).show()
     }
+    private fun commitProjectReset(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject):Boolean {
+        if(!activeCaptionReviewDialog(dialog,review)||project!==current)return false
+        current.reset();return true
+    }
     private fun confirmProjectReset(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
-        val current=project?:return;val clips=current.segments.toList();val soundtrack=current.soundtrack
-        val mode=accessMode;val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video.";return}
-        android.app.AlertDialog.Builder(this).setTitle("Reset video edits?")
+        val review=captureCaptionReview()?:return
+        val current=project?:return
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Reset video edits?")
             .setMessage("Returns to the full original first video at normal speed and source volume. Removes added clips, titles, captions, color, framing, motion, fades and the separate soundtrack from this edit. Original media and saved projects stay on your device. Undo restores the previous edit.")
             .setNegativeButton("Keep editing",null).setPositiveButton("Reset edits"){_,_->
-                if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing||project!==current||current.segments!=clips||current.soundtrack!=soundtrack||accessMode!=mode||videoLookNamespace()!=owner){
-                    if(!isDestroyed&&!isFinishing)status.text="Video or session changed. Open Reset again."
-                    return@setPositiveButton
-                }
-                runCatching{current.reset();selectedClip=0;showClip()}
-                    .onSuccess{status.text="Video edits reset. Undo restores the previous edit."}
-                    .onFailure{status.text="Could not reset this edit. Try reopening the video."}
-            }.show()
+                if(!activeCaptionReviewDialog(dialog,review))return@setPositiveButton
+                runCatching{commitProjectReset(dialog,review,current)}
+                    .onSuccess{applied->if(applied){selectedClip=0;val ready=runCatching{showClip()}.isSuccess;status.text=if(ready)"Video edits reset. Undo restores the previous edit."else"Video edits reset, but preview is unavailable. Undo restores the previous edit."}}
+                    .onFailure{if(workspaceActive)status.text="Could not reset this edit. Try reopening the video."}
+            }.create()
+        showCaptionReview(dialog,review)
     }
     private fun chooseClipPlayback(speed:Boolean){
         if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
