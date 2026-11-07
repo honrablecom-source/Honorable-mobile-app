@@ -1886,10 +1886,15 @@ class HonorableVideoEditorActivity : Activity() {
         val old=captionReviewDialogs?.toList().orEmpty();captionReviewDialogs?.clear()
         old.forEach{runCatching{it.dismiss()}}
     }
-    private fun showCaptionReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState){
-        if(!canApplyCaptionReview(review)){dialog.dismiss();return}
+    private fun showCaptionReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=showCaptionReview(dialog,review,{})
+    private fun showCaptionReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,onDismiss:()->Unit){
+        if(!canApplyCaptionReview(review)){onDismiss();dialog.dismiss();return}
         val dialogs=captionReviewDialogs?:linkedSetOf<android.app.AlertDialog>().also{captionReviewDialogs=it}
-        dialogs.add(dialog);dialog.setOnDismissListener{dialogs.remove(dialog)};dialog.show()
+        dialogs.add(dialog);dialog.setOnDismissListener{dialogs.remove(dialog);onDismiss()};dialog.show()
+    }
+    private fun performCaptionClipboardCopy(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,copy:()->Unit):Boolean {
+        if(!activeCaptionReviewDialog(dialog,review))return false
+        copy();return true
     }
     private fun commitCaptionReview(review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,cues:List<VideoCaption>):Boolean {
         if(!canApplyCaptionReview(review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return false
@@ -2038,9 +2043,8 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun copyCaptionText(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
-        val current=project?:return;val clips=current.segments.toList();val mode=accessMode;val owner=videoLookNamespace()?:return
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
+        val review=captureCaptionReview()?:return
+        val clips=project?.segments?.toList()?:return
         var prepared:VideoCaptionText.Result?=runCatching{VideoCaptionText.create(clips)}.getOrElse{status.text=it.message?:"Caption text could not be prepared.";return}
         val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
         val choice=android.widget.RadioGroup(this).apply{orientation=LinearLayout.HORIZONTAL}
@@ -2052,20 +2056,22 @@ class HonorableVideoEditorActivity : Activity() {
         val preview=TextView(this).apply{setTextColor(Color.BLACK);textSize=14f;setPadding(0,dp(12),0,0);contentDescription="Edited caption text preview";body.addView(this)}
         fun render(result:VideoCaptionText.Result){info.text="${result.cues} visible playback cues · ${result.text.codePointCount(0,result.text.length)} characters";preview.text=result.preview()}
         render(requireNotNull(prepared))
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Copy caption text").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Copy caption text").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
             .setNegativeButton("Close",null).setPositiveButton("Copy all text"){_,_->
-                if(!valid()){status.text="Project or session changed. Reopen caption text before copying.";return@setPositiveButton}
                 val result=prepared?:return@setPositiveButton
                 runCatching{
-                    val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager?:error("Clipboard unavailable")
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Edited caption text",result.text))
+                    check(performCaptionClipboardCopy(dialog,review){
+                        val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager?:error("Clipboard unavailable")
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Edited caption text",result.text))
+                    }){"Project or session changed. Reopen caption text before copying."}
                 }.onSuccess{status.text="Caption text copied. Project edits are unchanged."}.onFailure{status.text="Could not copy caption text. Try again."}
             }.create()
         choice.setOnCheckedChangeListener{_,checked->
-            if(!valid()){status.text="Project or session changed. Reopen caption text.";dialog.dismiss();return@setOnCheckedChangeListener}
+            if(!activeCaptionReviewDialog(dialog,review)){status.text="Project or session changed. Reopen caption text.";dialog.dismiss();return@setOnCheckedChangeListener}
             runCatching{VideoCaptionText.create(clips,checked==timed.id)}.onSuccess{prepared=it;render(it);dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled=true}
                 .onFailure{prepared=null;preview.text="";info.text="Caption text could not be prepared. Close and try again.";dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled=false}
-        };dialog.show()
+        };showCaptionReview(dialog,review){prepared=null;preview.text="";info.text=""}
     }
 
     private fun findCaptionText(){
@@ -2104,23 +2110,24 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun captionReadability(){
-        if(!editorIdle()||isDestroyed||isFinishing)return
-        val current=project?:return;val clips=current.segments.toList();val mode=accessMode
-        val owner=videoLookNamespace()?:return
-        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&accessMode==mode&&videoLookNamespace()==owner
-        runCatching{VideoCaptionReadability.inspect(clips).text()}.onSuccess{report->
-            val body=TextView(this).apply{text=report;setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12));setTextIsSelectable(true);contentDescription="Caption readability report"}
-            android.app.AlertDialog.Builder(this).setTitle("Caption readability")
-                .setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
-                .setPositiveButton("Copy report"){_,_->
-                    if(!valid()){status.text="Project or account changed. Reopen the report before copying.";return@setPositiveButton}
-                    runCatching{
+        val review=captureCaptionReview()?:return
+        val clips=project?.segments?.toList()?:return
+        var report:String?=runCatching{VideoCaptionReadability.inspect(clips).text()}.getOrElse{status.text="Caption report could not be prepared. Existing captions were kept.";return}
+        val body=TextView(this).apply{text=report;setTextColor(Color.BLACK);setPadding(dp(20),dp(12),dp(20),dp(12));setTextIsSelectable(true);contentDescription="Caption readability report"}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Caption readability")
+            .setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setPositiveButton("Copy report"){_,_->
+                val captured=report?:return@setPositiveButton
+                runCatching{
+                    check(performCaptionClipboardCopy(dialog,review){
                         val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager?:error("Clipboard unavailable")
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Caption readability review",report))
-                    }.onSuccess{status.text="Readability report copied. Captions and project edits are unchanged."}
-                        .onFailure{status.text="Could not copy the report. Try again."}
-                }.setNegativeButton("Close",null).show()
-        }.onFailure{status.text="Caption report could not be prepared. Existing captions were kept."}
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Caption readability review",captured))
+                    }){"Project or session changed. Reopen the report before copying."}
+                }.onSuccess{status.text="Readability report copied. Captions and project edits are unchanged."}
+                    .onFailure{status.text="Could not copy the report. Reopen it and try again."}
+            }.setNegativeButton("Close",null).create()
+        showCaptionReview(dialog,review){report=null;body.text=""}
     }
 
     private fun editCaption(current:VideoEditProject,index:Int,clip:VideoSegment,cueIndex:Int?,canApply:()->Boolean={true}) {
