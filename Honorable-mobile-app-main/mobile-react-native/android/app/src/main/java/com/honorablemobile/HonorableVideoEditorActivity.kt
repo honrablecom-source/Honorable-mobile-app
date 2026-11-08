@@ -1405,10 +1405,31 @@ class HonorableVideoEditorActivity : Activity() {
         if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
         VideoInspectorControls.title(this,clip.titleStyle){style->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setTitleStyle(index,style);showClip();previewComposition(listOf(current.segments[index]),index)}}
     }
+    private var colorAllConfirmation:android.app.AlertDialog?=null
+    private fun commitColorAllReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int):Boolean {
+        if(colorAllConfirmation!==dialog)return false
+        colorAllConfirmation=null // Consume only this approval, including stale/failed attempts.
+        if(!activeCaptionReviewDialog(dialog,review)||project!==current||selectedClip!=index)return false
+        val clip=current.segments.getOrNull(index)?:return false
+        if(current.segments.all{it.grade==clip.grade})return false
+        current.applyGradeToAll(index);return true
+    }
     private fun copyGradeToAll(){
-        if(!editorIdle())return;val current=project?:return;val snapshot=current.segments;val index=selectedClip
-        android.app.AlertDialog.Builder(this).setTitle("Apply color to all clips?").setMessage("Copies this clip's exposure, contrast, saturation and white balance to ${snapshot.size} clips as one undoable edit.")
-            .setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->if(editorIdle()&&project===current&&current.segments==snapshot&&selectedClip==index){current.applyGradeToAll(index);showClip();previewProject()}}.show()
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        if(current.segments.all{it.grade==clip.grade}){status.text="All clips already use this color. Current edits are unchanged.";return}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Apply color to all clips?")
+            .setMessage("Copies clip ${index+1}'s exposure, contrast, saturation and white balance to ${current.segments.size} clips as one undoable edit. Clip ranges, captions, motion, titles, framing, audio and original files stay unchanged.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->
+                runCatching{commitColorAllReview(dialog,review,current,index)}.onSuccess{applied->
+                    if(!applied)return@onSuccess
+                    val refreshed=runCatching{showClip();previewProject()}.isSuccess
+                    status.text=if(refreshed)"Color applied to all clips. Undo restores their previous colors."else"Color applied to all clips. Preview is unavailable; Undo restores their previous colors."
+                }.onFailure{status.text="Color could not be applied. Existing edits were kept."}
+            }.create()
+        colorAllConfirmation?.dismiss();colorAllConfirmation=dialog
+        showCaptionReview(dialog,review){if(colorAllConfirmation===dialog)colorAllConfirmation=null}
     }
 
     private fun editColor(balanceOnly:Boolean=false) {
