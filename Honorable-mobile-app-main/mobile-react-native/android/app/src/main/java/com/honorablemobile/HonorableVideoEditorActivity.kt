@@ -763,54 +763,93 @@ class HonorableVideoEditorActivity : Activity() {
 
     private fun videoLookNamespace():String?=VideoPrivateOwner.namespace(this,accessMode)
 
+    private var lookReviewRequest:VideoLookReview?=null
+    private var lookReviewDialog:android.app.AlertDialog?=null
+    private fun canUseLookStage(dialog:android.app.AlertDialog,request:VideoLookReview,review:VideoCaptionReviewState)=
+        lookReviewRequest===request&&lookReviewDialog===dialog&&request.owns(dialog)&&activeCaptionReviewDialog(dialog,review)
+    private fun requireLookStage(dialog:android.app.AlertDialog,request:VideoLookReview,review:VideoCaptionReviewState){
+        check(lookReviewRequest===request&&lookReviewDialog===dialog&&(request.owns(dialog)||request.isExecuting(dialog))&&activeCaptionReviewDialog(dialog,review)){"Video or session changed. Open saved looks again."}
+    }
+    private fun showLookStage(dialog:android.app.AlertDialog,request:VideoLookReview,review:VideoCaptionReviewState,onDismiss:()->Unit={}):Boolean {
+        if(lookReviewRequest!==request||!canApplyCaptionReview(review)||!request.open(dialog)){request.close();onDismiss();dialog.dismiss();return false}
+        val previous=lookReviewDialog;lookReviewDialog=dialog
+        showCaptionReview(dialog,review){
+            request.dismiss(dialog)
+            if(lookReviewRequest===request&&request.isClosed)lookReviewRequest=null
+            if(lookReviewDialog===dialog)lookReviewDialog=null
+            onDismiss()
+        }
+        if(previous!==dialog)previous?.dismiss()
+        return !request.isClosed
+    }
+    private fun performLookReview(dialog:android.app.AlertDialog,request:VideoLookReview,review:VideoCaptionReviewState,action:(()->Unit)->Unit):Boolean {
+        if(!canUseLookStage(dialog,request,review))return false
+        val guard={requireLookStage(dialog,request,review)}
+        return request.execute(dialog,guard){action(guard)}
+    }
     private fun savedColorLooks(){
-        if(!editorIdle()||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return
-        val music=current.soundtrack;val mode=accessMode
-        val namespace=videoLookNamespace()?:run{status.text="Session changed. Reopen the video before using saved looks.";return}
-        val store=VideoColorLookStore(java.io.File(noBackupFilesDir,"video-color-looks"),namespace)
-        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==namespace
-        fun requireCurrent(){require(valid()){"Video or account changed. Open saved looks again."}}
+        val music=current.soundtrack
+        val store=VideoColorLookStore(java.io.File(noBackupFilesDir,"video-color-looks"),review.namespace)
+        lookReviewRequest?.close();lookReviewDialog?.dismiss()
+        val request=VideoLookReview();lookReviewRequest=request
         fun selectLook(delete:Boolean){
-            val catalog=runCatching{requireCurrent();store.load().also{requireCurrent()}}.getOrElse{status.text=it.message?:"Saved video looks are unavailable.";return}
+            val catalog=runCatching{check(canApplyCaptionReview(review));store.load().also{check(canApplyCaptionReview(review))}}.getOrElse{status.text=it.message?:"Saved video looks are unavailable.";return}
             if(catalog.looks.isEmpty()){status.text="No saved video color looks yet. Save this clip's color first.";return}
-            android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete saved color look" else "Apply saved color look")
+            lateinit var chooser:android.app.AlertDialog
+            chooser=android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete saved color look" else "Apply saved color look")
                 .setItems(catalog.looks.map{it.name}.toTypedArray()){_,chosen->
-                    if(!valid()){status.text="Video or account changed. Open saved looks again.";return@setItems}
-                    val look=catalog.looks[chosen]
-                    android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete ${look.name}?" else "Apply ${look.name}?")
+                    if(!canUseLookStage(chooser,request,review))return@setItems
+                    val look=catalog.looks.getOrNull(chosen)?:return@setItems
+                    lateinit var confirmation:android.app.AlertDialog
+                    confirmation=android.app.AlertDialog.Builder(this).setTitle(if(delete)"Delete ${look.name}?" else "Apply ${look.name}?")
                         .setMessage(if(delete)"Removes this local color recipe. Current edits and original media stay unchanged." else "Replaces only the selected clip's color and white balance. Timing, captions, motion, framing and audio stay unchanged. Undo restores the previous color.")
                         .setNegativeButton("Cancel",null).setPositiveButton(if(delete)"Delete look" else "Apply and preview"){_,_->
-                            runCatching{
-                                requireCurrent()
-                                if(delete)store.remove(look){requireCurrent()}
+                            val result=runCatching{check(performLookReview(confirmation,request,review){guard->
+                                if(delete)store.remove(look,guard)
                                 else {
-                                    val proposal=clips.mapIndexed{i,value->if(i==index)look.applyTo(value)else value}
-                                    current.applyDraft(proposal,soundtrack=music);showClip();previewComposition(listOf(current.segments[index]),index)
+                                    VideoLookReview.requireAvailable(store.load(),look);guard()
+                                    current.applyDraft(clips.mapIndexed{i,value->if(i==index)look.applyTo(value)else value},soundtrack=music)
                                 }
-                            }.onSuccess{status.text=if(delete)"Saved color look deleted. Current edits are unchanged." else "Saved color look applied. Undo restores the previous color."}
-                                .onFailure{status.text=it.message?:"Saved color look could not be used. Existing edits were kept."}
-                        }.show()
-                }.setNegativeButton("Cancel",null).show()
+                            }){"Video or session changed. Open saved looks again."}}
+                            result.onSuccess{
+                                if(delete)status.text="Saved color look deleted. Current edits are unchanged."
+                                else runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}
+                                    .onSuccess{status.text="Saved color look applied. Undo restores the previous color."}
+                                    .onFailure{status.text="Saved color look applied, but preview is unavailable. Undo restores the previous color."}
+                            }.onFailure{status.text=it.message?:"Could not use this look. Open saved looks again."}
+                        }.create()
+                    showLookStage(confirmation,request,review)
+                }.setNegativeButton("Cancel",null).create()
+            showLookStage(chooser,request,review)
         }
-        android.app.AlertDialog.Builder(this).setTitle("Saved color looks")
+        lateinit var menu:android.app.AlertDialog
+        menu=android.app.AlertDialog.Builder(this).setTitle("Saved color looks")
             .setItems(arrayOf("Save this clip's color","Apply a saved look","Delete a saved look")){_,action->
-                if(!valid()){status.text="Video or account changed. Open saved looks again.";return@setItems}
+                if(!canUseLookStage(menu,request,review))return@setItems
                 when(action){
                     0->{
                         val name=EditText(this).apply{hint="Look name";contentDescription="Video color look name";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(40))}
                         val dialog=android.app.AlertDialog.Builder(this).setTitle("Save video color look").setView(name).setNegativeButton("Cancel",null).setPositiveButton("Save on this device",null).create()
                         dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-                            if(!valid()){status.text="Video or account changed. Open saved looks again.";dialog.dismiss();return@setOnClickListener}
-                            val result=runCatching{store.add(NamedVideoColorLook(name.text.toString().trim(),clip.grade)){requireCurrent()}}
-                            if(result.isFailure){name.error=result.exceptionOrNull()?.message?:"Could not save this look";return@setOnClickListener}
-                            dialog.dismiss();status.text="Video color look saved on this device."
-                        }};dialog.show()
+                            if(!canUseLookStage(dialog,request,review)){dialog.dismiss();status.text="Video or session changed. Open saved looks again.";return@setOnClickListener}
+                            val prepared=runCatching{
+                                val look=NamedVideoColorLook(name.text.toString().trim(),clip.grade)
+                                requireLookStage(dialog,request,review);store.load().add(look);requireLookStage(dialog,request,review);look
+                            }
+                            if(prepared.isFailure){name.error=prepared.exceptionOrNull()?.message?:"Could not prepare this look";return@setOnClickListener}
+                            val result=runCatching{check(performLookReview(dialog,request,review){guard->store.add(prepared.getOrThrow(),guard)}){"Video or session changed. Open saved looks again."}}
+                            dialog.dismiss()
+                            status.text=if(result.isSuccess)"Video color look saved on this device." else (result.exceptionOrNull()?.message?:"Could not save. Open saved looks again.")
+                        }}
+                        showLookStage(dialog,request,review){name.text?.clear()}
                     }
                     1->selectLook(false)
                     2->selectLook(true)
                 }
-            }.setNegativeButton("Cancel",null).show()
+            }.setNegativeButton("Cancel",null).create()
+        showLookStage(menu,request,review)
     }
 
     private fun momentNotes(){
@@ -2091,6 +2130,7 @@ class HonorableVideoEditorActivity : Activity() {
         return review.state.stillMatches(closeState())&&review.sources==sourceUris()&&review.durations==sourceDurations()
     }
     private fun invalidateCaptionReviews(){
+        lookReviewRequest?.close();lookReviewRequest=null;lookReviewDialog=null
         batchReviewRequest?.close();batchReviewRequest=null;batchReviewDialog=null
         captionReviewGeneration++
         val old=captionReviewDialogs?.toList().orEmpty();captionReviewDialogs?.clear()
