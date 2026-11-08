@@ -11,11 +11,27 @@ if (out === root || root.startsWith(out + path.sep)) throw Error('Drawing output
 const { collectDrawingInputs, recordDrawingAssets } = require(path.resolve(root, '../../scripts/drawing-assets.cjs'));
 const sourceSnapshot = collectDrawingInputs(root);
 await fs.mkdir(out, { recursive: true });
-// Bundle a geometry-only worker into a Blob source: offline WebView needs no worker network request.
-const geometryWorker = await build({ entryPoints: [path.join(root, 'shape-boolean-worker.mjs')], bundle: true, minify: true, write: false, format: 'iife', platform: 'browser', target: ['chrome90'], nodePaths: [modules], legalComments: 'inline', banner: { js: 'var process={env:{POLYGON_CLIPPING_MAX_QUEUE_SIZE:20000,POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS:20000}};' } });
-const inlineGeometryWorker = { name: 'noble-shape-worker', setup(builder) {
-  builder.onResolve({ filter: /^noble:shape-boolean-worker$/ }, () => ({ path: 'source', namespace: 'noble-shape-worker' }));
-  builder.onLoad({ filter: /.*/, namespace: 'noble-shape-worker' }, () => ({ contents: 'export default ' + JSON.stringify(geometryWorker.outputFiles[0].text) + ';', loader: 'js' }));
+// Inline geometry workers for offline WebView: no worker network requests.
+const workerSources = new Map();
+for (const name of ['shape-boolean', 'svg-import']) {
+  const worker = await build({ entryPoints: [path.join(root, name + '-worker.mjs')], bundle: true, minify: true, write: false, format: 'iife', platform: 'browser', target: ['chrome90'], nodePaths: [modules], legalComments: 'inline', banner: { js: 'var process={env:{POLYGON_CLIPPING_MAX_QUEUE_SIZE:20000,POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS:20000}};' } });
+  workerSources.set('noble:' + name + '-worker', worker.outputFiles[0].text);
+}
+const inlineGeometryWorker = { name: 'noble-local-workers', setup(builder) {
+  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
+  builder.onLoad({ filter: /.*/, namespace: 'noble-local-worker' }, args => ({ contents: 'export default ' + JSON.stringify(workerSources.get(args.path)) + ';', loader: 'js' }));
+} };
+
+// Excalidraw 0.18.1 nudges mutate elements without requesting a history increment.
+// Apply only to the exact pinned branch; fail the build if upstream changes it.
+const localKeyboardHistory = { name: 'noble-keyboard-history', setup(builder) {
+  builder.onLoad({ filter: /index\.js$/ }, async args => {
+    if (!args.path.replaceAll('\\', '/').endsWith('/@excalidraw/excalidraw/dist/prod/index.js')) return;
+    const source = await fs.readFile(args.path, 'utf8');
+    const marker = 'a.forEach(p=>{P(p,{x:p.x+m,y:p.y+d},!1),Jt(';
+    if (source.split(marker).length !== 2) throw Error('Pinned drawing keyboard branch changed; review its history capture before bundling.');
+    return { contents: source.replace(marker, 'this.store.shouldCaptureIncrement(),' + marker), loader: 'js', resolveDir: path.dirname(args.path) };
+  });
 } };
 
 // The pinned renderer always registers a CDN fallback, even with a local asset path.
@@ -31,7 +47,7 @@ const localFonts = { name: 'noble-local-fonts', setup(builder) {
     return { contents, loader: 'js', resolveDir: path.dirname(args.path) };
   });
 } };
-await build({ plugins: [localFonts, inlineGeometryWorker], entryPoints: [path.join(root, 'editor.jsx')], bundle: true, minify: true, format: 'iife', target: ['chrome90'], outfile: path.join(out, 'editor.js'), nodePaths: [modules], conditions: ['production'], define: { 'process.env.NODE_ENV': '"production"', 'import.meta.url': '"https://honorable-drawing.local/drawing/editor.js"' }, legalComments: 'external', loader: { '.woff2': 'file', '.woff': 'file', '.ttf': 'file', '.wasm': 'file' } });
+await build({ plugins: [localKeyboardHistory, localFonts, inlineGeometryWorker], entryPoints: [path.join(root, 'editor.jsx')], bundle: true, minify: true, format: 'iife', target: ['chrome90'], outfile: path.join(out, 'editor.js'), nodePaths: [modules], conditions: ['production'], define: { 'process.env.NODE_ENV': '"production"', 'import.meta.url': '"https://honorable-drawing.local/drawing/editor.js"' }, legalComments: 'external', loader: { '.woff2': 'file', '.woff': 'file', '.ttf': 'file', '.wasm': 'file' } });
 const upstream = path.join(modules, '@excalidraw/excalidraw/dist/prod');
 await fs.cp(path.join(upstream, 'fonts'), path.join(out, 'fonts'), { recursive: true });
 await fs.cp(path.join(upstream, 'data'), path.join(out, 'data'), { recursive: true });

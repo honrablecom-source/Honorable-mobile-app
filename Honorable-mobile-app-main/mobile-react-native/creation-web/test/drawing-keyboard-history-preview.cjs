@@ -1,0 +1,33 @@
+const {chromium}=require('../../../ui-previews/node_modules/playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
+const assets=process.env.NOBLE_KEYBOARD_ASSETS,output=process.env.NOBLE_KEYBOARD_OUTPUT||path.resolve(__dirname,'../../../../.context/svg-import/keyboard-history');
+const rect=(id,x,y,size,color)=>({id,type:'rectangle',x,y,width:size,height:size,angle:0,opacity:100,strokeColor:'#111111',backgroundColor:color,fillStyle:'solid',strokeStyle:'solid',strokeWidth:1,roughness:0,roundness:null,locked:false,groupIds:[],boundElements:null,seed:1,version:1,versionNonce:1});
+const fixture=[rect('original',40,80,80,'#0000ff')];
+(async()=>{
+ assert(assets,'Set NOBLE_KEYBOARD_ASSETS to isolated bundle.');await fs.mkdir(output,{recursive:true});
+ const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf','.wasm':'application/wasm'};
+ const server=http.createServer(async(req,res)=>{try{const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/^\/drawing\//,'');const file=path.resolve(assets,name||'index.html');if(!file.startsWith(path.resolve(assets)+path.sep))throw Error('path');const value=name==='config.js'?'window.EXCALIDRAW_ASSET_PATH="/drawing/";':await fs.readFile(file);res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'"}).end(value);}catch{res.writeHead(404).end();}});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;let browser;
+ try{
+  browser=await chromium.launch({args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'}),errors=[],external=[],workers=[];
+  page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));page.on('worker',w=>workers.push(w.url()));await page.route('**/*',route=>{const u=route.request().url();if(!u.startsWith(origin)&&!u.startsWith('data:')&&!u.startsWith('blob:')){external.push(u);return route.abort();}return route.continue();});
+  await page.addInitScript(fixture=>{
+   if(!localStorage.getItem('honorable-drawing-v1'))localStorage.setItem('honorable-drawing-v1',JSON.stringify({version:1,elements:fixture,appState:{viewBackgroundColor:'#ffffff',currentItemFontFamily:2}}));
+   window.__held=[];window.__terminated=0;const NativeWorker=window.Worker;window.Worker=class extends NativeWorker{postMessage(value,...rest){if(window.__holdWorkers){window.__held.push({worker:this,value});return;}return super.postMessage(value,...rest);}terminate(){window.__terminated++;return super.terminate();}};
+   window.__images=[];window.HonorableDrawing={usePng:value=>{window.__images.push(value);return true;}};
+  },fixture);
+  await page.goto(origin+'/drawing/');const button=name=>page.getByRole('button',{name,exact:true});
+  const save=async()=>{await button('Save draft').click();return JSON.parse(await page.evaluate(()=>localStorage.getItem('honorable-drawing-v1')));};
+  const selectAll=async()=>{
+
+  const point=await page.waitForFunction(()=>{for(const canvas of document.querySelectorAll('.excalidraw canvas')){const ctx=canvas.getContext('2d');if(!ctx)continue;const box=canvas.getBoundingClientRect();if(!box.width||!box.height)continue;const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;for(let y=8;y<canvas.height-8;y+=8)for(let x=8;x<canvas.width-8;x+=8){const p=(y*canvas.width+x)*4;if(data[p+3]<250||!((data[p]<20&&data[p+1]<20&&data[p+2]>240)||(data[p]>240&&data[p+1]>80&&data[p+1]<200&&data[p+2]>80&&data[p+2]<200)))continue;const cx=box.left+x*box.width/canvas.width,cy=box.top+y*box.height/canvas.height;if(cx>=0&&cx<innerWidth&&cy>=0&&cy<innerHeight&&document.elementFromPoint(cx,cy)?.tagName==='CANVAS')return{x:cx,y:cy};}}return false;});
+  await page.keyboard.press('v');const xy=await point.jsonValue();await page.mouse.click(xy.x,xy.y);await page.keyboard.press('Control+a');
+  };
+  const initial=await save(),start=initial.elements[0].x;await selectAll();await page.keyboard.press('ArrowRight');assert.equal((await save()).elements[0].x,start+1);await page.getByTestId('button-undo').click();assert.equal((await save()).elements[0].x,start);await page.getByTestId('button-redo').click();assert.equal((await save()).elements[0].x,start+1);
+  // Keep editor focus between keys; clicking the header Save button would move focus outside it.
+  const capture=()=>page.evaluate(()=>{window.honorableSaveDraft();return JSON.parse(localStorage.getItem('honorable-drawing-v1'));});
+  await selectAll();for(let i=2;i<=4;i++){await page.keyboard.press('ArrowRight');await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.equal((await capture()).elements[0].x,start+i);}for(let i=3;i>=1;i--){await page.getByTestId('button-undo').click();assert.equal((await save()).elements[0].x,start+i);}for(let i=2;i<=4;i++){await page.getByTestId('button-redo').click();assert.equal((await save()).elements[0].x,start+i);}
+  await selectAll();await page.keyboard.press('Shift+ArrowLeft');assert.equal((await save()).elements[0].x,start+4-5);await page.getByTestId('button-undo').click();assert.equal((await save()).elements[0].x,start+4);
+  const moved=await save(),normalize=e=>{const{version,versionNonce,updated,...rest}=e;return{...rest,boundElements:e.boundElements||[]};};await page.reload();assert.deepEqual((await save()).elements.map(normalize),moved.elements.map(normalize));assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await fs.writeFile(path.join(output,'results.json'),JSON.stringify({freshCanvasWithoutSvgOrLocator:true,nudgeUndoRedo:true,repeatedKeys:true,shiftStep:true,reload:true,originalX:start,finalX:moved.elements[0].x,errors,external,scope:'Actual browser drawing keyboard/history only;no native/APK/device proof.'},null,2));console.log('PASS fresh canvas keyboard nudge Undo/Redo,repeated separate keys,Shift step,reload and zero page/external errors. SVG workflow never opened.');
+ }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
+})().catch(error=>{console.error(error);process.exitCode=1;});

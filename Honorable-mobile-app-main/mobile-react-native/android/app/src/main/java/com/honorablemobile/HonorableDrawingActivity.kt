@@ -59,12 +59,16 @@ class HonorableDrawingActivity : Activity() {
     @Volatile private var projectUpload:DrawingProjectUpload?=null
     @Volatile private var projectRead:ProjectRead?=null
     @Volatile private var projectOperation:ProjectOperation?=null
+    private class VectorOperation(val id:Int,val code:Int){var received=false;var started=false;var uri:android.net.Uri?=null;var text:String?=null}
+    @Volatile private var vectorOperation:VectorOperation?=null
+    private var lastVectorCode=0
     private val csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     @Suppress("SetJavaScriptEnabled")
     override fun onCreate(state:Bundle?) {
         super.onCreate(state)
         if(intent.getStringExtra(EditorAccessMode.EXTRA)!=EditorAccessMode.GUEST_BASIC.name){finish();return}
         interruptedFileKind=state?.getString(fileStateKey)?.takeIf{it=="save"||it=="open"}
+        lastVectorCode=state?.getInt("noble-drawing-vector-code",0)?.takeIf{DrawingVectorFiles.acceptsCode(it)}?:0
         val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE)}
         app.honorable.editor.NativeWorkspaceInsets.install(this,root)
         val actions=LinearLayout(this)
@@ -77,6 +81,7 @@ class HonorableDrawingActivity : Activity() {
         if(state?.getBoolean("noble-drawing-print-pending")==true)message.text="Printing was interrupted by screen recreation. Check Android print status before retrying; your saved drawing draft stays here."
         if(state?.getBoolean("noble-drawing-svg-pending")==true)message.text="SVG sharing was interrupted by screen recreation. Check your drawing and share again when ready."
         if(state?.getBoolean("noble-drawing-photo-pending")==true)message.text="Photo selection or preparation was interrupted. Your saved drawing stays here; choose the photo again when ready."
+        if(state?.getBoolean("noble-drawing-vector-pending")==true)message.text="SVG artwork selection was interrupted. Choose the file again; your drawing is kept."
         nativeMessage=message
         web=WebView(this).apply {
             setBackgroundColor(Color.WHITE)
@@ -321,6 +326,20 @@ class HonorableDrawingActivity : Activity() {
             value.onSuccess{openProjectPicker(ProjectOperation(requestId,true,it),DrawingProjectFiles.filename(upload.name))}
                 .onFailure{importing.set(false);projectReply(requestId,error="Project transfer is incomplete or too large. Save again.")}
         }}
+        @JavascriptInterface fun chooseVectorFile(requestId:Int):Boolean=synchronized(operationLock){
+            if(!DrawingVectorFiles.acceptsRequest(requestId)||!printForeground||printClosed||isDestroyed||isFinishing||vectorOperation!=null||lastVectorCode>=DrawingVectorFiles.LAST_CODE||!claimImport())return@synchronized false
+            val operation=VectorOperation(requestId,DrawingVectorFiles.nextCode(lastVectorCode));lastVectorCode=operation.code;vectorOperation=operation
+            try{runOnUiThread{openVectorPicker(operation)};true}catch(_:Exception){releaseVectorOperation(operation);false}
+        }
+        @JavascriptInterface fun readVectorFileChunk(requestId:Int,offset:Int):String?=synchronized(operationLock){
+            val operation=vectorOperation?.takeIf{it.id==requestId&&currentVectorOperation(it)}?:return@synchronized null
+            val text=operation.text?:return@synchronized null
+            runCatching{DrawingVectorFiles.chunk(text,offset)}.getOrNull()
+        }
+        @JavascriptInterface fun releaseVectorFile(requestId:Int):Boolean=synchronized(operationLock){
+            val operation=vectorOperation?.takeIf{it.id==requestId}?:return@synchronized false
+            releaseVectorOperation(operation)
+        }
         @JavascriptInterface fun chooseProjectFile(requestId:Int){runOnUiThread{
             if(!DrawingProjectFiles.acceptsRequest(requestId)||printClosed||isDestroyed||isFinishing)return@runOnUiThread
             if(!printForeground){projectReply(requestId,error="Open the drawing before choosing a project file.");return@runOnUiThread}
@@ -370,6 +389,55 @@ class HonorableDrawingActivity : Activity() {
             };true } catch(_:java.util.concurrent.RejectedExecutionException){releaseImageOperation(operation);false}
         }
 
+    }
+    private fun currentVectorOperation(operation:VectorOperation)=vectorOperation===operation&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing
+    private fun releaseVectorOperation(operation:VectorOperation):Boolean=synchronized(operationLock){
+        if(vectorOperation!==operation)false else{vectorOperation=null;operation.text=null;operation.uri=null;importing.set(false);true}
+    }
+    private fun vectorReply(id:Int,length:Int?=null,cancelled:Boolean=false,error:String?=null){
+        if(printClosed||isDestroyed||isFinishing||!::web.isInitialized)return
+        val reply=JSONObject().put("requestId",id).put("cancelled",cancelled)
+        if(length!=null)reply.put("length",length)
+        if(error!=null)reply.put("error",error)
+        web.evaluateJavascript("window.honorableVectorFileResult && window.honorableVectorFileResult($reply)",null)
+    }
+    private fun vectorPickerIntent()=Intent(Intent.ACTION_OPEN_DOCUMENT).apply{
+        addCategory(Intent.CATEGORY_OPENABLE);type="*/*";putExtra(Intent.EXTRA_LOCAL_ONLY,true)
+        putExtra(Intent.EXTRA_MIME_TYPES,arrayOf("image/svg+xml","application/xml","text/xml"))
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    private fun openVectorPicker(operation:VectorOperation){
+        if(!currentVectorOperation(operation)){if(releaseVectorOperation(operation))vectorReply(operation.id,error="Open the drawing before choosing SVG artwork.");return}
+        runCatching{startActivityForResult(vectorPickerIntent(),operation.code)}.onFailure{if(releaseVectorOperation(operation))vectorReply(operation.id,error="The SVG artwork picker could not open.")}
+    }
+    private fun vectorResult(code:Int,result:Int,data:Intent?){
+        if(printClosed||isDestroyed||isFinishing)return
+        val operation=vectorOperation?.takeIf{it.code==code&&!it.received}?:return
+        operation.received=true;val uri=data?.data
+        if(result!=RESULT_OK||uri==null){if(releaseVectorOperation(operation))vectorReply(operation.id,cancelled=true);return}
+        if(uri.scheme!="content"){if(releaseVectorOperation(operation))vectorReply(operation.id,error="Choose an SVG artwork file in Files.");return}
+        operation.uri=uri;startVectorRead(operation)
+    }
+    /** Files can deliver metadata before onResume. No provider reading occurs before foreground. */
+    private fun startVectorRead(operation:VectorOperation){
+        val uri=operation.uri?:return
+        if(!currentVectorOperation(operation)||!operation.received||operation.started)return
+        operation.started=true;val started=System.nanoTime()
+        try{worker.execute{
+            fun stopped()=!currentVectorOperation(operation)||System.nanoTime()-started>=10_000_000_000L
+            val result=runCatching{check(!stopped());requireNotNull(contentResolver.openInputStream(uri)).use{DrawingVectorFiles.read(it,::stopped)}}
+            runOnUiThread{
+                if(!currentVectorOperation(operation))return@runOnUiThread
+                result.onSuccess{text->
+                    synchronized(operationLock){if(!currentVectorOperation(operation))return@onSuccess;operation.text=text;operation.uri=null}
+                    vectorReply(operation.id,length=text.length)
+                }.onFailure{if(releaseVectorOperation(operation))vectorReply(operation.id,error="This SVG file could not be read as bounded UTF-8 text.")}
+            }
+        }}catch(_:java.util.concurrent.RejectedExecutionException){if(releaseVectorOperation(operation))vectorReply(operation.id,error="SVG reading stopped. Choose the file again.")}
+    }
+    private fun cancelVectorRead(){
+        val operation=vectorOperation?.takeIf{it.started}?:return
+        if(releaseVectorOperation(operation))vectorReply(operation.id,error="SVG reading stopped while the drawing was inactive. Choose the file again.")
     }
     private fun currentProjectUpload(value:DrawingProjectUpload)=synchronized(operationLock){projectUpload===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
     private fun releaseProjectUpload(value:DrawingProjectUpload):Boolean=synchronized(operationLock){if(projectUpload!==value)false else{projectUpload=null;importing.set(false);true}}
@@ -494,6 +562,7 @@ class HonorableDrawingActivity : Activity() {
     @Deprecated("Uses the Activity result API for this local picker")
     override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){
         super.onActivityResult(requestCode,resultCode,data)
+        if(DrawingVectorFiles.acceptsCode(requestCode)){vectorResult(requestCode,resultCode,data);return}
         if(requestCode==DrawingProjectFiles.OPEN_REQUEST||requestCode==DrawingProjectFiles.SAVE_REQUEST){projectResult(requestCode,resultCode,data);return}
         if(requestCode==DrawingPhotoPolicy.REQUEST_CODE)photoResult(resultCode,data)
     }
@@ -512,9 +581,11 @@ class HonorableDrawingActivity : Activity() {
         if(printUpload!=null||activePrint!=null)outState.putBoolean("noble-drawing-print-pending",true)
         if(photoOperation!=null)outState.putBoolean("noble-drawing-photo-pending",true)
         if(svgOperation!=null)outState.putBoolean("noble-drawing-svg-pending",true)
+        outState.putInt("noble-drawing-vector-code",synchronized(operationLock){lastVectorCode})
+        if(vectorOperation!=null)outState.putBoolean("noble-drawing-vector-pending",true)
         super.onSaveInstanceState(outState)
     }
-    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();projectOperation?.let{startProjectOperation(it)};photoOperation?.let{startPhotoOperation(it)}}}
-    override fun onPause(){printForeground=false;invalidateResetReview();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();vectorOperation?.let{startVectorRead(it)};projectOperation?.let{startProjectOperation(it)};photoOperation?.let{startPhotoOperation(it)}}}
+    override fun onPause(){printForeground=false;invalidateResetReview();cancelVectorRead();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};vectorOperation?.let{releaseVectorOperation(it)};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

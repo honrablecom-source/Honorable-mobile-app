@@ -14,6 +14,7 @@ import { barcodePlan } from './barcode.mjs';
 import { tablePlan } from './table.mjs';
 import { starterPlan } from './starters.mjs';
 import { StarterPreview } from './StarterPreview.jsx';
+import { VectorImportTool } from './VectorImportTool.jsx';
 import { ShapeBooleanTool } from './ShapeBooleanTool.jsx';
 import { captureBooleanSource } from './shape-boolean-source.mjs';
 import { printArtworkSnapshot, sendPrintArtwork, MAX_PRINT_BYTES } from './print-artwork.mjs';
@@ -50,11 +51,12 @@ function Editor() {
   const photoInput = useRef(null), photoRequest = useRef(0), pendingPhoto = useRef(null), photoTarget = useRef(null), busyRef = useRef(false), mounted = useRef(true);
   const [ready, setReady] = useState(false);
   const resetPending = useRef(false);
+  const vectorFileOwner = useRef(null);
   const [transparentImage, setTransparentImage] = useState(false);
   const [selectionFile, setSelectionFile] = useState(false);
   const [projectTool, setProjectTool] = useState('saved');
   const projectTaskHeading = useRef(null), previousProjectTool = useRef('saved');
-  const projectViews = { finish: 'Finish options', saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', advanced: 'Advanced transfer' };
+  const projectViews = { finish: 'Finish options', saved: 'Saved designs', files: 'Project files', images: 'Image copies', print: 'Print or PDF', parts: 'Reusable parts', vectors: 'Vector artwork', advanced: 'Advanced transfer' };
   const printRequest = useRef(0), pendingPrint = useRef(null), svgRequest = useRef(0), pendingSvg = useRef(null), pendingImage = useRef(null), outputSelection = useRef(null);
   const projectFileInput = useRef(null), projectFileRequest = useRef(0), pendingProjectFile = useRef(null), projectJson = useRef('');
   const [preparedProjectFile, setPreparedProjectFile] = useState(null);
@@ -245,6 +247,30 @@ function Editor() {
       setMosaicTarget({ editor: api.current, photo, dataURL: file.dataURL, snapshot: encodeDraft(...scene()) });
       setPanel('mosaic');
     } catch (failure) { error(failure); }
+  };
+  const captureVectorSource = () => {
+    const editor = api.current;
+    if (!mounted.current || !editor || busyRef.current || resetPending.current || preservedDraft.current) throw Error('Wait for the drawing to be ready.');
+    const raw = encodeDraft(editor.getSceneElements(), {}, editor.getFiles());
+    return { existingCount: editor.getSceneElements().length, current(candidate) { try { return mounted.current && !resetPending.current && !preservedDraft.current && candidate === editor && encodeDraft(candidate.getSceneElements(), {}, candidate.getFiles()) === raw; } catch { return false; } } };
+  };
+  const beginVectorFile = () => {
+    if (!beginBusy()) return null;
+    const owner = {}; vectorFileOwner.current = owner;
+    return () => { if (vectorFileOwner.current === owner) { vectorFileOwner.current = null; finishBusy(); } };
+  };
+  const insertVectorArtwork = (result, source) => {
+    if (busyRef.current || !source.current(api.current)) throw Error('The drawing changed. Preview the SVG again.');
+    const editor = api.current, elements = editor.getSceneElementsIncludingDeleted(), active = elements.filter(element => !element.isDeleted);
+    const visible = active.filter(element => element.opacity !== 0 && !element.customData?.nobleHidden);
+    const bounds = visible.length ? getCommonBounds(visible) : [0, 0, -48, 0], group = makeObjectId();
+    const created = convertToExcalidrawElements(result.plan.map(element => ({ ...element, x: element.x + bounds[2] + 48 - result.bounds[0], y: element.y + bounds[1] - result.bounds[1] }))).map(element => ({ ...element, groupIds: [group] }));
+    const merged = [...elements, ...created]; encodeDraft(merged, editor.getAppState(), editor.getFiles());
+    if (!source.current(api.current)) throw Error('The drawing changed. Preview the SVG again.');
+    commit(merged.map(element => newElementWith(element, {}, true)));
+    editor.updateScene({ appState: { selectedElementIds: Object.fromEntries(created.map(element => [element.id, true])), selectedGroupIds: { [group]: true }, editingGroupId: null }, captureUpdate: CaptureUpdateAction.NEVER });
+    const ids = new Set(created.map(element => element.id)); setPanel(null); setStatus('Editable SVG artwork inserted beside your drawing. Originals kept; Undo removes the new group.');
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (!mounted.current || api.current !== editor || resetPending.current) return; const visible = editor.getSceneElements().filter(element => ids.has(element.id)); if (visible.length === created.length) editor.scrollToContent(visible, { fitToViewport: true, viewportZoomFactor: .85, canvasOffsets: { top: 80, bottom: 100, left: 24, right: 48 } }); }));
   };
   const insertBoolean = (result, source) => {
     if (busyRef.current || !source.current(api.current)) throw Error('The drawing changed. Preview the selected shapes again.');
@@ -908,7 +934,7 @@ function Editor() {
         <MainMenu><MainMenu.ItemCustom><small>Offline creation powered by Excalidraw.<br/>Open-source and font notices are bundled.</small></MainMenu.ItemCustom></MainMenu>
       </Excalidraw>
     </section>
-    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePanel(); } }} aria-label={`${panel} panel`} onClickCapture={event => { if (busyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
+    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (vectorFileOwner.current) event.currentTarget.querySelector('button[data-vector-file-cancel="true"]')?.click(); closePanel(); } }} aria-label={`${panel} panel`} onClickCapture={event => { const vectorCancel = vectorFileOwner.current && event.target instanceof Element && event.target.closest('button[data-vector-file-cancel="true"]'); if (busyRef.current && !vectorCancel) { event.preventDefault(); event.stopPropagation(); } }}>
       <div className="panel-title"><h2 ref={panelHeading} tabIndex={-1}>{panel[0].toUpperCase() + panel.slice(1)}</h2><button disabled={busy} onClick={closePanel}>Close panel</button></div>
       {panel === 'layouts' && <><p>Choose what to make. Each result stays editable, and Undo removes one insertion.</p>
         <div role="group" aria-label="Layout tools" className="tool-grid layout-tools">{[["starter","Starter design"],["cloud","Word cloud"],["table","Table"],["qr","QR artwork"],["barcode","Barcode label"],["dependencies","Dependency diagram"],["palette","Artwork color key"],["chart","Data chart"],["calendar","Month calendar"],["storyboard","Storyboard sheet"]].map(([key,label]) => <button key={key} aria-pressed={layoutTool === key} onClick={() => setLayoutTool(key)}>{label}</button>)}</div>
@@ -971,6 +997,7 @@ function Editor() {
         <p>Save a file to keep your objects and imported photo copies editable. Choose a Noble project file to review it first; your drawing changes only when you choose Open or Insert. The file includes any embedded photo copies, so choose where to keep it.</p><div className="tool-grid"><button onClick={saveProjectFile}>Save project file</button><button onClick={chooseProjectFile}>Choose project file</button></div>
         {preparedProjectFile && preparedProjectFile.raw === json && <section className="object-row" aria-label="Chosen project file"><strong>{preparedProjectFile.name}</strong><p>Your current drawing is unchanged. Open replaces it with recoverable Undo; Insert adds this artwork beside it.</p><div className="tool-grid"><button onClick={() => usePreparedProject(false)}>Open chosen project</button><button onClick={() => usePreparedProject(true)}>Insert chosen artwork</button></div></section>}
         </>}
+        {projectTool === 'vectors' && <VectorImportTool captureSource={captureVectorSource} isCurrent={source => source.current(api.current)} beginFile={beginVectorFile} onApply={insertVectorArtwork} onCancel={closePanel} />}
         {projectTool === 'images' && <>
         <label className="check-label"><input type="checkbox" aria-label="Use transparent image background" checked={transparentImage} disabled={busy} onChange={event => { if (!busyRef.current) setTransparentImage(event.target.checked); }} />Use transparent image background</label><p>{transparentImage ? 'Empty canvas areas stay transparent. Photos and filled shapes keep their backgrounds. Choose PNG when exporting from the photo editor to keep transparency.' : 'Empty canvas areas become white. Turn on transparency for artwork you want to place over another image.'} This choice applies to both image buttons for this session; SVG and editable project saves keep their own settings.</p><p>Select artwork on the canvas, then open only that part in the photo editor. Attached labels and selected frame contents are included; hidden objects are excluded. Outside connections are detached in the image copy. Your editable drawing stays here. The header Use image button includes the whole visible drawing.</p><button onClick={() => useImage(true)}>Use selected artwork</button>
         </>}
