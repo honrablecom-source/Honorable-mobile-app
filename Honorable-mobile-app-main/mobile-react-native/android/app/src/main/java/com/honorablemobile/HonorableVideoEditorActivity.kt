@@ -704,12 +704,15 @@ class HonorableVideoEditorActivity : Activity() {
         }.setNegativeButton("Cancel",null).show()
     }
     private fun editMotion(){
-        if(!editorIdle()||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
-        VideoMotionControls.show(this,clip){motion->
-            require(!isDestroyed&&!isFinishing&&editorIdle()&&project===current&&selectedClip==index&&current.segments.getOrNull(index)==clip){"Video changed. Open motion again."}
-            current.setMotion(index,motion);showClip();previewComposition(listOf(current.segments[index]),index)
+        val dialog=VideoMotionControls.create(this,clip,{canUseInspectorReview(it,review)}) applyMotion@{owner,motion->
+            if(motion==clip.motion){inspectorReviewDialog=null;status.text="Clip motion is unchanged.";return@applyMotion}
+            check(commitInspectorReview(owner,review,current,index,clip){current.setMotion(index,motion)}){"Video or session changed. Open motion again."}
+            val refreshed=runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}.isSuccess
+            status.text=if(refreshed)"Motion applied. Undo restores the previous motion."else"Motion applied. Preview is unavailable; Undo restores the previous motion."
         }
+        showInspectorReview(dialog,review)
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
 

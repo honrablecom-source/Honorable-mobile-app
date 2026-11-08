@@ -8,6 +8,9 @@ import android.widget.*
 
 internal object VideoMotionControls{
     fun show(a:Activity,clip:VideoSegment,commit:(VideoMotion)->Unit){
+        create(a,clip,{it.isShowing}){_,motion->commit(motion)}.show()
+    }
+    fun create(a:Activity,clip:VideoSegment,isCurrent:(AlertDialog)->Boolean,commit:(AlertDialog,VideoMotion)->Unit):AlertDialog {
         val baseline=clip.motion.forEditing(clip.startMs,clip.endMs);var value=baseline
         val panel=LinearLayout(a).apply{orientation=LinearLayout.VERTICAL;val p=(20*resources.displayMetrics.density).toInt();setPadding(p,p/2,p,p/2)}
         panel.addView(TextView(a).apply{text="Animate the picture and its clip title between two zoom/pan endpoints. Timed captions stay screen-aligned. Motion follows source time, preserving framing through trims and splits. Changing endpoints fits a new animation across this clip. Original media stays unchanged.";setTextColor(Color.DKGRAY)})
@@ -27,9 +30,13 @@ internal object VideoMotionControls{
         panel.addView(TextView(a).apply{text="Pan −100% selects the left/top edge; +100% selects the right/bottom edge. At 100% zoom the whole picture remains visible.";setTextColor(Color.DKGRAY)})
         val note=TextView(a).apply{setTextColor(Color.DKGRAY)};panel.addView(note)
         val dialog=AlertDialog.Builder(a).setTitle("Motion pan and zoom").setView(ScrollView(a).apply{addView(panel)}).setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
-        dialog.setOnShowListener{dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener{runCatching{
-            val edited=value.copy(enabled=enabled.isChecked,ease=MotionEase.entries[ease.selectedItemPosition])
-            commit(if(clip.motion!=VideoMotion()&&edited==baseline)clip.motion else edited);dialog.dismiss()
-        }.onFailure{note.text=it.message?:"Video changed. Open motion again."}}};dialog.show()
+        dialog.setOnShowListener{dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+            if(!dialog.isShowing||!isCurrent(dialog)){dialog.dismiss();return@setOnClickListener}
+            runCatching{
+                val edited=value.copy(enabled=enabled.isChecked,ease=MotionEase.entries[ease.selectedItemPosition])
+                commit(dialog,if(clip.motion!=VideoMotion()&&edited==baseline)clip.motion else edited);dialog.dismiss()
+            }.onFailure{note.text=it.message?:"Video changed. Open motion again."}
+        }}
+        return dialog
     }
 }
