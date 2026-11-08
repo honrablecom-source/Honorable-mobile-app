@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 100,
+  "source_implemented": 101,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 400,
+  "remaining_not_source_complete": 399,
   "features": [
     {
       "id": "C001",
@@ -795,6 +795,14 @@
     {
       "id": "C101",
       "outcome": "Manually outline a photo subject and enclosed holes, preview a separate transparent PNG cutout and insert it beside the preserved original with one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C102",
+      "outcome": "Place embedded artwork onto a marked four-corner photographed surface as a reviewed separate PNG mockup while preserving both source photos and one Undo",
       "status": "implemented-source",
       "local_web_checked": true,
       "full_app_build_checked": false,
