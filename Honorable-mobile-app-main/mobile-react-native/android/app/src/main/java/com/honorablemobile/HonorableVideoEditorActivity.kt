@@ -1473,26 +1473,36 @@ class HonorableVideoEditorActivity : Activity() {
         }.setNegativeButton("Cancel",null).create()
         showInspectorReview(dialog,review)
     }
+    private fun canUseSavedTitleReview(shelf:VideoTitleStyleShelf,review:VideoCaptionReviewState)=
+        titleStyleShelf===shelf&&canApplyCaptionReview(review)
+    private fun commitSavedTitleReview(shelf:VideoTitleStyleShelf,review:VideoCaptionReviewState,style:NamedVideoTitleStyle,all:Boolean):Boolean {
+        if(titleStyleShelf!==shelf)return false
+        titleStyleShelf=null // Consume this shelf before validation; Undo cannot revive it.
+        check(canApplyCaptionReview(review)){"Project or session changed. Open saved title styles again."}
+        val current=requireNotNull(project);val clips=current.segments;val index=selectedClip
+        val proposed=clips.mapIndexed{i,value->if(all||i==index)style.applyTo(value)else value}
+        if(proposed==clips)return false
+        current.applyDraft(proposed,soundtrack=current.soundtrack)
+        return true
+    }
     private fun savedTitleStyles(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
-        val current=project?:return;val clips=current.segments;val index=selectedClip
-        val clip=clips.getOrNull(index)?:return;val music=current.soundtrack;val mode=accessMode
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
         titleStyleShelf?.close()
         video.pause();previewPlayer?.pause()
         lateinit var shelf:VideoTitleStyleShelf
-        shelf=VideoTitleStyleShelf(this,mode,clip.titleStyle,
-            isCurrent={editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode},
+        shelf=VideoTitleStyleShelf(this,review.mode,clip.titleStyle,
+            isCurrent={canUseSavedTitleReview(shelf,review)},
             busy={value->if(titleStyleShelf===shelf)draftBusy=value},
-            message={text->status.text=text},
-            apply={style,all->
-                val proposed=clips.mapIndexed{i,value->if(all||i==index)style.applyTo(value)else value}
-                val result=runCatching{current.applyDraft(proposed,soundtrack=music)}
-                if(result.isFailure)status.text=result.exceptionOrNull()?.message?:"Title appearance could not be applied."
-                else {
-                    status.text="Saved title appearance applied. Project Undo restores the previous style."
-                    runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}
-                        .onFailure{status.text="Title appearance applied; preview unavailable. Project Undo is available."}
-                }
+            message={text->if(titleStyleShelf===shelf)status.text=text},
+            apply=applyStyle@{style,all->
+                if(titleStyleShelf!==shelf)return@applyStyle
+                runCatching{commitSavedTitleReview(shelf,review,style,all)}
+                    .onSuccess{applied->
+                        if(!applied){status.text="The selected title appearance already matches. No project edit was added.";return@onSuccess}
+                        val refreshed=runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}.isSuccess
+                        status.text=if(refreshed)"Saved title appearance applied. Project Undo restores the previous style." else "Title appearance applied; preview unavailable. Project Undo is available."
+                    }.onFailure{status.text=it.message?:"Title appearance could not be applied. Open saved title styles again."}
             })
         titleStyleShelf=shelf;shelf.open()
     }
