@@ -1377,14 +1377,29 @@ class HonorableVideoEditorActivity : Activity() {
         }
         showInspectorReview(dialog,review)
     }
+    private fun commitTransformReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,choice:Int):Boolean {
+        var changed=false
+        val applied=commitInspectorReview(dialog,review,current,index,clip){
+            require(choice in 0..3){"Choose an available transform."}
+            val l=clip.layout
+            val next=when(choice){0->l.copy(rotation=(l.rotation+90)%360);1->l.copy(mirrorX=!l.mirrorX);2->l.copy(mirrorY=!l.mirrorY);else->l.copy(rotation=0,mirrorX=false,mirrorY=false)}
+            if(next!=l){current.setLayout(index,next);changed=true}
+        }
+        return applied&&changed
+    }
     private fun transformVideo(){
-        if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
-        android.app.AlertDialog.Builder(this).setTitle("Video transform").setItems(arrayOf("Rotate 90° clockwise","Flip horizontally","Flip vertically","Reset transform")){_,i->
-            if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){
-                val l=clip.layout;current.setLayout(index,when(i){0->l.copy(rotation=(l.rotation+90)%360);1->l.copy(mirrorX=!l.mirrorX);2->l.copy(mirrorY=!l.mirrorY);else->l.copy(rotation=0,mirrorX=false,mirrorY=false)})
-                showClip();previewComposition(listOf(current.segments[index]),index)
-            }
-        }.setNegativeButton("Cancel",null).show()
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Video transform").setItems(arrayOf("Rotate 90° clockwise","Flip horizontally","Flip vertically","Reset transform")){_,choice->
+            if(!canUseInspectorReview(dialog,review))return@setItems
+            runCatching{commitTransformReview(dialog,review,current,index,clip,choice)}.onSuccess{changed->
+                if(!changed){status.text="Video transform is unchanged.";return@onSuccess}
+                val refreshed=runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}.isSuccess
+                status.text=if(refreshed)"Video transform applied. Undo restores the previous transform."else"Video transform applied. Preview is unavailable; Undo restores the previous transform."
+            }.onFailure{status.text="Transform could not be applied. Existing edits were kept."}
+        }.setNegativeButton("Cancel",null).create()
+        showInspectorReview(dialog,review)
     }
     private fun savedTitleStyles(){
         if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
