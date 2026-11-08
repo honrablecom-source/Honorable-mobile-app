@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-99 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+100 source outcomes / 500 target. No new full-app build or device acceptance. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -155,3 +155,5 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C099** — Import supported local SVG artwork as separately editable grouped drawing paths, with reviewed insertion, originals kept and one Undo. [Evidence and limits](DRAWING_SVG_IMPORT.md). Source/browser and focused native API checked; full-app/device acceptance pending.
 
 - **C101** — Manually outline a photo subject and enclosed holes, then insert a reviewed transparent PNG copy beside the preserved source with one Undo. [Evidence and limits](DRAWING_PHOTO_OUTLINE_CUTOUT.md). Source and actual browser checked; full-app/device acceptance pending.
+
+- **C103** — Assemble a pasted source-range shot list in entered order as editable excerpts, keeping intentional repeats/overlaps, selected-source appearance and intersecting captions, with reviewed one-step Undo. 511 focused host tests (16 new) and 21 source/API34 checks pass; actual native input/dialog/preview/export/device and full APK remain unverified. [Evidence](FEATURE_C103_VIDEO_RANGE_ASSEMBLY.md).

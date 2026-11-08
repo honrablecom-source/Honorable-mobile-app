@@ -13,7 +13,7 @@ internal enum class VideoBatchTool(val title:String) {
     CAPTION_DUCK("Caption-led clip ducking"), STORYBOARD_TITLES("Storyboard titles"),
     SORT("Sort timeline clips"), DEDUPLICATE("Remove exact duplicate clips"), JOIN_CUTS("Join matching adjacent cuts"),
     CAPTION_HOLDS("Extend caption display holds"), CAPTION_CASE("Change caption letter case"),
-    CAPTION_REPLACE("Find and replace caption text")
+    CAPTION_REPLACE("Find and replace caption text"), SOURCE_RANGE_LIST("Assemble pasted source ranges")
 }
 
 /** Pure proposals applied by the existing project validator as one undoable change. */

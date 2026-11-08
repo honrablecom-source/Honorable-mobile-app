@@ -1028,6 +1028,7 @@ class HonorableVideoEditorActivity : Activity() {
             if(proposed==snapshot){status.text="These settings leave the project unchanged.";return}
             val duration=String.format(java.util.Locale.ROOT,"%.2f",proposed.sumOf{it.durationUs}/1_000_000.0)
             val explanation=when(kind){
+                VideoBatchTool.SOURCE_RANGE_LIST->"Replaces the selected clip with your pasted original-source ranges in entered order. Repeats and overlaps are intentional; every excerpt plays forward at the current speed. Other clips and soundtrack settings stay. Captions outside each excerpt are removed; source-anchored motion and other appearance settings stay. Codec cuts are not promised frame-exact.\n\nSource ranges (seconds):\n"+proposed.subList(index,proposed.size-(snapshot.size-index-1)).joinToString("\n"){String.format(java.util.Locale.ROOT,"%.3f → %.3f",it.startMs/1000.0,it.endMs/1000.0)}
                 VideoBatchTool.DIVIDE->"Divides the selected clip into equal source ranges. Captions crossing a cut remain visible on both pieces."
                 VideoBatchTool.LIMIT->"Keeps centered excerpts no longer than the chosen playback duration. Short clips stay unchanged. Captions outside the retained ranges are removed."
                 VideoBatchTool.REVERSE->"Reverses clip order only. Footage still plays forward within each clip."
@@ -1061,7 +1062,7 @@ class HonorableVideoEditorActivity : Activity() {
                     runCatching{commitBatchReview(dialog,request,captured)}
                         .onSuccess{applied->
                             if(!applied)return@onSuccess
-                            selectedClip=if(kind in setOf(VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES,VideoBatchTool.CAPTION_HOLDS,VideoBatchTool.CAPTION_CASE,VideoBatchTool.CAPTION_REPLACE))index else 0
+                            selectedClip=if(kind in setOf(VideoBatchTool.SOURCE_RANGE_LIST,VideoBatchTool.CAPTION_SHIFT,VideoBatchTool.CAPTION_WRAP,VideoBatchTool.WORD_CAPTIONS,VideoBatchTool.MERGE_CAPTIONS,VideoBatchTool.TIMECODES,VideoBatchTool.STORYBOARD_TITLES,VideoBatchTool.CAPTION_HOLDS,VideoBatchTool.CAPTION_CASE,VideoBatchTool.CAPTION_REPLACE))index else 0
                             val refreshed=runCatching{showClip();previewProject()}.isSuccess
                             status.text=if(refreshed)"${kind.title} applied. Undo restores the previous project."else"${kind.title} applied. Preview is unavailable; Undo restores the previous project."
                         }.onFailure{status.text=it.message?:"Project limits reached. Existing edits are unchanged."}
@@ -1091,6 +1092,11 @@ class HonorableVideoEditorActivity : Activity() {
         }
 
         when(kind){
+            VideoBatchTool.SOURCE_RANGE_LIST->{
+                val clip=snapshot[index]
+                val initial=String.format(java.util.Locale.ROOT,"%.3f, %.3f",clip.startMs/1000.0,clip.endMs/1000.0)
+                textInput("Paste 1–100 lines: start,end in original-source seconds (decimal point, up to three decimals). Each range must stay inside this selected clip: ${VideoCaptions.formatTime(clip.startMs)} to ${VideoCaptions.formatTime(clip.endMs)}. Entered order, repeated ranges and overlaps are kept. Each excerpt needs at least 0.1 playback second. This replaces the selected clip; review before applying.",initial){VideoRangeAssembly.propose(snapshot,index,it)}
+            }
             VideoBatchTool.SORT->options(arrayOf("Group by source, then original time","Shortest playback first","Longest playback first")){VideoRefinementTools.sort(snapshot,VideoSortOrder.entries[it])}
             VideoBatchTool.DEDUPLICATE->review{VideoRefinementTools.removeExactDuplicates(snapshot)}
             VideoBatchTool.JOIN_CUTS->review{VideoRefinementTools.joinMatchingCuts(snapshot)}

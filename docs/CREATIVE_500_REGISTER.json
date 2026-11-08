@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 99,
+  "source_implemented": 100,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 401,
+  "remaining_not_source_complete": 400,
   "features": [
     {
       "id": "C001",
@@ -797,6 +797,14 @@
       "outcome": "Manually outline a photo subject and enclosed holes, preview a separate transparent PNG cutout and insert it beside the preserved original with one Undo",
       "status": "implemented-source",
       "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C103",
+      "outcome": "Assemble a pasted source-range shot list into ordered editable video excerpts, preserving intentional repeats and existing clip appearance with reviewed one-step Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
       "full_app_build_checked": false,
       "device_checked": false
     }
