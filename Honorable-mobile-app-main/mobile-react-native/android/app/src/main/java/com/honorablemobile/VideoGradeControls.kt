@@ -9,6 +9,9 @@ import kotlin.math.roundToInt
 
 internal object VideoGradeControls {
     fun show(activity:Activity,initial:VideoGrade,balanceOnly:Boolean=false,commit:(VideoGrade)->Unit) {
+        create(activity,initial,balanceOnly,{it.isShowing}){_,grade->commit(grade)}.show()
+    }
+    fun create(activity:Activity,initial:VideoGrade,balanceOnly:Boolean,isCurrent:(AlertDialog)->Boolean,commit:(AlertDialog,VideoGrade)->Unit):AlertDialog {
         var grade=initial
         fun dp(value:Int)=(value*activity.resources.displayMetrics.density).toInt()
         val panel=LinearLayout(activity).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
@@ -38,7 +41,9 @@ internal object VideoGradeControls {
             grade=if(balanceOnly)grade.copy(warmth=0f,tint=0f)else grade.copy(exposure=0f,contrast=1f,saturation=1f)
             (if(balanceOnly)listOf(100,100)else listOf(200,100,100)).forEachIndexed{i,v->bars[i].progress=v}
         }})
-        AlertDialog.Builder(activity).setTitle(if(balanceOnly)"Video white balance" else "Video color").setView(ScrollView(activity).apply{addView(panel)})
-            .setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->commit(grade)}.show()
+        lateinit var dialog:AlertDialog
+        dialog=AlertDialog.Builder(activity).setTitle(if(balanceOnly)"Video white balance" else "Video color").setView(ScrollView(activity).apply{addView(panel)})
+            .setNegativeButton("Cancel",null).setPositiveButton("Apply"){_,_->if(dialog.isShowing&&isCurrent(dialog))commit(dialog,grade)}.create()
+        return dialog
     }
 }

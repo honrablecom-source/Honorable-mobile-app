@@ -1365,8 +1365,17 @@ class HonorableVideoEditorActivity : Activity() {
         return false
     }
     private fun outputFormat(){
-        if(!editorIdle())return;val current=project?:return;val snapshot=current.segments
-        VideoInspectorControls.format(this,snapshot.first().layout){ratio,crop->if(editorIdle()&&project===current&&current.segments==snapshot){current.setFormat(ratio,crop);showClip();previewProject()}}
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        val dialog=VideoInspectorControls.createFormat(this,current.segments.first().layout,{canUseInspectorReview(it,review)}) applyFormat@{owner,ratio,crop->
+            if(current.segments.all{it.layout.ratio==ratio&&it.layout.crop==crop}){inspectorReviewDialog=null;status.text="Output format is unchanged.";return@applyFormat}
+            runCatching{commitInspectorReview(owner,review,current,index,clip){current.setFormat(ratio,crop)}}.onSuccess{applied->
+                if(!applied)return@onSuccess
+                val refreshed=runCatching{showClip();previewProject()}.isSuccess
+                status.text=if(refreshed)"Output format applied. Undo restores the previous format."else"Output format applied. Preview is unavailable; Undo restores the previous format."
+            }.onFailure{status.text="Output format could not be applied. Existing edits were kept."}
+        }
+        showInspectorReview(dialog,review)
     }
     private fun transformVideo(){
         if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
@@ -1401,9 +1410,29 @@ class HonorableVideoEditorActivity : Activity() {
         titleStyleShelf=shelf;shelf.open()
     }
 
+    private var inspectorReviewDialog:android.app.AlertDialog?=null
+    private fun canUseInspectorReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState)=inspectorReviewDialog===dialog&&activeCaptionReviewDialog(dialog,review)
+    private fun showInspectorReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState){
+        inspectorReviewDialog?.dismiss();inspectorReviewDialog=dialog
+        showCaptionReview(dialog,review){if(inspectorReviewDialog===dialog)inspectorReviewDialog=null}
+    }
+    private fun commitInspectorReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,commit:()->Unit):Boolean {
+        if(inspectorReviewDialog!==dialog)return false
+        if(!canUseInspectorReview(dialog,review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip){inspectorReviewDialog=null;return false}
+        commit();inspectorReviewDialog=null;return true
+    }
     private fun titleStyle(){
-        if(!editorIdle())return;val current=project?:return;val index=selectedClip;val clip=current.segments[index]
-        VideoInspectorControls.title(this,clip.titleStyle){style->if(editorIdle()&&project===current&&selectedClip==index&&current.segments[index]==clip){current.setTitleStyle(index,style);showClip();previewComposition(listOf(current.segments[index]),index)}}
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        val dialog=VideoInspectorControls.createTitle(this,clip.titleStyle,{canUseInspectorReview(it,review)}) applyStyle@{owner,style->
+            if(style==clip.titleStyle){inspectorReviewDialog=null;status.text="Title style is unchanged.";return@applyStyle}
+            runCatching{commitInspectorReview(owner,review,current,index,clip){current.setTitleStyle(index,style)}}.onSuccess{applied->
+                if(!applied)return@onSuccess
+                val refreshed=runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}.isSuccess
+                status.text=if(refreshed)"Title style applied. Undo restores the previous style."else"Title style applied. Preview is unavailable; Undo restores the previous style."
+            }.onFailure{status.text="Title style could not be applied. Existing edits were kept."}
+        }
+        showInspectorReview(dialog,review)
     }
     private var colorAllConfirmation:android.app.AlertDialog?=null
     private fun commitColorAllReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int):Boolean {
@@ -1433,12 +1462,17 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun editColor(balanceOnly:Boolean=false) {
-        if(saving||analyzing||draftBusy||importing||pendingRange!=null)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
-        VideoGradeControls.show(this,clip.grade,balanceOnly){grade->
-            if(project!==current||selectedClip!=index||current.segments.getOrNull(index)!=clip||saving||analyzing||draftBusy||importing||pendingRange!=null){status.text="Clip changed. Open color controls again.";return@show}
-            current.setGrade(index,grade);showClip();previewComposition(listOf(current.segments[index]),index)
+        val dialog=VideoGradeControls.create(this,clip.grade,balanceOnly,{canUseInspectorReview(it,review)}) applyGrade@{owner,grade->
+            if(grade==clip.grade){inspectorReviewDialog=null;status.text="Clip color is unchanged.";return@applyGrade}
+            runCatching{commitInspectorReview(owner,review,current,index,clip){current.setGrade(index,grade)}}.onSuccess{applied->
+                if(!applied)return@onSuccess
+                val refreshed=runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}.isSuccess
+                status.text=if(refreshed)"Clip color applied. Undo restores the previous color."else"Clip color applied. Preview is unavailable; Undo restores the previous color."
+            }.onFailure{status.text="Clip color could not be applied. Existing edits were kept."}
         }
+        showInspectorReview(dialog,review)
     }
 
     private fun videoLookOptions() {
