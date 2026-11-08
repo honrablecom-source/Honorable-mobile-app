@@ -1829,25 +1829,40 @@ class HonorableVideoEditorActivity : Activity() {
         require((previewSelectedIndex ?: position.clipIndex) == selectedClip) { "Select the playing clip" }
         return position.sourceTimeMs
     }
+    private var clipTitleEditor:android.app.AlertDialog?=null
+    private fun commitClipTitleReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,text:String):Boolean {
+        if(clipTitleEditor!==dialog)return false
+        if(!activeCaptionReviewDialog(dialog,review)||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip){clipTitleEditor=null;return false}
+        val title=text.trim()
+        if(title==clip.title){clipTitleEditor=null;return false}
+        current.setTitle(index,title) // Invalid input leaves the current form owned and editable.
+        clipTitleEditor=null;return true
+    }
     private fun editTitle() {
-        if(saving || draftBusy || importing || pendingRange != null) return
+        val review=captureCaptionReview()?:return
         val current = project ?: return
-        val index = selectedClip; val clip = current.segments[index]
+        val index = selectedClip; val clip = current.segments.getOrNull(index)?:return
         val input = EditText(this).apply {
             setText(clip.title); setTextColor(Color.BLACK); setBackgroundColor(Color.WHITE)
             hint = "Title (leave blank to remove)"; maxLines = 3
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
             filters = arrayOf(android.text.InputFilter.LengthFilter(120))
         }
-        val dialog = android.app.AlertDialog.Builder(this,android.R.style.Theme_Material_Light_Dialog_Alert).setTitle("Clip title").setView(input)
+        lateinit var dialog:android.app.AlertDialog
+        dialog = android.app.AlertDialog.Builder(this,android.R.style.Theme_Material_Light_Dialog_Alert).setTitle("Clip title").setView(input)
             .setNegativeButton("Cancel",null).setPositiveButton("Apply",null).create()
         dialog.setOnShowListener { dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            if(project !== current || selectedClip != index || current.segments.getOrNull(index) != clip || saving || draftBusy || importing || pendingRange != null) { dialog.dismiss(); return@setOnClickListener }
-            runCatching { current.setTitle(index,input.text.toString().trim()) }.onSuccess {
-                dialog.dismiss();showClip();status.text = "Title updated. Preview the project before saving a copy."
-            }.onFailure { input.error = "Use up to 120 characters and three lines; project title text is limited." }
+            if(clipTitleEditor!==dialog||!activeCaptionReviewDialog(dialog,review)){dialog.dismiss();return@setOnClickListener}
+            val text=input.text.toString().trim()
+            if(text==clip.title){dialog.dismiss();status.text="This clip already uses that title. Current edits are unchanged.";return@setOnClickListener}
+            runCatching{commitClipTitleReview(dialog,review,current,index,clip,text)}.onSuccess{applied->
+                if(!applied){dialog.dismiss();return@onSuccess}
+                dialog.dismiss();val refreshed=runCatching{showClip()}.isSuccess
+                status.text=if(refreshed)"Title updated. Preview the project before saving a copy."else"Title updated. Preview could not refresh; reopen it to check the title. Undo restores the previous title."
+            }.onFailure{input.error="Use up to 120 characters and three lines; project title text is limited."}
         } }
-        dialog.show()
+        clipTitleEditor?.dismiss();clipTitleEditor=dialog
+        showCaptionReview(dialog,review){input.text?.clear();if(clipTitleEditor===dialog)clipTitleEditor=null}
     }
     private fun sourceDurations(): Map<String, Long> = mapOf("primary" to primaryDurationMs) + importedSources.mapValues { it.value.durationMs }
 
