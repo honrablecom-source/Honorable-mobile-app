@@ -919,45 +919,69 @@ class HonorableVideoEditorActivity : Activity() {
             }.setNegativeButton("Close",null).show()
     }
 
+    private fun commitMomentHighlightsReview(dialog:android.app.AlertDialog,request:VideoBatchReview,review:VideoCaptionReviewState,catalog:VideoMomentNotes,load:()->VideoMomentNotes):Boolean {
+        if(!canUseBatchStage(dialog,request,review)){
+            if(batchReviewRequest===request&&batchReviewDialog===dialog&&request.owns(dialog))request.close()
+            return false
+        }
+        return request.apply(dialog,requireNotNull(project)){
+            fun requireCurrent(){check(batchReviewRequest===request&&batchReviewDialog===dialog&&activeCaptionReviewDialog(dialog,review)){"Project or session changed. Open highlights again."}}
+            requireCurrent()
+            check(load()==catalog){"Saved notes changed. Open highlights again."}
+            requireCurrent()
+        }
+    }
     private fun momentHighlights(){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
-        val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips.getOrNull(index)?:return
-        val music=current.soundtrack;val mode=accessMode;val namespace=videoLookNamespace()?:return;val uri=sourceUris()[clip.sourceId]?:return
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==namespace&&sourceUris()[clip.sourceId]==uri
-        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),namespace,uri.toString(),sourceDuration(clip.sourceId))}
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return
+        val uri=review.sources[clip.sourceId]?:return
+        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),review.namespace,uri.toString(),sourceDuration(clip.sourceId))}
             .getOrElse{status.text="Highlights need saved notes for a supported local video.";return}
-        val catalog=runCatching{check(valid());store.load()}.getOrElse{status.text="Saved moments could not be read. Original video and notes were kept.";return}
+        val catalog=runCatching{check(canApplyCaptionReview(review));store.load().also{check(canApplyCaptionReview(review))}}.getOrElse{status.text="Saved moments could not be read. Original video and notes were kept.";return}
         val notes=catalog.visible(clip.startMs,clip.endMs)
         if(notes.isEmpty()){status.text="Save moment notes inside this clip first, then open Highlights from notes.";return}
         video.pause();previewPlayer?.pause()
-        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
-        body.addView(TextView(this).apply{text="Choose saved moments from this clip. Source-time handles keep footage around each note;overlapping or touching excerpts merge. The selected clip is replaced by these forward-playing excerpts. Later clips move earlier;the existing soundtrack keeps its settings. Titles,looks,audio and source-anchored motion stay;only captions intersecting retained footage stay visible. Notes and originals are unchanged. Preview after applying;codec cuts are not promised frame-exact.";setTextColor(Color.DKGRAY)})
-        fun field(label:String,initial:String)=EditText(this).apply{hint=label;contentDescription=label;setText(initial);setTextColor(Color.BLACK);setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(8));body.addView(this)}
-        val before=field("Seconds before each source moment","1.000");val after=field("Seconds after each source moment","2.000")
-        val checks=notes.map{note->android.widget.CheckBox(this).apply{text=VideoCaptions.formatTime(note.sourceMs)+" · "+note.label;setTextColor(Color.BLACK);isChecked=true;body.addView(this)}}
-        val dialog=android.app.AlertDialog.Builder(this).setTitle("Highlights from saved notes").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
-            .setNegativeButton("Cancel",null).setPositiveButton("Review excerpts",null).create()
-        dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-            if(!valid()){dialog.dismiss();status.text="Project or session changed. Open highlights again.";return@setOnClickListener}
-            val proposal=runCatching{VideoMomentHighlights.propose(clips,index,notes.filterIndexed{i,_->checks[i].isChecked}.map{it.sourceMs},VideoCaptions.seconds(before.text.toString()),VideoCaptions.seconds(after.text.toString()))}
-                .getOrElse{after.error=it.message?:"Choose saved moments and valid source handles.";return@setOnClickListener}
-            if(proposal==clips){status.text="These excerpts retain the whole clip. Choose smaller handles to shorten it.";return@setOnClickListener}
-            val excerpts=proposal.subList(index,proposal.size-(clips.size-index-1))
-            val summary=excerpts.joinToString("\n"){VideoCaptions.formatTime(it.startMs)+" → "+VideoCaptions.formatTime(it.endMs)}
-            val oldSeconds=String.format(java.util.Locale.ROOT,"%.3f",VideoPlaybackTime.durationUs(clips)/1_000_000.0)
-            val newSeconds=String.format(java.util.Locale.ROOT,"%.3f",VideoPlaybackTime.durationUs(proposal)/1_000_000.0)
-            android.app.AlertDialog.Builder(this).setTitle("Review ${excerpts.size} highlight excerpts")
-                .setMessage("Original-source ranges:\n$summary\n\nProject $oldSeconds → $newSeconds seconds. Replace clip ${index+1} as one Undo step,then preview before export. Saved notes and original media stay unchanged.")
-                .setNegativeButton("Back",null).setPositiveButton("Apply and preview"){_,_->
-                    if(!valid()){dialog.dismiss();status.text="Project or session changed. Open highlights again.";return@setPositiveButton}
-                    runCatching{
-                        check(store.load()==catalog){"Saved notes changed. Open highlights again."}
-                        check(valid()){"Project or session changed. Open highlights again."}
-                        current.applyDraft(proposal,soundtrack=music)
-                    }.onSuccess{dialog.dismiss();selectedClip=index;showClip();previewProject();status.text="Saved-note highlights applied. Undo restores the previous timeline;notes and originals are unchanged."}
-                        .onFailure{status.text=it.message?:"Highlights could not be applied. Existing edits were kept."}
-                }.show()
-        }};dialog.show()
+        batchReviewRequest?.close();batchReviewDialog?.dismiss()
+        val request=VideoBatchReview(clips,current.soundtrack);batchReviewRequest=request
+        fun showEditor(beforeText:String,afterText:String,chosen:Set<Long>){
+            val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+            body.addView(TextView(this).apply{text="Choose saved moments from this clip. Source-time handles keep footage around each note;overlapping or touching excerpts merge. The selected clip is replaced by these forward-playing excerpts. Later clips move earlier;the existing soundtrack keeps its settings. Titles,looks,audio and source-anchored motion stay;only captions intersecting retained footage stay visible. Notes and originals are unchanged. Preview after applying;codec cuts are not promised frame-exact.";setTextColor(Color.DKGRAY)})
+            fun field(label:String,initial:String)=EditText(this).apply{hint=label;contentDescription=label;setText(initial);setTextColor(Color.BLACK);setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL;filters=arrayOf(android.text.InputFilter.LengthFilter(8));body.addView(this)}
+            val before=field("Seconds before each source moment",beforeText);val after=field("Seconds after each source moment",afterText)
+            val checks=notes.map{note->android.widget.CheckBox(this).apply{text=VideoCaptions.formatTime(note.sourceMs)+" · "+note.label;setTextColor(Color.BLACK);isChecked=note.sourceMs in chosen;body.addView(this)}}
+            val editor=android.app.AlertDialog.Builder(this).setTitle("Highlights from saved notes").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+                .setNegativeButton("Cancel",null).setPositiveButton("Review excerpts",null).create()
+            editor.setOnShowListener{editor.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                if(!canUseBatchStage(editor,request,review)){editor.dismiss();status.text="Project or session changed. Open highlights again.";return@setOnClickListener}
+                val beforeValue=before.text.toString();val afterValue=after.text.toString()
+                val selected=notes.filterIndexed{i,_->checks[i].isChecked}.map{it.sourceMs}
+                val proposal=runCatching{VideoMomentHighlights.propose(clips,index,selected,VideoCaptions.seconds(beforeValue),VideoCaptions.seconds(afterValue))}
+                    .getOrElse{after.error=it.message?:"Choose saved moments and valid source handles.";return@setOnClickListener}
+                if(proposal==clips){status.text="These excerpts retain the whole clip. Choose smaller handles to shorten it.";return@setOnClickListener}
+                val excerpts=proposal.subList(index,proposal.size-(clips.size-index-1))
+                val summary=excerpts.joinToString("\n"){VideoCaptions.formatTime(it.startMs)+" → "+VideoCaptions.formatTime(it.endMs)}
+                val oldSeconds=String.format(java.util.Locale.ROOT,"%.3f",VideoPlaybackTime.durationUs(clips)/1_000_000.0)
+                val newSeconds=String.format(java.util.Locale.ROOT,"%.3f",VideoPlaybackTime.durationUs(proposal)/1_000_000.0)
+                lateinit var confirmation:android.app.AlertDialog
+                confirmation=android.app.AlertDialog.Builder(this).setTitle("Review ${excerpts.size} highlight excerpts")
+                    .setMessage("Original-source ranges:\n$summary\n\nProject $oldSeconds → $newSeconds seconds. Replace clip ${index+1} as one Undo step,then preview before export. Saved notes and original media stay unchanged.")
+                    .setNegativeButton("Back"){_,_->if(canUseBatchStage(confirmation,request,review))showEditor(beforeValue,afterValue,selected.toSet())}
+                    .setPositiveButton("Apply and preview"){_,_->
+                        runCatching{commitMomentHighlightsReview(confirmation,request,review,catalog){store.load()}}
+                            .onSuccess{applied->
+                                if(!applied)return@onSuccess
+                                selectedClip=index
+                                val refreshed=runCatching{showClip();previewProject()}.isSuccess
+                                status.text=if(refreshed)"Saved-note highlights applied. Undo restores the previous timeline;notes and originals are unchanged." else "Saved-note highlights applied. Preview is unavailable; Undo restores the previous timeline."
+                            }.onFailure{status.text=it.message?:"Highlights could not be applied. Existing edits were kept."}
+                    }.create()
+                if(showBatchStage(confirmation,request,review))runCatching{check(request.propose(confirmation,proposal))}.onFailure{
+                    request.close();confirmation.dismiss();status.text=it.message?:"Highlights could not be prepared. Existing edits were kept."
+                }
+            }}
+            showBatchStage(editor,request,review){before.text?.clear();after.text?.clear();checks.forEach{it.isChecked=false}}
+        }
+        showEditor("1.000","2.000",notes.map{it.sourceMs}.toSet())
     }
 
     private fun chapterList(){
