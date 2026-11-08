@@ -21,3 +21,14 @@ nav button{transition:background-color 120ms ease-out,color 120ms ease-out,borde
 .starter-preview{margin:12px 0;padding:12px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;text-align:center}.starter-preview strong{display:block;font-size:13px;margin-bottom:8px}.starter-preview img{display:block;max-width:100%;width:auto;height:220px;max-height:30vh;margin:auto;object-fit:contain}.starter-preview p{margin-bottom:0}
 
 .drawing-footer{display:flex;align-items:center;gap:10px;flex:0 0 auto}.drawing-status{flex:1;min-width:0;overflow-wrap:anywhere}.finish-drawing{flex:0 0 auto;max-width:118px;border-color:#111}.finish-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}.finish-choices article{display:flex;flex-direction:column;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff}.finish-choices h4{font-size:14px;margin:0}.finish-choices p{flex:1}.finish-choices button{width:100%;margin-top:4px}.finish-browse{margin-top:12px;width:100%}
+
+/* Photo actions stay discoverable without filling every object row with editing controls. */
+.photo-object-tools{flex:1 1 100%;min-width:0;border:1px solid #ddd;border-radius:8px;background:#fff}
+.photo-object-tools>summary{box-sizing:border-box;min-height:44px;padding:12px;cursor:pointer;font-size:13px;font-weight:600}
+.photo-object-tools>summary:focus-visible{outline:2px solid #111;outline-offset:2px;border-radius:8px}
+.photo-object-tools[open]>summary{border-bottom:1px solid #ddd}
+.photo-tool-groups{padding:10px;animation:noble-panel-enter 160ms ease-out}
+.photo-tool-group+.photo-tool-group{margin-top:12px}
+.photo-tool-group h4{font-size:12px;font-weight:600;color:#555;margin:0 0 6px}
+.photo-tool-group .tool-grid button{flex:1 1 45%;text-transform:none}
+@media(prefers-reduced-motion:reduce){.photo-tool-groups{animation:none}}

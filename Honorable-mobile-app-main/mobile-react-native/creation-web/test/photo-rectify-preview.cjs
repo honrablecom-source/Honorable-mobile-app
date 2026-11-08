@@ -1,9 +1,10 @@
+const {photoTool}=require('./photo-object-tools-navigation.cjs');
 const {withProjectView}=require('./project-navigation.cjs');
 const {chromium}=require('../../../ui-previews/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createHash}=require('node:crypto');
-const output=path.resolve(__dirname,'../../../../.context/noble-fast-photo-rectify/browser');fs.mkdirSync(output,{recursive:true});
+const output=process.env.NOBLE_DRAWING_TEST_OUTPUT?path.resolve(process.env.NOBLE_DRAWING_TEST_OUTPUT):(path.resolve(__dirname,'../../../../.context/noble-fast-photo-rectify/browser'));fs.mkdirSync(output,{recursive:true});
 const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4184/drawing/',origin=new URL(url).origin;
-require('esbuild').buildSync({stdin:{contents:"import{rectifyPhoto}from './photo-rectify.mjs';window.__rectifyService=rectifyPhoto;",resolveDir:path.resolve(__dirname,'..'),sourcefile:'rectify-service-test.mjs'},bundle:true,format:'iife',platform:'browser',target:'chrome90',outfile:'/tmp/noble-fast-rectify-tools/preview/rectify-service-test.js'});
+require('esbuild').buildSync({stdin:{contents:"import{rectifyPhoto}from './photo-rectify.mjs';window.__rectifyService=rectifyPhoto;",resolveDir:path.resolve(__dirname,'..'),sourcefile:'rectify-service-test.mjs'},bundle:true,format:'iife',platform:'browser',target:'chrome90',outfile:process.env.NOBLE_DRAWING_TEST_OUTPUT?path.join(output,'rectify-service-test.js'):'/tmp/noble-fast-rectify-tools/preview/rectify-service-test.js'});
 (async()=>{const browser=await chromium.launch({args:['--no-sandbox']});let page;try{
  page=await browser.newPage({viewport:{width:390,height:844}});const errors=[],external=[];
  const sourceURL=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const context=canvas.getContext('2d'),pixels=context.createImageData(64,64);for(let y=0;y<64;y++)for(let x=0;x<64;x++){const at=(y*64+x)*4;pixels.data.set([x*4,y*4,117,255],at);}context.putImageData(pixels,0,0);return canvas.toDataURL('image/png');});
@@ -14,8 +15,8 @@ require('esbuild').buildSync({stdin:{contents:"import{rectifyPhoto}from './photo
  await page.addInitScript(initial=>{if(!localStorage.getItem('honorable-drawing-v1'))localStorage.setItem('honorable-drawing-v1',JSON.stringify(initial));window.HonorableDrawing={usePng:png=>{window.__png=png;window.honorableExportResult('Synthetic rectified export ready');}};},initial);
  page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error'&&message.text().includes('Content Security Policy'))errors.push(message.text());});await page.route('**/*',route=>{const target=route.request().url();if(!target.startsWith(origin)&&!target.startsWith('data:')&&!target.startsWith('blob:')){external.push(target);return route.abort();}return route.continue();});
  await page.goto(url);await page.getByRole('button',{name:'Objects',exact:true}).waitFor();const save=async()=>{await page.getByRole('button',{name:'Save draft',exact:true}).click();return page.evaluate(()=>JSON.parse(localStorage.getItem('honorable-drawing-v1')));};
- const before=await save();await page.getByRole('button',{name:'Objects',exact:true}).click();assert(await page.getByRole('button',{name:'Straighten photo 2',exact:true}).isDisabled());
- const open=()=>page.getByRole('button',{name:'Straighten photo 1',exact:true}).click();
+ const before=await save();await page.getByRole('button',{name:'Objects',exact:true}).click();assert(await (await photoTool(page,'Straighten photo 2')).isDisabled());
+ const open=async()=>(await photoTool(page,'Straighten photo 1')).click();
  const configure=async()=>{for(const [label,value]of [['Top-left X percent',8/63*100],['Top-left Y percent',0],['Top-right X percent',55/63*100],['Top-right Y percent',0],['Bottom-right X percent',100],['Bottom-right Y percent',100],['Bottom-left X percent',0],['Bottom-left Y percent',100]])await page.getByLabel(label,{exact:true}).fill(String(value));await page.getByLabel('Rectified result format',{exact:true}).selectOption('square');};
  const preview=async()=>{await page.getByRole('button',{name:'Preview straightened copy',exact:true}).click();await page.getByAltText('Straightened photo preview',{exact:true}).waitFor();await page.getByAltText('Straightened photo preview',{exact:true}).evaluate(image=>image.decode());};
  await open();await page.getByLabel('Top-right X percent',{exact:true}).fill('0');await page.getByRole('button',{name:'Preview straightened copy',exact:true}).click();await page.getByText(/Choose a convex outline/).waitFor();assert.deepEqual((await save()).elements,before.elements);

@@ -1,7 +1,8 @@
+const {photoTool}=require('./photo-object-tools-navigation.cjs');
 const { chromium } = require('../../../ui-previews/node_modules/playwright');
 const { withProjectView } = require('./project-navigation.cjs');
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
-const output = path.resolve(__dirname, '../../../../.context/photo-mosaic/browser');
+const output = process.env.NOBLE_DRAWING_TEST_OUTPUT?path.resolve(process.env.NOBLE_DRAWING_TEST_OUTPUT):(path.resolve(__dirname, '../../../../.context/photo-mosaic/browser'));
 const previewRoot = process.env.NOBLE_MOSAIC_PREVIEW_OUTPUT || path.resolve(output, '../preview');
 const url = process.env.NOBLE_PREVIEW_URL || 'http://127.0.0.1:4191/drawing/', origin = new URL(url).origin;
 fs.mkdirSync(output, { recursive: true });
@@ -32,7 +33,7 @@ require('esbuild').buildSync({ stdin: { contents: "import{mosaicPhoto,mosaicPixe
     await page.goto(url);
     const save = async () => { await page.getByRole('button', { name: 'Save draft', exact: true }).click(); return JSON.parse(await page.evaluate(() => localStorage.getItem('honorable-drawing-v1'))); };
     const before = await save();
-    const open = async () => { const objects = page.getByRole('button', { name: 'Objects', exact: true }); if (await objects.getAttribute('aria-expanded') !== 'true') await objects.click(); await page.getByRole('button', { name: 'Make mosaic from photo 1', exact: true }).click(); };
+    const open = async () => { const objects = page.getByRole('button', { name: 'Objects', exact: true }); if (await objects.getAttribute('aria-expanded') !== 'true') await objects.click(); await (await photoTool(page,'Make mosaic from photo 1')).click(); };
     const preview = async () => { await page.getByRole('button', { name: 'Preview photo mosaic', exact: true }).click(); await page.getByRole('img', { name: 'Editable photo mosaic preview', exact: true }).waitFor(); };
     await open(); await preview();
     const previewShapes = await page.getByRole('img', { name: 'Editable photo mosaic preview', exact: true }).locator('polygon').evaluateAll(nodes => nodes.map(node => ({ points: node.getAttribute('points'), fill: node.getAttribute('fill'), opacity: Number(node.getAttribute('opacity')) })));
@@ -104,7 +105,7 @@ require('esbuild').buildSync({ stdin: { contents: "import{mosaicPhoto,mosaicPixe
     const packed = { ...initial, elements: [...initial.elements, ...Array.from({ length: 497 }, (_, index) => ({ ...protectedShape, id: `packed-${index}`, width: 2, height: 2, opacity: 0 }))] };
     await full.addInitScript(value => { if (!localStorage.getItem('honorable-drawing-v1')) localStorage.setItem('honorable-drawing-v1', JSON.stringify(value)); }, packed);
     await full.goto(url); await full.getByRole('button', { name: 'Objects', exact: true }).click();
-    await full.getByRole('button', { name: 'Make mosaic from photo 1', exact: true }).click();
+    await (await photoTool(full,'Make mosaic from photo 1')).click();
     await full.getByRole('button', { name: 'Preview photo mosaic', exact: true }).click();
     await full.getByRole('button', { name: 'Insert editable mosaic', exact: true }).click();
     await full.getByText('Use up to 500 drawing objects.', { exact: true }).waitFor();

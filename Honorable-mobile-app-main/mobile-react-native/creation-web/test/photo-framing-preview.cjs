@@ -1,10 +1,11 @@
+const {photoTool}=require('./photo-object-tools-navigation.cjs');
 const { withProjectView }=require('./project-navigation.cjs');
 const {chromium}=require('../../../ui-previews/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createHash}=require('node:crypto');
-const output=path.resolve(__dirname,'../../../../.context/noble-fast-photo-framing/browser');fs.mkdirSync(output,{recursive:true});
+const output=process.env.NOBLE_DRAWING_TEST_OUTPUT?path.resolve(process.env.NOBLE_DRAWING_TEST_OUTPUT):(path.resolve(__dirname,'../../../../.context/noble-fast-photo-framing/browser'));fs.mkdirSync(output,{recursive:true});
 const url=process.env.NOBLE_PREVIEW_URL||'http://127.0.0.1:4183/drawing/',origin=new URL(url).origin;
 // Test-only bundle exposes the real service for asynchronous source-fence checks. Never shipped in app assets.
-require('esbuild').buildSync({stdin:{contents:"import {suggestFraming} from './photo-framing.mjs';window.__framingService=suggestFraming;",resolveDir:path.resolve(__dirname,'..'),sourcefile:'framing-service-test.mjs'},bundle:true,format:'iife',platform:'browser',target:'chrome90',outfile:'/tmp/noble-fast-framing-tools/preview/framing-service-test.js'});
+require('esbuild').buildSync({stdin:{contents:"import {suggestFraming} from './photo-framing.mjs';window.__framingService=suggestFraming;",resolveDir:path.resolve(__dirname,'..'),sourcefile:'framing-service-test.mjs'},bundle:true,format:'iife',platform:'browser',target:'chrome90',outfile:process.env.NOBLE_DRAWING_TEST_OUTPUT?path.join(output,'framing-service-test.js'):'/tmp/noble-fast-framing-tools/preview/framing-service-test.js'});
 (async()=>{const browser=await chromium.launch({args:['--no-sandbox']});let page;try{
  page=await browser.newPage({viewport:{width:390,height:844}});const errors=[],external=[];
  const dataURL=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=800;canvas.height=600;const context=canvas.getContext('2d');context.fillStyle='#eeeeee';context.fillRect(0,0,800,600);context.fillStyle='#ed5010';context.fillRect(660,150,120,300);return canvas.toDataURL('image/png');});
@@ -17,8 +18,8 @@ require('esbuild').buildSync({stdin:{contents:"import {suggestFraming} from './p
  await page.route('**/*',route=>{const target=route.request().url();if(!target.startsWith(origin)&&!target.startsWith('data:')&&!target.startsWith('blob:')){external.push(target);return route.abort();}return route.continue();});
  await page.goto(url);await page.getByRole('button',{name:'Objects',exact:true}).waitFor();
  const save=async()=>{await page.getByRole('button',{name:'Save draft',exact:true}).click();return page.evaluate(()=>JSON.parse(localStorage.getItem('honorable-drawing-v1')));};
- const before=await save();await page.getByRole('button',{name:'Objects',exact:true}).click();assert(await page.getByRole('button',{name:'Suggest crop for photo 2',exact:true}).isDisabled());
- const open=async()=>{await page.getByRole('button',{name:'Suggest crop for photo 1',exact:true}).click();};
+ const before=await save();await page.getByRole('button',{name:'Objects',exact:true}).click();assert(await (await photoTool(page,'Suggest crop for photo 2')).isDisabled());
+ const open=async()=>{await (await photoTool(page,'Suggest crop for photo 1')).click();};
  await open();await page.getByRole('button',{name:'Find framing',exact:true}).click();await page.getByRole('button',{name:'Apply suggested crop',exact:true}).waitFor();assert.deepEqual((await save()).elements,before.elements);
  for(const width of [320,390,844]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(output,'suggestion-390.png')});
