@@ -1,0 +1,29 @@
+# Manual photo outline cutout — C101
+
+Drawing → Objects → Outline cutout keeps a manually traced subject as a separate transparent PNG. Tap around the subject or enter photo coordinates, close the outer outline, optionally add enclosed holes, then preview and insert. The source remains in place. This adds one source outcome; hole controls, feathering and coordinate entry are parts of that outcome, not additional features.
+
+The selection uses the full embedded photo before its drawing crop, rotation, flip or opacity. The new copy is flattened and inserted beside the source with one Undo; keep the original to make a different selection. The interface explains this before editing. Undo/Redo, saved draft, reload and portable project JSON retain the copy. Selected-artwork PNG export retains its transparent exterior and holes. Source geometry, crop, flip, opacity, locked objects and embedded bytes are preserved.
+
+## Limits and ownership
+
+Only bounded embedded PNG/JPEG copies are decoded: stored bytes up to 192 KiB and 8–1024 pixels per side. One outer polygon and up to seven separate interior holes use 3–128 points each, at most 256 points total. Crossed, retraced, touching, nested, out-of-bounds and subpixel-area contours are refused. The UI supports undoing the last point, removing a hole and starting again. Coordinate entry also permits keyboard use.
+
+Four subpixel scanlines and horizontal interval coverage produce antialiased alpha. Optional 0–24 pixel feathering softens inward. Output alpha multiplies source alpha; removed pixels clear every channel. This is manual polygon masking, not automatic segmentation or a claim of perfect subject edges. Thin details can disappear with feathering.
+
+Geometry is copied before decoding. Preview processing yields every 16 rows and checks its current source/document lifetime. Abort, hidden page, close/unmount, decode/encode failure and the 30-second deadline reject the proposal and release image handlers, timers, listeners and temporary canvas storage. The deadline requires the browser event loop to run; it is not an interrupt for blocked native decoding. Preview Blob URLs are revoked when replaced or closed.
+
+Insertion reuses the existing local-photo preparation and durable scene publication path. The exact source/draft and component lifetime are checked through asynchronous preparation. A latched document change invalidates the open cutout even if Undo later restores identical source values. Cancel remains reachable during actual output-bitmap preparation; it closes the panel, invalidates its owner and waits for shared preparation to release busy state without publishing. Object count, encoded-draft size and storage quota checks precede scene mutation. Output may be reduced to fit existing storage limits.
+
+## Verified November8
+
+- **275 drawing unit tests pass**, including 29 new cases: 17 geometry/raster cases and 12 embedded-image lifecycle cases. Independent dense winding samples cover 12 concave subpixel polygons with holes. Maximum 1024-pixel input, chunk yielding, captured geometry, source RGBA, existing alpha, crisp/soft edges, invalid geometry, cancellation and deadline cleanup are covered. Mock decode/encode tests establish control flow; actual PNG decoding/encoding is covered separately below.
+- **75 required Node/asset tests pass**: dev-server, studio project, Android SDK configuration, release manifests and generated drawing assets. Total350 focused tests in this slice.
+- **Actual editor browser acceptance passes** with synthetic media: point taps and coordinate entry; crossed-outline refusal; outer polygon and hole; crisp/feather PNG alpha; proposal invalidation; Cancel; quota failure/retry; original and protected-photo geometry/bytes; insertion Undo/Redo; reload and portable JSON. Selected-artwork export contains transparency and the kept red subject, without the removed blue exterior or green hole.
+- Holding the real output `createImageBitmap` completion permits Cancel without a partial scene write. Hidden-page invalidation and source edit followed by Undo cannot revive the proposal. Six actual browser source guards and processing cancellation refuse. A 500-object drawing and near1 MiB draft refuse insertion atomically. Three widths 320/390/844 fit horizontally and the insertion control is at least 44 pixels high. No external requests, CSP violations or page errors occur in this harness.
+- Retained photo-ownership and SVG-import editor browser suites pass on the final isolated bundle. The asset verifier binds 79 source files and 271 generated asset files exactly. Existing dependency versions and notices are unchanged; no new package was added.
+
+Evidence is retained under `.context/photo-outline-cutout/`: `core-image.log`, `all-drawing.log`, `node-assets.log`, `browser.log`, `browser/review.json`, generated synthetic PNGs/screenshots, two regression logs and `verification.json`. Re-run the new browser test with `PLAYWRIGHT_BROWSERS_PATH` set to the installed browser directory and `NOBLE_CUTOUT_BUNDLE` pointing to an isolated drawing bundle.
+
+## Still unverified
+
+No Android WebView, touch/keyboard/TalkBack, Activity lifecycle, actual provider/handoff/photo-editor receiver, on-device performance, full React Native/native/Gradle/APK build, private release signing or store acceptance was executed for C101. The PNG receiver in browser tests is a fixture. The parent React Native TypeScript config is unavailable here; the web bundler warning is not mobile typecheck/lint/Jest acceptance. Tracked native drawing assets remain deferred to the owner's approximately 138-workflow broad build checkpoint. Source 99/500 and batch 61 beyond 38 are accounting totals, not production-readiness claims. Search/ranking, holdout, credits/ledger and personal-media upload behavior are unchanged.
