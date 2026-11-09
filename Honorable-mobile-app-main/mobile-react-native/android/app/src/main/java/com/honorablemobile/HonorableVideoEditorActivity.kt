@@ -872,71 +872,117 @@ class HonorableVideoEditorActivity : Activity() {
         showLookStage(menu,request,review)
     }
 
+    private var momentReviewRequest:VideoActionReview?=null
+    private var momentReviewDialog:android.app.AlertDialog?=null
+    private fun canUseMomentStage(dialog:android.app.AlertDialog,request:VideoActionReview,review:VideoCaptionReviewState)=
+        momentReviewRequest===request&&momentReviewDialog===dialog&&request.owns(dialog)&&activeCaptionReviewDialog(dialog,review)
+    private fun requireMomentStage(dialog:android.app.AlertDialog,request:VideoActionReview,review:VideoCaptionReviewState){
+        check(momentReviewRequest===request&&momentReviewDialog===dialog&&(request.owns(dialog)||request.isExecuting(dialog))&&activeCaptionReviewDialog(dialog,review)){"Video or session changed. Open moment notes again."}
+    }
+    private fun showMomentStage(dialog:android.app.AlertDialog,request:VideoActionReview,review:VideoCaptionReviewState,onDismiss:()->Unit={}):Boolean {
+        if(momentReviewRequest!==request||!canApplyCaptionReview(review)||!request.open(dialog)){request.close();onDismiss();dialog.dismiss();return false}
+        val previous=momentReviewDialog;momentReviewDialog=dialog
+        showCaptionReview(dialog,review){
+            request.dismiss(dialog)
+            if(momentReviewRequest===request&&request.isClosed)momentReviewRequest=null
+            if(momentReviewDialog===dialog)momentReviewDialog=null
+            onDismiss()
+        }
+        if(previous!==dialog)previous?.dismiss()
+        return !request.isClosed
+    }
+    private fun performMomentReview(dialog:android.app.AlertDialog,request:VideoActionReview,review:VideoCaptionReviewState,action:(()->Unit)->Unit):Boolean {
+        if(!canUseMomentStage(dialog,request,review))return false
+        val guard={requireMomentStage(dialog,request,review)}
+        return request.execute(dialog,guard){action(guard)}
+    }
     private fun momentNotes(){
-        if(!editorIdle()||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return
-        val mode=accessMode;val music=current.soundtrack;val uri=sourceUris()[clip.sourceId]?:return
-        val namespace=videoLookNamespace()?:run{status.text="Session changed. Reopen this video before using notes.";return}
-        val duration=sourceDuration(clip.sourceId)
+        val uri=review.sources[clip.sourceId]?:return;val duration=sourceDuration(clip.sourceId)
         val at=runCatching{if(previewPlayer!=null)splitPosition()else if(sourceReady)video.currentPosition.toLong()else pendingSeekMs}
             .getOrElse{status.text=it.message?:"Select the playing clip first.";return}.coerceIn(clip.startMs,clip.endMs-1)
         video.pause();previewPlayer?.pause()
-        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),namespace,uri.toString(),duration)}
+        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),review.namespace,uri.toString(),duration)}
             .getOrElse{status.text="Moment notes need a supported local source video.";return}
-        fun valid()=editorIdle()&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==music&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==namespace&&sourceUris()[clip.sourceId]==uri
-        fun requireCurrent(){require(valid()){"Video or account changed. Open moment notes again."}}
-        val catalog=runCatching{requireCurrent();store.load().also{requireCurrent()}}.getOrElse{status.text=it.message?:"Moment notes could not be read. Existing notes were kept.";return}
+        val catalog=runCatching{check(canApplyCaptionReview(review));store.load().also{check(canApplyCaptionReview(review))}}.getOrElse{status.text=it.message?:"Moment notes could not be read. Existing notes were kept.";return}
+        momentReviewRequest?.close();momentReviewDialog?.dismiss()
+        val request=VideoActionReview();momentReviewRequest=request
         fun editNote(before:VideoMomentNote?){
             val position=before?.sourceMs?:at
             val label=EditText(this).apply{hint="Moment label";contentDescription="Moment note label";setSingleLine(true);setTextColor(Color.BLACK);filters=arrayOf(android.text.InputFilter.LengthFilter(80));setText(before?.label?:"Moment "+VideoCaptions.formatTime(position))}
             val dialog=android.app.AlertDialog.Builder(this).setTitle(if(before==null)"Note this source moment" else "Rename moment note").setView(label).setNegativeButton("Cancel",null).setPositiveButton("Save on this device",null).create()
             dialog.setOnShowListener{dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
-                if(!valid()){dialog.dismiss();status.text="Video or account changed. Open notes again.";return@setOnClickListener}
-                val result=runCatching{
-                    val text=label.text.toString().trim()
-                    if(before==null)store.add(VideoMomentNote(position,text)){requireCurrent()}else store.rename(before,text){requireCurrent()}
+                if(!canUseMomentStage(dialog,request,review)){dialog.dismiss();status.text="Video or session changed. Open notes again.";return@setOnClickListener}
+                val prepared=runCatching{
+                    val note=VideoMomentNote(position,label.text.toString().trim())
+                    requireMomentStage(dialog,request,review)
+                    val latest=store.load();if(before==null)latest.add(note)else latest.rename(before,note.label)
+                    requireMomentStage(dialog,request,review);note
                 }
-                if(result.isFailure){label.error=result.exceptionOrNull()?.message?:"Could not save this note";return@setOnClickListener}
-                dialog.dismiss();status.text="Moment note saved locally. Video and project edits are unchanged."
-            }};dialog.show()
+                if(prepared.isFailure){label.error=prepared.exceptionOrNull()?.message?:"Check this label";return@setOnClickListener}
+                val result=runCatching{check(performMomentReview(dialog,request,review){guard->
+                    if(before==null)store.add(prepared.getOrThrow(),guard)else store.rename(before,prepared.getOrThrow().label,guard)
+                }){"Video or session changed. Open notes again."}}
+                dialog.dismiss()
+                status.text=if(result.isSuccess)"Moment note saved locally. Video and project edits are unchanged." else result.exceptionOrNull()?.message?:"Could not save. Open notes again."
+            }}
+            showMomentStage(dialog,request,review){label.text?.clear()}
         }
         fun chooseNote(note:VideoMomentNote){
-            if(!valid()){status.text="Video or account changed. Open notes again.";return}
             val canJump=note.sourceMs>=clip.startMs&&note.sourceMs<clip.endMs
             val actions=(if(canJump)listOf("Jump to this moment")else emptyList())+listOf("Rename note","Delete note")
-            android.app.AlertDialog.Builder(this).setTitle(note.label).setItems(actions.toTypedArray()){_,action->
-                if(!valid()){status.text="Video or account changed. Open notes again.";return@setItems}
+            lateinit var actionsDialog:android.app.AlertDialog
+            actionsDialog=android.app.AlertDialog.Builder(this).setTitle(note.label).setItems(actions.toTypedArray()){_,action->
+                if(!canUseMomentStage(actionsDialog,request,review))return@setItems
                 when(action-(if(canJump)1 else 0)){
-                    -1->{seekTimeline(VideoFilmstripScale.outputTime(clips,index,note.sourceMs));status.text="Jumped to saved source moment. Project edits are unchanged."}
+                    -1->runCatching{check(performMomentReview(actionsDialog,request,review){guard->
+                        check(store.load().notes.contains(note)){"Note changed. Open moment notes again."};guard()
+                        seekTimeline(VideoFilmstripScale.outputTime(clips,index,note.sourceMs))
+                    }){"Video or session changed. Open notes again."}}
+                        .onSuccess{status.text="Jumped to saved source moment. Project edits are unchanged."}
+                        .onFailure{status.text=it.message?:"Could not jump. Open notes again."}
                     0->editNote(note)
-                    1->android.app.AlertDialog.Builder(this).setTitle("Delete moment note?").setMessage("Removes this local note only. Original video and project edits stay unchanged.")
-                        .setNegativeButton("Cancel",null).setPositiveButton("Delete note"){_,_->
-                            runCatching{requireCurrent();store.remove(note){requireCurrent()}}
-                                .onSuccess{status.text="Moment note deleted. Video and project edits are unchanged."}
-                                .onFailure{status.text=it.message?:"Note could not be deleted."}
-                        }.show()
+                    1->{
+                        lateinit var confirmation:android.app.AlertDialog
+                        confirmation=android.app.AlertDialog.Builder(this).setTitle("Delete moment note?").setMessage("Removes this local note only. Original video and project edits stay unchanged.")
+                            .setNegativeButton("Cancel",null).setPositiveButton("Delete note"){_,_->
+                                runCatching{check(performMomentReview(confirmation,request,review){guard->store.remove(note,guard)}){"Video or session changed. Open notes again."}}
+                                    .onSuccess{status.text="Moment note deleted. Video and project edits are unchanged."}
+                                    .onFailure{status.text=it.message?:"Note could not be deleted. Open notes again."}
+                            }.create()
+                        showMomentStage(confirmation,request,review)
+                    }
                 }
-            }.setNegativeButton("Cancel",null).show()
+            }.setNegativeButton("Cancel",null).create()
+            showMomentStage(actionsDialog,request,review)
         }
         val visible=catalog.visible(clip.startMs,clip.endMs)
         val choices=listOf("Add note at current source moment","Manage all source notes","Cut highlights from saved notes")+visible.map{VideoCaptions.formatTime(it.sourceMs)+" · "+it.label}
-        android.app.AlertDialog.Builder(this).setTitle("Moment notes · this clip")
+        lateinit var menu:android.app.AlertDialog
+        menu=android.app.AlertDialog.Builder(this).setTitle("Moment notes · this clip")
             .setItems(choices.toTypedArray()){_,choice->
-                if(!valid()){status.text="Video or account changed. Open notes again.";return@setItems}
+                if(!canUseMomentStage(menu,request,review))return@setItems
                 when(choice){
                     0->editNote(null)
                     1->{
                         if(catalog.notes.isEmpty()){status.text="No moment notes saved for this source yet.";return@setItems}
-                        android.app.AlertDialog.Builder(this).setTitle("All notes for source video")
-                            .setItems(catalog.notes.map{VideoCaptions.formatTime(it.sourceMs)+" · "+it.label}.toTypedArray()){_,selected->chooseNote(catalog.notes[selected])}
-                            .setNegativeButton("Close",null).show()
+                        lateinit var list:android.app.AlertDialog
+                        list=android.app.AlertDialog.Builder(this).setTitle("All notes for source video")
+                            .setItems(catalog.notes.map{VideoCaptions.formatTime(it.sourceMs)+" · "+it.label}.toTypedArray()){_,selected->
+                                if(canUseMomentStage(list,request,review))catalog.notes.getOrNull(selected)?.let{chooseNote(it)}
+                            }.setNegativeButton("Close",null).create()
+                        showMomentStage(list,request,review)
                     }
-                    2->momentHighlights()
-                    else->chooseNote(visible[choice-3])
+                    2->runCatching{check(performMomentReview(menu,request,review){guard->guard();momentHighlights()})}.onFailure{status.text="Open highlights again from the current video."}
+                    else->visible.getOrNull(choice-3)?.let{chooseNote(it)}
                 }
             }.setNeutralButton("About notes"){_,_->
-                android.app.AlertDialog.Builder(this).setTitle("Private source moments").setMessage("Up to 100 labeled moments per source video, saved privately on this device. Times follow the original source, so trims and speed changes do not move notes. The clip list shows in-range moments; Manage all source notes also renames or deletes out-of-range notes. Notes are not rendered into exports or included in project transfer.").setPositiveButton("Done",null).show()
-            }.setNegativeButton("Close",null).show()
+                if(!canUseMomentStage(menu,request,review))return@setNeutralButton
+                val about=android.app.AlertDialog.Builder(this).setTitle("Private source moments").setMessage("Up to 100 labeled moments per source video, saved privately on this device. Times follow the original source, so trims and speed changes do not move notes. The clip list shows in-range moments; Manage all source notes also renames or deletes out-of-range notes. Notes are not rendered into exports or included in project transfer.").setPositiveButton("Done",null).create()
+                showMomentStage(about,request,review)
+            }.setNegativeButton("Close",null).create()
+        showMomentStage(menu,request,review)
     }
 
     private fun commitMomentHighlightsReview(dialog:android.app.AlertDialog,request:VideoBatchReview,review:VideoCaptionReviewState,catalog:VideoMomentNotes,load:()->VideoMomentNotes):Boolean {
@@ -2190,6 +2236,7 @@ class HonorableVideoEditorActivity : Activity() {
         return review.state.stillMatches(closeState())&&review.sources==sourceUris()&&review.durations==sourceDurations()
     }
     private fun invalidateCaptionReviews(){
+        momentReviewRequest?.close();momentReviewRequest=null;momentReviewDialog=null
         lookReviewRequest?.close();lookReviewRequest=null;lookReviewDialog=null
         batchReviewRequest?.close();batchReviewRequest=null;batchReviewDialog=null
         captionReviewGeneration++
