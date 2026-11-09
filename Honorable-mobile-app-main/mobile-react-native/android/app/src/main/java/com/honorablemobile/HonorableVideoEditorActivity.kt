@@ -680,10 +680,14 @@ class HonorableVideoEditorActivity : Activity() {
             }.create()
         showCaptionReview(dialog,review)
     }
+    private fun commitPlaybackReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,speed:Boolean,value:Float):Boolean =
+        commitInspectorReview(dialog,review,current,index,clip){
+            if(speed){require(value in setOf(.5f,1f,1.5f,2f));if(value!=clip.speed)current.setSpeed(index,value)}
+            else {require(value in 0f..1f);if(value!=clip.volume)current.setVolume(index,value)}
+        }
     private fun chooseClipPlayback(speed:Boolean){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments.toList();val index=selectedClip;val clip=clips.getOrNull(index)?:return
-        val mode=accessMode;val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video.";return}
         val before=if(speed)clip.speed else clip.volume
         val choices=if(speed)mutableListOf(.5f,1f,1.5f,2f)else mutableListOf(1f,.5f,0f)
         val labels=if(speed)mutableListOf("0.5× · half speed","1× · normal speed","1.5× · faster","2× · double speed")else mutableListOf("100% · source level","50% · half level","0% · mute")
@@ -691,17 +695,22 @@ class HonorableVideoEditorActivity : Activity() {
         val title=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(16),dp(20),dp(8));setBackgroundColor(Color.WHITE)}
         title.addView(TextView(this).apply{text="Clip ${index+1} ${if(speed)"speed"else "source volume"}";textSize=18f;setTextColor(Color.BLACK)})
         title.addView(TextView(this).apply{text=if(speed)"Changes this clip's playback duration. Captions follow edited timing. Review the rendered preview after choosing."else "Changes this clip's source audio if present. Separate soundtrack volume is kept. Review the preview after choosing.";textSize=13f;setTextColor(Color.DKGRAY);setPadding(0,dp(8),0,0)})
-        fun unchanged()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&selectedClip==index&&accessMode==mode&&videoLookNamespace()==owner
-        android.app.AlertDialog.Builder(this).setCustomTitle(title).setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(before)){dialog,which->
-            if(!unchanged()){if(!isDestroyed&&!isFinishing)status.text="Video or session changed. Open these clip controls again.";dialog.dismiss();return@setSingleChoiceItems}
-            val value=choices[which]
-            if(value==before){dialog.dismiss();return@setSingleChoiceItems}
-            runCatching{
-                if(speed)current.setSpeed(index,value)else current.setVolume(index,value)
-                showClip();previewComposition(listOf(current.segments[index]),index)
-            }.onFailure{status.text="Could not change this clip. Check the project limits and try again."}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setCustomTitle(title).setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(before)){_,which->
+            if(!canUseInspectorReview(dialog,review)){dialog.dismiss();return@setSingleChoiceItems}
+            val value=choices.getOrNull(which)?:return@setSingleChoiceItems
+            runCatching{check(commitPlaybackReview(dialog,review,current,index,clip,speed,value)){"Video or session changed. Open these clip controls again."}}
+                .onSuccess{
+                    if(value==before)status.text=if(speed)"Clip speed is unchanged." else "Clip source volume is unchanged."
+                    else {
+                        val refreshed=runCatching{showClip();previewComposition(listOf(current.segments[index]),index)}.isSuccess
+                        val action=if(speed)"Clip speed" else "Clip source volume"
+                        status.text=if(refreshed)"$action applied. Undo restores the previous setting." else "$action applied. Preview is unavailable; Undo restores the previous setting."
+                    }
+                }.onFailure{status.text=it.message?:"Could not change this clip. Existing edits were kept."}
             dialog.dismiss()
-        }.setNegativeButton("Cancel",null).show()
+        }.setNegativeButton("Cancel",null).create()
+        showInspectorReview(dialog,review)
     }
     private fun editMotion(){
         val review=captureCaptionReview()?:return
