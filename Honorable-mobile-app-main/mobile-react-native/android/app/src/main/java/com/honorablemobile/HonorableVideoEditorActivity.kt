@@ -625,7 +625,7 @@ class HonorableVideoEditorActivity : Activity() {
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
-            "Project" to (listOf(t("Keep or export"){videoFinishGuide()},t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Project" to (listOf(t("Keep or export"){videoFinishGuide()},t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Import moment notes"){importMomentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
@@ -896,6 +896,46 @@ class HonorableVideoEditorActivity : Activity() {
         val guard={requireMomentStage(dialog,request,review)}
         return request.execute(dialog,guard){action(guard)}
     }
+    private fun importMomentNotes(){
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val clip=current.segments.getOrNull(selectedClip)?:return
+        val uri=review.sources[clip.sourceId]?:return;val duration=sourceDuration(clip.sourceId)
+        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),review.namespace,uri.toString(),duration)}
+            .getOrElse{status.text="Note import needs a supported local source video.";return}
+        momentReviewRequest?.close();momentReviewDialog?.dismiss()
+        val request=VideoActionReview();momentReviewRequest=request
+        fun showEditor(initial:String){
+            val panel=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12))}
+            panel.addView(TextView(this).apply{text="Paste 1–100 lines: original-source seconds | label. Use a decimal point and up to three decimals. Times may be anywhere inside this source video, before playback speed changes. Labels use up to 80 characters. Existing notes are kept; duplicate times and over-limit imports are refused together. These private bookmarks are not captions and are not included in exports. Project Undo does not undo note imports.";setTextColor(Color.BLACK)})
+            val input=EditText(this).apply{hint="1.250 | Opening take\n8.500 | Close-up";contentDescription="Timestamped source moment notes";setText(initial);setTextColor(Color.BLACK);minLines=4;maxLines=8;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;filters=arrayOf(android.text.InputFilter.LengthFilter(16000));panel.addView(this)}
+            val editor=android.app.AlertDialog.Builder(this).setTitle("Import source moment notes").setView(android.widget.ScrollView(this).apply{addView(panel)}).setNegativeButton("Cancel",null).setPositiveButton("Review notes",null).create()
+            editor.setOnShowListener{editor.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+                if(!canUseMomentStage(editor,request,review)){editor.dismiss();return@setOnClickListener}
+                val raw=input.text.toString()
+                val prepared=runCatching{
+                    val notes=VideoMomentNoteText.parse(raw,duration)
+                    requireMomentStage(editor,request,review)
+                    val merged=VideoMomentNoteText.merge(store.load(),notes)
+                    requireMomentStage(editor,request,review);notes to merged.notes.size
+                }.getOrElse{input.error=it.message?:"Check these source timestamps and labels";return@setOnClickListener}
+                val notes=prepared.first
+                val summary=notes.joinToString("\n"){VideoCaptions.formatTime(it.sourceMs)+" · "+it.label}
+                lateinit var confirmation:android.app.AlertDialog
+                confirmation=android.app.AlertDialog.Builder(this).setTitle("Review ${notes.size} source notes")
+                    .setMessage("$summary\n\nAdds ${notes.size} private source bookmarks in source-time order. Current merged total: ${prepared.second}/100. Existing notes and media are kept. Duplicates and limits are checked again when saving; no partial list is imported. Project Undo does not undo note imports.")
+                    .setNegativeButton("Back"){_,_->if(canUseMomentStage(confirmation,request,review))showEditor(raw)}
+                    .setPositiveButton("Save notes on this device"){_,_->
+                        runCatching{check(performMomentReview(confirmation,request,review){guard->store.addAll(notes,guard)}){"Video or session changed. Open note import again."}}
+                            .onSuccess{status.text="Imported ${notes.size} source moment notes. Video and project edits are unchanged."}
+                            .onFailure{status.text=(it.message?:"Notes could not be verified.")+" Reopen moment notes to check the saved state."}
+                    }.create()
+                showMomentStage(confirmation,request,review)
+            }}
+            showMomentStage(editor,request,review){input.text?.clear()}
+        }
+        showEditor("")
+    }
+
     private fun momentNotes(){
         val review=captureCaptionReview()?:return
         val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return

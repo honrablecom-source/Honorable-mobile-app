@@ -11,6 +11,7 @@ internal class VideoMomentNoteStore(directory:File,namespace:String,source:Strin
     private val file=AtomicFile(File(directory,VideoMomentCodec.storageKey(namespace,source)+".bin"))
     fun load():VideoMomentNotes=synchronized(lock){read()}
     fun add(note:VideoMomentNote,requireCurrent:()->Unit)=synchronized(lock){write(read().add(note),requireCurrent)}
+    fun addAll(notes:List<VideoMomentNote>,requireCurrent:()->Unit)=synchronized(lock){write(VideoMomentNoteText.merge(read(),notes.toList()),requireCurrent)}
     fun rename(before:VideoMomentNote,label:String,requireCurrent:()->Unit)=synchronized(lock){write(read().rename(before,label),requireCurrent)}
     fun remove(note:VideoMomentNote,requireCurrent:()->Unit)=synchronized(lock){write(read().remove(note),requireCurrent)}
     private fun read():VideoMomentNotes {
