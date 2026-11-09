@@ -1600,6 +1600,7 @@ class HonorableVideoEditorActivity : Activity() {
         showCaptionReview(dialog,review){from.text?.clear();to.text?.clear();if(preciseTrimEditor===dialog)preciseTrimEditor=null}
     }
     private fun allowOnDeviceAi():Boolean {
+        if(!canRequestTimelineCaptionImport())return false
         if(accessMode.allowsOnDeviceAi)return true
         status.text="On-device editing tools are unavailable in this editor session."
         return false
