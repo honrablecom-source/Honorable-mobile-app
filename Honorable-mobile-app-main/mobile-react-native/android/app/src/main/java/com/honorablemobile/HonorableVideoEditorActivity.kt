@@ -762,16 +762,25 @@ class HonorableVideoEditorActivity : Activity() {
         }.onFailure{status.text=it.message?:"Timeline report is unavailable."}
     }
 
+    private fun canUseVersionReview(shelf:VideoProjectVersionShelf,review:VideoCaptionReviewState)=
+        versionShelf===shelf&&canApplyCaptionReview(review)
+    private fun applyVersionReview(shelf:VideoProjectVersionShelf,review:VideoCaptionReviewState,current:VideoEditProject,saved:VideoDraft):Boolean {
+        check(versionShelf===shelf){"Saved version review is no longer current."}
+        versionShelf=null // Consume only this owner, including failed approval; Undo cannot revive it.
+        check(canApplyCaptionReview(review)&&project===current){"Project or session changed. Open saved versions again."}
+        val primary=requireNotNull(review.sources["primary"]).toString()
+        return applySavedDraft(current,VideoVersionSources.reconcile(primary,importedSources,saved),true)
+    }
     private fun savedVideoVersions() {
-        if(!workspaceActive||!editorIdle()||isDestroyed||isFinishing||recoveryBytes!=null)return
-        val current=project?:return;val captured=closeState();val mode=accessMode;val primary=source.toString()
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val primary=source.toString()
         val draft=runCatching{VideoProjectVersion.snapshot(currentDraft())}.getOrElse{status.text="Choose a valid range before using saved versions.";return}
         versionShelf?.close()
         runCatching{video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
         lateinit var shelf:VideoProjectVersionShelf
-        shelf=VideoProjectVersionShelf(this,mode,primary,draft,
-            isCurrent={workspaceActive&&!isDestroyed&&!isFinishing&&editorIdle()&&accessMode==mode&&captured.stillMatches(closeState())},
-            busy={value->if(versionShelf===shelf)draftBusy=value},message={status.text=it},
+        shelf=VideoProjectVersionShelf(this,review.mode,primary,draft,
+            isCurrent={canUseVersionReview(shelf,review)},
+            busy={value->if(versionShelf===shelf)draftBusy=value},message={text->if(versionShelf===shelf)status.text=text},
             withSaveAccess={saved,requireCurrent,commit->
                 GuestVideoProjectMedia.originals(primary,saved).forEach { value ->
                     requireCurrent()
@@ -782,8 +791,9 @@ class HonorableVideoEditorActivity : Activity() {
                 requireCurrent();validateVersionMedia(primary,saved);requireCurrent();commit()
             },
             validateOpen={saved,requireCurrent->requireCurrent();validateVersionMedia(primary,saved);requireCurrent()},
-            apply={saved->
-                runCatching{applySavedDraft(current,VideoVersionSources.reconcile(primary,importedSources,saved),true)}
+            apply=applyVersion@{saved->
+                if(versionShelf!==shelf)return@applyVersion
+                runCatching{applyVersionReview(shelf,review,current,saved)}
                     .onSuccess{ready->status.text=if(ready)"Saved video version opened. Timeline Undo restores prior edits." else "Saved version opened; preview is unavailable. Timeline Undo restores prior edits."}
                     .onFailure{status.text="Saved version conflicts with the current project. Existing edits were kept."}
             })
