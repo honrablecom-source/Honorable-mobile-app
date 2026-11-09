@@ -674,8 +674,10 @@ class HonorableVideoEditorActivity : Activity() {
         showInspectorReview(dialog,review)
     }
     private fun commitProjectReset(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject):Boolean {
-        if(!activeCaptionReviewDialog(dialog,review)||project!==current)return false
-        current.reset();return true
+        if(inspectorReviewDialog!==dialog)return false
+        val index=selectedClip
+        val clip=current.segments.getOrNull(index)?:run{inspectorReviewDialog=null;return false}
+        return commitInspectorReview(dialog,review,current,index,clip){current.reset()}
     }
     private fun confirmProjectReset(){
         val review=captureCaptionReview()?:return
@@ -684,12 +686,18 @@ class HonorableVideoEditorActivity : Activity() {
         dialog=android.app.AlertDialog.Builder(this).setTitle("Reset video edits?")
             .setMessage("Returns to the full original first video at normal speed and source volume. Removes added clips, titles, captions, color, framing, motion, fades and the separate soundtrack from this edit. Original media and saved projects stay on your device. Undo restores the previous edit.")
             .setNegativeButton("Keep editing",null).setPositiveButton("Reset edits"){_,_->
-                if(!activeCaptionReviewDialog(dialog,review))return@setPositiveButton
+                if(!canUseInspectorReview(dialog,review))return@setPositiveButton
+                val before=current.segments;val music=current.soundtrack
                 runCatching{commitProjectReset(dialog,review,current)}
-                    .onSuccess{applied->if(applied){selectedClip=0;val ready=runCatching{showClip()}.isSuccess;status.text=if(ready)"Video edits reset. Undo restores the previous edit."else"Video edits reset, but preview is unavailable. Undo restores the previous edit."}}
+                    .onSuccess{applied->if(applied){
+                        val unchanged=current.segments==before&&current.soundtrack==music
+                        selectedClip=0;val ready=runCatching{showClip()}.isSuccess
+                        status.text=if(unchanged){if(ready)"Video edits already match the original. No edit was added."else"Video edits already match the original. Preview is unavailable; no edit was added."}
+                            else if(ready)"Video edits reset. Undo restores the previous edit."else"Video edits reset, but preview is unavailable. Undo restores the previous edit."
+                    }}
                     .onFailure{if(workspaceActive)status.text="Could not reset this edit. Try reopening the video."}
             }.create()
-        showCaptionReview(dialog,review)
+        showInspectorReview(dialog,review)
     }
     private fun commitPlaybackReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,speed:Boolean,value:Float):Boolean =
         commitInspectorReview(dialog,review,current,index,clip){
