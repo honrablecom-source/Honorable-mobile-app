@@ -630,26 +630,32 @@ class HonorableVideoEditorActivity : Activity() {
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
     }
+    private fun commitSoundtrackReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,index:Int,clip:VideoSegment,track:VideoSoundtrack,value:Float?):Boolean =
+        commitInspectorReview(dialog,review,current,index,clip){
+            require(current.soundtrack==track){"Soundtrack changed. Open soundtrack controls again."}
+            require(value==null||value in 0f..1f)
+            if(value!=track.volume)current.setSoundtrack(value?.let{track.copy(volume=it)})
+        }
     private fun chooseSoundtrackAudio(remove:Boolean){
-        if(!editorIdle()||!workspaceActive||isDestroyed||isFinishing)return
+        val review=captureCaptionReview()?:return
         val current=project?:return;val track=current.soundtrack?:run{status.text="Add a soundtrack first.";return}
-        val clips=current.segments.toList();val mode=accessMode
-        val owner=videoLookNamespace()?:run{status.text="Session changed. Reopen the video.";return}
-        fun valid()=editorIdle()&&workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&current.segments==clips&&current.soundtrack==track&&accessMode==mode&&videoLookNamespace()==owner
-        fun applyVolume(value:Float?){
-            if(!valid()){if(!isDestroyed&&!isFinishing)status.text="Video or soundtrack changed. Open soundtrack controls again.";return}
-            if(value==track.volume)return
-            runCatching{
-                current.setSoundtrack(value?.let{track.copy(volume=it)})
-                showClip()
-                if(value==null)status.text="Soundtrack removed from this edit. Undo restores it."
-                else previewComposition(current.segments,null)
-            }.onFailure{status.text="Could not change the soundtrack. Check project limits and try again."}
+        val index=selectedClip;val clip=current.segments.getOrNull(index)?:return
+        fun applyVolume(dialog:android.app.AlertDialog,value:Float?){
+            if(!canUseInspectorReview(dialog,review))return
+            runCatching{check(commitSoundtrackReview(dialog,review,current,index,clip,track,value)){"Video or soundtrack changed. Open soundtrack controls again."}}
+                .onSuccess{
+                    if(value==track.volume){status.text="Soundtrack volume is unchanged.";return@onSuccess}
+                    val refreshed=runCatching{showClip();if(value!=null)previewComposition(current.segments,null)}.isSuccess
+                    status.text=if(value==null){if(refreshed)"Soundtrack removed from this edit. Undo restores it." else "Soundtrack removed. Preview is unavailable; Undo restores it."}
+                        else if(refreshed)"Soundtrack volume applied. Undo restores the previous mix." else "Soundtrack volume applied. Preview is unavailable; Undo restores the previous mix."
+                }.onFailure{status.text=it.message?:"Could not change the soundtrack. Existing edits were kept."}
         }
         if(remove){
-            android.app.AlertDialog.Builder(this).setTitle("Remove soundtrack?")
+            lateinit var dialog:android.app.AlertDialog
+            dialog=android.app.AlertDialog.Builder(this).setTitle("Remove soundtrack?")
                 .setMessage("Removes the separate music or voiceover from this edit. Clip source audio and the original audio file are kept. Undo restores the soundtrack and its settings.")
-                .setNegativeButton("Keep soundtrack",null).setPositiveButton("Remove"){_,_->applyVolume(null)}.show()
+                .setNegativeButton("Keep soundtrack",null).setPositiveButton("Remove"){_,_->applyVolume(dialog,null)}.create()
+            showInspectorReview(dialog,review)
             return
         }
         val choices=mutableListOf(1f,.5f,.25f,0f)
@@ -658,9 +664,14 @@ class HonorableVideoEditorActivity : Activity() {
         val title=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(16),dp(20),dp(8));setBackgroundColor(Color.WHITE)}
         title.addView(TextView(this).apply{text="Soundtrack volume";textSize=18f;setTextColor(Color.BLACK)})
         title.addView(TextView(this).apply{text="Changes separate music or voiceover only. Clip source audio is kept. Review the project preview to check the mix.";textSize=13f;setTextColor(Color.DKGRAY);setPadding(0,dp(8),0,0)})
-        android.app.AlertDialog.Builder(this).setCustomTitle(title)
-            .setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(track.volume)){dialog,which->applyVolume(choices[which]);dialog.dismiss()}
-            .setNegativeButton("Cancel",null).show()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setCustomTitle(title)
+            .setSingleChoiceItems(labels.toTypedArray(),choices.indexOf(track.volume)){_,which->
+                if(!canUseInspectorReview(dialog,review)){dialog.dismiss();return@setSingleChoiceItems}
+                val value=choices.getOrNull(which)?:return@setSingleChoiceItems
+                applyVolume(dialog,value);dialog.dismiss()
+            }.setNegativeButton("Cancel",null).create()
+        showInspectorReview(dialog,review)
     }
     private fun commitProjectReset(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject):Boolean {
         if(!activeCaptionReviewDialog(dialog,review)||project!==current)return false

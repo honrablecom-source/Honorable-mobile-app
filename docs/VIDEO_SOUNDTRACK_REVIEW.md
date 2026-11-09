@@ -1,0 +1,19 @@
+# Soundtrack volume and removal approval
+
+0 new user-facing features;1 correctness fix;0 scaffolding. Source101/500, batch63 unchanged. Focused host/API34 checks pass; actual Android UI/audio/render/device and full APK acceptance remain unverified.
+
+The soundtrack volume picker and removal confirmation previously used untracked dialogs with partial project/session comparisons. They omitted the complete source/duration/range/generation review and combined mutation with preview in one failure path.
+
+Both now capture the existing full foreground project/source/duration/range/private-session/generation review before widgets. Callbacks require the exact visible owned inspector before reading a volume or committing removal. The shared inspector boundary checks the current project/selected clip and the captured soundtrack, consuming only its own successful approval. Old/hidden/stale/replaced callbacks cannot apply or consume a successor; Undo cannot revive successful approval. Matching custom volume consumes approval without calling the model or adding history. Invalid volumes and wrong captured-track arguments are refused before mutation.
+
+Volume copies only the track volume; source URI/duration, selected excerpt and loop policy stay. Removal calls the existing soundtrack model with null. Clip source audio and all clip metadata stay. Project Undo restores the complete prior soundtrack. Existing100%/50%/25%/0% choices and the Keep current volume label/value are byte-identical. Preview failure is reported separately from successful editing. Removal still refreshes the clip (stopping the old project preview); volume refreshes and previews the project through the existing renderer.
+
+## Validation and limits
+
+557 focused host tests pass:8 new plus549 retained. New cases execute actual Activity admission/approval and project state for mix-only changes, removal preserving clip source audio, complete excerpt/loop/custom-volume Undo, no-op history, stale foreground/source/duration/range/generation/session/recovery/busy/current-track refusal, old/hidden/untracked owner isolation, invalid values and wrong captured tracks, existing codec precision and paused/busy/recovery entry before widgets. Current Activity and tests compile against pinned API34 references and the hash-verified retained graph; only existing deprecated Android API warnings occur.
+
+20 source checks verify full capture, both tracked dialogs, choice-read ordering, shared commit/current-track checks, volume-only copy/removal, no-op history, original choices/custom label, separate preview reporting and unchanged project/draft/soundtrack-report/timing sources. Final source and dependency hashes match the record. Evidence: `.context/noble-fast-soundtrack-control-review/verification.json`, `compile.log`, `tests.log`, `wiring.json`, `exit.json`.
+
+The first proposed private context name collided with an older346-case excerpt context. The new process group was stopped before its artifact copy. Archived data were restored and every retained549-graph dependency hash verified before restarting in the unique control-review context. The final isolated run exited0 with557 tests. No app source, media, peer files or dependencies were changed by evidence recovery.
+
+Fixtures allocate constructor-free dialog/view/Activity metadata and exercise actual approval and project functions. They do not construct actual picker/confirmation widgets or test native selection/dismiss/accessibility, physical lifecycle, audio playback, preview/rendered/encoded output, providers or device behavior. Those remain integration/device checks. No configured SDK37/full module/Gradle/native/APK build or production readiness claim. No dependencies, media uploads, benchmark, ranking or ledger changes. Broad build remains approximately138 source outcomes.
