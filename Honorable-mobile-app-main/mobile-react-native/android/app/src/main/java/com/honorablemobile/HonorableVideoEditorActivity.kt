@@ -1741,16 +1741,32 @@ class HonorableVideoEditorActivity : Activity() {
         showInspectorReview(dialog,review)
     }
 
+    private fun canReviewAiLook(review:VideoCaptionReviewState,current:VideoEditProject,selection:VideoSceneSelection)=
+        project===current&&canApplyCaptionReview(review)&&selectedClip==selection.selectedIndex&&current.segments==selection.clips
+    private fun commitAiLookReview(dialog:android.app.AlertDialog,review:VideoCaptionReviewState,current:VideoEditProject,selection:VideoSceneSelection,grade:VideoGrade):Boolean {
+        if(inspectorReviewDialog!==dialog)return false
+        if(!canReviewAiLook(review,current,selection)){inspectorReviewDialog=null;return false}
+        val clip=selection.clips.getOrNull(selection.selectedIndex)?:return false
+        return commitInspectorReview(dialog,review,current,selection.selectedIndex,clip){current.setGrade(selection.selectedIndex,grade)}
+    }
+
     private fun videoLookOptions() {
         if(!allowOnDeviceAi())return
         if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
+        val review=captureCaptionReview()?:return
         val names=arrayOf("Auto scene look","Cinematic","Soft portrait","Vivid","Monochrome")
-        android.app.AlertDialog.Builder(this).setTitle("AI video look").setItems(names){_,which->suggestVideoLook(PhotoLook.values()[which])}.setNegativeButton("Cancel",null).show()
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("AI video look").setItems(names){_,which->
+            if(!activeCaptionReviewDialog(dialog,review))return@setItems
+            suggestVideoLook(PhotoLook.values()[which])
+        }.setNegativeButton("Cancel",null).create()
+        showCaptionReview(dialog,review)
     }
 
     private fun suggestVideoLook(look:PhotoLook) {
         if(!allowOnDeviceAi())return
         if(saving||analyzing||draftBusy||importing||pendingRange!=null||!sourceReady)return
+        val review=captureCaptionReview()?:return
         val current=project?:return
         val selection=runCatching{VideoSceneSelection.capture(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)}.getOrElse{status.text="Choose a valid clip range first.";return}
         val clip=selection.clips[selection.selectedIndex];val uri=sourceUri(clip.sourceId)
@@ -1787,17 +1803,21 @@ class HonorableVideoEditorActivity : Activity() {
             }
             runOnUiThread {
                 analyzing=false
-                if(isDestroyed||isFinishing)return@runOnUiThread
+                if(!canReviewAiLook(review,current,selection))return@runOnUiThread
                 if(analysisCancellation.get()){status.text="Analysis cancelled. Your color is unchanged.";return@runOnUiThread}
-                fun matches()=project===current&&selection.stillMatches(current.segments,selectedClip,start.progress*1000L,end.progress*1000L)
-                if(!matches()){status.text="Your clip changed. Analyze video color again.";return@runOnUiThread}
                 result.onSuccess{grade->
-                    android.app.AlertDialog.Builder(this).setTitle("Video look ready")
+                    lateinit var dialog:android.app.AlertDialog
+                    dialog=android.app.AlertDialog.Builder(this).setTitle("Video look ready")
                         .setMessage("Based on $samplesRead sampled frames. Replaces this entire clip's color with exposure ${grade.exposure} EV, contrast ${(grade.contrast*100).toInt()}% and saturation ${(grade.saturation*100).toInt()}%. Preview before exporting.")
                         .setNegativeButton("Cancel",null).setPositiveButton("Apply look"){_,_->
-                            if(!matches()||saving||analyzing||draftBusy||importing||pendingRange!=null){status.text="Clip changed. Analyze video color again.";return@setPositiveButton}
-                            current.setGrade(selection.selectedIndex,grade);showClip();previewComposition(listOf(current.segments[selectedClip]),selectedClip)
-                        }.show()
+                            val changed=current.segments.getOrNull(selection.selectedIndex)?.grade!=grade
+                            runCatching{commitAiLookReview(dialog,review,current,selection,grade)}.onSuccess{applied->
+                                if(!applied)return@onSuccess
+                                val ready=runCatching{showClip();previewComposition(listOf(current.segments[selectedClip]),selectedClip)}.isSuccess
+                                status.text=if(!changed)"Video color is unchanged."else if(ready)"AI video look applied. Preview before exporting; Undo restores your color."else"AI video look applied, but preview is unavailable. Undo restores your color."
+                            }.onFailure{if(canUseInspectorReview(dialog,review))status.text="Could not apply this look. Try analyzing video color again."}
+                        }.create()
+                    showInspectorReview(dialog,review)
                 }.onFailure{status.text="Video look unavailable or timed out. Your color is unchanged."}
             }
         }.start()

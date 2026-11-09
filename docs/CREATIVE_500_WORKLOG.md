@@ -1,3 +1,11 @@
+## November 9 — AI video-look proposals require current, one-use approval
+
+**0 new features; 1 AI-look approval fix; 0 scaffolding. Source104/500, batch66 unchanged.** The chooser and analysis result carry the full foreground/private-session/source/duration/project/range/generation review. Apply requires the exact tracked visible inspector, consumes successful or no-op approval and cannot revive after Undo or consume a successor. Existing inference worker bytes, sampling, grade/scoring math and model/renderer remain unchanged. Preview unavailability is separate from successful color application.
+
+**632 focused host tests pass:7 new +625 retained**, with current Activity/test API34 compilation and6 source checks. Actual constructor-free admission, stale/replaced/hidden approval, color-only canonical model/Undo/codec and no-op behavior are covered. [Evidence and limits](VIDEO_AI_LOOK_REVIEW.md); `.context/noble-fast-ai-look-review/verification.json`. Actual Android dialogs/inference/media/worker scheduling/physical lifecycle/render/device and configured SDK37/full native/APK remain unexecuted. Rough-cut and scene-suggestion result approval remain separate scopes. No dependencies/uploads/benchmark/search/ranking/credit/ledger changes; broad build remains approximately138 workflows. Peer C106 now published69a6e1e; all prior/private/REA tails preserved.
+
+Also records the previously published **0c179bf entry-admission fix:0 features,1 fix**,625host(5new+620retained),API34+8source checks;4of5 newtests fail the original Activity. All5 AI entry points now refuse paused/busy/recovery/missing-source sessions before UI/thread work. [Entry evidence](VIDEO_AI_ENTRY_ADMISSION.md). This prior fix is not counted again as a new feature or new fix in this milestone.
+
 ## November 9 — Manual photo clone repair
 
 **1 newly added source workflow; 0 separate fixes; 0 scaffolding. Source 104/500, batch 66 beyond 38.** Choose clean texture, paint a repair or place a coordinate stamp, preview actual pixels and insert a separate PNG beside the original. Every stroke samples the original; crop, rotation, flip and opacity do not change the disclosed full embedded source. Brush controls and stroke Undo belong to this one outcome. The source stays intact; insertion is one Undo/Redo and survives reload/project transfer.
