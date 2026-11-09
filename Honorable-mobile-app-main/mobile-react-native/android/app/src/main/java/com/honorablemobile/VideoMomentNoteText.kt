@@ -2,6 +2,14 @@ package com.honorablemobile
 
 /** Explicit source bookmarks from a pasted production log; no media or speech analysis. */
 internal object VideoMomentNoteText {
+    fun format(catalog: VideoMomentNotes): String {
+        require(catalog.notes.isNotEmpty()) { "Save source moment notes first" }
+        require(catalog.notes.all { it.sourceMs <= Int.MAX_VALUE }) { "Some notes exceed the importable source-time range" }
+        return catalog.notes.joinToString("\n") { note ->
+            "${note.sourceMs / 1000}.${(note.sourceMs % 1000).toString().padStart(3, '0')} | ${note.label}"
+        }.also { require(it.length <= 16000) { "Source note text is too large" } }
+    }
+
     fun parse(text: String, durationMs: Long): List<VideoMomentNote> {
         require(text.length <= 16000) { "Paste up to 16000 characters" }
         val rows = text.trim().lines().filter { it.isNotBlank() }

@@ -625,7 +625,7 @@ class HonorableVideoEditorActivity : Activity() {
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
             "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
-            "Project" to (listOf(t("Keep or export"){videoFinishGuide()},t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Import moment notes"){importMomentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
+            "Project" to (listOf(t("Keep or export"){videoFinishGuide()},t("Build a montage"){montageOptions()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Open source frame as photo"){sourceFramePhoto()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Import moment notes"){importMomentNotes()},t("Copy moment notes"){copyMomentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
         ).filter{it.second.isNotEmpty()})
@@ -896,6 +896,40 @@ class HonorableVideoEditorActivity : Activity() {
         val guard={requireMomentStage(dialog,request,review)}
         return request.execute(dialog,guard){action(guard)}
     }
+    private fun performMomentNoteCopy(dialog:android.app.AlertDialog,request:VideoActionReview,review:VideoCaptionReviewState,catalog:VideoMomentNotes,load:()->VideoMomentNotes,copy:(String)->Unit):Boolean =
+        performMomentReview(dialog,request,review){guard->
+            check(load()==catalog){"Source notes changed. Open Copy moment notes again."}
+            guard()
+            copy(VideoMomentNoteText.format(catalog))
+        }
+    private fun copyMomentNotes(){
+        val review=captureCaptionReview()?:return
+        val current=project?:return;val clip=current.segments.getOrNull(selectedClip)?:return
+        val uri=review.sources[clip.sourceId]?:return;val duration=sourceDuration(clip.sourceId)
+        val store=runCatching{VideoMomentNoteStore(java.io.File(noBackupFilesDir,"video-moment-notes"),review.namespace,uri.toString(),duration)}
+            .getOrElse{status.text="Copy notes needs a supported local source video.";return}
+        val catalog=runCatching{check(canApplyCaptionReview(review));store.load().also{check(canApplyCaptionReview(review))}}
+            .getOrElse{status.text="Source notes could not be read. Existing notes were kept.";return}
+        var prepared:String?=runCatching{VideoMomentNoteText.format(catalog)}.getOrElse{status.text=it.message?:"Source notes could not be prepared.";return}
+        momentReviewRequest?.close();momentReviewDialog?.dismiss()
+        val request=VideoActionReview();momentReviewRequest=request
+        val body=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(12),dp(20),dp(12));setBackgroundColor(Color.WHITE)}
+        body.addView(TextView(this).apply{text="${catalog.notes.size} private source bookmarks. Copy places these timestamps and labels on the system clipboard, where clipboard services or other apps may access or sync them. No media or source/account metadata is added; the log contains timestamps and labels only. Paste with Import moment notes only for the matching original video; timing follows source seconds, not edited playback. Nothing is copied until you tap Copy note log.";setTextColor(Color.DKGRAY)})
+        val preview=TextView(this).apply{text=prepared;setTextColor(Color.BLACK);setPadding(0,dp(12),0,0);contentDescription="Source moment note log preview";body.addView(this)}
+        lateinit var dialog:android.app.AlertDialog
+        dialog=android.app.AlertDialog.Builder(this).setTitle("Copy source moment notes").setView(android.widget.ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Cancel",null).setPositiveButton("Copy note log"){_,_->
+                if(prepared==null)return@setPositiveButton
+                runCatching{check(performMomentNoteCopy(dialog,request,review,catalog,{store.load()}){text->
+                    val clipboard=getSystemService(android.content.Context.CLIPBOARD_SERVICE)as?android.content.ClipboardManager?:error("Clipboard is unavailable")
+                    clipboard.setPrimaryClip(VideoMomentNoteClipboard.create(text))
+                }){"Video or session changed. Open Copy moment notes again."}}
+                    .onSuccess{status.text="Source note log copied. Paste only for the matching original video. Project edits are unchanged."}
+                    .onFailure{status.text=it.message?:"Could not copy the source notes. Open them again."}
+            }.create()
+        showMomentStage(dialog,request,review){prepared=null;preview.text=""}
+    }
+
     private fun importMomentNotes(){
         val review=captureCaptionReview()?:return
         val current=project?:return;val clip=current.segments.getOrNull(selectedClip)?:return
