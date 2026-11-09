@@ -33,6 +33,7 @@ import { PhotoWandTool } from './PhotoWandTool.jsx';
 import { PhotoOutlineCutoutTool } from './PhotoOutlineCutoutTool.jsx';
 import { PhotoSurfaceMockupTool } from './PhotoSurfaceMockupTool.jsx';
 import { PhotoObjectTools } from './PhotoObjectTools.jsx';
+import { PhotoCloneRepairTool } from './PhotoCloneRepairTool.jsx';
 import { DimensionCalloutTool } from './DimensionCalloutTool.jsx';
 import { PhotoMosaicTool } from './PhotoMosaicTool.jsx';
 import { PersonalizeTool } from './PersonalizeTool.jsx';
@@ -106,6 +107,8 @@ function Editor() {
   const [surfaceTarget,setSurfaceTarget]=useState(null);
   const surfaceOwner=useRef(null);
   const dimensionOwner=useRef(null);
+  const [cloneTarget,setCloneTarget]=useState(null);
+  const cloneOwner=useRef(null);
   const [mosaicTarget,setMosaicTarget]=useState(null);
   useEffect(() => { if (restoreError) { setPanel('projects'); setProjectTool('files'); } }, [restoreError]);
   useEffect(() => {
@@ -258,6 +261,15 @@ function Editor() {
       cutoutOwner.current=target;setCutoutTarget(target);setPanel('cutout');
     }catch(failure){error(failure);}
   };
+  const openClone=id=>{
+    if(busyRef.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Clone repair.');
+      if(cloneOwner.current)cloneOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};cloneOwner.current=target;setCloneTarget(target);setPanel('clone');
+    }catch(failure){error(failure);}
+  };
   const openSurface = id => {
     if(busyRef.current)return;
     try {
@@ -388,6 +400,11 @@ function Editor() {
     const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
     const inserted=await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership);
     if(!inserted)throw Error('The cutout was not inserted. Your original drawing is kept; check the source and available storage.');
+  };
+  const insertClone=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!cloneTarget?.valid||!framingCurrent(cloneTarget))throw Error('The source photo or drawing changed. Open Clone repair again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([cloneTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The repaired copy was not inserted. Your original is kept; check the source and available storage.');
   };
   const insertSurface=async(proposal,requireCurrent)=>{
     const current=()=>{requireCurrent();if(!surfaceTarget?.valid||!framingCurrent(surfaceTarget)||api.current.getFiles()[proposal.artwork.photo.fileId]?.dataURL!==proposal.artwork.dataURL)throw Error('The source photos or drawing changed. Open Surface mockup again.');};
@@ -995,11 +1012,11 @@ function Editor() {
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}
-        onChange={(elements, state, files) => { if (resetPending.current) return; if(cutoutOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cutoutOwner.current.snapshot)cutoutOwner.current.valid=false;}catch{cutoutOwner.current.valid=false;}} if(surfaceOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==surfaceOwner.current.snapshot)surfaceOwner.current.valid=false;}catch{surfaceOwner.current.valid=false;}} if(dimensionOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==dimensionOwner.current.snapshot)dimensionOwner.current.valid=false;}catch{dimensionOwner.current.valid=false;}} setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
+        onChange={(elements, state, files) => { if (resetPending.current) return; if(cutoutOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cutoutOwner.current.snapshot)cutoutOwner.current.valid=false;}catch{cutoutOwner.current.valid=false;}} if(surfaceOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==surfaceOwner.current.snapshot)surfaceOwner.current.valid=false;}catch{surfaceOwner.current.valid=false;}} if(dimensionOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==dimensionOwner.current.snapshot)dimensionOwner.current.valid=false;}catch{dimensionOwner.current.valid=false;}} if(cloneOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cloneOwner.current.snapshot)cloneOwner.current.valid=false;}catch{cloneOwner.current.valid=false;}} setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
         <MainMenu><MainMenu.ItemCustom><small>Offline creation powered by Excalidraw.<br/>Open-source and font notices are bundled.</small></MainMenu.ItemCustom></MainMenu>
       </Excalidraw>
     </section>
-    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (vectorFileOwner.current) event.currentTarget.querySelector('button[data-vector-file-cancel="true"]')?.click(); if(panel==='cutout')event.currentTarget.querySelector('button[data-photo-cutout-cancel="true"]')?.click(); if(panel==='surface')event.currentTarget.querySelector('button[data-surface-mockup-cancel="true"]')?.click(); closePanel(); } }} aria-label={`${panel} panel`} onClickCapture={event => { const vectorCancel = vectorFileOwner.current && event.target instanceof Element && event.target.closest('button[data-vector-file-cancel="true"]'); const cutoutCancel=panel==='cutout'&&event.target instanceof Element&&event.target.closest('button[data-photo-cutout-cancel="true"]'); const surfaceCancel=panel==='surface'&&event.target instanceof Element&&event.target.closest('button[data-surface-mockup-cancel="true"]'); if (busyRef.current && !vectorCancel && !cutoutCancel && !surfaceCancel) { event.preventDefault(); event.stopPropagation(); } }}>
+    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (vectorFileOwner.current) event.currentTarget.querySelector('button[data-vector-file-cancel="true"]')?.click(); if(panel==='cutout')event.currentTarget.querySelector('button[data-photo-cutout-cancel="true"]')?.click(); if(panel==='surface')event.currentTarget.querySelector('button[data-surface-mockup-cancel="true"]')?.click(); if(panel==='clone')event.currentTarget.querySelector('button[data-clone-repair-cancel="true"]')?.click(); closePanel(); } }} aria-label={`${panel} panel`} onClickCapture={event => { const vectorCancel = vectorFileOwner.current && event.target instanceof Element && event.target.closest('button[data-vector-file-cancel="true"]'); const cutoutCancel=panel==='cutout'&&event.target instanceof Element&&event.target.closest('button[data-photo-cutout-cancel="true"]'); const surfaceCancel=panel==='surface'&&event.target instanceof Element&&event.target.closest('button[data-surface-mockup-cancel="true"]'); const cloneCancel=panel==='clone'&&event.target instanceof Element&&event.target.closest('button[data-clone-repair-cancel="true"]'); if (busyRef.current && !vectorCancel && !cutoutCancel && !surfaceCancel && !cloneCancel) { event.preventDefault(); event.stopPropagation(); } }}>
       <div className="panel-title"><h2 ref={panelHeading} tabIndex={-1}>{panel[0].toUpperCase() + panel.slice(1)}</h2><button disabled={busy} onClick={closePanel}>Close panel</button></div>
       {panel === 'layouts' && <><p>Choose what to make. Each result stays editable, and Undo removes one insertion.</p>
         <div role="group" aria-label="Layout tools" className="tool-grid layout-tools">{[["starter","Starter design"],["cloud","Word cloud"],["table","Table"],["qr","QR artwork"],["barcode","Barcode label"],["dependencies","Dependency diagram"],["palette","Artwork color key"],["chart","Data chart"],["calendar","Month calendar"],["storyboard","Storyboard sheet"]].map(([key,label]) => <button key={key} aria-pressed={layoutTool === key} onClick={() => setLayoutTool(key)}>{label}</button>)}</div>
@@ -1017,7 +1034,7 @@ function Editor() {
       </>}
       {panel === 'objects' && <><TextContrastReview elements={objects} expanded={contrastOpen} onToggle={() => setContrastOpen(value => !value)} background={contrastBackground} onBackgroundChange={setContrastBackground} onLocate={locateObject} /><label>Find artwork<input type="search" maxLength={100} value={objectQuery} onChange={event => setObjectQuery(event.target.value)} placeholder="Text or object type" /></label><label>Object type<select aria-label="Object type" value={objectType} onChange={event => setObjectType(event.target.value)}><option value="all">All objects</option><option value="text">Text</option><option value="photos">Photos</option><option value="shapes">Shapes, lines & frames</option></select></label><p>{foundObjects.length} of {objects.length} objects. Searches this drawing only; hidden objects must be shown before locating.</p>{!!(objectQuery || objectType !== 'all') && <button onClick={() => { setObjectQuery(''); setObjectType('all'); }}>Clear object filters</button>}{!!objects.length && !foundObjects.length && <p>No matching objects. Try another word or clear the filters.</p>}<p>Top objects appear in front. Changes share the drawing Undo control. Replace photo fits a new local copy inside the old photo’s box, keeping its center, rotation and flip; any old crop is cleared. Originals stay unchanged.</p>{!objects.length && <p>Add a shape or text to start a composition.</p>}
         {foundObjects.map(({ element, number, hidden, label }) => <article key={element.id} className="object-row"><strong>{label}{hidden ? ' · hidden' : element.locked ? ' · locked' : ''}</strong><div className="tool-grid"><button disabled={hidden} aria-label={`Find object ${number} on canvas`} onClick={() => locateObject(element.id)}>Find on canvas</button>
-          {element.type === 'image' && <PhotoObjectTools number={number} disabled={element.locked || !!element.customData?.nobleHidden} onAction={action => ({replace:() => choosePhoto(element.id),framing:() => openFraming(element.id),rectify:() => openRectify(element.id),surface:() => openSurface(element.id),outline:() => openCutout(element.id),wand:() => openWand(element.id),trace:() => openWand(element.id,true),mosaic:() => openMosaic(element.id)})[action]?.()} />}
+          {element.type === 'image' && <PhotoObjectTools number={number} disabled={element.locked || !!element.customData?.nobleHidden} onAction={action => ({clone:() => openClone(element.id),replace:() => choosePhoto(element.id),framing:() => openFraming(element.id),rectify:() => openRectify(element.id),surface:() => openSurface(element.id),outline:() => openCutout(element.id),wand:() => openWand(element.id),trace:() => openWand(element.id,true),mosaic:() => openMosaic(element.id)})[action]?.()} />}
           <button onClick={() => objectAction(element.id, 'visibility')}>{element.customData?.nobleHidden ? 'Show' : 'Hide'}</button>
           <button disabled={!!element.customData?.nobleHidden} onClick={() => objectAction(element.id, 'lock')}>{element.locked ? 'Unlock' : 'Lock'}</button>
           <button disabled={element.locked} onClick={() => objectAction(element.id, 'up')}>Forward</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'down')}>Backward</button>
@@ -1026,6 +1043,7 @@ function Editor() {
       {panel === 'mosaic' && mosaicTarget && <PhotoMosaicTool target={mosaicTarget} isCurrent={() => framingCurrent(mosaicTarget)} onApply={insertMosaic} onCancel={closePanel} />}
       {panel === 'trace' && wandTarget && <PhotoWandTool target={wandTarget} mode="trace" isCurrent={() => framingCurrent(wandTarget)} onApply={insertTrace} onCancel={closePanel} />}
       {panel === 'surface' && surfaceTarget && <PhotoSurfaceMockupTool target={surfaceTarget} isCurrent={artwork => surfaceTarget.valid && framingCurrent(surfaceTarget) && !!artwork && api.current.getFiles()[artwork.photo.fileId]?.dataURL === artwork.dataURL} onApply={insertSurface} onCancel={() => {surfaceTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'clone' && cloneTarget && <PhotoCloneRepairTool target={cloneTarget} isCurrent={() => cloneTarget.valid && framingCurrent(cloneTarget)} onApply={insertClone} onCancel={() => {cloneTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
       {panel === 'cutout' && cutoutTarget && <PhotoOutlineCutoutTool target={cutoutTarget} isCurrent={() => cutoutTarget.valid && framingCurrent(cutoutTarget)} onApply={insertCutout} onCancel={() => {cutoutTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
       {panel === 'wand' && wandTarget && <PhotoWandTool target={wandTarget} isCurrent={() => framingCurrent(wandTarget)} onApply={insertWand} onCancel={closePanel} />}
       {panel === 'rectify' && rectifyTarget && <PhotoRectifyTool target={rectifyTarget} isCurrent={() => framingCurrent(rectifyTarget)} onApply={insertRectified} onCancel={closePanel} />}

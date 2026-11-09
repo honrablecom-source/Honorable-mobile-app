@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 103,
+  "source_implemented": 104,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 397,
+  "remaining_not_source_complete": 396,
   "features": [
     {
       "id": "C001",
@@ -829,6 +829,14 @@
       "outcome": "Import a pasted timestamped production log as reviewed private source-time video moment notes, merging existing bookmarks without overwrites",
       "status": "implemented-source",
       "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C106",
+      "outcome": "Clone clean source texture along manually painted photo repairs into a previewed separate PNG, preserving the original with one insertion Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
       "full_app_build_checked": false,
       "device_checked": false
     }
