@@ -145,8 +145,8 @@ class HonorableVideoEditorActivity : Activity() {
             val b=ImageButton(this).apply{contentDescription=label;setImageDrawable(app.honorable.editor.EditorChrome.ToolIcon(kind));setPadding(dp(12),dp(12),dp(12),dp(12));setBackgroundColor(Color.WHITE);setOnClickListener{action()}}
             parent.addView(b,LinearLayout.LayoutParams(dp(44),dp(48)));return b
         }
-        icon(header,"Undo video edit","Undo"){if(editorIdle()&&project?.undo()==true){selectedClip=selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex);showClip()}}
-        icon(header,"Redo video edit","Redo"){if(editorIdle()&&project?.redo()==true){selectedClip=selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex);showClip()}}
+        icon(header,"Undo video edit","Undo"){if(beginImmediateVideoAction()&&project?.undo()==true){selectedClip=selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex);showClip()}}
+        icon(header,"Redo video edit","Redo"){if(beginImmediateVideoAction()&&project?.redo()==true){selectedClip=selectedClip.coerceAtMost(requireNotNull(project).segments.lastIndex);showClip()}}
         val exportButton = Button(this).apply { text = "Export"; contentDescription = "Export video as a new copy"; setOnClickListener { saveCopy() } }
         header.addView(exportButton, LinearLayout.LayoutParams(dp(88), dp(48)))
         root.addView(header)
@@ -201,7 +201,7 @@ class HonorableVideoEditorActivity : Activity() {
         val speedTools=group("Speed")
         speedTools.addView(label("Playback speed",14f))
         val speeds=LinearLayout(this)
-        listOf(.5f,1f,1.5f,2f).forEach{rate->speeds.addView(Button(this).apply{text="${rate}x";setOnClickListener{if(editorIdle()){project?.setSpeed(selectedClip,rate);showClip();status.text="Playback speed ${rate}x"}}},LinearLayout.LayoutParams(0,dp(48),1f))};speedTools.addView(speeds)
+        listOf(.5f,1f,1.5f,2f).forEach{rate->speeds.addView(Button(this).apply{text="${rate}x";setOnClickListener{if(beginImmediateVideoAction()){project?.setSpeed(selectedClip,rate);showClip();status.text="Playback speed ${rate}x"}}},LinearLayout.LayoutParams(0,dp(48),1f))};speedTools.addView(speeds)
         val audioTools = group("Audio")
         val creativeTools = group("Titles")
         val projectTools = group("Project")
@@ -232,7 +232,7 @@ class HonorableVideoEditorActivity : Activity() {
         actions.addView(Button(this).apply {
             text = "Preview clip"
             setOnClickListener {
-                if (saving || draftBusy || importing || pendingRange != null || durationMs <= 0 || !sourceReady) return@setOnClickListener
+                if (!canRequestTimelineCaptionImport() || durationMs <= 0 || !sourceReady) return@setOnClickListener
                 val clip = project?.segments?.getOrNull(selectedClip) ?: return@setOnClickListener
                 runCatching {
                     val trimmed = clip.copy(startMs = maxOf(start.progress*1000L,clip.startMs), endMs = minOf(end.progress*1000L,clip.endMs))
@@ -248,7 +248,7 @@ class HonorableVideoEditorActivity : Activity() {
         projectTools.addView(actions, LinearLayout.LayoutParams(-1, -2))
         val clipActions = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         fun clipButton(title: String, action: () -> Unit) {
-            clipActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
+            clipActions.addView(Button(this).apply { text = title; setOnClickListener { performImmediateVideoAction(action) } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         clipButton("Split") {
@@ -264,18 +264,18 @@ class HonorableVideoEditorActivity : Activity() {
         }
         val extraActions = LinearLayout(this)
         extraActions.addView(Button(this).apply { text = "Apply trim"; setOnClickListener {
-            if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
+            if(!beginImmediateVideoAction())return@setOnClickListener
             val clip = project?.segments?.getOrNull(selectedClip) ?: return@setOnClickListener
             runCatching { project?.trim(selectedClip, maxOf(start.progress * 1_000L, clip.startMs), minOf(end.progress * 1_000L, clip.endMs)) }
                 .onSuccess { showClip() }.onFailure { status.text = "Select a valid range inside this clip." }
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         extraActions.addView(Button(this).apply { text = "Duplicate"; setOnClickListener {
-            if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
+            if(!beginImmediateVideoAction())return@setOnClickListener
             runCatching { requireNotNull(project).duplicate(selectedClip) }
                 .onSuccess { selectedClip++; showClip() }.onFailure { status.text = "Cannot duplicate this clip. Check the project clip limit." }
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         extraActions.addView(Button(this).apply { text = "Mute"; setOnClickListener {
-            if (saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
+            if(!beginImmediateVideoAction())return@setOnClickListener
             project?.setVolume(selectedClip, 0f); showClip()
         } }, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(extraActions)
@@ -283,7 +283,7 @@ class HonorableVideoEditorActivity : Activity() {
         controls.addView(clipActions)
         val historyActions = LinearLayout(this)
         fun historyButton(title: String, action: () -> Unit) {
-            historyActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
+            historyActions.addView(Button(this).apply { text = title; setOnClickListener { performImmediateVideoAction(action) } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         historyButton("Move left") { moveClip(-1) }
@@ -295,7 +295,7 @@ class HonorableVideoEditorActivity : Activity() {
         for (i in 0 until historyActions.childCount) historyActions.getChildAt(i).layoutParams = LinearLayout.LayoutParams(dp(88), dp(48))
         val audioActions = LinearLayout(this)
         fun audioButton(title: String, action: () -> Unit) {
-            audioActions.addView(Button(this).apply { text = title; setOnClickListener { if (!saving && !draftBusy && !importing && pendingRange == null) action() } },
+            audioActions.addView(Button(this).apply { text = title; setOnClickListener { if(canRequestTimelineCaptionImport())action() } },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         audioButton("Speed") { chooseClipPlayback(speed=true) }
@@ -310,7 +310,7 @@ class HonorableVideoEditorActivity : Activity() {
         val creative = LinearLayout(this)
         creative.addView(Button(this).apply { text = "Title"; setOnClickListener { editTitle() } },LinearLayout.LayoutParams(0,-2,1f))
         creative.addView(Button(this).apply { text = "Video fade"; setOnClickListener {
-            if(saving || draftBusy || importing || pendingRange != null) return@setOnClickListener
+            if(!beginImmediateVideoAction()) return@setOnClickListener
             val current = project ?: return@setOnClickListener
             val clip = current.segments[selectedClip]
             current.setFadeEdges(selectedClip,!clip.fadeEdges); showClip()
@@ -324,7 +324,7 @@ class HonorableVideoEditorActivity : Activity() {
         val music = LinearLayout(this)
         fun musicButton(title: String, action: () -> Unit) {
             music.addView(Button(this).apply { text = title; setOnClickListener {
-                if(!saving && !draftBusy && !importing && pendingRange == null) action()
+                if(canRequestTimelineCaptionImport()) action()
             } },LinearLayout.LayoutParams(0,-2,1f))
         }
         musicButton("Add music") { importSoundtrack() }
@@ -444,7 +444,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
 
     private fun previewProject() {
-        if (saving || analyzing || draftBusy || importing || pendingRange != null) return
+        if(!canRequestTimelineCaptionImport())return
         val clips = project?.segments ?: return
         previewComposition(clips, null)
     }
@@ -618,7 +618,7 @@ class HonorableVideoEditorActivity : Activity() {
         }.start()
     }
 
-    private fun toggleAudioFade(){if(editorIdle()){val current=project?:return;current.setProjectAudioFade(!current.segments.first().audioFade);showClip();status.text="Project audio fade ${if(current.segments.first().audioFade)"on" else "off"}. Preview project to check the mix."}}
+    private fun toggleAudioFade(){if(beginImmediateVideoAction()){val current=project?:return;current.setProjectAudioFade(!current.segments.first().audioFade);showClip();status.text="Project audio fade ${if(current.segments.first().audioFade)"on" else "off"}. Preview project to check the mix."}}
     private fun openInspector(){
         if(!editorIdle())return;val current=project?:return
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
@@ -741,6 +741,16 @@ class HonorableVideoEditorActivity : Activity() {
             status.text=if(refreshed)"Motion applied. Undo restores the previous motion."else"Motion applied. Preview is unavailable; Undo restores the previous motion."
         }
         showInspectorReview(dialog,review)
+    }
+    private fun beginImmediateVideoAction():Boolean {
+        if(!canRequestTimelineCaptionImport()||project?.segments?.getOrNull(selectedClip)==null)return false
+        invalidateCaptionReviews()
+        return true
+    }
+    private fun performImmediateVideoAction(action:()->Unit):Boolean {
+        if(!beginImmediateVideoAction())return false
+        action()
+        return true
     }
     private fun editorIdle()=!saving&&!analyzing&&!draftBusy&&!importing&&pendingRange==null
 

@@ -1,0 +1,17 @@
+# Immediate video control admission
+
+0 new user-facing features;1 shared correctness fix;0 scaffolding. Source103/500, batch65 unchanged. Focused host/API34 validation passes; actual Android widgets/player/device and full APK acceptance remain unverified.
+
+Several immediate callbacks used only saving/importing/draft/range flags or `editorIdle()`. They did not all check foreground, analysis, preserved recovery bytes/blocked/checking states, source initialization or selected-clip validity before editing. Model/value changes could also be undone without invalidating an older review generation.
+
+`beginImmediateVideoAction` now reuses the existing full foreground/idle/recovery/project/source admission and requires a current selected clip. On acceptance, it invalidates tracked reviews before returning to the original action. The closure dispatcher uses that same gate. Rejection returns before any operation, generation advance or review invalidation. Accepted commands invalidate old proposals even if their operation is a no-op or later fails; this is not a rollback guarantee.
+
+Routed edit controls are header Undo/Redo, clip split/delete, history move/Undo/Redo/reset entry, trim/duplicate/mute, direct speed and video/audio fades. The existing operation bodies, selection clamps, error handling, model calculations and renderer remain. Audio/music picker opening and clip/project preview entry use the foreground/recovery predicate without advancing generation. Existing source-ready checks remain for clip preview/split. The global `editorIdle()` semantics are unchanged.
+
+## Validation and limits
+
+612 focused host tests pass:8 new+604 retained. New cases execute the actual dispatcher/begin functions with project state and substituted operation callbacks: admitted edit/one Undo, every foreground/busy/range/recovery/missing-source/project/invalid-selection refusal before side effects, moment/look/batch leases closed before mutation, accepted failure invalidation, Undo/Redo unable to revive old generations, explicit no-op history, and actual blocked project-preview/audio-fade entries returning before native player/widgets or model changes.
+
+Current Activity/tests compile against pinned API34 references and the hash-verified retained graph.18 source checks map each routed control, verify admission/invalidation ordering, opening/preview gates and unchanged editorIdle/model/draft/review code. Reversing only the declared guard/helper changes yields the exact original Activity bytes, proving operation bodies/rendering/labels and unrelated logic were preserved. Evidence: `.context/noble-fast-immediate-controls-review/verification.json`, `tests.log`, `compile.log`, `wiring.json`, `exit.json`, `before-activity.kt.txt`.
+
+Fixtures allocate constructor-free Activity metadata, invoke real policy/entry functions and substitute edits or native side effects. They do not instantiate the actual button tree or execute successful player/UI/dialog dismissal/range refresh/accessibility, physical lifecycle/rendering or device behavior. Coverage is scoped to the listed routes; other asynchronous controllers retain their existing admission rules. Those integration/device checks remain pending. No configured SDK37/full module/Gradle/native/APK build, production-readiness claim, dependencies, media uploads, benchmark, ranking or ledger changes. Broad build remains approximately138 source workflows.
