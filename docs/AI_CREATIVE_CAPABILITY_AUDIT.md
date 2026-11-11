@@ -1,3 +1,7 @@
+## November 11 — C176 local translation source milestone
+
+C176 is accepted as one experimental source workflow: actual local English→Spanish caption translation with explicit optional public-model setup, full correction/paired review and one owned Apply/Undo. Register182/500. Current wholeActivity/API37,28focused cases and8prior parent regressions pass; exact production classes run the pinned model on generated host fixtures, observed JNI Stop and full injected-public-file installation/cache reuse. No private caption upload, new SDK/dependency, search/ranking/credit change, broad native/APK build, phone/realHTTP/general-quality acceptance. Evidence and remaining device limits: [C176](FEATURE_C176_AI_CAPTION_TRANSLATION.md). Earlier feasibility notes remain historical. C197 is independently owned and still uncounted.
+
 # Genuine AI creative workflows — audit in progress
 
 Owner steering November11: cool AI features are Noble's major selling point; prioritize them while continuing toward500 distinct source outcomes. **C170 now adds1 experimental AI source workflow. Current source register181/500;319remaining.** C168 backup/restore is one experimental source workflow, not an AI feature. Work solo and coordinate with the separate chat through Noble Chat.
