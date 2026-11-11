@@ -1,12 +1,12 @@
 # C197 — AI photo text to editable layout (unfinished)
 
-**0 new completed user-facing workflows;0 separate completed fixes/scaffolding;1 unfinished experimental AI workflow. Source181/500;319remaining.** This is a component checkpoint, not app/UI/device acceptance. Goal500 continues. Owner now requests pushing changes to the repo; main owns the Git publication boundary. Current C197 component sources are frozen for that snapshot.
+**0 new completed user-facing workflows;0 separate completed fixes/scaffolding;1 unfinished experimental AI workflow. Source181/500;319remaining.** This is a component checkpoint, not app/UI/device acceptance. Goal500 continues. Owner now requests pushing changes to the repo; main owns the Git publication boundary. Current C197 sources are frozen for the next explicitly requested repository checkpoint.
 
 ## Intended outcome
 
 Use real existing on-device Latin OCR on the complete edited photo preview. Correct and explicitly choose recognized lines, then rebuild selected lettering as independently editable native text objects above a white paper rectangle with one owned Apply/Undo. Original photo and existing layers stay beneath the paper. This differs from existing OCR Copy text, C193 redaction, manual C006 text objects and C091 literal find/replace. Fonts, colors, rotation and original typography are **not** recovered; output uses approximate positions and horizontal black sans-serif text.
 
-No controls, Root route, live OCR/device test or completed outcome yet. Do not register C197 until correction/selection, exact rendered preview, fresh all-text confirmation, one-use owned Apply/Undo, parent/lifecycle/source/account/busy ownership and full source/tests gates are complete. No C197 dependency, manifest, model asset, search/ranking, credits/catalog/server ledger or native/APK build changes. No personal media/query uploads, Seran holdout or expensive search benchmark.
+Controls and a narrow PhotoEditorActivity route are now implemented but their UI/parent/Apply/Undo checks remain open; no live OCR/device test or completed outcome yet. Do not register C197 until correction/selection, exact rendered preview, fresh all-text confirmation, one-use owned Apply/Undo, parent/lifecycle/source/account/busy ownership and full source/tests gates are complete. No C197 dependency, manifest, model asset, search/ranking, credits/catalog/server ledger or native/APK build changes. No personal media/query uploads, Seran holdout or expensive search benchmark.
 
 ## Implemented components
 
@@ -22,6 +22,12 @@ Initial pure planner10cases passed0.346s. Then actual API37/real bundled OCR SDK
 Correction changes only the cancellation fixture: deliver the paused main-looper callback and assert task is both complete and canceled before starting the reader. Production source and10second deadline unchanged. Test-only overlay compiles against the exact initial production jar; corrected22case run **PASS204.238s**, process7936 terminal0. Same production jar/source and10second deadline; current callback-delivery assertion is stronger. Receipt `.context/noble-fast-ai/C197/sdk-overlay-receipt-0.json` records exact source/product/test hashes. No live C197 job remains.
 
 Cases cover corrected/source-order selection, original edit/layer preservation, exact capacity, malformed/dense/unknown text/geometry, safe IDs/immutable collections, failed fitting/cancellation, actual font shrink/refusal, exact frame geometry, real layer-renderer black text/white paper over preserved old objects, and real GoogleTask successful/pending/Stop/timeout/failure/cancellation/late completion/cleanup. SDK tests inject OCR result payloads; no real OCR inference or accuracy claim.
+
+## November11 followup — controls/parent implementation, not accepted
+
+Owner repeats pushing **all** current updates. New `PhotoTextLayoutControls.kt` and narrow PhotoEditorActivity additions are frozen/authorized for main's single-publisher checkpoint, still **0 new completed workflows; source181**. Controls include explicit OCR setup, private white-matted snapshot plus independent numbered source reference, correction of every bounded candidate/none selected, complete actual rendered native text-layout preview/pan/zoom, fresh unchecked confirmation and consumed one-use Apply. Existing photo/layers stay below new white paper. Parent captures edit identity/source/mask/generation/account/mode/protected-originals/busy ownership; closes on pause/destroy and retains busy ownership until worker **and actual SDK** settlement. Core22component tests remain unchanged and passing.
+
+Actual whole current PhotoRoot+new controls API37/realSDK compile is running at process57809; do not claim passed until its receipt. Controls/parent/one-step Apply/Undo/current recovery/UI tests **not yet written or run**. Real OCR/Android model/device/current APK unverified. No registry increment or full native/APK build. Next: actual controls and Root ownership/Undo tests plus regression/source gates before source acceptance. Source push remains a truthful work-in-progress backup, not a completed feature.
 
 ## Next implementation gates
 

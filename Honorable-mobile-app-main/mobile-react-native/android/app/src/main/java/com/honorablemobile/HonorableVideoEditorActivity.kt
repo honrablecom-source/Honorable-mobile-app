@@ -54,6 +54,7 @@ class HonorableVideoEditorActivity : Activity() {
     private var captionSyncControls:VideoCaptionSyncControls?=null
     private var speechControls:VideoSpeechControls?=null
     private var visualTextControls:VideoVisualTextControls?=null
+    private var translationControls:VideoTranslationControls?=null
     private var captionReviewGeneration=0L
     private var captionReviewDialogs:MutableSet<android.app.AlertDialog>?=null
     private var quietAudioDialog:android.app.AlertDialog?=null
@@ -336,6 +337,7 @@ class HonorableVideoEditorActivity : Activity() {
         creativeTools.addView(creative)
         creativeTools.addView(Button(this).apply{text="Title style";setOnClickListener{titleStyle()}})
         creativeTools.addView(Button(this).apply{text="Saved title styles";setOnClickListener{savedTitleStyles()}})
+        creativeTools.addView(Button(this).apply{text="AI captions to Spanish";setOnClickListener{requestCaptionTranslation()}})
         creativeTools.addView(Button(this).apply{text="AI read video text";setOnClickListener{requestVisualTextCaptions()}})
         creativeTools.addView(Button(this).apply{text="AI speech captions";setOnClickListener{requestSpeechCaptions()}})
         creativeTools.addView(Button(this).apply{text="Captions";setOnClickListener{captionOptions()}})
@@ -648,7 +650,7 @@ class HonorableVideoEditorActivity : Activity() {
         fun t(label:String,run:()->Unit)=app.honorable.editor.NativeInspectorPanel.Tool(label,run)
         app.honorable.editor.NativeInspectorPanel.show(this,"Video inspector","Clip ${selectedClip+1}/${current.segments.size} · ${current.totalDurationMs/1000f}s project",listOf(
             "Picture" to listOf(t("Precise trim"){preciseTrim()},t("Slip source window"){slipSourceWindow()},t("Replace clip footage"){clipReplacement()},t("Roll cut with next clip"){rollCut()},t("Color controls"){editColor()},t("Motion pan and zoom"){editMotion()},t("White balance"){editColor(true)},t("Rotate / mirror"){transformVideo()},t("Copy color to all"){copyGradeToAll()},t("Saved color looks"){savedColorLooks()}),
-            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("AI speech captions"){requestSpeechCaptions()},t("AI read video text"){requestVisualTextCaptions()},t("Suggest audio-onset cuts"){sourceAudioOnsetCuts()},t("Combine bilingual captions"){bilingualCaptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Match clip audio level"){matchClipAudio()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
+            "Titles & audio" to listOf(t("Edit title"){editTitle()},t("Title style"){titleStyle()},t("Saved title styles"){savedTitleStyles()},t("Timed captions"){captionOptions()},t("AI speech captions"){requestSpeechCaptions()},t("AI read video text"){requestVisualTextCaptions()},t("AI captions to Spanish"){requestCaptionTranslation()},t("Suggest audio-onset cuts"){sourceAudioOnsetCuts()},t("Combine bilingual captions"){bilingualCaptions()},t("Find caption text"){findCaptionText()},t("Copy caption text"){copyCaptionText()},t("Script to captions"){scriptCaptionOptions()},t("Project audio fade"){toggleAudioFade()},t("Remove quiet pauses"){quietPauseOptions()},t("Inspect source audio levels"){sourceAudioLevels()},t("Match clip audio level"){matchClipAudio()},t("Record voiceover"){recordVoiceover()},t("Soundtrack excerpt"){soundtrackExcerpt()}),
             "Project" to (listOf(t("Keep or export"){videoFinishGuide()},t("Back up editable project"){backupEditableProject()},t("Open video backups"){openVideoBackups()},t("Build a montage"){montageOptions()},t("Keep playback excerpt"){playbackExcerpt()},t("Move a clip group"){requestClipBlockMove()},t("Timeline report"){timelineReport()},t("Repeated source footage"){repeatedFootage()},t("Review sampled dark holds"){reviewDarkHolds()},t("Remove repeated footage"){uniqueFootage()},t("Build camera-switch edit"){multicamAssembly()},t("Fit all shots to duration"){fitAllShotsDuration()},t("Import video cut list"){importVideoCutList()},t("Silence playback ranges"){silencePlaybackRanges()},t("Saved video versions"){savedVideoVersions()},t("Clip chapter list"){chapterList()},t("Split at pasted playback times"){playbackCuts()},t("Caption translation worksheet"){captionWorksheet()},t("Copy CMX3600 cut list"){videoEdl()},t("Open source frame as photo"){sourceFramePhoto()},t("Create video time-slice photo"){videoTimeSlicePhoto()},t("Export frame sequence archive"){videoFrameArchive()},t("Create visual storyboard"){visualStoryboard()},t("Moment notes"){momentNotes()},t("Import moment notes"){importMomentNotes()},t("Copy moment notes"){copyMomentNotes()},t("Highlights from notes"){momentHighlights()},t("Output format"){outputFormat()},t("Preview project"){previewProject()}) + if(accessMode==EditorAccessMode.GUEST_BASIC)listOf(t("Save project"){guestProjectOperation(false)},t("Restore project"){guestProjectOperation(true)},t("Delete saved project"){deleteGuestProject()})else emptyList()),
             "Batch editing" to VideoBatchTool.values().map{kind->t(kind.title){batchEdit(kind)}},
             "On-device AI" to (if(accessMode.allowsOnDeviceAi)listOf(t("Video looks"){videoLookOptions()},t("Rough cut"){roughCutOptions()})else emptyList())
@@ -2631,7 +2633,7 @@ class HonorableVideoEditorActivity : Activity() {
         if(videoSaveRequest!=null&&!allowsMediaImportResult(requestCode))return
         if(VideoSaveRequest.ownsCode(requestCode)){acceptVideoSaveResult(requestCode,resultCode,data);return}
         // Older picker results must not release busy/recovery state owned by this import.
-        if((timelineCaptionImport!=null||captionSyncControls!=null||speechControls!=null||visualTextControls!=null)&&!allowsMediaImportResult(requestCode))return
+        if((timelineCaptionImport!=null||captionSyncControls!=null||speechControls!=null||visualTextControls!=null||translationControls!=null)&&!allowsMediaImportResult(requestCode))return
         if(requestCode==VideoTimelineCaptionControls.REQUEST_CODE||requestCode==VideoTimelineCaptionControls.SOURCE_REQUEST_CODE){timelineCaptionImport?.takeIf{it.requestCode==requestCode}?.accept(resultCode,data);return}
         if(holdRecoveryResult(requestCode)||!allowsMediaImportResult(requestCode))return
         if(requestCode == 28) { finishVoiceover(resultCode,data); return }
@@ -3113,6 +3115,35 @@ class HonorableVideoEditorActivity : Activity() {
                 .onSuccess{selectedClip=0;val ready=runCatching{showClip();previewProject()}.isSuccess;status.text=if(ready)"Caption highlights applied. Preview to check cuts and sound; Undo restores the timeline."else"Highlights applied, but preview is unavailable. Undo restores the timeline."}
                 .onFailure{if(workspaceActive)status.text=it.message?:"Highlights were not applied"}
         }.create();showCaptionReview(dialog,review)
+    }
+
+    private fun ownsCaptionTranslation(owner:VideoTranslationControls)=translationControls===owner&&importing&&!saving&&!analyzing&&!draftBusy&&pendingRange==null&&recoveryBytes==null&&!recoveryBlocked&&!recoveryChecking&&!isDestroyed&&!isFinishing
+    private fun releaseCaptionTranslation(owner:VideoTranslationControls){if(translationControls!==owner)return;translationControls=null;importing=false}
+    private fun commitCaptionTranslation(owner:VideoTranslationControls,current:VideoEditProject,index:Int,clip:VideoSegment,cues:List<VideoCaption>,stillCurrent:()->Boolean):Boolean {
+        if(!workspaceActive||!ownsCaptionTranslation(owner)||!stillCurrent()||project!==current||selectedClip!=index||current.segments.getOrNull(index)!==clip)return false
+        VideoCaptions.validate(cues)
+        require(cues.size==clip.captions.size&&cues.indices.all{cues[it].startMs==clip.captions[it].startMs&&cues[it].endMs==clip.captions[it].endMs})
+        current.setCaptions(index,cues,null)
+        return true
+    }
+    private fun requestCaptionTranslation(){
+        if(!allowOnDeviceAi())return
+        val current=project?:return;val clips=current.segments;val index=selectedClip;val clip=clips.getOrNull(index)?:return
+        if(clip.captions.isEmpty()){status.text="Add captions before local English-to-Spanish translation.";return}
+        if(!::start.isInitialized||!::end.isInitialized)return
+        val duration=sourceDuration(clip.sourceId)
+        val mode=accessMode;val namespace=videoLookNamespace()?:return;val sources=sourceUris().toMap();val music=current.soundtrack
+        val from=start.progress;val to=end.progress;val generation=captionReviewGeneration
+        runCatching{if(::video.isInitialized)video.pause();stopProjectPreview();previewHandler.removeCallbacks(stopPreview)}
+        importing=true;val captured=closeState()
+        lateinit var controls:VideoTranslationControls
+        fun approved()=workspaceActive&&ownsCaptionTranslation(controls)&&captionReviewGeneration==generation&&accessMode==mode&&videoLookNamespace()==namespace&&captured.stillMatches(closeState())&&project===current&&current.segments===clips&&current.soundtrack===music&&selectedClip==index&&sourceUris()==sources&&start.progress==from&&end.progress==to
+        controls=VideoTranslationControls(this,clip.captions,duration,
+            isCurrent={approved()},
+            apply={cues->check(commitCaptionTranslation(controls,current,index,clip,cues){approved()}){ "Video or session changed" }},
+            committed={if(workspaceActive&&!isDestroyed&&!isFinishing&&project===current&&accessMode==mode&&videoLookNamespace()==namespace){val ready=runCatching{showClip();start.progress=from;end.progress=to;showRange();previewProject()}.isSuccess;status.text=if(ready)"Reviewed Spanish captions applied. Preview for errors and sync; Undo restores prior captions."else"Reviewed Spanish captions applied. Preview unavailable; Undo restores prior captions."}},
+            release={releaseCaptionTranslation(controls)},message={if(workspaceActive&&::status.isInitialized)status.text=it})
+        translationControls=controls;controls.open()
     }
 
     private fun ownsVisualText(owner:VideoVisualTextControls)=visualTextControls===owner&&importing&&!saving&&!analyzing&&!draftBusy&&pendingRange==null&&recoveryBytes==null&&!recoveryBlocked&&!recoveryChecking&&!isDestroyed&&!isFinishing
@@ -3647,7 +3678,7 @@ class HonorableVideoEditorActivity : Activity() {
     }
     private fun allowsMediaImportResult(requestCode:Int):Boolean {
         videoSaveRequest?.let{return requestCode !in 22..29&&!VideoSaveRequest.ownsCode(requestCode)||requestCode==it.requestCode}
-        if(captionSyncControls!=null||speechControls!=null||visualTextControls!=null)return requestCode !in 22..29
+        if(captionSyncControls!=null||speechControls!=null||visualTextControls!=null||translationControls!=null)return requestCode !in 22..29
         timelineCaptionImport?.let{return requestCode !in 22..29||requestCode==it.requestCode}
         return mediaImportTarget?.let{requestCode !in 22..28||requestCode==it.kind.requestCode}?:true
     }
@@ -3879,14 +3910,14 @@ class HonorableVideoEditorActivity : Activity() {
     override fun onBackPressed(){requestClose()}
 
     override fun onResume(){super.onResume();workspaceActive=true;resumeVideoSave();syncVideoSaveControls();flushVideoSaveNotice();timelineCaptionImport?.resume();previewHandler.post(workspaceTick);if(recoveryBytes!=null&&!recoveryChecking&&!recoveryBlocked&&project!=null)retryRecovery()}
-    override fun onPause() { projectBackupControls?.close();projectBackupControls=null;darkHoldControls?.close();darkHoldControls=null;audioOnsetControls?.close();audioOnsetControls=null;frameArchiveControls?.close();frameArchiveControls=null;timeSliceControls?.close();timeSliceControls=null;invalidateCaptionReviews();visualTextControls?.close();speechControls?.close();captionSyncControls?.close();timelineCaptionImport?.onPause();versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
+    override fun onPause() { projectBackupControls?.close();projectBackupControls=null;darkHoldControls?.close();darkHoldControls=null;audioOnsetControls?.close();audioOnsetControls=null;frameArchiveControls?.close();frameArchiveControls=null;timeSliceControls?.close();timeSliceControls=null;invalidateCaptionReviews();translationControls?.close();visualTextControls?.close();speechControls?.close();captionSyncControls?.close();timelineCaptionImport?.onPause();versionShelf?.close();versionShelf=null;runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null;mediaImportTarget?.takeIf{it.isChecking}?.let{finishMediaImportTarget(it);if(::status.isInitialized)status.text="Import stopped while the editor was away. Choose ${it.kind.action} again."};runCatching{recoveryDiscardDialog?.dismiss()};recoveryDiscardDialog=null;runCatching{closeDialog?.dismiss()};closeDialog=null;titleStyleShelf?.close();titleStyleShelf=null;quietAudioGeneration++;quietAudioCancellation?.set(true);runCatching{quietAudioDialog?.dismiss()};quietAudioDialog=null;framePhotoCancellation?.set(true);workspaceActive=false;previewHandler.removeCallbacks(workspaceTick); if (::video.isInitialized) video.pause(); stopProjectPreview(); super.onPause() }
     override fun onDestroy() {
         projectBackupControls?.close();projectBackupControls=null
         darkHoldControls?.close();darkHoldControls=null
         audioOnsetControls?.close();audioOnsetControls=null
         frameArchiveControls?.close();frameArchiveControls=null
         timeSliceControls?.close();timeSliceControls=null
-        invalidateCaptionReviews();visualTextControls?.close();visualTextControls=null;speechControls?.close();speechControls=null;captionSyncControls?.close();captionSyncControls=null;timelineCaptionImport?.close();timelineCaptionImport=null
+        invalidateCaptionReviews();translationControls?.close();translationControls=null;visualTextControls?.close();visualTextControls=null;speechControls?.close();speechControls=null;captionSyncControls?.close();captionSyncControls=null;timelineCaptionImport?.close();timelineCaptionImport=null
         versionShelf?.close();versionShelf=null
         runCatching{restoreReviewDialog?.dismiss()};restoreReviewDialog=null
         mediaImportTarget?.let{finishMediaImportTarget(it)}
