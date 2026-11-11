@@ -1,13 +1,18 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Actual Activity entry guards only. No Android constructor, widgets, dialogs or lifecycle are run. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class PhotoVideoPlanActivityTest {
     private fun instance():Pair<PhotoVideoCreatorActivity,PhotoVideoPlanGate> {
-        val unsafe=Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible=true }.get(null) as Unsafe
+        val unsafe=JvmTestAllocator
         val activity=unsafe.allocateInstance(PhotoVideoCreatorActivity::class.java) as PhotoVideoCreatorActivity
         val gate=PhotoVideoPlanGate()
         PhotoVideoCreatorActivity::class.java.getDeclaredField("planGate").apply { isAccessible=true }.set(activity,gate)

@@ -1,0 +1,30 @@
+# C197 — AI photo text to editable layout (unfinished)
+
+**0 new completed user-facing workflows;0 separate completed fixes/scaffolding;1 unfinished experimental AI workflow. Source181/500;319remaining.** This is a component checkpoint, not app/UI/device acceptance. Goal500 continues. Owner now requests pushing changes to the repo; main owns the Git publication boundary. Current C197 component sources are frozen for that snapshot.
+
+## Intended outcome
+
+Use real existing on-device Latin OCR on the complete edited photo preview. Correct and explicitly choose recognized lines, then rebuild selected lettering as independently editable native text objects above a white paper rectangle with one owned Apply/Undo. Original photo and existing layers stay beneath the paper. This differs from existing OCR Copy text, C193 redaction, manual C006 text objects and C091 literal find/replace. Fonts, colors, rotation and original typography are **not** recovered; output uses approximate positions and horizontal black sans-serif text.
+
+No controls, Root route, live OCR/device test or completed outcome yet. Do not register C197 until correction/selection, exact rendered preview, fresh all-text confirmation, one-use owned Apply/Undo, parent/lifecycle/source/account/busy ownership and full source/tests gates are complete. No C197 dependency, manifest, model asset, search/ranking, credits/catalog/server ledger or native/APK build changes. No personal media/query uploads, Seran holdout or expensive search benchmark.
+
+## Implemented components
+
+- `PhotoTextLayout.kt`: immutable bounded recognized-line batch and corrected-selection insertion plan using existing PhotoEdit/PhotoLayers/PhotoObject types. Original edits/objects retained exactly; white paper plus chosen text append in source order. Native32-object limit reserves one paper slot; no automatic selection or silently dropped lines. Up to100candidates,1000characters/raw line,16000total raw characters; selected corrected strings must meet existing200character/three-line/valid-Unicode limits. Invalid/dense geometry or text fails completely. New IDs cannot overwrite old objects. Plan binds exact base object identity.
+- Geometry clips detected boxes to the working image, rejects outside lines and normalizes bounded frames. Fitter measures the exact float-normalized frame used by PhotoObjectPlan, including integer StaticLayout width; text is not silently shortened. Existing native minimum/maximum font sizes stay.
+- `PhotoTextLayoutTypography.kt`: actual Android TextPaint/StaticLayout contract matching existing PhotoLayersRenderer: sans normal, zero tracking, left alignment, no font pad, maximum3lines. Uses actual minimum-one-pixel renderer text size. Complete corrected text must fit without ellipsis or vertical clipping. Font can shrink within supported bounds; impossible text fails so the owner can correct/crop rather than receive partial wording.
+- `PhotoTextLayoutReader.kt`: actual existing bundled ML Kit Latin16.0.1 SDK call, real line text/bounding rectangles, no heuristic/substitute detections. Worker waits on real GoogleTask with current-owner checks and90second limit. Snapshot/client stay alive until SDK task completion even after Stop/timeout. Settlement callback occurs once after cleanup, allowing future parent busy ownership to remain until actual SDK settlement. All bounded candidate lines are retained;101refuses the batch.
+
+## Verification checkpoint
+
+Initial pure planner10cases passed0.346s. Then actual API37/real bundled OCR SDK compilation included the **actual current** PhotoEdit, PhotoLayers, PhotoTextStyle and PhotoLayersRenderer sources plus all three new components/tests. Initial22case JVM/SDK34native-graphics run passed21cases; cancellation-token fixture had an undelivered main-looper callback and timed out at the existing10second test deadline. Full failed logs retained under `.context/noble-fast-ai/C197/sdk-*-0.log`.
+
+Correction changes only the cancellation fixture: deliver the paused main-looper callback and assert task is both complete and canceled before starting the reader. Production source and10second deadline unchanged. Test-only overlay compiles against the exact initial production jar; corrected22case run **PASS204.238s**, process7936 terminal0. Same production jar/source and10second deadline; current callback-delivery assertion is stronger. Receipt `.context/noble-fast-ai/C197/sdk-overlay-receipt-0.json` records exact source/product/test hashes. No live C197 job remains.
+
+Cases cover corrected/source-order selection, original edit/layer preservation, exact capacity, malformed/dense/unknown text/geometry, safe IDs/immutable collections, failed fitting/cancellation, actual font shrink/refusal, exact frame geometry, real layer-renderer black text/white paper over preserved old objects, and real GoogleTask successful/pending/Stop/timeout/failure/cancellation/late completion/cleanup. SDK tests inject OCR result payloads; no real OCR inference or accuracy claim.
+
+## Next implementation gates
+
+After component checks: parent-owned setup → recognize → source/reference review with every candidate and editable correction, none selected by default → actual full rendered layout review with fresh confirmation → one-use Apply/Undo. Retain separate SDK snapshot until task settles; old source/generation/account/pause must suppress late publication and keep the parent lease until settlement. Preserve C195/source181 and current source/frozen138 boundaries. Next broad native/APK checkpoint~238; do not build per feature.
+
+Primary API: [ML Kit Android text recognition](https://developers.google.com/ml-kit/vision/text-recognition/v2/android). Existing bundled library is already present in both native hosts; no new model/dependency/setup download needed. Model quality, real Android inference/device, physical typography/selection/accessibility, recovery/export and current integrated app/store readiness remain unverified.

@@ -1,19 +1,24 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import app.honorable.editor.EditorAccessMode
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Actual callback admission with poisoned views, resolver and worker; no provider is opened. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoMediaImportAdmissionTest {
     private val primary="content://synthetic/primary"
     private fun activity():HonorableVideoEditorActivity {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val value=(field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        val value=JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
         set(value,"project",VideoEditProject(8000));set(value,"source",Uri.parse(primary));set(value,"primaryDurationMs",8000L)
         set(value,"accessMode",EditorAccessMode.ACCOUNT);set(value,"importedSources",linkedMapOf<String,VideoSource>())
         return value

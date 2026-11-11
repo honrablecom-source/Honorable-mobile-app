@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "name": "Swin2SR lightweight x2",
+  "modelFile": "swin2sr-lightweight-x2.onnx",
+  "bytes": 8078888,
+  "sha256": "c2abbfe0cc8e685b5e11964970f8ebe3d24072e904fd5545a30ac31ec1e110db",
+  "license": "Apache-2.0",
+  "sourceRepository": "https://huggingface.co/Xenova/swin2SR-lightweight-x2-64",
+  "sourceRevision": "92a21aca5713f20faf9a87590cdfbdce2e34112c",
+  "sourceArtifact": "onnx/model.onnx",
+  "authorRepository": "https://huggingface.co/caidas/swin2SR-lightweight-x2-64",
+  "authorRevision": "07e8e61492ce6daf4f34c651622960faf110c17f",
+  "modifiedWeights": false,
+  "input": {
+    "name": "pixel_values",
+    "type": "float32",
+    "layout": "NCHW",
+    "channels": "RGB",
+    "scale": "1/255",
+    "padding": "symmetric edge-inclusive, next multiple of 8 including extra 8 if already divisible"
+  },
+  "output": {
+    "name": "reconstruction",
+    "scale": 2,
+    "layout": "NCHW",
+    "channels": "RGB",
+    "pixels": "clamp [0,1], multiply255, round"
+  },
+  "runtime": "Existing ONNX Runtime 1.20; independent session, shared environment never closed"
+}

@@ -2,6 +2,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Keyboard,
   Modal,
   Pressable,
@@ -37,6 +38,8 @@ import type { MainTabParamList } from '../navigation/types';
 import { seranCreditCosts } from '../passes/catalog';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 import { useOpenWorkspace } from '../native/openWorkspace';
+import { AiShotBriefPanel } from '../search/AiShotBriefPanel';
+import { OwnedAiSearch, type AiSearchPhase } from '../search/OwnedAiSearch';
 const filters = ['All', 'Photos', 'Videos', 'Screenshots'] as const;
 type Filter = (typeof filters)[number];
 function duration(ms?: number) {
@@ -55,6 +58,8 @@ export function HomeScreen() {
   } = useLibrary();
   const {
     connected: passConnected,
+    account,
+    signedIn,
     startSearch,
     finishSearch,
   } = useMemoryPass();
@@ -67,6 +72,84 @@ export function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const searchPending = useRef(false);
   const [error, setError] = useState('');
+  const owner = signedIn ? account?.accountId ?? '' : '';
+  const auth = useRef({
+    owner,
+    connected: passConnected,
+    startSearch,
+    finishSearch,
+  });
+  auth.current = { owner, connected: passConnected, startSearch, finishSearch };
+  const lifetime = useRef({
+    active: true,
+    foreground:
+      AppState.currentState !== 'background' &&
+      AppState.currentState !== 'inactive',
+    focused: navigation.isFocused?.() ?? true,
+    generation: 0,
+  });
+  const admission = useRef({ owner: '', generation: -1 });
+  const [phase, setPhase] = useState<AiSearchPhase>('IDLE');
+  const runner = useRef<OwnedAiSearch | null>(null);
+  if (!runner.current)
+    runner.current = new OwnedAiSearch({
+      selectModel: model => honorableNative.selectSeranModel(model),
+      start: (model, id) => auth.current.startSearch(model, id),
+      search: value => honorableNative.search(value),
+      finish: (id, outcome) => auth.current.finishSearch(id, outcome),
+      cancelNative: () => honorableNative.cancelSearch(),
+      isCurrent: () =>
+        lifetime.current.active &&
+        lifetime.current.foreground &&
+        lifetime.current.focused &&
+        auth.current.connected &&
+        !!auth.current.owner &&
+        auth.current.owner === admission.current.owner &&
+        lifetime.current.generation === admission.current.generation,
+      requestId: () => `search-${Date.now()}-${Math.random()}`,
+      onPhase: value => {
+        if (lifetime.current.active) setPhase(value);
+      },
+    });
+  useEffect(() => {
+    const session = lifetime.current;
+    session.active = true;
+    const invalidate = () => {
+      session.generation++;
+      runner.current?.cancel();
+    };
+    const app = AppState.addEventListener('change', state => {
+      session.foreground = state === 'active';
+      if (!session.foreground) invalidate();
+    });
+    const blur = navigation.addListener?.('blur', () => {
+      session.focused = false;
+      invalidate();
+    });
+    const focus = navigation.addListener?.('focus', () => {
+      session.focused = true;
+    });
+    return () => {
+      session.active = false;
+      invalidate();
+      app.remove();
+      blur?.();
+      focus?.();
+    };
+  }, [navigation]);
+  const previousOwner = useRef(owner);
+  useEffect(() => {
+    if (previousOwner.current === owner) return;
+    previousOwner.current = owner;
+    lifetime.current.generation++;
+    runner.current?.cancel();
+    setResponse(undefined);
+    setQuery('');
+    setResultQuery('');
+    setSelected(undefined);
+    setError('');
+  }, [owner]);
+
   const [filter, setFilter] = useState<Filter>('All');
   const [selected, setSelected] = useState<MediaItem>();
   const [modeOpen, setModeOpen] = useState(false);
@@ -182,29 +265,31 @@ export function HomeScreen() {
     Keyboard.dismiss();
     setLoading(true);
     setError('');
-    const chargeRequestId = `search-${Date.now()}-${Math.random()}`;
+    admission.current = { owner, generation: lifetime.current.generation };
     try {
       if (!passConnected)
         throw Error('Reconnect to verify your Memory Credits.');
-      await honorableNative.selectSeranModel(productModel);
-      await startSearch(productModel, chargeRequestId);
-      const result = await honorableNative.search(clean);
-      await finishSearch(
-        chargeRequestId,
-        result.results.length ? 'SUCCESS' : 'FAILED',
-      );
+      const result = await runner.current!.run(clean, productModel);
+      if (!result) return;
       setResultQuery(clean);
       setResponse(result);
       await refreshHistory();
+      return result;
     } catch (reason) {
-      try {
-        await finishSearch(chargeRequestId, 'FAILED');
-      } catch {}
-      setError(reason instanceof Error ? reason.message : 'Search unavailable');
-      setResponse(undefined);
+      if (
+        lifetime.current.active &&
+        auth.current.owner === owner &&
+        lifetime.current.generation === admission.current.generation
+      ) {
+        setError(
+          reason instanceof Error ? reason.message : 'Search unavailable',
+        );
+        setResponse(undefined);
+      }
+      return undefined;
     } finally {
       searchPending.current = false;
-      setLoading(false);
+      if (lifetime.current.active) setLoading(false);
     }
   };
   const clearHistory = async () => {
@@ -299,6 +384,30 @@ export function HomeScreen() {
             })}
           </View>
         )}
+        <AiShotBriefPanel
+          owner={owner}
+          connected={passConnected}
+          model={productModel}
+          busy={loading || openingEditor}
+          phase={phase}
+          onSearch={search}
+          onCancel={() => runner.current?.cancel() ?? false}
+          onPreview={result => {
+            const source = library.find(
+              item => item.mediaId === result.mediaId,
+            );
+            setSelected({
+              id: `${result.mediaId}-${result.rank}`,
+              uri:
+                source?.thumbnailUri ??
+                (result.mediaType === 'IMAGE' ? result.mediaUri : undefined),
+              mediaUri: result.mediaUri,
+              type: result.mediaType,
+              displayName: result.displayName,
+              result,
+            } as MediaItem);
+          }}
+        />
         <View style={styles.searchHeading}>
           <Text style={styles.searchTitle}>Find a memory</Text>
           <Text style={styles.searchTag}>SERAN</Text>

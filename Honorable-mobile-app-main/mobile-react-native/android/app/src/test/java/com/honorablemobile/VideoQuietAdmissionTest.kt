@@ -1,14 +1,19 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Poisoned source/widgets expose an incorrectly admitted request before any Android UI can run. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoQuietAdmissionTest {
     private fun activity():HonorableVideoEditorActivity {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val instance=(field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        val instance=JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
         set(instance,"project",VideoEditProject(4000))
         return instance
     }

@@ -38,6 +38,29 @@ export type LibraryItem = {
   durationMs?: number;
 };
 export type LibraryPage = { total: number; items: LibraryItem[] };
+export type LibraryCollectionItem = { id: string; uri: string; kind: 'IMAGE' | 'VIDEO' };
+export type LibraryCollection = { id: string; name: string; items: LibraryCollectionItem[] };
+export type LibraryCollections = { owner: string; collections: LibraryCollection[] };
+export type LibraryDuplicateReport = {
+  bytesRead: number;
+  checked: { id: string; bytes: number; sha256: string }[];
+  skipped: { id: string; reason: 'FILE_LIMIT' | 'TOTAL_LIMIT' | 'UNAVAILABLE' | 'LENGTH_CHANGED' }[];
+  groups: { bytes: number; sha256: string; ids: string[] }[];
+};
+export type LibraryIntegritySnapshot = {
+  owner: string;
+  baselines: { id: string; name: string; recordedAt: number; count: number }[];
+  verification?: {
+    baselineId: string;
+    checkedAt: number;
+    items: { id: string; label: string; status: 'MATCH' | 'CHANGED' | 'MISSING' | 'UNAVAILABLE' | 'FILE_LIMIT' | 'TOTAL_LIMIT' | 'LENGTH_CHANGED'; previousBytes: number; currentBytes?: number }[];
+  };
+};
+export type PhotoDifferencePreview = { token: string; previewUri: string; width: number; height: number; sourceWidth: number; sourceHeight: number; sampled: boolean; threshold: number; changedPixels: number; maximumDelta: number; meanDelta: number; operation?: 'difference' | 'clean-plate' | 'focus-stack' | 'retarget' | 'exposure-blend'; removedColumns?: number; frames?: number };
+export type LibraryOriginalArchivePreview = { token: string; bytes: number; sha256: string; entries: { name: string; mime: string; bytes: number; sha256: string }[] };
+export type PhotoAlbumPdfPreview = { token: string; bytes: number; pages: { width: number; height: number; sourceWidth: number; sourceHeight: number; sampled: boolean }[] };
+export type PhotoPrivacyField = 'GPS_LATITUDE' | 'GPS_LONGITUDE' | 'GPS_ALTITUDE' | 'GPS_DEST_LATITUDE' | 'GPS_DEST_LONGITUDE' | 'GPS_DATE' | 'GPS_TIME' | 'GPS_AREA' | 'GPS_PROCESSING' | 'CAMERA_OWNER' | 'BODY_SERIAL' | 'ARTIST' | 'COPYRIGHT' | 'DESCRIPTION' | 'USER_COMMENT' | 'DATE_TIME' | 'DATE_ORIGINAL' | 'DATE_DIGITIZED';
+export type PhotoPrivacyReport = { entries: { id: string; uri: string; status: 'READ' | 'UNKNOWN'; fields: PhotoPrivacyField[] }[] };
 export type IndexStatus = {
   engine: 'REAL';
   permissionGranted: boolean;
@@ -97,6 +120,24 @@ type NativeBoundary = {
   search(query: string): Promise<SearchResponse>;
   cancelSearch(): void;
   getStatus(): Promise<IndexStatus>;
+  libraryCollections(action: 'list' | 'create' | 'delete', owner: string, id: string, name: string, items: LibraryCollectionItem[]): Promise<LibraryCollections>;
+  compareLibraryOriginals(items: LibraryCollectionItem[], requestId: string): Promise<LibraryDuplicateReport>;
+  cancelLibraryDuplicateCheck(requestId: string): void;
+  libraryIntegrity(action: 'list' | 'create' | 'verify' | 'delete', owner: string, id: string, name: string, items: LibraryCollectionItem[], requestId: string): Promise<LibraryIntegritySnapshot>;
+  preparePhotoDifference(items: LibraryCollectionItem[], threshold: number, requestId: string): Promise<PhotoDifferencePreview>;
+  prepareLibraryOriginalArchive(items: LibraryCollectionItem[], requestId: string): Promise<LibraryOriginalArchivePreview>;
+  releaseLibraryOriginalArchive(token: string): void;
+  shareLibraryOriginalArchive(token: string, requestId: string): Promise<{ opened: boolean }>;
+  preparePhotoAlbumPdf(items: LibraryCollectionItem[], requestId: string): Promise<PhotoAlbumPdfPreview>;
+  inspectPhotoPrivacy(items: LibraryCollectionItem[], requestId: string): Promise<PhotoPrivacyReport>;
+  releasePhotoAlbumPdf(token: string): void;
+  openPhotoAlbumPdf(token: string, requestId: string): Promise<{ opened: boolean }>;
+  preparePhotoCleanPlate(items: LibraryCollectionItem[], requestId: string): Promise<PhotoDifferencePreview>;
+  preparePhotoFocusStack(items: LibraryCollectionItem[], requestId: string): Promise<PhotoDifferencePreview>;
+  preparePhotoExposureBlend(items: LibraryCollectionItem[], requestId: string): Promise<PhotoDifferencePreview>;
+  preparePhotoRetarget(items: LibraryCollectionItem[], percent: number, requestId: string): Promise<PhotoDifferencePreview>;
+  releasePhotoDifference(token: string): void;
+  openPhotoDifference(token: string, requestId: string): Promise<{ opened: boolean }>;
   getLibrary(
     limit: number,
     offset: number,
@@ -135,6 +176,7 @@ type NativeBoundary = {
   ): Promise<{ opened: boolean }>;
   editVideoGuest(uri: string): Promise<{ opened: boolean }>;
   createPhotoVideoGuest(): Promise<{ opened: boolean }>;
+  openVideoProjectBackups(): Promise<{ opened: boolean }>;
   openPhotoVideoProjectsGuest(): Promise<{ opened: boolean }>;
   openCanvasProjectsGuest(): Promise<{ opened: boolean }>;
   createDrawingGuest(): Promise<{ opened: boolean }>;
@@ -207,6 +249,25 @@ export const honorableNative = {
   search: (query: string) => boundary().search(query),
   cancelSearch: () => boundary().cancelSearch(),
   getStatus: () => boundary().getStatus(),
+  libraryCollections: (action: 'list' | 'create' | 'delete', owner = '', id = '', name = '', items: LibraryCollectionItem[] = []) =>
+    boundary().libraryCollections(action, owner, id, name, items),
+  compareLibraryOriginals: (items: LibraryCollectionItem[], requestId: string) => boundary().compareLibraryOriginals(items, requestId),
+  cancelLibraryDuplicateCheck: (requestId: string) => boundary().cancelLibraryDuplicateCheck(requestId),
+  libraryIntegrity: (action: 'list' | 'create' | 'verify' | 'delete', owner: string, id: string, name: string, items: LibraryCollectionItem[], requestId: string) => boundary().libraryIntegrity(action, owner, id, name, items, requestId),
+  preparePhotoDifference: (items: LibraryCollectionItem[], threshold: number, requestId: string) => boundary().preparePhotoDifference(items, threshold, requestId),
+  prepareLibraryOriginalArchive: (items: LibraryCollectionItem[], requestId: string) => boundary().prepareLibraryOriginalArchive(items, requestId),
+  releaseLibraryOriginalArchive: (token: string) => boundary().releaseLibraryOriginalArchive(token),
+  shareLibraryOriginalArchive: (token: string, requestId: string) => boundary().shareLibraryOriginalArchive(token, requestId),
+  preparePhotoAlbumPdf: (items: LibraryCollectionItem[], requestId: string) => boundary().preparePhotoAlbumPdf(items, requestId),
+  inspectPhotoPrivacy: (items: LibraryCollectionItem[], requestId: string) => boundary().inspectPhotoPrivacy(items, requestId),
+  releasePhotoAlbumPdf: (token: string) => boundary().releasePhotoAlbumPdf(token),
+  openPhotoAlbumPdf: (token: string, requestId: string) => boundary().openPhotoAlbumPdf(token, requestId),
+  preparePhotoCleanPlate: (items: LibraryCollectionItem[], requestId: string) => boundary().preparePhotoCleanPlate(items, requestId),
+  preparePhotoFocusStack: (items: LibraryCollectionItem[], requestId: string) => boundary().preparePhotoFocusStack(items, requestId),
+  preparePhotoExposureBlend: (items: LibraryCollectionItem[], requestId: string) => boundary().preparePhotoExposureBlend(items, requestId),
+  preparePhotoRetarget: (items: LibraryCollectionItem[], percent: number, requestId: string) => boundary().preparePhotoRetarget(items, percent, requestId),
+  releasePhotoDifference: (token: string) => boundary().releasePhotoDifference(token),
+  openPhotoDifference: (token: string, requestId: string) => boundary().openPhotoDifference(token, requestId),
   getLibrary: (
     limit = 60,
     offset = 0,
@@ -245,6 +306,11 @@ export const honorableNative = {
     height: number,
     background: string,
   ) => boundary().canvasSetups(action, name, width, height, background),
+  openVideoProjectBackups: () => {
+    const method = boundary().openVideoProjectBackups;
+    if (typeof method !== 'function') return Promise.reject(new Error('Video backups require the updated native app.'));
+    return method.call(boundary());
+  },
   createPhotoVideoGuest: () => boundary().createPhotoVideoGuest(),
   openPhotoVideoProjectsGuest: () => boundary().openPhotoVideoProjectsGuest(),
   openCanvasProjectsGuest: () => boundary().openCanvasProjectsGuest(),

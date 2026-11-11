@@ -1,0 +1,2 @@
+import {channelPackPixels} from './photo-channel-pack.mjs';
+let owned=false;self.onmessage=event=>{const{id,inputs,width,height}=event.data||{};if(owned||!Number.isInteger(id)||id<1||id>1e9)return;owned=true;try{const result=channelPackPixels(inputs,width,height);self.postMessage({id,kind:'result',result},[result.data.buffer]);}catch(error){self.postMessage({id,kind:'error',error:error instanceof Error?error.message.slice(0,200):'Channel packing could not finish.'});}};

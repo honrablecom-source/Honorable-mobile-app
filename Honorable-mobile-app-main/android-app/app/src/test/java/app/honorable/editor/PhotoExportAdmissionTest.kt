@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.graphics.Bitmap
 import android.net.Uri
 import java.io.IOException
@@ -15,7 +19,7 @@ private object ExportFixture {
     fun set(activity:PhotoEditorActivity,name:String,value:Any?)=PhotoEditorActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)
     fun get(activity:PhotoEditorActivity,name:String)=PhotoEditorActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.get(activity)
     fun call(activity:PhotoEditorActivity,name:String,vararg args:Any?):Any?=PhotoEditorActivity::class.java.declaredMethods.single{it.name==name&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(activity,*args)
-    fun fixture()=(allocate(PhotoEditorActivity::class.java)as PhotoEditorActivity).also{
+    fun fixture()=(uncreatedPhotoActivity()as PhotoEditorActivity).also{
         set(it,"accessMode",EditorAccessMode.GUEST_BASIC);set(it,"guestInstance",uuid);set(it,"source",Uri.parse(source));set(it,"loadedScope",scope)
         set(it,"bitmap",allocate(Bitmap::class.java));set(it,"copyForeground",true);set(it,"copyGeneration",4L);set(it,"exportEdit",PhotoEdit(exposure=.25f));set(it,"pendingDestination",destination)
         set(it,"exportEncoding",SafePhotoCopy.Encoding.JPEG);set(it,"exportQuality",83);set(it,"protectedOriginals",listOf(Uri.parse("content://synthetic/original")))
@@ -24,6 +28,8 @@ private object ExportFixture {
     fun active(activity:PhotoEditorActivity):PhotoExportOperation=capture(activity)!!.also{set(activity,"photoExport",it);set(activity,"exportInProgress",true)}
 }
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoExportForegroundTest {
     @Test fun pausedExportRefusesBeforeUiDispatchAndKeepsPendingDestination(){
         val activity=ExportFixture.fixture();ExportFixture.set(activity,"copyForeground",false)
@@ -32,6 +38,8 @@ class PhotoExportForegroundTest {
     }
 }
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoExportAdmissionTest {
     @Test fun snapshotBindsRealCurrentGuestScopeAndRefusesUnavailableContext(){
         val activity=ExportFixture.fixture();val op=ExportFixture.capture(activity)!!

@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
@@ -9,6 +13,8 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class PhotoVideoEntryTest {
     private val first="content://synthetic/photos/one"
     private val second="content://synthetic/photos/two"

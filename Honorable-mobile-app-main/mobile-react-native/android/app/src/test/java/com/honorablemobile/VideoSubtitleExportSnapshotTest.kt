@@ -1,10 +1,15 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
 import android.net.Uri
-import sun.misc.Unsafe
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoSubtitleExportSnapshotTest {
     @Test fun selectedRangeSrtUsesTrimAndSpeedWithoutEditingProject() {
         val original=VideoSegment(0,8000,speed=2f,volume=.25f,title="Keep title",captions=listOf(VideoCaption(1000,3000,"First"),VideoCaption(3500,6000,"Second")),captionSourceUri="content://original/captions")
@@ -39,8 +44,8 @@ class VideoSubtitleExportSnapshotTest {
         project.setCaptions(0,listOf(VideoCaption(1000,2000,"New")),"content://original/new-srt")
         project.setSoundtrack(newMusic);assertTrue(project.undo())
         val before=project.segments.toList()
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val activity=(field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        val activity=JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
         for((name,value) in mapOf("project" to project,"source" to Uri.parse("content://original/video"),"importedSources" to linkedMapOf<String,VideoSource>()))
             activity.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)
         val method=activity.javaClass.getDeclaredMethod("sourceUris").apply{isAccessible=true}

@@ -50,7 +50,17 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     @Volatile private var enrichmentTotal=0
     private var screenshotPromise:Promise?=null
     private var workspaceSelection: Pair<String, Promise>? = null
-    init { context.addActivityEventListener(object:BaseActivityEventListener(){
+    private val libraryDuplicateRequest=java.util.concurrent.atomic.AtomicReference<LibraryDuplicateRequest?>()
+    private val photoDifferencePreviews=PhotoDifferenceLease<PhotoDifferencePreview>({it.token},{it.dispose()})
+    private val photoPdfPreviews=PhotoDifferenceLease<PhotoAlbumPdfPreview>({it.token},{it.dispose()})
+    private val originalArchivePreviews=PhotoDifferenceLease<LibraryOriginalArchivePreview>({it.token},{it.dispose()})
+    init {
+        context.addLifecycleEventListener(object:LifecycleEventListener{
+            override fun onHostResume(){}
+            override fun onHostPause(){libraryDuplicateRequest.get()?.cancel();photoDifferencePreviews.clear();photoPdfPreviews.clear();originalArchivePreviews.clear()}
+            override fun onHostDestroy(){libraryDuplicateRequest.get()?.cancel();photoDifferencePreviews.clear();photoPdfPreviews.clear();originalArchivePreviews.clear()}
+        })
+        context.addActivityEventListener(object:BaseActivityEventListener(){
         override fun onActivityResult(activity:android.app.Activity,requestCode:Int,resultCode:Int,data:Intent?){
             if (requestCode == 8105) {
                 val (kind, pending) = workspaceSelection ?: return
@@ -138,6 +148,109 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
         Arguments.createMap().apply{putInt("total",all.size);putArray("items",Arguments.createArray().apply{page.forEach{pushMap(libraryMap(it))}})}
     }}
 
+    @ReactMethod fun libraryCollections(action:String,owner:String,id:String,name:String,items:ReadableArray,promise:Promise)=work.execute{guarded(promise){
+        require(action in setOf("list","create","delete")){"Choose a collection action"}
+        val namespace=requireNotNull(VideoPrivateOwner.namespace(context,EditorAccessMode.ACCOUNT)){"Sign in to use private Library collections"}
+        fun requireCurrent(){
+            val activity=context.currentActivity
+            check(activity!=null&&!activity.isFinishing&&!activity.isDestroyed&&context.lifecycleState==com.facebook.react.common.LifecycleState.RESUMED){"Open Library again before changing collections"}
+            check(VideoPrivateOwner.namespace(context,EditorAccessMode.ACCOUNT)==namespace&&(action=="list"||owner==namespace)){"Account changed. Reopen collections"}
+        }
+        requireCurrent()
+        val store=LibraryCollectionStore(namespace,EncryptedLibraryCollectionRecord(context,namespace))
+        val catalog=when(action){
+            "list"->store.load(::requireCurrent)
+            "create"->{
+                require(items.size() in 1..20){"Choose 1–20 originals"}
+                val chosen=(0 until items.size()).map{index->
+                    val item=requireNotNull(items.getMap(index)){"Choose a Library original"}
+                    LibraryCollectionItem(requireNotNull(item.getString("id")),requireNotNull(item.getString("uri")),requireNotNull(item.getString("kind")))
+                }
+                store.create(name,chosen){
+                    requireCurrent()
+                    val originals=database.records().associateBy{it.id.toString()}
+                    require(chosen.all{entry->originals[entry.id]?.let{it.uri==entry.uri&&it.kind.name==entry.kind}==true}){"A chosen original changed. Refresh Library and select it again"}
+                }
+            }
+            else->store.remove(id,::requireCurrent)
+        }
+        requireCurrent()
+        Arguments.createMap().apply{
+            putString("owner",namespace)
+            putArray("collections",Arguments.createArray().apply{catalog.collections.forEach{collection->pushMap(Arguments.createMap().apply{
+                putString("id",collection.id);putString("name",collection.name)
+                putArray("items",Arguments.createArray().apply{collection.items.forEach{item->pushMap(Arguments.createMap().apply{putString("id",item.id);putString("uri",item.uri);putString("kind",item.kind)})}})
+            })}})
+        }
+    }}
+
+    @ReactMethod fun compareLibraryOriginals(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->LibraryDuplicateBridge.inspect(context,items,request){database.records()}}
+    @ReactMethod fun inspectPhotoPrivacy(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->PhotoPrivacyBridge.inspect(context,items,request){database.records()}}
+    @ReactMethod fun preparePhotoAlbumPdf(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        val preview=PhotoAlbumPdfBridge.prepare(context,items,request){database.records()}
+        try{request.requireActive();PhotoAlbumPdfBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map();photoPdfPreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){photoPdfPreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun releasePhotoAlbumPdf(token:String){photoPdfPreviews.release(token)}
+    @ReactMethod fun openPhotoAlbumPdf(token:String,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        request.requireActive()
+        val preview=photoPdfPreviews.take(token)?:error("PDF expired. Prepare another copy")
+        try{PhotoAlbumPdfBridge.open(context,preview,request){database.records()};Arguments.createMap().apply{putBoolean("opened",true)}}catch(error:Throwable){preview.dispose();throw error}
+    }
+    @ReactMethod fun prepareLibraryOriginalArchive(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        val preview=LibraryOriginalArchiveBridge.prepare(context,items,request){database.records()}
+        try{request.requireActive();LibraryOriginalArchiveBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map();originalArchivePreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){originalArchivePreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun releaseLibraryOriginalArchive(token:String){originalArchivePreviews.release(token)}
+    @ReactMethod fun shareLibraryOriginalArchive(token:String,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        request.requireActive()
+        val preview=originalArchivePreviews.take(token)?:error("Archive expired. Prepare another copy")
+        try{LibraryOriginalArchiveBridge.share(context,preview,request){database.records()};Arguments.createMap().apply{putBoolean("opened",true)}}catch(error:Throwable){preview.dispose();throw error}
+    }
+    @ReactMethod fun libraryIntegrity(action:String,owner:String,id:String,name:String,items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->LibraryIntegrityBridge.run(context,action,owner,id,name,items,request){database.records()}}
+    @ReactMethod fun preparePhotoDifference(items:ReadableArray,threshold:Double,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        val preview=PhotoPixelDifferenceBridge.prepare(context,items,threshold,request){database.records()}
+        try{request.requireActive();PhotoPixelDifferenceBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map(context);photoDifferencePreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){photoDifferencePreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun preparePhotoCleanPlate(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        val preview=PhotoPixelDifferenceBridge.prepare(context,items,0.0,request,median=true){database.records()}
+        try{request.requireActive();PhotoPixelDifferenceBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map(context);photoDifferencePreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){photoDifferencePreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun preparePhotoFocusStack(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        val preview=PhotoPixelDifferenceBridge.prepare(context,items,0.0,request,focus=true){database.records()}
+        try{request.requireActive();PhotoPixelDifferenceBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map(context);photoDifferencePreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){photoDifferencePreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun preparePhotoRetarget(items:ReadableArray,percent:Double,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        require(percent.isFinite()&&percent==percent.toInt().toDouble()&&percent in 1.0..12.0){"Use a whole narrowing percent from1to12"}
+        val preview=PhotoPixelDifferenceBridge.prepare(context,items,0.0,request,retarget=percent.toInt()){database.records()}
+        try{request.requireActive();PhotoPixelDifferenceBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map(context);photoDifferencePreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){photoDifferencePreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun preparePhotoExposureBlend(items:ReadableArray,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        val preview=PhotoPixelDifferenceBridge.prepare(context,items,0.0,request,exposure=true){database.records()}
+        try{request.requireActive();PhotoPixelDifferenceBridge.requireCurrent(context,preview.owner,preview.originals){database.records()};val result=preview.map(context);photoDifferencePreviews.offer(preview);request.requireActive();result}
+        catch(error:Throwable){photoDifferencePreviews.release(preview.token);preview.dispose();throw error}
+    }
+    @ReactMethod fun releasePhotoDifference(token:String){photoDifferencePreviews.release(token)}
+    @ReactMethod fun openPhotoDifference(token:String,requestId:String,promise:Promise)=runLibraryRead(requestId,promise){request->
+        request.requireActive()
+        val preview=photoDifferencePreviews.take(token)?:error("Difference preview expired. Prepare another map")
+        try{PhotoPixelDifferenceBridge.open(context,preview,{database.records()}){request.requireActive()};Arguments.createMap().apply{putBoolean("opened",true)}}catch(error:Throwable){preview.dispose();throw error}
+    }
+    private fun runLibraryRead(requestId:String,promise:Promise,action:(LibraryDuplicateRequest)->WritableMap){
+        val request=try{LibraryDuplicateRequest(requestId)}catch(_:Exception){promise.reject("DUPLICATE_REQUEST","Invalid duplicate-check request");return}
+        if(!libraryDuplicateRequest.compareAndSet(null,request)){promise.reject("DUPLICATE_BUSY","A duplicate check is still finishing. Try again shortly");return}
+        try{work.execute{
+            try{guarded(promise){action(request)}}
+            finally{request.cancel();libraryDuplicateRequest.compareAndSet(request,null)}
+        }}catch(_:java.util.concurrent.RejectedExecutionException){request.cancel();libraryDuplicateRequest.compareAndSet(request,null);promise.reject("DUPLICATE_UNAVAILABLE","Duplicate check could not start")}
+    }
+    @ReactMethod fun cancelLibraryDuplicateCheck(requestId:String){libraryDuplicateRequest.get()?.takeIf{it.id==requestId}?.cancel()}
+
     @ReactMethod fun refreshIndex(promise: Promise) = work.execute { guarded(promise) {
         if(!hasMediaPermission()) throw IllegalStateException("Media permission is required")
         val started=System.currentTimeMillis();val stats=runBlocking { AndroidMediaIndexer(context,database,embeddings,profile=activeSeranProfile()).synchronize(progress = {}) }
@@ -191,6 +304,16 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     }}
     @ReactMethod fun editPhotoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"image/",app.honorable.editor.PhotoEditorActivity::class.java,promise)
     @ReactMethod fun editVideoGuest(uri:String,promise:Promise)=launchGuestEditor(uri,"video/",HonorableVideoEditorActivity::class.java,promise)
+    @ReactMethod fun openVideoProjectBackups(promise:Promise){
+        context.runOnUiQueueThread{
+            runCatching{
+                val host=context.currentActivity
+                check(host!=null&&!host.isDestroyed&&!host.isFinishing&&context.lifecycleState==com.facebook.react.common.LifecycleState.RESUMED){"Open Library again before opening video backups"}
+                host.startActivity(Intent(host,VideoProjectBackupsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name))
+                promise.resolve(Arguments.createMap().apply{putBoolean("opened",true)})
+            }.onFailure{promise.reject("VIDEO_BACKUP_ENTRY","Video backups could not open",it)}
+        }
+    }
     @ReactMethod fun createPhotoVideoGuest(promise:Promise)=work.execute{guarded(promise){
         context.startActivity(Intent(context,PhotoVideoCreatorActivity::class.java).apply{addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name)})
         Arguments.createMap().apply{putBoolean("opened",true)}
@@ -346,5 +469,5 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     private fun rememberSearch(raw:String){val clean=raw.trim().replace('\n',' ');val history=(listOf(clean)+searchHistory().filterNot{it.equals(clean,true)}).take(12);context.getSharedPreferences("honorable-ui",0).edit().putString("search-history",history.joinToString("\n")).apply()}
     private fun hasMediaPermission()=MediaCapabilityManager(context).current().canReadAny
     private fun <T> guarded(promise:Promise, block:()->T) { try { promise.resolve(block()) } catch(error:Throwable) { promise.reject("HONORABLE_NATIVE_ERROR",error.message,error) } }
-    override fun invalidate() { work.shutdownNow();if(embeddingsDelegate.isInitialized())embeddings.close();if(databaseDelegate.isInitialized())database.close();super.invalidate() }
+    override fun invalidate() { libraryDuplicateRequest.get()?.cancel();photoDifferencePreviews.clear();photoPdfPreviews.clear();originalArchivePreviews.clear();work.shutdownNow();if(embeddingsDelegate.isInitialized())embeddings.close();if(databaseDelegate.isInitialized())database.close();super.invalidate() }
 }

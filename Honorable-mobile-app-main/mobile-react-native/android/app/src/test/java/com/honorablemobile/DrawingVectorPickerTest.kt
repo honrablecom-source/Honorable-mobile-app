@@ -1,17 +1,23 @@
 package com.honorablemobile
+
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
+
 import java.util.concurrent.AbstractExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 /** Actual private metadata-entry/ownership methods with no Android provider/UI execution. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class DrawingVectorPickerTest {
     private class Queue:AbstractExecutorService(){val jobs=mutableListOf<Runnable>();var reject=false;override fun execute(job:Runnable){if(reject)throw java.util.concurrent.RejectedExecutionException();jobs.add(job)};override fun shutdown(){};override fun shutdownNow():MutableList<Runnable> = mutableListOf();override fun isShutdown()=false;override fun isTerminated()=false;override fun awaitTermination(t:Long,u:TimeUnit)=false}
-    private val unsafe=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null) as Unsafe
+    private val unsafe=JvmTestAllocator
     private fun set(a:HonorableDrawingActivity,name:String,value:Any?){a.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(a,value)}
     private fun get(a:HonorableDrawingActivity,name:String)=a.javaClass.getDeclaredField(name).apply{isAccessible=true}.get(a)
     private fun setup(id:Int=1,code:Int=DrawingVectorFiles.FIRST_CODE):Pair<HonorableDrawingActivity,Queue>{val a=unsafe.allocateInstance(HonorableDrawingActivity::class.java) as HonorableDrawingActivity;val q=Queue();Activity::class.java.getDeclaredField("mUiThread").apply{isAccessible=true}.set(a,Thread.currentThread());set(a,"operationLock",Any());set(a,"worker",q);set(a,"importing",AtomicBoolean(true));set(a,"exporting",AtomicBoolean(false));set(a,"printForeground",true);set(a,"lastVectorCode",code);val type=a.javaClass.declaredClasses.single{it.simpleName=="VectorOperation"};set(a,"vectorOperation",type.getDeclaredConstructor(Int::class.javaPrimitiveType,Int::class.javaPrimitiveType).apply{isAccessible=true}.newInstance(id,code));return a to q}

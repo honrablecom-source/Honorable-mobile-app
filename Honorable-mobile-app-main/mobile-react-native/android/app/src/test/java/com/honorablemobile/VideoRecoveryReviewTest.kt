@@ -1,17 +1,23 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
+
 import app.honorable.editor.EditorAccessMode
 import java.lang.reflect.InvocationTargetException
 
 /** Production private recovery paths with poisoned Android views/workers and real canonical models. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoRecoveryReviewTest {
     private val raw=byteArrayOf(7,0,19,-1,5)
     private fun activity(project:VideoEditProject=VideoEditProject(8000)):HonorableVideoEditorActivity {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val value=(field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        val value=JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
         set(value,"project",project);set(value,"primaryDurationMs",8000L);set(value,"importedSources",linkedMapOf<String,VideoSource>());set(value,"accessMode",EditorAccessMode.ACCOUNT)
         return value
     }

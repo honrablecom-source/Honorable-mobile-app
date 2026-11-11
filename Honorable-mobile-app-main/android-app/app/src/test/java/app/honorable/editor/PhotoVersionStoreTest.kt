@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.util.Base64
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -8,6 +12,8 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoVersionStoreTest {
     private val scope=PhotoVersionScope(PhotoPresetNamespace.GUEST,"content://synthetic/photo")
     private val fingerprint="a".repeat(64)

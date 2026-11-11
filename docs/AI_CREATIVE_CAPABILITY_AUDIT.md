@@ -1,0 +1,34 @@
+# Genuine AI creative workflows — audit in progress
+
+Owner steering November11: cool AI features are Noble's major selling point; prioritize them while continuing toward500 distinct source outcomes. **C170 now adds1 experimental AI source workflow. Current source register181/500;319remaining.** C168 backup/restore is one experimental source workflow, not an AI feature. Work solo and coordinate with the separate chat through Noble Chat.
+
+Verified source capabilities:
+
+- `android-app/app/src/main/java/app/honorable/search/AndroidTinyClipEmbeddingService.kt` runs actual bundled ONNX image/text inference, with model/tokenizer integrity checking, normalized embeddings and lazy session ownership. Do not alter model preprocessing, native search/ranking or Seran access/credit rules to create a new creative feature. A whole-image embedding is not a segmentation mask or a generative image model.
+- `android-app/app/src/main/java/app/honorable/editor/PersonCutoutProcessor.kt` already invokes actual ML Kit selfie segmentation in single-image/raw-mask mode, manages input lifetime/cancellation and produces an alpha mask. `PhotoEditorActivity.kt`, `PhotoRasterRenderer.kt`, `PhotoBackgroundRenderer.kt` and `PhotoEdit.kt` already integrate person cutout and blurred/solid person backgrounds. **Generic AI background removal/portrait cutout is already implemented; do not count a new button or platform copy as a new workflow.** Full existing UI/recovery/export audit still required before defining a distinct extension.
+- Both Android app Gradle files already depend on `com.google.mlkit:segmentation-selfie:16.0.0-beta6`. Do not add a duplicate dependency/download or claim this model is newly introduced.
+- `mobile-react-native/android/app/src/main/java/com/honorablemobile/HonorableVideoEditorActivity.kt` already uses ML Kit ImageLabeling for scene suggestions and has local AI look/rough-cut entry points with `allowOnDeviceAi` admission. Audit those before proposing duplicate smart cuts or scene tools. `VideoAiEntryAdmissionTest.kt` covers existing local AI guest/account/foreground/recovery gates.
+
+Primary references consulted: Google's [Android selfie-segmentation integration](https://developers.google.com/ml-kit/vision/selfie-segmentation/android), [model-installation paths](https://developers.google.com/ml-kit/tips/installation-paths), and [selfie model card](https://developers.google.com/ml-kit/images/vision/selfie-segmentation/selfie-model-card.pdf). Official integration search confirms the existing dependency; read the full model card/current SDK/privacy/terms pages before expanding inference behavior or claims. Do not infer commercial terms from a search snippet or sample-code license.
+
+Next: audit the existing source/UI/model contracts and the source register, coordinate a distinct outcome with the peer, then implement actual inference→bounded private result→full preview→explicit editable/save-copy handoff with undo/recovery and failures. Favor a compelling creative result over another deterministic filter. AI-generated/removal/recognition capabilities must correspond to the actual installed model; no simulated masks, heuristic labels presented as inference or fake progress. Preserve personal media/query locality, original bytes, guest/account ownership, source counts and batch cadence. No holdout inspection/benchmark, upload, new native/APK build or new AI feature claim during this audit.
+
+## C170 source milestone
+
+Actual ML Kit multi-subject asset export is source accepted: full current PhotoActivity+4helpers/API37/69dependencies,22JVM/Robo,16Node, exactscope/noautomaticmodelsetup and independentPNG/ZIP proof. See [C170](FEATURE_C170_AI_SUBJECT_ASSETS.md). Model/device/quality acceptance remains open; host model data is explicitly synthetic. Existing person-union and alpha-island tools were not recounted. Peer C191 is another accepted AI source workflow; C193 actualOCR reviewed text redaction is accepted at178. Next native AI candidate must pass the same novelty/real-model/policy audit.
+
+## C172 actual speech feasibility and implementation
+
+See [C172](FEATURE_C172_OFFLINE_CAPTIONS.md). Existing local caption tools do not transcribe speech. Direct pinned Wav2Vec2 q8 inference has now run through actual production PCM/model/CTC code on public speech; generated-voice errors are retained.17JVM cases and realAndroidORT/API37 component compile pass. Native review/download/VideoActivity integration implemented with gates open;0sourcecount until verification. No microphone/remote inference path; optional public95.3MB model setup is explicit. No broad quality claim.
+
+## C172 accepted source milestone
+
+1experimental source workflow accepted179: real optional local speech→corrected and completely reviewed captions, with one Apply/Undo. Whole actual VideoActivity/API37/actualAndroidORT+32JVM/Robo PASS; exact current compiled PCM/model/CTC ran real pinned public speech; native Stop and atomic95MB install/cache guards verified. No phone/model-quality/current-APK acceptance; generated-voice errors retained. See [C172 current acceptance](FEATURE_C172_OFFLINE_CAPTIONS.md). Source-build cadence~238 unchanged;500goal active.
+
+## C174 accepted source milestone
+
+1experimental outcome at180: visible-video-text recovery via actual bundled LatinOCR into corrected fully reviewed source-time captions/oneUndo. Independent from speech; original burned pixels remain. Entire current VideoActivity/API37+22focused tests+4C172parent regressions passed; SDK results injected in host tests, actual frame decoding/liveOCR/phone still open. See [C174](FEATURE_C174_VISUAL_TEXT_CAPTIONS.md). No new model/dependency/upload/engine/credit changes; source-build cadence~238 retained.
+
+## C176 component milestone, uncounted
+
+Real local English→Spanish Opus model protocol works on generated text; original SentencePiece tokenizer port matches21reference Unicode fixtures and6JVM cases.0workflow count;4beam/cached production/Stop/model setup/correction/ownedApplyUndo remain. See [C176](FEATURE_C176_AI_CAPTION_TRANSLATION.md). Existing manual translation tools not recounted; MLKit branding contract audited before choosing Apache2 weights. No private text upload or engine/credit changes. Register181reflects peerC195, not this unfinished candidate.

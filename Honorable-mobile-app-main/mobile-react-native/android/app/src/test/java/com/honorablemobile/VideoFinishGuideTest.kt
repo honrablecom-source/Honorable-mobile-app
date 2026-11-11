@@ -1,10 +1,16 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.net.Uri
 import app.honorable.editor.EditorAccessMode
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoFinishGuideTest {
  private fun clips()=listOf(VideoSegment(0,5000,speed=2f,title="First"),VideoSegment(5000,8000,title="Second"))
  private fun info(mode:EditorAccessMode=EditorAccessMode.GUEST_BASIC)=VideoFinishGuide.describe(clips(),0,1000,3000,mode)
@@ -20,7 +26,7 @@ class VideoFinishGuideTest {
  @Test fun throwingDispatchCannotBeReplayed(){val r=VideoFinishGuide.Route(listOf(VideoFinishGuide.Action.VIDEO_COPY)){true};try{r.choose(VideoFinishGuide.Action.VIDEO_COPY,{}){error("Tool failed")};fail("Expected exception")}catch(_:IllegalStateException){};assertFalse(r.choose(VideoFinishGuide.Action.VIDEO_COPY,{fail("dismiss")}){fail("retry")})}
  @Test fun preparingAndClosingGuideLeavesProjectMusicAndHistoryUntouched(){val p=VideoEditProject(8000);val music=VideoSoundtrack("content://synthetic/music",10000,loop=false);p.restore(clips(),soundtrack=music);val old=p.segments;val i=VideoFinishGuide.describe(p.segments,0,1000,3000,EditorAccessMode.GUEST_BASIC);val route=VideoFinishGuide.Route(i.choices.map{it.action}){true};route.close();assertSame(old,p.segments);assertSame(music,p.soundtrack);assertFalse(p.canUndo);assertFalse(p.canRedo)}
  @Test fun openingRouteDoesNotEvaluateOrDispatchAnyAction(){var checks=0;val r=VideoFinishGuide.Route(info().choices.map{it.action}){checks++;true};assertEquals(0,checks);r.close();assertEquals(0,checks)}
- private val unsafe=Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)as sun.misc.Unsafe
+ private val unsafe=JvmTestAllocator
  private fun set(a:Any,n:String,v:Any?)=a.javaClass.getDeclaredField(n).apply{isAccessible=true}.set(a,v)
  private fun get(a:Any,n:String)=a.javaClass.getDeclaredField(n).apply{isAccessible=true}.get(a)
  private fun call(a:Any,n:String,vararg args:Any?)=a.javaClass.declaredMethods.single{it.name==n&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(a,*args)

@@ -74,10 +74,14 @@ internal class VideoProjectVersionShelf(
         val token=Any()
         val choices=mutableListOf("Save current as a new version","Open a saved version","Delete a saved version")
         if(canUndo)choices.add("Undo last deletion")
+        val comparisonIndex=choices.size;choices.add("Compare saved version with current")
+        val recoveryIndex=choices.size;choices.add("Recover captions from a saved version")
         show(AlertDialog.Builder(activity).setTitle("Video versions · ${catalog.entries.size}/20")
             .setItems(choices.toTypedArray()){_,index->
                 if(!owns(token))return@setItems
                 if(!valid()){close();return@setItems}
+                if(index==recoveryIndex){chooseCaptionRecovery(catalog);return@setItems}
+                if(index==comparisonIndex){chooseComparison(catalog);return@setItems}
                 when(index){
                     0->saveName()
                     1,2->choose(catalog,index==2)
@@ -107,6 +111,68 @@ internal class VideoProjectVersionShelf(
             }){canUndo=false;deletion=null;message("Editable video version saved locally. Media was not copied.");menu(it)}
         }
     }
+    private fun chooseCaptionRecovery(catalog:VideoProjectVersions){
+        if(catalog.entries.isEmpty()){message("No saved version to recover captions from. Save a version first.");menu(catalog);return}
+        val token=Any()
+        show(AlertDialog.Builder(activity).setTitle("Recover saved captions only")
+            .setItems(catalog.entries.map{it.name}.toTypedArray()){_,index->
+                if(!owns(token))return@setItems
+                if(!valid()){close();return@setItems}
+                val selected=catalog.entries[index]
+                job({
+                    requireCurrent();val saved=store!!.requireEntry(selected).draft()
+                    VideoCaptionRecovery.prepare(snapshot,saved).also{requireCurrent()}
+                }){prepared->captionRecovery(selected,prepared)}
+            }.setNegativeButton("Close"){_,_->if(owns(token))close()}.create(),token)
+    }
+    private fun captionRecovery(version:VideoProjectVersion,prepared:VideoCaptionRecovery.Result){
+        if(!valid()){close();return}
+        val token=Any()
+        val body=android.widget.TextView(activity).apply{text=prepared.reviewText;setTextColor(Color.BLACK);setPadding(20,12,20,12);contentDescription="Complete before and after caption recovery review"}
+        val view=AlertDialog.Builder(activity).setTitle("Recover captions from ${version.name}")
+            .setView(android.widget.ScrollView(activity).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Keep current"){_,_->if(owns(token))close()}
+            .setPositiveButton("Apply captions only"){_,_->
+                if(!owns(token))return@setPositiveButton
+                if(!valid()){close();return@setPositiveButton}
+                job({
+                    requireCurrent();val saved=store!!.requireEntry(version).draft()
+                    val latest=VideoCaptionRecovery.prepare(snapshot,saved)
+                    check(latest.draft==prepared.draft){"Saved caption recovery changed. Review again."}
+                    validateOpen(latest.draft){requireCurrent()};requireCurrent();latest.draft
+                }){draft->try{apply(draft)}finally{close()}}
+            }.create()
+        view.setOnDismissListener{body.text=""}
+        show(view,token)
+    }
+
+    private fun chooseComparison(catalog:VideoProjectVersions){
+        if(catalog.entries.isEmpty()){message("No saved version to compare. Save a version first.");menu(catalog);return}
+        val token=Any()
+        show(AlertDialog.Builder(activity).setTitle("Compare saved version with current")
+            .setItems(catalog.entries.map{it.name}.toTypedArray()){_,index->
+                if(!owns(token))return@setItems
+                if(!valid()){close();return@setItems}
+                val selected=catalog.entries[index]
+                job({requireCurrent();val saved=store!!.requireEntry(selected).draft();val report=VideoVersionDiff.compare(snapshot,saved);requireCurrent();report}){report->comparison(selected,report)}
+            }.setNegativeButton("Close"){_,_->if(owns(token))close()}.create(),token)
+    }
+    private fun comparison(version:VideoProjectVersion,report:VideoVersionDiff.Report){
+        if(!valid()){close();return}
+        val token=Any()
+        val body=android.widget.TextView(activity).apply{text=report.text();setTextColor(Color.BLACK);setPadding(20,12,20,12);contentDescription="Current versus saved video version metadata"}
+        val view=AlertDialog.Builder(activity).setTitle("Compare with ${version.name}")
+            .setView(android.widget.ScrollView(activity).apply{setBackgroundColor(Color.WHITE);addView(body)})
+            .setNegativeButton("Close"){_,_->if(owns(token))close()}
+            .setPositiveButton("Back to versions"){_,_->
+                if(!owns(token))return@setPositiveButton
+                if(!valid()){close();return@setPositiveButton}
+                job({requireCurrent();store!!.load()}){menu(it)}
+            }.create()
+        view.setOnDismissListener{body.text=""}
+        show(view,token)
+    }
+
     private fun choose(catalog:VideoProjectVersions,delete:Boolean) {
         if(catalog.entries.isEmpty()){message("No versions saved for this original yet. Save a new version first.");menu(catalog);return}
         val token=Any()

@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.app.AlertDialog
 import org.junit.Assert.*
 import org.junit.Test
@@ -7,6 +11,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoTitleShelfStagesTest {
  @Test fun nextDialogOwnsStageAndLateOldCallbacksCannotBegin(){val s=VideoTitleShelfStages();val old=Any();val next=Any();assertTrue(s.open(old));assertTrue(s.open(next));assertFalse(s.owns(old));assertNull(s.begin(old));assertTrue(s.owns(next))}
  @Test fun approvalConsumesStageAndCreatesOnlyOneReceipt(){val s=VideoTitleShelfStages();val d=Any();s.open(d);val receipt=requireNotNull(s.begin(d));assertFalse(s.owns(d));assertFalse(s.canBegin(d));assertNull(s.begin(d));assertTrue(s.permits(receipt));assertFalse(s.open(Any()))}
@@ -18,7 +24,7 @@ class VideoTitleShelfStagesTest {
  @Test fun invalidNameValidationLeavesTheStageEditable(){val s=VideoTitleShelfStages();val d=Any();s.open(d);assertTrue(runCatching{NamedVideoTitleStyle("",VideoTitleStyle())}.isFailure);assertTrue(s.owns(d));NamedVideoTitleStyle("Corrected",VideoTitleStyle());assertNotNull(s.begin(d))}
  @Test fun concurrentDuplicateApprovalsProduceOneWorkerReceipt(){val s=VideoTitleShelfStages();val d=Any();s.open(d);val start=CountDownLatch(1);val winners=AtomicInteger();val threads=List(16){Thread{start.await();if(s.begin(d)!=null)winners.incrementAndGet()}};threads.forEach{it.start()};start.countDown();threads.forEach{it.join(5000);assertFalse(it.isAlive)};assertEquals(1,winners.get())}
  @Test fun cooperativeWorkerGuardStopsAtTheNextCheckAfterClose(){val s=VideoTitleShelfStages();val receipt=requireNotNull(s.begin(null));var writes=0;fun guard(){check(s.permits(receipt))};guard();writes++;s.close();assertTrue(runCatching{guard();writes++}.isFailure);assertEquals(1,writes);assertFalse(s.finish(receipt))}
- private val unsafe=Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)as sun.misc.Unsafe
+ private val unsafe=JvmTestAllocator
  private fun set(a:Any,n:String,v:Any?)=a.javaClass.getDeclaredField(n).apply{isAccessible=true}.set(a,v)
  private fun call(a:Any,n:String,vararg args:Any?)=a.javaClass.declaredMethods.single{it.name==n&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(a,*args)
  private fun showing(d:AlertDialog,value:Boolean){android.app.Dialog::class.java.getDeclaredField("mDecor").apply{isAccessible=true}.set(d,if(value)unsafe.allocateInstance(android.view.View::class.java)else null)}

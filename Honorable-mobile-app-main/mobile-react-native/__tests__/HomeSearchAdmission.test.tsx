@@ -1,15 +1,40 @@
 import React from 'react';
+import { AppState } from 'react-native';
 import Renderer, { act } from 'react-test-renderer';
+// Resolve React Native's lazy component modules during fixture setup, before
+// timed UI hooks. Standard Jest deadlines and all behavior assertions stay intact.
+const nativePrimitives = require('react-native');
+for (const name of [
+  'View',
+  'Text',
+  'Pressable',
+  'TextInput',
+  'Image',
+  'ScrollView',
+  'Modal',
+  'ActivityIndicator',
+  'Keyboard',
+  'AppState',
+]) {
+  Reflect.get(nativePrimitives, name);
+}
+
 import { HomeScreen } from '../src/screens/HomeScreen';
 const mockStart = jest.fn(),
   mockFinish = jest.fn(),
   mockSelect = jest.fn(),
   mockSearch = jest.fn();
+const mockCancel = jest.fn(),
+  mockCollections = jest.fn();
+let mockOwner = 'synthetic-owner';
+const mockNavigationListeners: Record<string, () => void> = {};
 const mockHistory = jest.fn(),
   mockClear = jest.fn();
 jest.mock('../src/passes/MemoryPassContext', () => ({
   useMemoryPass: () => ({
     connected: true,
+    signedIn: true,
+    account: { accountId: mockOwner },
     startSearch: mockStart,
     finishSearch: mockFinish,
   }),
@@ -19,6 +44,8 @@ jest.mock('../src/library/LibraryContext', () => ({
 }));
 jest.mock('../src/native/HonorableNative', () => ({
   honorableNative: {
+    cancelSearch: () => mockCancel(),
+    libraryCollections: (...args: unknown[]) => mockCollections(...args),
     clearSearchHistory: (...args: unknown[]) => mockClear(...args),
     getSearchHistory: (...args: unknown[]) => mockHistory(...args),
     selectSeranModel: (...args: unknown[]) => mockSelect(...args),
@@ -28,9 +55,18 @@ jest.mock('../src/native/HonorableNative', () => ({
 jest.mock('../src/native/openWorkspace', () => ({
   useOpenWorkspace: () => ({ busy: false, open: jest.fn() }),
 }));
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ getParent: () => ({ navigate: jest.fn() }) }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const navigation = {
+    getParent: () => ({ navigate: jest.fn() }),
+    addListener: (event: string, listener: () => void) => {
+      mockNavigationListeners[event] = listener;
+      return () => {
+        delete mockNavigationListeners[event];
+      };
+    },
+  };
+  return { useNavigation: () => navigation };
+});
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: require('react-native').View,
 }));
@@ -76,14 +112,29 @@ let tree: Renderer.ReactTestRenderer;
 const input = () => tree.root.findByProps({ testID: 'search-input' });
 beforeEach(async () => {
   jest.resetAllMocks();
+  jest.mocked(AppState.addEventListener).mockReturnValue({ remove: jest.fn() });
+  mockOwner = 'synthetic-owner';
+  mockCollections.mockResolvedValue({
+    owner: 'opaque-shelf-owner',
+    collections: [],
+  });
   mockHistory.mockResolvedValue({ queries: ['Synthetic old query'] });
   mockClear.mockResolvedValue(undefined);
   mockSelect.mockResolvedValue(undefined);
   mockStart.mockResolvedValue(undefined);
   mockFinish.mockResolvedValue(undefined);
   mockSearch.mockResolvedValue({
+    confident: true,
+    decision: 'MATCH',
+    semantic: 0.8,
+    margin: 0.2,
     results: [
       {
+        displayName: 'Synthetic result',
+        score: 0.8,
+        semantic: 0.8,
+        confidence: 'STRONG',
+        evidence: [],
         mediaId: 1,
         rank: 1,
         mediaType: 'IMAGE',
@@ -141,7 +192,13 @@ test('native search failure completes the same request as failed and allows a ne
   );
 });
 test('an empty native result completes as failed rather than success', async () => {
-  mockSearch.mockResolvedValueOnce({ results: [] });
+  mockSearch.mockResolvedValueOnce({
+    confident: false,
+    decision: 'NO_MATCH',
+    semantic: 0,
+    margin: 0,
+    results: [],
+  });
   await act(async () => input().props.onSubmit());
   expect(mockFinish).toHaveBeenCalledTimes(1);
   expect(mockFinish).toHaveBeenCalledWith(mockStart.mock.calls[0][1], 'FAILED');
@@ -300,7 +357,13 @@ test('pending search blocks retained result reset and field clear until normal c
   expect(input().props.value).toBe('Second query');
   expect(action('Clear search results').props.disabled).toBe(true);
   await act(async () => {
-    release({ results: [] });
+    release({
+      confident: false,
+      decision: 'NO_MATCH',
+      semantic: 0,
+      margin: 0,
+      results: [],
+    });
     await pending;
   });
   await act(async () => action('Clear search results').props.onPress());
@@ -351,3 +414,142 @@ test('actual search bar locks editing and clearing while busy and restores both 
   expect(change).toHaveBeenCalledWith('');
   expect(submit).toHaveBeenCalledTimes(1);
 });
+
+test('Home AI brief invokes the real search admission path and saves reviewed originals', async () => {
+  await act(async () =>
+    action('AI shot brief: find shots for an idea').props.onPress(),
+  );
+  const briefInput = () =>
+    tree.root.findAll(
+      node =>
+        node.props.accessibilityLabel === 'AI shot brief' &&
+        typeof node.props.onChangeText === 'function',
+    )[0];
+  await act(async () =>
+    briefInput().props.onChangeText('Candles glowing\nFriends laughing'),
+  );
+  await act(async () => action('Prepare AI shot brief').props.onPress());
+  expect(mockStart).not.toHaveBeenCalled();
+  await act(async () =>
+    action('Find AI candidates for shot 1').props.onPress(),
+  );
+  expect(mockSelect).toHaveBeenCalledWith('SERAN_V1');
+  expect(mockStart).toHaveBeenCalledWith('SERAN_V1', expect.any(String));
+  expect(mockSearch).toHaveBeenCalledWith('Candles glowing');
+  expect(mockFinish).toHaveBeenCalledWith(
+    mockStart.mock.calls[0][1],
+    'SUCCESS',
+  );
+  await act(async () =>
+    action('Choose candidate 1 for shot 1').props.onPress(),
+  );
+  await act(async () =>
+    action('Save chosen originals as collection').props.onPress(),
+  );
+  expect(mockCollections).toHaveBeenLastCalledWith(
+    'create',
+    'opaque-shelf-owner',
+    '',
+    'AI shot picks',
+    [{ id: '1', uri: 'content://synthetic/result', kind: 'IMAGE' }],
+  );
+});
+test('Home AI accepted cancellation retains admission until native settles and requests FAILED only', async () => {
+  await act(async () =>
+    action('AI shot brief: find shots for an idea').props.onPress(),
+  );
+  const brief = tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === 'AI shot brief' &&
+      typeof node.props.onChangeText === 'function',
+  )[0];
+  await act(async () =>
+    brief.props.onChangeText('Candles glowing\nFriends laughing'),
+  );
+  await act(async () => action('Prepare AI shot brief').props.onPress());
+  let release!: (value: unknown) => void;
+  const nativeResult = mockSearch.getMockImplementation()!();
+  mockSearch.mockReturnValueOnce(
+    new Promise(resolve => {
+      release = resolve;
+    }),
+  );
+  await act(async () =>
+    action('Find AI candidates for shot 1').props.onPress(),
+  );
+  await act(async () => action('Stop AI shot search').props.onPress());
+  expect(mockCancel).toHaveBeenCalledTimes(1);
+  expect(input().props.busy).toBe(true);
+  await act(async () => input().props.onSubmit());
+  expect(mockStart).toHaveBeenCalledTimes(1);
+  await act(async () => release(await nativeResult));
+  expect(mockFinish.mock.calls.map(call => call[1])).toEqual(['FAILED']);
+  expect(action('Choose candidate 1 for shot 1')).toBeUndefined();
+  expect(input().props.busy).toBe(false);
+});
+test('Home account change invalidates pending search before inference and old results cannot reappear', async () => {
+  let release!: () => void;
+  mockStart.mockReturnValueOnce(
+    new Promise<void>(resolve => {
+      release = resolve;
+    }),
+  );
+  let pending!: Promise<unknown>;
+  await act(async () => {
+    pending = input().props.onSubmit();
+  });
+  mockOwner = 'different-owner';
+  await act(async () => tree.update(<HomeScreen />));
+  await act(async () => {
+    release();
+    await pending;
+  });
+  expect(mockSearch).not.toHaveBeenCalled();
+  expect(mockFinish.mock.calls.map(call => call[1])).toEqual(['FAILED']);
+  expect(input().props.value).toBe('');
+  expect(hasText('Results for Synthetic query')).toBe(false);
+});
+
+test.each(['background', 'blur'])(
+  'Home %s invalidates inference, settles FAILED, and permits a later foreground search',
+  async mode => {
+    const completed = mockSearch.getMockImplementation()!();
+    let release!: (value: unknown) => void;
+    mockSearch.mockReturnValueOnce(
+      new Promise(resolve => {
+        release = resolve;
+      }),
+    );
+    let pending!: Promise<unknown>;
+    await act(async () => {
+      pending = input().props.onSubmit();
+    });
+    await act(async () => {
+      if (mode === 'blur') mockNavigationListeners.blur();
+      else
+        for (const [, listener] of jest.mocked(AppState.addEventListener).mock
+          .calls)
+          listener('background');
+    });
+    expect(mockCancel).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      release(await completed);
+      await pending;
+    });
+    expect(mockFinish.mock.calls.map(call => call[1])).toEqual(['FAILED']);
+    expect(hasText('Results for Synthetic query')).toBe(false);
+    await act(async () => {
+      if (mode === 'blur') mockNavigationListeners.focus();
+      else
+        for (const [, listener] of jest.mocked(AppState.addEventListener).mock
+          .calls)
+          listener('active');
+    });
+    await act(async () => input().props.onSubmit());
+    expect(mockStart).toHaveBeenCalledTimes(2);
+    expect(mockFinish).toHaveBeenLastCalledWith(
+      mockStart.mock.calls[1][1],
+      'SUCCESS',
+    );
+  },
+);

@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 104,
+  "source_implemented": 181,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 396,
+  "remaining_not_source_complete": 319,
   "features": [
     {
       "id": "C001",
@@ -837,6 +837,627 @@
       "outcome": "Clone clean source texture along manually painted photo repairs into a previewed separate PNG, preserving the original with one insertion Undo",
       "status": "implemented-source",
       "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C108",
+      "outcome": "Create grouped editable production-schedule artwork from dated task rows with exact inclusive calendar-day bar positions and lengths, original preservation and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C109",
+      "outcome": "Copy a reviewed CMX3600 video-only cut list with stable source reels and inward whole-frame bounds for manual external-editor reconforming",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C110",
+      "outcome": "Save named private account-scoped Library selections across sessions and reopen only exact loaded original bindings, with reviewed metadata-only removal",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C111",
+      "outcome": "Reduce isolated photo impulse speckles with reviewed local median filtering into a separate flattened PNG, preserving source alpha and the original with one insertion Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C112",
+      "outcome": "Replace manually chosen photo rectangles with opaque black pixels in a reviewed separate flattened PNG, preserving the original with one insertion Undo and explicit selected-copy export",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C113",
+      "outcome": "Explicitly compare selected Library originals by bounded local SHA-256 and byte length, reviewing matching groups and skipped files with owned cancellation and no deletion",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C114",
+      "outcome": "Record named private native checksum baselines for selected originals and later verify changed, matching, missing or unreadable saved sources without overwriting recorded fingerprints",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C115",
+      "outcome": "Apply an explicitly chosen matching-size embedded photo as a soft luminance-and-alpha mask, previewing and inserting a separate transparent PNG while preserving both originals and one insertion Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C116",
+      "outcome": "Create a reviewed sampled decoded-pixel difference mask from two Library photo originals and open its separate PNG workspace with both source originals protected",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C117",
+      "outcome": "Warp a photo using an explicitly chosen matching-size RG displacement-map image with fractional alpha-safe sampling, reviewed separate PNG insertion, both originals preserved and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C118",
+      "outcome": "Create a temporal clean-plate PNG from three or five aligned Library photos using nearest actual source pixels and open a separate original-protected workspace",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C119",
+      "outcome": "Create a repeating texture PNG by blending opposite photo edges with alpha-safe matching borders, adaptive final-size preview, exact unpadded PNG handoff and byte-preserving insertion with original protection and Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C120",
+      "outcome": "Combine sharper regions from two to five aligned focus-bracket Library photos into a reviewed source-pixel PNG and open its separate original-protected workspace",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C121",
+      "outcome": "Derive a normalized RGB lighting-direction texture from a supplied height photo, with explicit green/edge conventions, adaptive recomputation and exact PNG handoff/insertion preserving the source and Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C122",
+      "outcome": "Paste edited-playback timestamps across source clips and speeds to review and add source-contiguous timeline cuts with retained appearance, soundtrack and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C123",
+      "outcome": "Create an exact signed Euclidean alpha distance-field PNG from a cutout",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C124",
+      "outcome": "Translate or edit every caption through a keyed local text worksheet with stale-original binding, complete change review and one Undo while retaining timing, provenance, appearance and soundtrack",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C125",
+      "outcome": "Create a custom palette-limited photo PNG with optional error diffusion",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C126",
+      "outcome": "Inspect partial or exact same-source footage overlaps across edited clips, review bounded longest-pair results and jump to either speed-aware occurrence without altering the timeline",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C127",
+      "outcome": "Pack three supplied scalar photo maps into an exact RGB data-texture PNG",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C128",
+      "outcome": "Replace one video clip with a reviewed window from another added source, retaining duration and static appearance while explicitly clearing old source-bound captions/motion with one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C129",
+      "outcome": "Extract a packed RGB texture into three exact labeled grayscale PNG maps in one insertion",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C130",
+      "outcome": "Compare a saved video version with current edits through bounded clip/source/timing/appearance/caption/soundtrack/selection metadata differences without opening or applying the saved draft",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C131",
+      "outcome": "Slice an equal-grid sprite sheet into reviewed individual PNG frames with atomic labeled insertion",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C132",
+      "outcome": "Combine existing captions and a pasted independently timed second-language SRT into one reviewed bilingual source-time track, preserving both active texts and gap coverage with one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C133",
+      "outcome": "Compose supplied stereo views into a reviewed red/cyan anaglyph PNG while preserving originals",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C134",
+      "outcome": "Measure selected and reference original clip audio locally, review a bounded RMS-derived volume gain and apply only selected gain with preserved mute choices, all other edits and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C135",
+      "outcome": "Apply a supplied 3D Cube LUT to a photo with local tetrahedral grading and reviewed PNG output",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C136",
+      "outcome": "Narrow a selected photo by removing minimum-energy connected vertical seams into an explicitly reviewed separate PNG with original-protected local workspace transfer",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C137",
+      "outcome": "Resize artwork with nine-slice fixed borders and corners into an exact-size reviewed PNG",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C138",
+      "outcome": "Keep a reviewed edited-playback interval across timeline clips and sources, rounding partial source edges inward while retaining interior clips, appearance, intersecting captions and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C139",
+      "outcome": "Match a photo toward a supplied reference color distribution with local weighted histogram grading",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C140",
+      "outcome": "Blend two aligned exposure-bracket photos with encoded-luma exposure confidence and alpha-correct weights into a reviewed separate PNG while protecting both originals",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C141",
+      "outcome": "Extract an exact-size rectilinear PNG view from a supplied equirectangular panorama",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C142",
+      "outcome": "Prepare a reviewed selection-order multi-page PDF from two to eight Library photo originals with bounded EXIF-corrected copies, fitted white A4 pages, private digest-bound output and explicit read-only viewer handoff while preserving every original",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C143",
+      "outcome": "Pack distinct embedded photos at original pixel sizes into an exact texture-atlas PNG with extruded gutters and a recoverable SHA-bound coordinate map",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C144",
+      "outcome": "Inspect selected original photos locally for supported EXIF privacy fields without revealing values and focus only location-flagged originals with current-selection guards",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C145",
+      "outcome": "Unwrap a manually marked circular photo band into an exact rectangular PNG strip with alpha-aware sampling while preserving the original and one insertion Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C146",
+      "outcome": "Prepare a reviewed selection-order ZIP of byte-preserved photo and video originals with canonical filenames, per-file checksum manifest and digest-bound one-use read-only share while preserving every original",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C147",
+      "outcome": "Generate a seeded solvable maze worksheet and optional separate answer key as grouped editable vector walls, route and text with original preservation and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C148",
+      "outcome": "Review and remove later repeated exact-source footage while retaining every first-covered source range, partial-clip appearance and intersecting captions with owned one-use approval and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C149",
+      "outcome": "Create a uniquely solvable picture-logic worksheet from a supplied pixel pattern, with editable number clues, blank grid and optional separate answer key while preserving existing artwork and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C150",
+      "outcome": "Build a reviewed synchronized multicamera timeline from manual source/program clock anchors and camera-switch times, deriving exact normal-speed source windows with retained per-camera templates and one-use Apply/Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C151",
+      "outcome": "Separate all connected nonzero-alpha items in transparent artwork into exact individually masked PNGs with tight bounds, minimum-size padding and atomic labeled insertion while preserving the original and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C152",
+      "outcome": "Fit every current shot to a shorter global running time with proportional centered source trims, retained order/speeds/captions, reviewed requested/effective timing within2ms and one-use Apply/Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C153",
+      "outcome": "Convert an opaque photo brightness field into reviewed editable height-contour paths with nested level groups, preserved original and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C154",
+      "outcome": "Import a reviewed explicitly relinked video-only frame-coded cut list as neutral normal-speed source windows, with complete record/native timing disclosure and owned one-use replacement/Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C155",
+      "outcome": "Create a dimensioned six-face cuboid cutting and folding net with seven beveled glue tabs as reviewed editable grouped vectors, preserving original artwork and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C156",
+      "outcome": "Silence reviewed arbitrary edited-playback intervals across sources and speeds by owned reversible source-audio splits, retaining every video source millisecond, outside volumes and caption provenance",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C157",
+      "outcome": "Create a reviewed editable one-ink halftone plate from alpha-over-white photo tones using variable-area black dots and an explicit white substrate, preserving the source and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C158",
+      "outcome": "Recover fully reviewed saved-version captions and subtitle provenance onto exact current original-source windows while retaining the current footage/order/speeds/looks/music/working metadata through owned one-use Apply and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C159",
+      "outcome": "Create a reviewed exact-size PNG composite from two matching photos using alpha-correct blend modes, chosen top opacity and order, preserving both originals and one insertion Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C160",
+      "outcome": "Create a fully reviewed temporal video photo from same-coordinate bands of sampled original frames, with bounded private PNG production, digest-verified one-use guest photo handoff and unchanged source/timeline",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C161",
+      "outcome": "Extract a reviewed global soft chroma-key PNG with manual or sampled key color and edge spill suppression, preserving the original and exact insertion/handoff with one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C162",
+      "outcome": "Export a fully reviewed selected-video frame sequence as independent nearest-source PNGs and a timestamp/dimension/byte/checksum manifest in a bounded SHA-verified ZIP, through one-use read-only sharing with unchanged originals and timeline",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C163",
+      "outcome": "Relight a color photo from a supplied matching RGB normal map with reviewed directional/ambient lighting, map-alpha mixing and exact PNG insertion/handoff while preserving both inputs and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C164",
+      "outcome": "Analyse selected original-video audio for bounded RMS-rise onset suggestions, manually choose boundaries and review source-contiguous cuts with complete caption assignment before owned one-use Apply, Undo and recoverable playback",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C165",
+      "outcome": "Review a manual monotonic radial lens adjustment around a movable source center with alpha-aware sampling and guide-only grid, preserving the original and exact PNG insertion/handoff with one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C166",
+      "outcome": "Scan selected original video for bounded sampled dark-hold suggestions, inspect every candidate frame and bright neighbors with removals initially unchecked, then review complete ripple/caption/music consequences before one-use Apply and recoverable Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C167",
+      "outcome": "Convert a 2:1 panorama into a complete reviewed set of six oriented cube-face PNGs with recoverable axis labels/metadata, atomic grouped insertion and exact selected-face handoff while preserving the source and one Undo",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C169",
+      "outcome": "Adaptively clean an unevenly lit document photo into a reviewed opaque black-and-white PNG",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C171",
+      "outcome": "Create a seeded reviewed editable jigsaw cutting guide with exact shared tabbed seams, straight border and recoverable grouped insertion",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C173",
+      "outcome": "Turn a local photo into a reviewed editable cross-stitch symbol chart with area-weighted palette colors, complete stitch-count key and fabric-size estimate",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C175",
+      "outcome": "Convert a local photo into exact selectable ASCII text and reviewed editable monospace artwork with source-preserving grouped insertion and recovery",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C177",
+      "outcome": "Generate a reviewed exact interlaced carrier and matching slotted-mask PNG kit from sprite frames, with aperture simulation, atomic labeled insertion and source-preserving recovery",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C179",
+      "outcome": "Manually register a photo to a distinct reference grid from three paired landmarks, with affine alpha-safe warping, mirror consent, exact PNG and original-protected recipe recovery",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C181",
+      "outcome": "Create opaque box-blurred base and encoded-detail photo layers, then review and recombine edited matching layers through an explicit bounded RGB formula with source-preserving recovery",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C183",
+      "outcome": "Review an original composite beside three color-vision simulations and insert the complete labeled proof sheet or hand off an exact reviewed PNG",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C187",
+      "outcome": "Fit a source photo patch’s gradients to another photo’s boundary colors, review the exact destination-size PNG and insert a protected-original copy with Undo or hand off exact bytes",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C189",
+      "outcome": "Generate a seeded one-bit random-dot stereogram from a supplied depth map, review its interpreted depth and exact PNG, then insert a protected-original copy with Undo or hand off exact bytes",
+      "status": "implemented-source",
+      "local_web_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C168",
+      "outcome": "Back up an editable video timeline with every original video/audio/subtitle byte in a reviewed integrity-checked ZIP, then restore a separate durable private guest copy with source-independent media and safe reopen/delete",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C191",
+      "outcome": "Find native on-device AI media candidates for an explicit multi-shot brief, review original matches and coverage, then save chosen originals as one deduplicated private collection",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "local_rn_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C170",
+      "outcome": "Use actual on-device AI to separate individual foreground subjects from an opaque edited photo, review and choose their cutouts, then share a verified selected-only transparent PNG asset pack while preserving original media and edits",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C193",
+      "outcome": "Review actual on-device OCR text regions, choose which areas to cover and share an exact user-confirmed flattened PNG copy while preserving the original photo and editor state",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "local_native_api_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C172",
+      "outcome": "Recognize selected original-video English speech locally with an explicitly installed pinned AI model, correct source-time captions and review every cue before one undoable clip-caption replacement",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "local_native_api_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C174",
+      "outcome": "Recover visible original-video Latin text through actual local OCR, correct approximate source-time captions and review every cue before one undoable clip-caption replacement while preserving original footage",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "local_native_api_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C195",
+      "outcome": "Reconstruct a disclosed fitted edited-photo working copy at twice its dimensions with actual local neural inference, inspect the complete exact PNG and share only after fresh confirmation while preserving original media and edits",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "local_native_api_checked": true,
       "full_app_build_checked": false,
       "device_checked": false
     }

@@ -1,21 +1,26 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.content.Context
 import android.webkit.ValueCallback
 import android.webkit.WebView
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Actual private reset protocol with constructor-free recording boundary, not device lifecycle proof. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class DrawingResetLifecycleTest {
     private class RecordingWebView(context:Context):WebView(context){
         var calls=0;var reloads=0;var rejectEvaluation=false;var reply:ValueCallback<String>?=null
         override fun evaluateJavascript(value:String,callback:ValueCallback<String>?){if(rejectEvaluation)throw IllegalStateException("Synthetic WebView failure");calls++;reply=callback}
         override fun reload(){reloads++}
     }
-    private val unsafe=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null) as Unsafe
+    private val unsafe=JvmTestAllocator
     private fun field(a:HonorableDrawingActivity,name:String,value:Any){a.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(a,value)}
     private fun setup():Pair<HonorableDrawingActivity,RecordingWebView>{
         val a=unsafe.allocateInstance(HonorableDrawingActivity::class.java) as HonorableDrawingActivity

@@ -1,0 +1,13 @@
+# Scene-suggestion result review
+
+Scene analysis now captures the existing full editor review before starting its worker. Completion must still belong to the same project object, selected clip, timeline, foreground/private session, review generation, source URI/duration catalog and effective pending range before reporting cancellation/failure or changing either trim control. Pause/resume invalidates the captured generation; restoring equal-looking edits cannot bypass that invalidation. Refused results return without changing trim controls or reporting into the newer session.
+
+The worker's frame sampling, scoring, model calls and bitmap cleanup are byte-identical to `1fb61d5`. All Activity bytes outside the scene function and its new predicate are also identical to that baseline. This is **0 new user-facing features, 1 source correctness fix, 0 scaffolding**. Recorded source-workflow count remains 104/500; broad app-build target remains approximately 138.
+
+## Verification
+
+`KOTLIN_HOME=/tmp/noble-kotlin-2.1.20/kotlinc node --test scripts/video-scene-review.test.cjs` passed **3 tests, no skips**. Two source-routing tests verify capture before worker admission, current-project selection, busy release before full approval, and approval before result messages/trim changes. The third compiles and executes the exact production `canReviewSceneResult` and `canApplyCaptionReview` method bodies with Kotlin 2.1.20 and controlled dependencies: **42 assertions** cover accepted state and refused admission, generation, access mode, private namespace, state snapshot, source URI, source duration, selected index, timeline and project identity changes, repeated refusal, preserved lists and generation invalidation despite restored visible state.
+
+The isolated predicate harness uses synthetic session/project/state dependencies. It does **not** execute the actual Activity, inherited admission implementation, Android controls, lifecycle callbacks, media/model worker, real account namespace or Android URI implementation. Full Activity/API compilation, full native/app/Gradle/APK build, device UI/inference/trim/render and store acceptance were not performed. The Kotlin compiler was downloaded from the official JetBrains release into temporary storage; no project dependencies or build configuration changed. Ordinary Node execution without `KOTLIN_HOME` explicitly skips the Kotlin harness rather than claiming it ran.
+
+The separately opened `noble-fast` chat coordinated through the advisory board and completed its independently owned Studio file-tree fix. Its source and notes were preserved. No search/ranking/holdout/credits/catalog/ledger changes or media uploads occurred.

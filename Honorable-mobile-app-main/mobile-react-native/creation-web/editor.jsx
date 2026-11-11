@@ -1,3 +1,8 @@
+import {PhotoStereogramTool} from './PhotoStereogramTool.jsx';
+import {stereogramSettings,stereogramSeparation,DEPTH_UNITS} from './photo-stereogram.mjs';
+import {PhotoGradientTool} from './PhotoGradientTool.jsx';
+import {PhotoCarveTool} from './PhotoCarveTool.jsx';
+import {carveSettings} from './photo-carve.mjs';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Excalidraw, MainMenu, exportToBlob, exportToSvg, newElementWith, restoreElements, convertToExcalidrawElements, CaptureUpdateAction, getCommonBounds } from '@excalidraw/excalidraw';
@@ -12,6 +17,7 @@ import { palettePlan } from './palette.mjs';
 import { qrPlan } from './qr.mjs';
 import { barcodePlan } from './barcode.mjs';
 import { tablePlan } from './table.mjs';
+import { schedulePlan } from './schedule.mjs';
 import { starterPlan } from './starters.mjs';
 import { StarterPreview } from './StarterPreview.jsx';
 import { VectorImportTool } from './VectorImportTool.jsx';
@@ -28,11 +34,67 @@ import { replaceablePhoto, replacementPatch } from './photo-replace.mjs';
 import { framingPatch } from './photo-framing.mjs';
 import { PhotoFramingPreview } from './PhotoFramingPreview.jsx';
 import { PhotoRectifyTool } from './PhotoRectifyTool.jsx';
+import {PictureLogicTool} from './PictureLogicTool.jsx';
+import {pictureWorksheet} from './nonogram.mjs';
+import {MazeTool} from './MazeTool.jsx';
+import {JigsawTool} from './JigsawTool.jsx';
+import {BoxNetTool} from './BoxNetTool.jsx';
+import {jigsawArtwork} from './jigsaw.mjs';
+import {boxNetArtwork} from './box-net.mjs';
+import {mazeWorksheet} from './maze.mjs';
 import { WordCloudTool } from './WordCloudTool.jsx';
 import { PhotoWandTool } from './PhotoWandTool.jsx';
 import { PhotoOutlineCutoutTool } from './PhotoOutlineCutoutTool.jsx';
 import { PhotoSurfaceMockupTool } from './PhotoSurfaceMockupTool.jsx';
 import { PhotoObjectTools } from './PhotoObjectTools.jsx';
+import { PhotoPanoramaTool } from './PhotoPanoramaTool.jsx';
+import { PhotoReferenceToneTool } from './PhotoReferenceToneTool.jsx';
+import { PhotoNineSliceTool } from './PhotoNineSliceTool.jsx';
+import { PhotoCubeLutTool } from './PhotoCubeLutTool.jsx';
+import { PhotoAnaglyphTool } from './PhotoAnaglyphTool.jsx';
+import { PhotoSpriteSliceTool } from './PhotoSpriteSliceTool.jsx';
+import { spriteFramePlan } from './photo-sprite-slice-plan.mjs';
+import { PhotoChannelSplitTool } from './PhotoChannelSplitTool.jsx';
+import { channelSplitPlan } from './photo-channel-split-plan.mjs';
+import { PhotoChannelPackTool } from './PhotoChannelPackTool.jsx';
+import { PhotoPaletteImageTool } from './PhotoPaletteImageTool.jsx';
+import { PhotoDistanceFieldTool } from './PhotoDistanceFieldTool.jsx';
+import { PhotoNormalMapTool } from './PhotoNormalMapTool.jsx';
+import {PhotoContoursTool} from './PhotoContoursTool.jsx';
+import {contourArtwork} from './photo-contours.mjs';
+import {PhotoAsciiTool} from './PhotoAsciiTool.jsx';
+import {PhotoStitchTool} from './PhotoStitchTool.jsx';
+import {PhotoHalftoneTool} from './PhotoHalftoneTool.jsx';
+import {PhotoBlendTool} from './PhotoBlendTool.jsx';
+import {PhotoChromaKeyTool} from './PhotoChromaKeyTool.jsx';
+import {PhotoRelightTool} from './PhotoRelightTool.jsx';
+import {PhotoDocumentTool} from './PhotoDocumentTool.jsx';
+import {PhotoRegistrationTool} from './PhotoRegistrationTool.jsx';
+import {PhotoRadialTool} from './PhotoRadialTool.jsx';
+import {PhotoFrequencyTool} from './PhotoFrequencyTool.jsx';
+import {frequencySourcePhoto} from './photo-frequency-source.mjs';
+import {frequencyLayerPlan} from './photo-frequency.mjs';
+import {PhotoBarrierTool} from './PhotoBarrierTool.jsx';
+import {PhotoVisionTool} from './PhotoVisionTool.jsx';
+import {visionSheetPlan,visionSettings,VISION_MODELS,VISION_CONVENTION} from './photo-vision.mjs';
+import {PhotoCubeFacesTool} from './PhotoCubeFacesTool.jsx';
+import {barrierFramePlan,barrierSettings} from './photo-barrier.mjs';
+import {cubeFramePlan,CUBE_FACES,CUBE_CONVENTION} from './photo-cube-faces.mjs';
+import {asciiArtwork} from './photo-ascii.mjs';
+import {stitchArtwork} from './photo-stitch.mjs';
+import {halftoneArtwork} from './photo-halftone.mjs';
+import {PhotoIslandsTool} from './PhotoIslandsTool.jsx';
+import {islandFramePlan} from './photo-islands.mjs';
+import {PhotoAnnulusTool} from './PhotoAnnulusTool.jsx';
+import {PhotoAtlasTool} from './PhotoAtlasTool.jsx';
+import {savedAtlasMap} from './photo-atlas.mjs';
+import { prepareExactPhotoCopy, readExactPhotoPng } from './photo-exact-copy.mjs';
+import { PhotoSeamlessTool } from './PhotoSeamlessTool.jsx';
+import { prepareSeamlessCopy } from './photo-seamless-image.mjs';
+import { PhotoDisplacementTool } from './PhotoDisplacementTool.jsx';
+import { PhotoLuminanceMaskTool } from './PhotoLuminanceMaskTool.jsx';
+import { PhotoRedactionTool } from './PhotoRedactionTool.jsx';
+import { PhotoDespeckleTool } from './PhotoDespeckleTool.jsx';
 import { PhotoCloneRepairTool } from './PhotoCloneRepairTool.jsx';
 import { DimensionCalloutTool } from './DimensionCalloutTool.jsx';
 import { PhotoMosaicTool } from './PhotoMosaicTool.jsx';
@@ -107,6 +169,82 @@ function Editor() {
   const [surfaceTarget,setSurfaceTarget]=useState(null);
   const surfaceOwner=useRef(null);
   const dimensionOwner=useRef(null);
+  const frequencyOwner=useRef(null);
+  const barrierOwner=useRef(null);
+  const stereogramOwner=useRef(null);
+  const [stereogramTarget,setStereogramTarget]=useState(null);
+  const gradientOwner=useRef(null);
+  const [gradientTarget,setGradientTarget]=useState(null);
+  const carveOwner=useRef(null);
+  const [carveTarget,setCarveTarget]=useState(null);
+  const visionOwner=useRef(null);
+  const [visionTarget,setVisionTarget]=useState(null);
+  const cubeOwner=useRef(null);
+  const [frequencyTarget,setFrequencyTarget]=useState(null);
+  const [barrierTarget,setBarrierTarget]=useState(null);
+  const [cubeTarget,setCubeTarget]=useState(null);
+  const documentOwner=useRef(null);
+  const registrationOwner=useRef(null);
+  const radialOwner=useRef(null);
+  const [documentTarget,setDocumentTarget]=useState(null);
+  const [registrationTarget,setRegistrationTarget]=useState(null);
+  const [radialTarget,setRadialTarget]=useState(null);
+  const relightOwner=useRef(null);
+  const [relightTarget,setRelightTarget]=useState(null);
+  const chromaOwner=useRef(null);
+  const [chromaTarget,setChromaTarget]=useState(null);
+  const blendOwner=useRef(null);
+  const [blendTarget,setBlendTarget]=useState(null);
+  const asciiOwner=useRef(null);
+  const stitchOwner=useRef(null);
+  const halftoneOwner=useRef(null);
+  const [asciiTarget,setAsciiTarget]=useState(null);
+  const [stitchTarget,setStitchTarget]=useState(null);
+  const [halftoneTarget,setHalftoneTarget]=useState(null);
+  const contoursOwner=useRef(null);
+  const [contoursTarget,setContoursTarget]=useState(null);
+  const islandsOwner=useRef(null);
+  const [islandsTarget,setIslandsTarget]=useState(null);
+  const pictureOwner=useRef(null);
+  const mazeOwner=useRef(null);
+  const jigsawOwner=useRef(null);
+  const boxNetOwner=useRef(null);
+  const annulusOwner=useRef(null);
+  const [annulusTarget,setAnnulusTarget]=useState(null);
+  const atlasOwner=useRef(null);
+  const [atlasTarget,setAtlasTarget]=useState(null);
+  const panoramaOwner=useRef(null);
+  const [panoramaTarget,setPanoramaTarget]=useState(null);
+  const referenceToneOwner=useRef(null);
+  const [referenceToneTarget,setReferenceToneTarget]=useState(null);
+  const nineSliceOwner=useRef(null);
+  const [nineSliceTarget,setNineSliceTarget]=useState(null);
+  const cubeLutOwner=useRef(null);
+  const [cubeLutTarget,setCubeLutTarget]=useState(null);
+  const anaglyphOwner=useRef(null);
+  const [anaglyphTarget,setAnaglyphTarget]=useState(null);
+  const spriteSliceOwner=useRef(null);
+  const [spriteSliceTarget,setSpriteSliceTarget]=useState(null);
+  const channelSplitOwner=useRef(null);
+  const [channelSplitTarget,setChannelSplitTarget]=useState(null);
+  const channelPackOwner=useRef(null);
+  const [channelPackTarget,setChannelPackTarget]=useState(null);
+  const paletteImageOwner=useRef(null);
+  const [paletteImageTarget,setPaletteImageTarget]=useState(null);
+  const distanceFieldOwner=useRef(null);
+  const [distanceFieldTarget,setDistanceFieldTarget]=useState(null);
+  const normalMapOwner=useRef(null);
+  const [normalMapTarget,setNormalMapTarget]=useState(null);
+  const seamlessOwner=useRef(null);
+  const [seamlessTarget,setSeamlessTarget]=useState(null);
+  const displacementOwner=useRef(null);
+  const [displacementTarget,setDisplacementTarget]=useState(null);
+  const luminanceMaskOwner=useRef(null);
+  const [luminanceMaskTarget,setLuminanceMaskTarget]=useState(null);
+  const redactionOwner=useRef(null);
+  const [redactionTarget,setRedactionTarget]=useState(null);
+  const despeckleOwner=useRef(null);
+  const [despeckleTarget,setDespeckleTarget]=useState(null);
   const [cloneTarget,setCloneTarget]=useState(null);
   const cloneOwner=useRef(null);
   const [mosaicTarget,setMosaicTarget]=useState(null);
@@ -130,6 +268,7 @@ function Editor() {
   const [layoutTitle, setLayoutTitle] = useState('My chart'), [chartRows, setChartRows] = useState('First | 12\nSecond | 24\nThird | 18');
   const [dependencyTitle, setDependencyTitle] = useState('My workflow'), [dependencyRows, setDependencyRows] = useState('Idea -> Draft\nDraft -> Review\nReview -> Publish');
   const [paletteTitle, setPaletteTitle] = useState('Artwork color key');
+  const [scheduleTitle, setScheduleTitle] = useState('Production schedule'), [scheduleRows, setScheduleRows] = useState('Prepare | 2026-11-01 | 2026-11-03\nShoot | 2026-11-03 | 2026-11-05\nEdit | 2026-11-06 | 2026-11-10');
   const [layoutTool, setLayoutTool] = useState('chart');
   const [starterStyle, setStarterStyle] = useState('quote'), [starterHeadline, setStarterHeadline] = useState('Make room for your next idea');
   const [starterDetails, setStarterDetails] = useState('Start small. Make something that feels like you.'), [starterSignoff, setStarterSignoff] = useState('Made with Noble');
@@ -259,6 +398,261 @@ function Editor() {
       if(cutoutOwner.current)cutoutOwner.current.valid=false;
       const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};
       cutoutOwner.current=target;setCutoutTarget(target);setPanel('cutout');
+    }catch(failure){error(failure);}
+  };
+  const openRelight=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Normal-map relight.');
+      const maps=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height){seen.add(candidate.fileId);maps.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${width} × ${height}`});}}catch{}});
+      if(!maps.length)throw Error('Add another visible, unlocked, ungrouped photo with matching embedded pixel dimensions to use as a normal map.');
+      if(relightOwner.current)relightOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,maps,snapshot:encodeDraft(...scene()),valid:true};relightOwner.current=target;setRelightTarget(target);setPanel('relight');
+    }catch(failure){error(failure);}
+  };
+  const openBlend=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Photo blend.');
+      const partners=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height){seen.add(candidate.fileId);partners.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${width} × ${height}`});}}catch{}});
+      if(!partners.length)throw Error('Add another visible, unlocked, ungrouped photo with matching embedded pixel dimensions to use for blending.');
+      if(blendOwner.current)blendOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,partners,snapshot:encodeDraft(...scene()),valid:true};blendOwner.current=target;setBlendTarget(target);setPanel('blend');
+    }catch(failure){error(failure);}
+  };
+  const openDisplacement=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Displacement map.');
+      const maps=[];elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy)return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height)maps.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${width} × ${height}`});}catch{}});
+      if(!maps.length)throw Error('Add another visible, unlocked, ungrouped photo with matching embedded pixel dimensions to use as a displacement map.');
+      if(displacementOwner.current)displacementOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,maps,snapshot:encodeDraft(...scene()),valid:true};displacementOwner.current=target;setDisplacementTarget(target);setPanel('displacement');
+    }catch(failure){error(failure);}
+  };
+  const openLuminanceMask=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Photo mask.');
+      const masks=[];elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy)return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height)masks.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${width} × ${height}`});}catch{}});
+      if(!masks.length)throw Error('Add another visible, unlocked, ungrouped photo with matching embedded pixel dimensions to use as a mask.');
+      if(luminanceMaskOwner.current)luminanceMaskOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,masks,snapshot:encodeDraft(...scene()),valid:true};luminanceMaskOwner.current=target;setLuminanceMaskTarget(target);setPanel('luminanceMask');
+    }catch(failure){error(failure);}
+  };
+  const openRedaction=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Privacy blocks.');
+      if(redactionOwner.current)redactionOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};redactionOwner.current=target;setRedactionTarget(target);setPanel('redaction');
+    }catch(failure){error(failure);}
+  };
+  const openDistanceField=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Distance field.');
+      if(distanceFieldOwner.current)distanceFieldOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};distanceFieldOwner.current=target;setDistanceFieldTarget(target);setPanel('distanceField');
+    }catch(failure){error(failure);}
+  };
+  const openDocument=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded document artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use document artwork at least8pixels per side.');if(documentOwner.current)documentOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};documentOwner.current=target;setDocumentTarget(target);setPanel('document');}catch(failure){error(failure);}};
+  const openRadial=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded lens artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use lens artwork at least8pixels per side.');if(radialOwner.current)radialOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};radialOwner.current=target;setRadialTarget(target);setPanel('radial');}catch(failure){error(failure);}};
+  const openChroma=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded key artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use key artwork at least8pixels per side.');if(chromaOwner.current)chromaOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};chromaOwner.current=target;setChromaTarget(target);setPanel('chroma');}catch(failure){error(failure);}};
+  const openFrequency=id=>{if(busyRef.current||preservedDraft.current)return;try{const editor=api.current,elements=editor.getSceneElements(),photo=frequencySourcePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The source frequency artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use photos at least8pixels per side.');const partners=[];elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=frequencySourcePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy)return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height)partners.push({id:candidate.id,photo:candidate,dataURL:copy.dataURL,label:`Photo ${index+1} · ${candidate.customData?.nobleFrequency?.role||'unassigned'} · ${width} × ${height}`});}catch{}});if(frequencyOwner.current)frequencyOwner.current.valid=false;const target={editor,photo,dataURL:file.dataURL,width,height,partners,snapshot:encodeDraft(...scene()),valid:true};frequencyOwner.current=target;setFrequencyTarget(target);setPanel('frequency');}catch(failure){error(failure);}};
+  const openBarrier=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded barrier artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use barrier artwork at least8pixels per side.');if(barrierOwner.current)barrierOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};barrierOwner.current=target;setBarrierTarget(target);setPanel('barrier');}catch(failure){error(failure);}};
+  const openAscii=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded ascii artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use ascii artwork at least8pixels per side.');if(asciiOwner.current)asciiOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};asciiOwner.current=target;setAsciiTarget(target);setPanel('ascii');}catch(failure){error(failure);}};
+  const openStitch=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded stitch artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use stitch artwork at least8pixels per side.');if(stitchOwner.current)stitchOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};stitchOwner.current=target;setStitchTarget(target);setPanel('stitch');}catch(failure){error(failure);}};
+  const openHalftone=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded halftone artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use halftone artwork at least8pixels per side.');if(halftoneOwner.current)halftoneOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};halftoneOwner.current=target;setHalftoneTarget(target);setPanel('halftone');}catch(failure){error(failure);}};
+  const openContours=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded height artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use height artwork at least8pixels per side.');if(contoursOwner.current)contoursOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};contoursOwner.current=target;setContoursTarget(target);setPanel('contours');}catch(failure){error(failure);}};
+  const openIslands=id=>{if(busyRef.current)return;try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use artwork at least8pixels per side.');if(islandsOwner.current)islandsOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};islandsOwner.current=target;setIslandsTarget(target);setPanel('islands');}catch(failure){error(failure);}};
+  const openAnnulus=id=>{
+    if(busyRef.current)return;
+    try{const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded circular artwork is unavailable.');const{width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use circular artwork at least8pixels on each side.');if(annulusOwner.current)annulusOwner.current.valid=false;const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};annulusOwner.current=target;setAnnulusTarget(target);setPanel('annulus');}catch(failure){error(failure);}
+  };
+  const openAtlas=id=>{
+    if(busyRef.current)return;
+    try{const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded atlas source is unavailable.');const info=photoBytes(file.dataURL),sources=[],seen=new Set();
+      for(const element of [photo,...elements.filter(e=>e.id!==id)]){if(element.type!=='image')continue;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))continue;const size=photoBytes(copy.dataURL);if(size.width>=8&&size.height>=8){seen.add(candidate.fileId);sources.push({id:candidate.fileId,dataURL:copy.dataURL,width:size.width,height:size.height,label:`Photo ${elements.findIndex(e=>e.id===candidate.id)+1}`});}}catch{}}
+      if(atlasOwner.current)atlasOwner.current.valid=false;const target={editor,photo,dataURL:file.dataURL,width:info.width,height:info.height,sources,savedMap:savedAtlasMap(photo.customData?.nobleAtlas,photo.fileId,info.width,info.height),snapshot:encodeDraft(...scene()),valid:true};atlasOwner.current=target;setAtlasTarget(target);setPanel('atlas');
+    }catch(failure){error(failure);}
+  };
+  const openStereogram=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);stereogramSettings(width,height,Math.min(64,Math.floor(width/4)),1,false);
+      if(stereogramOwner.current)stereogramOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};stereogramOwner.current=target;setStereogramTarget(target);setPanel('stereogram');
+    }catch(failure){error(failure);}
+  };
+  const openCarve=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);carveSettings(width,height,width>8?'width':'height',1);
+      if(carveOwner.current)carveOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};carveOwner.current=target;setCarveTarget(target);setPanel('carve');
+    }catch(failure){error(failure);}
+  };
+  const openVision=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);visionSettings(width,height);
+      if(visionOwner.current)visionOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};visionOwner.current=target;setVisionTarget(target);setPanel('vision');
+    }catch(failure){error(failure);}
+  };
+  const openCube=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded panorama is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(height<8||width!==height*2)throw Error('Use a 2:1 equirectangular panorama at least 16 × 8 pixels.');
+      if(cubeOwner.current)cubeOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};cubeOwner.current=target;setCubeTarget(target);setPanel('cube');
+    }catch(failure){error(failure);}
+  };
+  const openPanorama=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded panorama is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(height<8||width!==height*2)throw Error('Use a 2:1 equirectangular panorama at least 16 × 8 pixels.');
+      if(panoramaOwner.current)panoramaOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};panoramaOwner.current=target;setPanoramaTarget(target);setPanel('panorama');
+    }catch(failure){error(failure);}
+  };
+  const openGradient=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use photos at least 8 pixels on each side.');
+      const references=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width>=8&&info.height>=8){seen.add(candidate.fileId);references.push({width:info.width,height:info.height,photo:candidate,id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${info.width} × ${info.height}`});}}catch{}});
+      if(!references.length)throw Error('Add another distinct visible, unlocked, ungrouped photo as a gradient-paste destination.');
+      if(gradientOwner.current)gradientOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,references,snapshot:encodeDraft(...scene()),valid:true};gradientOwner.current=target;setGradientTarget(target);setPanel('gradient');
+    }catch(failure){error(failure);}
+  };
+  const openRegistration=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use photos at least 8 pixels on each side.');
+      const references=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width>=8&&info.height>=8){seen.add(candidate.fileId);references.push({width:info.width,height:info.height,photo:candidate,id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${info.width} × ${info.height}`});}}catch{}});
+      if(!references.length)throw Error('Add another distinct visible, unlocked, ungrouped photo as a registration reference.');
+      if(registrationOwner.current)registrationOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,references,snapshot:encodeDraft(...scene()),valid:true};registrationOwner.current=target;setRegistrationTarget(target);setPanel('registration');
+    }catch(failure){error(failure);}
+  };
+  const openReferenceTone=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use photos at least 8 pixels on each side.');
+      const references=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width>=8&&info.height>=8){seen.add(candidate.fileId);references.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${info.width} × ${info.height}`});}}catch{}});
+      if(!references.length)throw Error('Add another distinct visible, unlocked, ungrouped photo as a tone reference.');
+      if(referenceToneOwner.current)referenceToneOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,references,snapshot:encodeDraft(...scene()),valid:true};referenceToneOwner.current=target;setReferenceToneTarget(target);setPanel('referenceTone');
+    }catch(failure){error(failure);}
+  };
+  const openNineSlice=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded artwork is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use artwork at least 8 pixels on each side.');
+      if(nineSliceOwner.current)nineSliceOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};nineSliceOwner.current=target;setNineSliceTarget(target);setPanel('nineSlice');
+    }catch(failure){error(failure);}
+  };
+  const openCubeLut=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Cube LUT.');
+      if(cubeLutOwner.current)cubeLutOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};cubeLutOwner.current=target;setCubeLutTarget(target);setPanel('cubeLut');
+    }catch(failure){error(failure);}
+  };
+  const openAnaglyph=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded stereo view is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use stereo views at least 8 pixels on each side.');
+      const pairs=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height){seen.add(candidate.fileId);pairs.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${width} × ${height}`});}}catch{}});
+      if(!pairs.length)throw Error('Add another distinct visible, unlocked, ungrouped stereo view with matching embedded pixel dimensions.');
+      if(anaglyphOwner.current)anaglyphOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,pairs,snapshot:encodeDraft(...scene()),valid:true};anaglyphOwner.current=target;setAnaglyphTarget(target);setPanel('anaglyph');
+    }catch(failure){error(failure);}
+  };
+  const openSpriteSlice=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded sprite sheet is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a sheet at least 8 pixels on each side.');
+      if(spriteSliceOwner.current)spriteSliceOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};spriteSliceOwner.current=target;setSpriteSliceTarget(target);setPanel('spriteSlice');
+    }catch(failure){error(failure);}
+  };
+  const openChannelSplit=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded RGB source is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use an RGB texture at least 8 pixels on each side.');
+      if(channelSplitOwner.current)channelSplitOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};channelSplitOwner.current=target;setChannelSplitTarget(target);setPanel('channelSplit');
+    }catch(failure){error(failure);}
+  };
+  const openChannelPack=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const editor=api.current,elements=editor.getSceneElements(),photo=replaceablePhoto(elements,id),file=editor.getFiles()[photo.fileId];if(!file)throw Error('The embedded red-source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use channel maps at least 8 pixels on each side.');
+      const maps=[],seen=new Set([photo.fileId]);elements.forEach((element,index)=>{if(element.id===id||element.type!=='image')return;try{const candidate=replaceablePhoto(elements,element.id),copy=editor.getFiles()[candidate.fileId];if(!copy||seen.has(candidate.fileId))return;const info=photoBytes(copy.dataURL);if(info.width===width&&info.height===height){seen.add(candidate.fileId);maps.push({id:candidate.id,dataURL:copy.dataURL,label:`Photo ${index+1} · ${width} × ${height}`});}}catch{}});
+      if(maps.length<2)throw Error('Add two other distinct visible, unlocked, ungrouped photos with matching embedded pixel dimensions for Channel pack.');
+      if(channelPackOwner.current)channelPackOwner.current.valid=false;
+      const target={editor,photo,dataURL:file.dataURL,width,height,maps,label:`Photo ${elements.findIndex(element=>element.id===id)+1}`,snapshot:encodeDraft(...scene()),valid:true};channelPackOwner.current=target;setChannelPackTarget(target);setPanel('channelPack');
+    }catch(failure){error(failure);}
+  };
+  const openPaletteImage=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Palette image.');
+      if(paletteImageOwner.current)paletteImageOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};paletteImageOwner.current=target;setPaletteImageTarget(target);setPanel('paletteImage');
+    }catch(failure){error(failure);}
+  };
+  const openNormalMap=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Normal map.');
+      if(normalMapOwner.current)normalMapOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};normalMapOwner.current=target;setNormalMapTarget(target);setPanel('normalMap');
+    }catch(failure){error(failure);}
+  };
+  const openSeamless=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Texture tile.');
+      if(seamlessOwner.current)seamlessOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};seamlessOwner.current=target;setSeamlessTarget(target);setPanel('seamless');
+    }catch(failure){error(failure);}
+  };
+  const openDespeckle=id=>{
+    if(busyRef.current||preservedDraft.current)return;
+    try{
+      const photo=replaceablePhoto(api.current.getSceneElements(),id),file=api.current.getFiles()[photo.fileId];if(!file)throw Error('The embedded source photo is unavailable.');
+      const {width,height}=photoBytes(file.dataURL);if(width<8||height<8)throw Error('Use a photo at least 8 pixels on each side for Speckle cleanup.');
+      if(despeckleOwner.current)despeckleOwner.current.valid=false;
+      const target={editor:api.current,photo,dataURL:file.dataURL,width,height,snapshot:encodeDraft(...scene()),valid:true};despeckleOwner.current=target;setDespeckleTarget(target);setPanel('despeckle');
     }catch(failure){error(failure);}
   };
   const openClone=id=>{
@@ -401,6 +795,229 @@ function Editor() {
     const inserted=await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership);
     if(!inserted)throw Error('The cutout was not inserted. Your original drawing is kept; check the source and available storage.');
   };
+  const insertDocument=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!documentTarget?.valid||!framingCurrent(documentTarget))throw Error('The source photo or drawing changed. Open Document cleanup again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([documentTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The document copy was not inserted. The original is kept; check the source and available storage.');
+  };
+  const insertFrequency=async(proposal,requireCurrent)=>{if(proposal.kind==='split')return insertFrequencyKit(proposal,requireCurrent);const current=()=>{requireCurrent();if(!frequencyTarget?.valid||!framingCurrent(frequencyTarget))throw Error('The photos or drawing changed. Open Frequency separation again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');const partner=frequencyTarget.partners.find(p=>p.id===proposal.partnerId);if(!partner||proposal.blobs?.length!==1)throw Error('Choose and preview both frequency layers again.');const[,top,right]=getCommonBounds([frequencyTarget.photo,partner.photo]),baseFile=proposal.swap?partner.photo.fileId:frequencyTarget.photo.fileId,detailFile=proposal.swap?frequencyTarget.photo.fileId:partner.photo.fileId;photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,customData:{nobleFrequency:{role:'combined',width:proposal.width,height:proposal.height,baseFile,detailFile,convention:'noble-frequency-v1',formula:'base+2*(detail-128)'}}};if(!await addPhoto(proposal.blobs[0],false,{x:right+32,y:top},ownership))throw Error('The recombined copy was not inserted. Originals kept; check storage or source.');};
+  const insertGradient=async(proposal,requireCurrent)=>{
+    const destination=gradientTarget?.references.find(p=>p.id===proposal.destinationId),current=()=>{requireCurrent();if(!destination||!gradientTarget?.valid||!framingCurrent(gradientTarget))throw Error('The photos or drawing changed. Open Gradient paste again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([gradientTarget.photo,destination.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,customData:{nobleGradient:{sourceFile:gradientTarget.photo.fileId,destinationFile:destination.photo.fileId,sourceWidth:proposal.sourceWidth,sourceHeight:proposal.sourceHeight,width:proposal.width,height:proposal.height,rect:[...proposal.rect],placement:[...proposal.placement],iterations:[...proposal.iterations],residuals:[...proposal.residuals],tolerance:proposal.tolerance,solutionErrorBound:proposal.solutionErrorBound,clippedChannels:proposal.clippedChannels,convention:proposal.convention,alpha:'white-composite-opaque'}}};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The gradient-paste copy was not inserted. Both originals kept; check storage or source.');
+  };
+  const insertStereogram=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!stereogramTarget?.valid||!framingCurrent(stereogramTarget))throw Error('The source photo or drawing changed. Open Depth stereogram again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([stereogramTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,customData:{nobleStereogram:{sourceFile:stereogramTarget.photo.fileId,width:proposal.width,height:proposal.height,period:proposal.period,seed:proposal.seed,invert:proposal.invert,mu:'1/3',virtualEyePixels:proposal.period*2,nearSpacing:stereogramSeparation(DEPTH_UNITS,proposal.period),constraints:proposal.constraints,occluded:proposal.occluded,clippedPairs:proposal.clippedPairs,components:proposal.components,depth:'encoded-luma-invert-before-alpha-over-black',png:'grayscale-1bit-stored',convention:proposal.convention}}};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The stereogram copy was not inserted. Original kept; check storage or source.');
+  };
+  const insertCarve=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!carveTarget?.valid||!framingCurrent(carveTarget))throw Error('The source photo or drawing changed. Open Content-aware resize again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([carveTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,customData:{nobleCarve:{sourceFile:carveTarget.photo.fileId,sourceWidth:proposal.sourceWidth,sourceHeight:proposal.sourceHeight,width:proposal.width,height:proposal.height,axis:proposal.axis,remove:proposal.remove,protect:proposal.protect&&[...proposal.protect],convention:proposal.convention}}};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The content-aware copy was not inserted. Original kept; check storage or source.');
+  };
+  const insertRegistration=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!registrationTarget?.valid||!framingCurrent(registrationTarget))throw Error('The source photo or drawing changed. Open Photo registration again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const reference=registrationTarget.references.find(p=>p.id===proposal.referenceId);if(!reference)throw Error('The registration reference changed. Preview again.');const [,top,right]=getCommonBounds([registrationTarget.photo,reference.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,customData:{nobleRegistration:{version:1,sourceFile:registrationTarget.photo.fileId,referenceFile:reference.photo.fileId,sourceWidth:proposal.sourceWidth,sourceHeight:proposal.sourceHeight,width:proposal.width,height:proposal.height,sourcePoints:proposal.sourcePoints.map(p=>[...p]),referencePoints:proposal.referencePoints.map(p=>[...p]),matrix:[...proposal.matrix],mirrored:proposal.mirrored,coordinates:'pixel-centers'}}};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The registration copy was not inserted. The original is kept; check the source and available storage.');
+  };
+  const insertRadial=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!radialTarget?.valid||!framingCurrent(radialTarget))throw Error('The source photo or drawing changed. Open Radial lens again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([radialTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The radial copy was not inserted. The original is kept; check the source and available storage.');
+  };
+  const insertChroma=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!chromaTarget?.valid||!framingCurrent(chromaTarget))throw Error('The source photo or drawing changed. Open Chroma key again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([chromaTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The keyed copy was not inserted. The original is kept; check the source and available storage.');
+  };
+  const insertRelight=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!relightTarget?.valid||!framingCurrent(relightTarget)||!relightTarget.maps.some(p=>p.id===proposal.normalId))throw Error('The source photos or drawing changed. Open Normal-map relight again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([relightTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The relit copy was not inserted. Both originals are kept; check the source and available storage.');
+  };
+  const insertBlend=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!blendTarget?.valid||!framingCurrent(blendTarget)||!blendTarget.partners.some(p=>p.id===proposal.partnerId))throw Error('The source photos or drawing changed. Open Photo blend again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([blendTarget.photo]);photoTarget.current=null;const ownership={prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The blended copy was not inserted. Both originals are kept; check the source and available storage.');
+  };
+  const insertDisplacement=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!displacementTarget?.valid||!framingCurrent(displacementTarget)||!displacementTarget.maps.some(mask=>mask.id===proposal.mapId))throw Error('The source photos or drawing changed. Open Displacement map again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([displacementTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The warped copy was not inserted. Both originals are kept; check the source and available storage.');
+  };
+  const insertLuminanceMask=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!luminanceMaskTarget?.valid||!framingCurrent(luminanceMaskTarget)||!luminanceMaskTarget.masks.some(mask=>mask.id===proposal.maskId))throw Error('The source photos or drawing changed. Open Photo mask again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([luminanceMaskTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The masked copy was not inserted. Both originals are kept; check the source and available storage.');
+  };
+  const insertRedaction=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!redactionTarget?.valid||!framingCurrent(redactionTarget))throw Error('The source photo or drawing changed. Open Privacy blocks again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([redactionTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The redacted copy was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const useExactPhotoImage=async(proposal,requireCurrent,target,label)=>{
+    requireCurrent();if(!target?.valid||!framingCurrent(target))throw Error(`The source photo or drawing changed. Open ${label} again.`);
+    if(!beginBusy())throw Error('Finish the current drawing operation first.');const editor=api.current,attempt={};pendingImage.current=attempt;
+    const current=()=>{requireCurrent();if(!mounted.current||pendingImage.current!==attempt||api.current!==editor||!target.valid||!framingCurrent(target))throw Error('The image source or drawing changed. Preview again.');};
+    try{
+      const snapshot={current:candidate=>candidate===editor&&framingCurrent(target)};captureOutputSelection(editor,snapshot);
+      if(!save(false))throw Error('The drawing could not be saved. Keep the current preview and try again.');
+      const value=await readExactPhotoPng(proposal.blob,current);current();
+      if(typeof window.HonorableDrawing?.usePng!=='function')throw Error('Open Noble on Android to use the exact PNG.');
+      if(window.HonorableDrawing.usePng(value)===false)throw Error('The drawing is not active or another operation is running. Try again.');
+      if(pendingImage.current===attempt)setStatus(`Exact ${label} PNG sent to the photo editor without padding or resizing. Export a PNG copy there.`);
+    }catch(failure){if(pendingImage.current===attempt){pendingImage.current=null;finishOutput();}throw failure;}
+  };
+  const useSeamlessImage=(proposal,current)=>useExactPhotoImage(proposal,current,seamlessTarget,'texture tile');
+  const useNormalMapImage=(proposal,current)=>useExactPhotoImage(proposal,current,normalMapTarget,'normal map');
+  const useIslandsImage=(proposal,current)=>useExactPhotoImage(proposal,current,islandsTarget,'separated item');
+  const useAnnulusImage=(proposal,current)=>useExactPhotoImage(proposal,current,annulusTarget,'straight circular band');
+  const insertAnnulus=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!annulusTarget?.valid||!framingCurrent(annulusTarget))throw Error('The circular artwork or drawing changed. Open Unwrap circular band again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([annulusTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The straight band was not inserted. The original is kept; check source and available storage.');
+  };
+  const useAtlasImage=(proposal,current)=>useExactPhotoImage(proposal,current,atlasTarget,'texture atlas');
+  const insertAtlas=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!atlasTarget?.valid||!framingCurrent(atlasTarget))throw Error('The atlas photos or drawing changed. Open Texture atlas again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([atlasTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current),customData:{nobleAtlas:JSON.parse(JSON.stringify(proposal.map))}};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The atlas and map were not inserted. All originals are kept; check source and available storage.');
+  };
+  const usePanoramaImage=(proposal,current)=>useExactPhotoImage(proposal,current,panoramaTarget,'panorama view');
+  const useReferenceToneImage=(proposal,current)=>useExactPhotoImage(proposal,current,referenceToneTarget,'reference tones');
+  const useNineSliceImage=(proposal,current)=>useExactPhotoImage(proposal,current,nineSliceTarget,'nine-slice artwork');
+  const useCubeLutImage=(proposal,current)=>useExactPhotoImage(proposal,current,cubeLutTarget,'Cube LUT grade');
+  const useAnaglyphImage=(proposal,current)=>useExactPhotoImage(proposal,current,anaglyphTarget,'anaglyph');
+  const useSpriteFrameImage=(proposal,current)=>useExactPhotoImage(proposal,current,spriteSliceTarget,'sprite frame');
+  const useChannelSplitImage=(proposal,current)=>useExactPhotoImage(proposal,current,channelSplitTarget,'extracted channel map');
+  const useChannelPackImage=(proposal,current)=>useExactPhotoImage(proposal,current,channelPackTarget,'channel pack');
+  const usePaletteImage=(proposal,current)=>useExactPhotoImage(proposal,current,paletteImageTarget,'palette image');
+  const useDistanceFieldImage=(proposal,current)=>useExactPhotoImage(proposal,current,distanceFieldTarget,'distance field');
+  const insertDistanceField=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!distanceFieldTarget?.valid||!framingCurrent(distanceFieldTarget))throw Error('The source photo or drawing changed. Open Distance field again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([distanceFieldTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The distance-field copy was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertPanorama=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!panoramaTarget?.valid||!framingCurrent(panoramaTarget))throw Error('The panorama or drawing changed. Open Panorama view again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([panoramaTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The panorama view was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertReferenceTone=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!referenceToneTarget?.valid||!framingCurrent(referenceToneTarget))throw Error('The source photos or drawing changed. Open Reference tones again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([referenceToneTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The reference-tone copy was not inserted. Your originals are kept; check the sources and available storage.');
+  };
+  const insertNineSlice=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!nineSliceTarget?.valid||!framingCurrent(nineSliceTarget))throw Error('The artwork or drawing changed. Open Nine-slice resize again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([nineSliceTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The nine-slice copy was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertCubeLut=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!cubeLutTarget?.valid||!framingCurrent(cubeLutTarget))throw Error('The source photo or drawing changed. Open Cube LUT again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([cubeLutTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The LUT-graded copy was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertAnaglyph=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!anaglyphTarget?.valid||!framingCurrent(anaglyphTarget))throw Error('The stereo views or drawing changed. Open Anaglyph again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([anaglyphTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The anaglyph copy was not inserted. Your originals are kept; check the sources and available storage.');
+  };
+  const insertAscii=(result,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(busyRef.current||!mounted.current||api.current!==editor||!asciiTarget?.valid||!framingCurrent(asciiTarget)||preservedDraft.current)throw Error('The photo or drawing changed. Open ASCII art again.');};current();if(!result.visible)throw Error('Only visible ASCII artwork can be inserted.');const rebuilt=asciiArtwork(result.title,result.proof);if(!rebuilt.visible)throw Error('Only visible ASCII artwork can be inserted.');if(JSON.stringify(rebuilt.plan)!==JSON.stringify(result.plan))throw Error('The ascii review changed. Preview again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState(),[,top,right]=getCommonBounds([asciiTarget.photo]),group=makeObjectId();
+    const created=convertToExcalidrawElements(rebuilt.plan.map(p=>({...p,x:p.x+right+48,y:p.y+top}))).map((e,i)=>({...e,customData:{...e.customData,...rebuilt.plan[i].customData},groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),next={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,next,editor.getFiles());current();try{publishPhotoScene(editor,elements,next,editor.getFiles());}catch(failure){if(failure?.name==='QuotaExceededError')throw Error('The ascii was not inserted. Check local storage. Original artwork kept.');throw failure;}asciiTarget.valid=false;setPanel(null);setStatus('Editable ascii chart inserted. Original kept; one Undo removes the group.');requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+  };
+  const insertStitch=(result,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(busyRef.current||!mounted.current||api.current!==editor||!stitchTarget?.valid||!framingCurrent(stitchTarget)||preservedDraft.current)throw Error('The photo or drawing changed. Open Stitch chart again.');};current();const rebuilt=stitchArtwork(result.title,result.proof,result.fabricCount);if(JSON.stringify(rebuilt.plan)!==JSON.stringify(result.plan))throw Error('The stitch review changed. Preview again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState(),[,top,right]=getCommonBounds([stitchTarget.photo]),group=makeObjectId();
+    const created=convertToExcalidrawElements(rebuilt.plan.map(p=>({...p,x:p.x+right+48,y:p.y+top}))).map((e,i)=>({...e,customData:{...e.customData,...rebuilt.plan[i].customData},groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),next={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,next,editor.getFiles());current();try{publishPhotoScene(editor,elements,next,editor.getFiles());}catch(failure){if(failure?.name==='QuotaExceededError')throw Error('The stitch was not inserted. Check local storage. Original artwork kept.');throw failure;}stitchTarget.valid=false;setPanel(null);setStatus('Editable stitch chart inserted. Original kept; one Undo removes the chart.');requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+  };
+  const insertHalftone=(result,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(busyRef.current||!mounted.current||api.current!==editor||!halftoneTarget?.valid||!framingCurrent(halftoneTarget)||preservedDraft.current)throw Error('The photo or drawing changed. Open One-ink halftone again.');};current();const rebuilt=halftoneArtwork(result.title,result.proof);if(JSON.stringify(rebuilt.plan)!==JSON.stringify(result.plan))throw Error('The halftone review changed. Preview again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState(),[,top,right]=getCommonBounds([halftoneTarget.photo]),group=makeObjectId();
+    const created=convertToExcalidrawElements(rebuilt.plan.map(p=>({...p,x:p.x+right+48,y:p.y+top}))).map((e,i)=>({...e,customData:{...e.customData,...rebuilt.plan[i].customData},groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),next={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,next,editor.getFiles());current();try{publishPhotoScene(editor,elements,next,editor.getFiles());}catch(failure){if(failure?.name==='QuotaExceededError')throw Error('The halftone was not inserted. Check local storage. Original artwork kept.');throw failure;}halftoneTarget.valid=false;setPanel(null);setStatus('Editable one-ink halftone inserted. Original kept; one Undo removes the plate.');requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+  };
+  const insertContours=(result,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(busyRef.current||!mounted.current||api.current!==editor||!contoursTarget?.valid||!framingCurrent(contoursTarget)||preservedDraft.current)throw Error('The height artwork or drawing changed. Open Height contours again.');};current();const rebuilt=contourArtwork(result.title,result.proof);if(JSON.stringify(rebuilt.plan)!==JSON.stringify(result.plan))throw Error('The contour review changed. Preview again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState(),[,top,right]=getCommonBounds([contoursTarget.photo]),outer=makeObjectId(),groups=new Map(result.proof.levels.map(l=>[l,makeObjectId()]));
+    const created=convertToExcalidrawElements(rebuilt.plan.map(p=>({...p,x:p.x+right+48,y:p.y+top}))).map((e,i)=>{const meta=rebuilt.plan[i].customData;return{...e,...(meta?{customData:{...e.customData,...meta}}:{}),groupIds:meta?[groups.get(meta.nobleContourLevel),outer]:[outer]};}),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),next={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[outer]:true},editingGroupId:null};encodeDraft(elements,next,editor.getFiles());current();try{publishPhotoScene(editor,elements,next,editor.getFiles());}catch(failure){if(failure?.name==='QuotaExceededError')throw Error('The contour map was not inserted. Check local storage. Original artwork kept.');throw failure;}contoursTarget.valid=false;setPanel(null);setStatus('Editable height contours inserted in nested level groups. Original kept; one Undo removes the map.');requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+  };
+  const insertFrequencyKit=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!frequencyTarget?.valid||!framingCurrent(frequencyTarget)||preservedDraft.current)throw Error('The artwork or drawing changed. Open Frequency separation again.');};current();if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{if(proposal.kind!=='split'||!Array.isArray(proposal.blobs)||proposal.blobs.length!==2)throw Error('Preview both frequency layers again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(e=>!e.isDeleted).length+proposal.blobs.length*2>MAX_ELEMENTS)throw Error('Remove objects before inserting both kit PNGs and labels.');const copies=[];for(let i=0;i<proposal.blobs.length;i++){const file=await prepareExactPhotoCopy(proposal.blobs[i],()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==proposal.width||info.height!==proposal.height)throw Error('A frequency-layer pixel grid changed. Preview again.');copies.push(file);}current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(f=>[f.id,f]))),[,top,right]=getCommonBounds([frequencyTarget.photo]),side=Math.min(240,Math.max(80,state.width*.4)),group=makeObjectId(),created=restoreElements(frequencyLayerPlan(proposal,copies.map(f=>f.id),frequencyTarget.photo.fileId,right+32,top,side).map(e=>({...e,id:makeObjectId()})),null).map(e=>({...e,groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus(`${copies.length} exact kit PNGs and labels inserted. Original kept; one Undo removes the set.`);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The frequency kit was not inserted. Check storage or remove artwork. Original kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertBarrier=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!barrierTarget?.valid||!framingCurrent(barrierTarget)||preservedDraft.current)throw Error('The artwork or drawing changed. Open Barrier-grid kit again.');};current();if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{const settings=barrierSettings(proposal.width,proposal.height,proposal.columns,proposal.rows,proposal.margin,proposal.gap,proposal.stripe,proposal.axis);if(!Array.isArray(proposal.blobs)||proposal.blobs.length!==2||settings.frameWidth!==proposal.frameWidth||settings.frameHeight!==proposal.frameHeight)throw Error('Preview the complete barrier kit again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(e=>!e.isDeleted).length+proposal.blobs.length*2>MAX_ELEMENTS)throw Error('Remove objects before inserting both kit PNGs and labels.');const copies=[];for(let i=0;i<proposal.blobs.length;i++){const file=await prepareExactPhotoCopy(proposal.blobs[i],()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==settings.frameWidth||info.height!==settings.frameHeight)throw Error('A barrier-kit pixel grid changed. Preview again.');copies.push(file);}current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(f=>[f.id,f]))),[,top,right]=getCommonBounds([barrierTarget.photo]),side=Math.min(240,Math.max(80,state.width*.4)),group=makeObjectId(),created=restoreElements(barrierFramePlan(settings,copies.map(f=>f.id),right+32,top,side).map(e=>({...e,id:makeObjectId()})),null).map(e=>({...e,groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus(`${copies.length} exact kit PNGs and labels inserted. Original kept; one Undo removes the set.`);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The barrier kit was not inserted. Check storage or remove artwork. Original kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertVision=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!visionTarget?.valid||!framingCurrent(visionTarget)||preservedDraft.current)throw Error('The artwork or drawing changed. Open Color-vision proof sheet again.');};current();if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{visionSettings(proposal.width,proposal.height,proposal.backdrop);if(!Array.isArray(proposal.blobs)||proposal.blobs.length!==4||proposal.convention!==VISION_CONVENTION||proposal.severity!==1||JSON.stringify(proposal.views?.map(view=>view.id))!==JSON.stringify(VISION_MODELS.map(view=>view.id)))throw Error('Preview the complete color-vision sheet again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(e=>!e.isDeleted).length+proposal.blobs.length*2>MAX_ELEMENTS)throw Error('Remove objects before inserting all color-vision views and labels.');const copies=[];for(let i=0;i<proposal.blobs.length;i++){const file=await prepareExactPhotoCopy(proposal.blobs[i],()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==proposal.width||info.height!==proposal.height)throw Error('A color-vision pixel grid changed. Preview again.');copies.push(file);}current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(f=>[f.id,f]))),[,top,right]=getCommonBounds([visionTarget.photo]),side=Math.min(240,Math.max(80,state.width*.4)),group=makeObjectId(),created=restoreElements(visionSheetPlan(proposal.width,proposal.height,proposal.backdrop,copies.map(f=>f.id),right+32,top).map(e=>e.type==='image'?{...e,customData:{...e.customData,nobleVision:{...e.customData.nobleVision,sourceFile:visionTarget.photo.fileId}}}:e).map(e=>({...e,id:makeObjectId()})),null).map(e=>({...e,groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus(`${copies.length} exact color-vision views and labels inserted. Original kept; one Undo removes the set.`);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The color-vision views were not inserted. Check storage or remove artwork. Original kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertCube=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!cubeTarget?.valid||!framingCurrent(cubeTarget)||preservedDraft.current)throw Error('The artwork or drawing changed. Open Cube faces again.');};current();if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{if(!Array.isArray(proposal.blobs)||proposal.blobs.length!==6||!Number.isInteger(proposal.size)||proposal.size<8||proposal.size>384||proposal.convention!==CUBE_CONVENTION||JSON.stringify(proposal.faces?.map(f=>f.id))!==JSON.stringify(CUBE_FACES.map(f=>f.id)))throw Error('Preview the complete cube set again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(e=>!e.isDeleted).length+proposal.blobs.length*2>MAX_ELEMENTS)throw Error('Remove objects before inserting all cube faces and labels.');const copies=[];for(let i=0;i<proposal.blobs.length;i++){const file=await prepareExactPhotoCopy(proposal.blobs[i],()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==proposal.size||info.height!==proposal.size)throw Error('A cube-face pixel grid changed. Preview again.');copies.push(file);}current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(f=>[f.id,f]))),[,top,right]=getCommonBounds([cubeTarget.photo]),side=Math.min(240,Math.max(80,state.width*.4)),group=makeObjectId(),created=restoreElements(cubeFramePlan(proposal.size,copies.map(f=>f.id),right+32,top,side).map(e=>({...e,id:makeObjectId()})),null).map(e=>({...e,groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus(`${copies.length} exact cube faces and labels inserted. Original kept; one Undo removes the set.`);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The cube faces were not inserted. Check storage or remove artwork. Original kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertIslands=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!islandsTarget?.valid||!framingCurrent(islandsTarget)||preservedDraft.current)throw Error('The artwork or drawing changed. Open Separate transparent items again.');};current();if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{if(!Array.isArray(proposal.blobs)||proposal.blobs.length<2||proposal.blobs.length>6||proposal.frames?.length!==proposal.blobs.length)throw Error('Preview the complete item set again.');const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(e=>!e.isDeleted).length+proposal.blobs.length*2>MAX_ELEMENTS)throw Error('Remove objects before inserting all items and labels.');const copies=[];for(let i=0;i<proposal.blobs.length;i++){const file=await prepareExactPhotoCopy(proposal.blobs[i],()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==proposal.frames[i].width||info.height!==proposal.frames[i].height)throw Error('An item pixel grid changed. Preview again.');copies.push(file);}current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(f=>[f.id,f]))),[,top,right]=getCommonBounds([islandsTarget.photo]),side=Math.min(240,Math.max(80,state.width*.4)),group=makeObjectId(),created=restoreElements(islandFramePlan(proposal.frames,copies.map(f=>f.id),right+32,top,side).map(e=>({...e,id:makeObjectId()})),null).map(e=>({...e,groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus(`${copies.length} exact separated items and labels inserted. Original kept; one Undo removes the set.`);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The separated items were not inserted. Check storage or remove artwork. Original kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertSpriteFrames=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!spriteSliceTarget?.valid||!framingCurrent(spriteSliceTarget)||preservedDraft.current)throw Error('The sheet or drawing changed. Open Slice sprite sheet again.');};current();
+    if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{
+      if(!Array.isArray(proposal.blobs)||proposal.blobs.length<2||proposal.blobs.length>6)throw Error('Preview a complete set of 2–6 sprite frames again.');
+      const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(element=>!element.isDeleted).length+proposal.blobs.length*2>MAX_ELEMENTS)throw Error('Remove objects before inserting the complete frame set and labels.');
+      const copies=[];for(const blob of proposal.blobs){const file=await prepareExactPhotoCopy(blob,()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==proposal.width||info.height!==proposal.height)throw Error('A sprite-frame pixel grid changed. Preview again.');copies.push(file);}
+      current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(file=>[file.id,file]))),[,top,right]=getCommonBounds([spriteSliceTarget.photo]),side=Math.min(240,Math.max(80,state.width*.4)),group=makeObjectId();
+      const created=restoreElements(spriteFramePlan(copies.map(file=>file.id),proposal.width,proposal.height,right+32,top,side).map(element=>({...element,id:makeObjectId()})),null).map(element=>({...element,groupIds:[group]}));
+      const elements=[...previous,...created].map(element=>newElementWith(element,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(element=>[element.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};
+      encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus(`${copies.length} exact sprite frames and labels inserted together. Original sheet kept; one Undo removes the set.`);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The sprite frames were not inserted. Check available storage or remove artwork, then try again. Your sheet is kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertChannelSplit=async(proposal,requireCurrent)=>{
+    const editor=api.current,current=()=>{requireCurrent();if(!mounted.current||api.current!==editor||!channelSplitTarget?.valid||!framingCurrent(channelSplitTarget)||preservedDraft.current)throw Error('The source texture or drawing changed. Open Extract channels again.');};current();
+    if(!beginBusy())throw Error('Finish the current drawing operation first.');
+    try{
+      if(!Array.isArray(proposal.blobs)||proposal.blobs.length!==3)throw Error('Preview all three channel maps again.');
+      const previous=editor.getSceneElementsIncludingDeleted(),state=editor.getAppState();if(previous.filter(element=>!element.isDeleted).length+6>MAX_ELEMENTS)throw Error('Remove objects before inserting all three maps and labels.');
+      const copies=[];for(const blob of proposal.blobs){const file=await prepareExactPhotoCopy(blob,()=>true,current);current();const info=photoBytes(file.dataURL);if(info.width!==channelSplitTarget.width||info.height!==channelSplitTarget.height)throw Error('A channel-map pixel grid changed. Preview again.');copies.push(file);}
+      current();const files=mergePhotoFiles(editor.getFiles(),Object.fromEntries(copies.map(file=>[file.id,file]))),[,top,right]=getCommonBounds([channelSplitTarget.photo]),side=Math.min(480,Math.max(80,state.width*.75)),group=makeObjectId();
+      const created=restoreElements(channelSplitPlan(copies.map(file=>file.id),channelSplitTarget.width,channelSplitTarget.height,right+32,top,side).map(element=>({...element,id:makeObjectId()})),null).map(element=>({...element,groupIds:[group]}));
+      const elements=[...previous,...created].map(element=>newElementWith(element,{},true)),nextState={...state,selectedElementIds:Object.fromEntries(created.map(element=>[element.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};
+      encodeDraft(elements,nextState,files);current();publishPhotoScene(editor,elements,nextState,files);setPanel(null);setStatus('Three exact channel maps and labels inserted together. Original kept; one Undo removes the set.');
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+    }catch(failure){if(failure?.name==='QuotaExceededError'||failure?.message==='Drawing draft is too large.')throw Error('The channel maps were not inserted. Check available storage or remove artwork, then try again. Your original is kept.');throw failure;}finally{finishBusy();}
+  };
+  const insertChannelPack=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!channelPackTarget?.valid||!framingCurrent(channelPackTarget))throw Error('The channel maps or drawing changed. Open Channel pack again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([channelPackTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The channel-pack copy was not inserted. Your originals are kept; check the sources and available storage.');
+  };
+  const insertPaletteImage=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!paletteImageTarget?.valid||!framingCurrent(paletteImageTarget))throw Error('The source photo or drawing changed. Open Palette image again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([paletteImageTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The palette image copy was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertNormalMap=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!normalMapTarget?.valid||!framingCurrent(normalMapTarget))throw Error('The source photo or drawing changed. Open Normal map again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([normalMapTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareExactPhotoCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The normal-map copy was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertSeamless=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!seamlessTarget?.valid||!framingCurrent(seamlessTarget))throw Error('The source photo or drawing changed. Open Texture tile again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([seamlessTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy,prepare:(blob,accepts)=>prepareSeamlessCopy(blob,accepts,current)};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The texture tile was not inserted. Your original is kept; check the source and available storage.');
+  };
+  const insertDespeckle=async(proposal,requireCurrent)=>{
+    const current=()=>{requireCurrent();if(!despeckleTarget?.valid||!framingCurrent(despeckleTarget))throw Error('The source photo or drawing changed. Open Speckle cleanup again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
+    const [,top,right]=getCommonBounds([despeckleTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
+    if(!await addPhoto(proposal.blob,false,{x:right+32,y:top},ownership))throw Error('The cleaned copy was not inserted. Your original is kept; check the source and available storage.');
+  };
   const insertClone=async(proposal,requireCurrent)=>{
     const current=()=>{requireCurrent();if(!cloneTarget?.valid||!framingCurrent(cloneTarget))throw Error('The source photo or drawing changed. Open Clone repair again.');};current();if(busyRef.current)throw Error('Finish the current drawing operation first.');
     const [,top,right]=getCommonBounds([cloneTarget.photo]);photoTarget.current=null;const ownership={current,owns:()=>{try{current();return true;}catch{return false;}},finish:finishBusy};
@@ -495,14 +1112,14 @@ function Editor() {
           width, height, angle: 0, opacity: 100, strokeColor: 'transparent', backgroundColor: 'transparent', strokeWidth: 0, roughness: 0,
           fileId: file.id, scale: [1, 1], status: 'saved', crop: null, groupIds: [], boundElements: null, link: null, locked: false }], null);
         const changes = target ? replacementPatch(previous, target.id, file.id, info.width, info.height) : null;
-        const image = target ? newElementWith(replaceablePhoto(previous, target.id), changes) : added;
+        const image = target ? newElementWith(replaceablePhoto(previous, target.id), changes) : ownership?.customData ? newElementWith(added,{customData:ownership.customData}) : added;
         const elements = (target ? previous.map(element => element.id === target.id ? image : element) : [...previous, image]).map(element => newElementWith(element, {}, true));
         try { encodeDraft(elements, state, files); }
         catch (failure) { if (failure.message === 'Drawing draft is too large.') return false; throw failure; }
         proposed = { elements, image, files, info }; return true;
       };
       setStatus('Preparing a local photo copy…');
-      if (native) await prepareNativePhoto(source, accepts); else await prepareLocalPhoto(source, accepts);
+      if (ownership?.prepare) await ownership.prepare(source, accepts); else if (native) await prepareNativePhoto(source, accepts); else await prepareLocalPhoto(source, accepts);
       if (!mounted.current || api.current !== editor || encodeDraft(...scene()) !== original) throw Error('The drawing changed. Add the photo again.');
       ownership?.current();
       publishPhotoScene(editor, proposed.elements, { ...state, selectedElementIds: { [objectId]: true } }, proposed.files);
@@ -702,6 +1319,22 @@ function Editor() {
       setStatus('Editable copies created. Each object can be edited independently; Undo removes this repeat.');
     } catch (failure) { error(failure); }
   };
+  const capturePictureSource=()=>{if(!mounted.current||!api.current||busyRef.current||resetPending.current||preservedDraft.current)throw Error('Wait for the drawing to be ready.');if(pictureOwner.current)pictureOwner.current.valid=false;const source={editor:api.current,snapshot:encodeDraft(...scene()),valid:true};pictureOwner.current=source;return source;};
+  const pictureCurrent=source=>{try{return Boolean(source?.valid&&pictureOwner.current===source&&mounted.current&&api.current===source.editor&&encodeDraft(...scene())===source.snapshot);}catch{return false;}};
+  const captureJigsawSource=()=>{if(!mounted.current||!api.current||busyRef.current||resetPending.current||preservedDraft.current)throw Error('Wait for the drawing to be ready.');if(jigsawOwner.current)jigsawOwner.current.valid=false;const source={editor:api.current,snapshot:encodeDraft(...scene()),valid:true};jigsawOwner.current=source;return source;};
+  const captureBoxNetSource=()=>{if(!mounted.current||!api.current||busyRef.current||resetPending.current||preservedDraft.current)throw Error('Wait for the drawing to be ready.');if(boxNetOwner.current)boxNetOwner.current.valid=false;const source={editor:api.current,snapshot:encodeDraft(...scene()),valid:true};boxNetOwner.current=source;return source;};
+  const jigsawCurrent=source=>{try{return Boolean(source?.valid&&jigsawOwner.current===source&&mounted.current&&api.current===source.editor&&encodeDraft(...scene())===source.snapshot);}catch{return false;}};
+  const boxNetCurrent=source=>{try{return Boolean(source?.valid&&boxNetOwner.current===source&&mounted.current&&api.current===source.editor&&encodeDraft(...scene())===source.snapshot);}catch{return false;}};
+  const captureMazeSource=()=>{if(!mounted.current||!api.current||busyRef.current||resetPending.current||preservedDraft.current)throw Error('Wait for the drawing to be ready.');if(mazeOwner.current)mazeOwner.current.valid=false;const source={editor:api.current,snapshot:encodeDraft(...scene()),valid:true};mazeOwner.current=source;return source;};
+  const mazeCurrent=source=>{try{return Boolean(source?.valid&&mazeOwner.current===source&&mounted.current&&api.current===source.editor&&encodeDraft(...scene())===source.snapshot);}catch{return false;}};
+  const insertReviewedWorksheet=(result,source,isCurrent,rebuild,label)=>{
+    const current=()=>{if(busyRef.current||!isCurrent(source))throw Error('The drawing changed. Preview the worksheet again.');};current();const rebuilt=rebuild(result);if(JSON.stringify(result.plan)!==JSON.stringify(rebuilt.plan))throw Error('The worksheet preview changed. Preview again.');const editor=api.current,previous=editor.getSceneElementsIncludingDeleted(),visible=previous.filter(e=>!e.isDeleted&&e.opacity!==0&&!e.customData?.nobleHidden),bounds=visible.length?getCommonBounds(visible):[0,0,-48,0],group=makeObjectId();
+    const created=convertToExcalidrawElements(rebuilt.plan.map(shape=>({...shape,x:shape.x+bounds[2]+48,y:shape.y+bounds[1]}))).map(e=>({...e,groupIds:[group]})),elements=[...previous,...created].map(e=>newElementWith(e,{},true)),state={...editor.getAppState(),selectedElementIds:Object.fromEntries(created.map(e=>[e.id,true])),selectedGroupIds:{[group]:true},editingGroupId:null};encodeDraft(elements,state,editor.getFiles());current();try{publishPhotoScene(editor,elements,state,editor.getFiles());}catch(failure){if(failure.name==='QuotaExceededError')throw Error(`Not enough local storage for the ${label}. Existing artwork is kept.`);throw failure;}source.valid=false;setPanel(null);setStatus(`Editable ${label} inserted. Original artwork kept; one Undo removes the new group.`);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(mounted.current&&api.current===editor)editor.scrollToContent(created,{fitToViewport:true,viewportZoomFactor:.85,canvasOffsets:{top:80,bottom:100,left:24,right:48}});}));
+  };
+  const insertJigsaw=(result,source)=>insertReviewedWorksheet(result,source,jigsawCurrent,r=>jigsawArtwork(r.options),'jigsaw guide');
+  const insertBoxNet=(result,source)=>insertReviewedWorksheet(result,source,boxNetCurrent,r=>boxNetArtwork(r.options),'box net');
+  const insertMaze=(result,source)=>insertReviewedWorksheet(result,source,mazeCurrent,r=>mazeWorksheet(r.options),'maze worksheet');
+  const insertPicture=(result,source)=>insertReviewedWorksheet(result,source,pictureCurrent,r=>pictureWorksheet(r.options,r.proof),'picture-logic worksheet');
   const insertCloud = skeleton => {
     const state=api.current.getAppState(), previous=api.current.getSceneElementsIncludingDeleted();
     const x=state.width/2/state.zoom.value-state.scrollX-480,y=state.height/2/state.zoom.value-state.scrollY-320;
@@ -712,11 +1345,11 @@ function Editor() {
   };
   const insertLayout = kind => {
     try {
-      const skeleton = kind === 'starter' ? starterPlan(starterStyle, starterHeadline, starterDetails, starterSignoff) : kind === 'table' ? tablePlan(tableTitle, tableRows) : kind === 'qr' ? qrPlan(qrText, qrCaption) : kind === 'barcode' ? barcodePlan(barcodeText, barcodeCaption) : kind === 'dependencies' ? dependencyPlan(dependencyTitle, dependencyRows) : kind === 'palette' ? palettePlan(api.current.getSceneElements(), paletteTitle) : kind === 'chart' ? chartPlan(layoutTitle, chartRows) : kind === 'calendar' ? calendarPlan(calendarMonth, mondayFirst) : storyboardPlan(storyTitle, storyBriefs);
+      const skeleton = kind === 'schedule' ? schedulePlan(scheduleTitle, scheduleRows) : kind === 'starter' ? starterPlan(starterStyle, starterHeadline, starterDetails, starterSignoff) : kind === 'table' ? tablePlan(tableTitle, tableRows) : kind === 'qr' ? qrPlan(qrText, qrCaption) : kind === 'barcode' ? barcodePlan(barcodeText, barcodeCaption) : kind === 'dependencies' ? dependencyPlan(dependencyTitle, dependencyRows) : kind === 'palette' ? palettePlan(api.current.getSceneElements(), paletteTitle) : kind === 'chart' ? chartPlan(layoutTitle, chartRows) : kind === 'calendar' ? calendarPlan(calendarMonth, mondayFirst) : storyboardPlan(storyTitle, storyBriefs);
       const state = api.current.getAppState(), previous = api.current.getSceneElementsIncludingDeleted();
       const x = state.width / 2 / state.zoom.value - state.scrollX, y = state.height / 2 / state.zoom.value - state.scrollY;
       let created = convertToExcalidrawElements(skeleton.map(shape => ({ ...shape, x: shape.x + x, y: shape.y + y })));
-      if (kind === 'qr' || kind === 'barcode' || kind === 'starter') {
+      if (kind === 'qr' || kind === 'barcode' || kind === 'starter' || kind === 'schedule') {
         const group = makeObjectId();
         created = created.map(element => ({ ...element, groupIds: [group] }));
       }
@@ -1012,14 +1645,18 @@ function Editor() {
         initialData={restored || { appState: { viewBackgroundColor: '#ffffff', currentItemStrokeColor: '#111111', currentItemFontFamily: 2 } }}
         UIOptions={{ tools: { image: false }, canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false, clearCanvas: false } }}
         validateEmbeddable={false} onLinkOpen={(_, event) => event.preventDefault()} onPaste={() => false}
-        onChange={(elements, state, files) => { if (resetPending.current) return; if(cutoutOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cutoutOwner.current.snapshot)cutoutOwner.current.valid=false;}catch{cutoutOwner.current.valid=false;}} if(surfaceOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==surfaceOwner.current.snapshot)surfaceOwner.current.valid=false;}catch{surfaceOwner.current.valid=false;}} if(dimensionOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==dimensionOwner.current.snapshot)dimensionOwner.current.valid=false;}catch{dimensionOwner.current.valid=false;}} if(cloneOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cloneOwner.current.snapshot)cloneOwner.current.valid=false;}catch{cloneOwner.current.valid=false;}} setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
+        onChange={(elements, state, files) => { if (resetPending.current) return; if(frequencyOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==frequencyOwner.current.snapshot)frequencyOwner.current.valid=false;}catch{frequencyOwner.current.valid=false;}} if(barrierOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==barrierOwner.current.snapshot)barrierOwner.current.valid=false;}catch{barrierOwner.current.valid=false;}} if(stereogramOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==stereogramOwner.current.snapshot)stereogramOwner.current.valid=false;}catch{stereogramOwner.current.valid=false;}} if(gradientOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==gradientOwner.current.snapshot)gradientOwner.current.valid=false;}catch{gradientOwner.current.valid=false;}} if(carveOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==carveOwner.current.snapshot)carveOwner.current.valid=false;}catch{carveOwner.current.valid=false;}} if(visionOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==visionOwner.current.snapshot)visionOwner.current.valid=false;}catch{visionOwner.current.valid=false;}} if(cubeOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cubeOwner.current.snapshot)cubeOwner.current.valid=false;}catch{cubeOwner.current.valid=false;}} if(documentOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==documentOwner.current.snapshot)documentOwner.current.valid=false;}catch{documentOwner.current.valid=false;}} if(registrationOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==registrationOwner.current.snapshot)registrationOwner.current.valid=false;}catch{registrationOwner.current.valid=false;}} if(radialOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==radialOwner.current.snapshot)radialOwner.current.valid=false;}catch{radialOwner.current.valid=false;}} if(relightOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==relightOwner.current.snapshot)relightOwner.current.valid=false;}catch{relightOwner.current.valid=false;}} if(chromaOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==chromaOwner.current.snapshot)chromaOwner.current.valid=false;}catch{chromaOwner.current.valid=false;}} if(blendOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==blendOwner.current.snapshot)blendOwner.current.valid=false;}catch{blendOwner.current.valid=false;}} if(asciiOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==asciiOwner.current.snapshot)asciiOwner.current.valid=false;}catch{asciiOwner.current.valid=false;}} if(stitchOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==stitchOwner.current.snapshot)stitchOwner.current.valid=false;}catch{stitchOwner.current.valid=false;}} if(halftoneOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==halftoneOwner.current.snapshot)halftoneOwner.current.valid=false;}catch{halftoneOwner.current.valid=false;}} if(jigsawOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==jigsawOwner.current.snapshot)jigsawOwner.current.valid=false;}catch{jigsawOwner.current.valid=false;}} if(boxNetOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==boxNetOwner.current.snapshot)boxNetOwner.current.valid=false;}catch{boxNetOwner.current.valid=false;}} if(contoursOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==contoursOwner.current.snapshot)contoursOwner.current.valid=false;}catch{contoursOwner.current.valid=false;}} if(islandsOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==islandsOwner.current.snapshot)islandsOwner.current.valid=false;}catch{islandsOwner.current.valid=false;}} if(pictureOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==pictureOwner.current.snapshot)pictureOwner.current.valid=false;}catch{pictureOwner.current.valid=false;}} if(mazeOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==mazeOwner.current.snapshot)mazeOwner.current.valid=false;}catch{mazeOwner.current.valid=false;}} if(annulusOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==annulusOwner.current.snapshot)annulusOwner.current.valid=false;}catch{annulusOwner.current.valid=false;}} if(atlasOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==atlasOwner.current.snapshot)atlasOwner.current.valid=false;}catch{atlasOwner.current.valid=false;}} if(cutoutOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cutoutOwner.current.snapshot)cutoutOwner.current.valid=false;}catch{cutoutOwner.current.valid=false;}} if(surfaceOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==surfaceOwner.current.snapshot)surfaceOwner.current.valid=false;}catch{surfaceOwner.current.valid=false;}} if(dimensionOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==dimensionOwner.current.snapshot)dimensionOwner.current.valid=false;}catch{dimensionOwner.current.valid=false;}} if(panoramaOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==panoramaOwner.current.snapshot)panoramaOwner.current.valid=false;}catch{panoramaOwner.current.valid=false;}} if(referenceToneOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==referenceToneOwner.current.snapshot)referenceToneOwner.current.valid=false;}catch{referenceToneOwner.current.valid=false;}} if(nineSliceOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==nineSliceOwner.current.snapshot)nineSliceOwner.current.valid=false;}catch{nineSliceOwner.current.valid=false;}} if(cubeLutOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cubeLutOwner.current.snapshot)cubeLutOwner.current.valid=false;}catch{cubeLutOwner.current.valid=false;}} if(anaglyphOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==anaglyphOwner.current.snapshot)anaglyphOwner.current.valid=false;}catch{anaglyphOwner.current.valid=false;}} if(spriteSliceOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==spriteSliceOwner.current.snapshot)spriteSliceOwner.current.valid=false;}catch{spriteSliceOwner.current.valid=false;}} if(channelSplitOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==channelSplitOwner.current.snapshot)channelSplitOwner.current.valid=false;}catch{channelSplitOwner.current.valid=false;}} if(channelPackOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==channelPackOwner.current.snapshot)channelPackOwner.current.valid=false;}catch{channelPackOwner.current.valid=false;}} if(paletteImageOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==paletteImageOwner.current.snapshot)paletteImageOwner.current.valid=false;}catch{paletteImageOwner.current.valid=false;}} if(distanceFieldOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==distanceFieldOwner.current.snapshot)distanceFieldOwner.current.valid=false;}catch{distanceFieldOwner.current.valid=false;}} if(normalMapOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==normalMapOwner.current.snapshot)normalMapOwner.current.valid=false;}catch{normalMapOwner.current.valid=false;}} if(seamlessOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==seamlessOwner.current.snapshot)seamlessOwner.current.valid=false;}catch{seamlessOwner.current.valid=false;}} if(displacementOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==displacementOwner.current.snapshot)displacementOwner.current.valid=false;}catch{displacementOwner.current.valid=false;}} if(luminanceMaskOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==luminanceMaskOwner.current.snapshot)luminanceMaskOwner.current.valid=false;}catch{luminanceMaskOwner.current.valid=false;}} if(redactionOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==redactionOwner.current.snapshot)redactionOwner.current.valid=false;}catch{redactionOwner.current.valid=false;}} if(despeckleOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==despeckleOwner.current.snapshot)despeckleOwner.current.valid=false;}catch{despeckleOwner.current.valid=false;}} if(cloneOwner.current?.valid){try{if(encodeDraft(elements,state,files)!==cloneOwner.current.snapshot)cloneOwner.current.valid=false;}catch{cloneOwner.current.valid=false;}} setHasArtwork(elements.some(element => !element.isDeleted)); setReady(Boolean(api.current) && !state.isLoading); invalidatePreparedSvg(elements, files); latest.current = [elements, state, files]; if (panel === 'objects' || panel === 'arrange') { const next = elements.filter(element => !element.isDeleted); setObjects(current => current.length === next.length && current.every((element, index) => element === next[index]) ? current : next); } clearTimeout(timer.current); timer.current = setTimeout(() => save(false), 700); }}>
         <MainMenu><MainMenu.ItemCustom><small>Offline creation powered by Excalidraw.<br/>Open-source and font notices are bundled.</small></MainMenu.ItemCustom></MainMenu>
       </Excalidraw>
     </section>
-    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (vectorFileOwner.current) event.currentTarget.querySelector('button[data-vector-file-cancel="true"]')?.click(); if(panel==='cutout')event.currentTarget.querySelector('button[data-photo-cutout-cancel="true"]')?.click(); if(panel==='surface')event.currentTarget.querySelector('button[data-surface-mockup-cancel="true"]')?.click(); if(panel==='clone')event.currentTarget.querySelector('button[data-clone-repair-cancel="true"]')?.click(); closePanel(); } }} aria-label={`${panel} panel`} onClickCapture={event => { const vectorCancel = vectorFileOwner.current && event.target instanceof Element && event.target.closest('button[data-vector-file-cancel="true"]'); const cutoutCancel=panel==='cutout'&&event.target instanceof Element&&event.target.closest('button[data-photo-cutout-cancel="true"]'); const surfaceCancel=panel==='surface'&&event.target instanceof Element&&event.target.closest('button[data-surface-mockup-cancel="true"]'); const cloneCancel=panel==='clone'&&event.target instanceof Element&&event.target.closest('button[data-clone-repair-cancel="true"]'); if (busyRef.current && !vectorCancel && !cutoutCancel && !surfaceCancel && !cloneCancel) { event.preventDefault(); event.stopPropagation(); } }}>
-      <div className="panel-title"><h2 ref={panelHeading} tabIndex={-1}>{panel[0].toUpperCase() + panel.slice(1)}</h2><button disabled={busy} onClick={closePanel}>Close panel</button></div>
+    {panel && <section key={panel} id="workspace-panel" className="workspace-panel" onKeyDownCapture={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (vectorFileOwner.current) event.currentTarget.querySelector('button[data-vector-file-cancel="true"]')?.click(); if(panel==='cutout')event.currentTarget.querySelector('button[data-photo-cutout-cancel="true"]')?.click(); if(panel==='surface')event.currentTarget.querySelector('button[data-surface-mockup-cancel="true"]')?.click(); if(panel==='clone')event.currentTarget.querySelector('button[data-clone-repair-cancel="true"]')?.click(); if(panel==='despeckle')event.currentTarget.querySelector('button[data-despeckle-cancel="true"]')?.click(); if(panel==='redaction')event.currentTarget.querySelector('button[data-redaction-cancel="true"]')?.click(); if(panel==='luminanceMask')event.currentTarget.querySelector('button[data-luminance-mask-cancel="true"]')?.click(); if(panel==='displacement')event.currentTarget.querySelector('button[data-displacement-cancel="true"]')?.click(); if(panel==='seamless')event.currentTarget.querySelector('button[data-seamless-cancel="true"]')?.click(); if(panel==='normalMap')event.currentTarget.querySelector('button[data-normal-map-cancel="true"]')?.click(); if(panel==='distanceField')event.currentTarget.querySelector('button[data-distance-field-cancel="true"]')?.click(); if(panel==='frequency')event.currentTarget.querySelector('button[data-frequency-cancel="true"]')?.click(); if(panel==='barrier')event.currentTarget.querySelector('button[data-barrier-cancel="true"]')?.click(); if(panel==='stereogram')event.currentTarget.querySelector('button[data-stereogram-cancel="true"]')?.click(); if(panel==='gradient')event.currentTarget.querySelector('button[data-gradient-cancel="true"]')?.click(); if(panel==='carve')event.currentTarget.querySelector('button[data-carve-cancel="true"]')?.click(); if(panel==='vision')event.currentTarget.querySelector('button[data-vision-cancel="true"]')?.click(); if(panel==='cube')event.currentTarget.querySelector('button[data-cube-faces-cancel="true"]')?.click(); if(panel==='document')event.currentTarget.querySelector('button[data-document-cancel="true"]')?.click(); if(panel==='registration')event.currentTarget.querySelector('button[data-registration-cancel="true"]')?.click(); if(panel==='radial')event.currentTarget.querySelector('button[data-radial-cancel="true"]')?.click(); if(panel==='relight')event.currentTarget.querySelector('button[data-relight-cancel="true"]')?.click(); if(panel==='chroma')event.currentTarget.querySelector('button[data-chroma-key-cancel="true"]')?.click(); if(panel==='blend')event.currentTarget.querySelector('button[data-photo-blend-cancel="true"]')?.click(); if(panel==='ascii')event.currentTarget.querySelector('button[data-ascii-cancel="true"]')?.click(); if(panel==='stitch')event.currentTarget.querySelector('button[data-stitch-cancel="true"]')?.click(); if(panel==='halftone')event.currentTarget.querySelector('button[data-halftone-cancel="true"]')?.click(); if(panel==='contours')event.currentTarget.querySelector('button[data-contours-cancel="true"]')?.click(); if(panel==='islands')event.currentTarget.querySelector('button[data-islands-cancel="true"]')?.click(); if(panel==='annulus')event.currentTarget.querySelector('button[data-annulus-cancel="true"]')?.click(); if(panel==='atlas')event.currentTarget.querySelector('button[data-atlas-cancel="true"]')?.click(); if(panel==='panorama')event.currentTarget.querySelector('button[data-panorama-cancel="true"]')?.click(); if(panel==='referenceTone')event.currentTarget.querySelector('button[data-reference-tone-cancel="true"]')?.click(); if(panel==='nineSlice')event.currentTarget.querySelector('button[data-nine-slice-cancel="true"]')?.click(); if(panel==='cubeLut')event.currentTarget.querySelector('button[data-cube-lut-cancel="true"]')?.click(); if(panel==='anaglyph')event.currentTarget.querySelector('button[data-anaglyph-cancel="true"]')?.click(); if(panel==='spriteSlice')event.currentTarget.querySelector('button[data-sprite-slice-cancel="true"]')?.click(); if(panel==='channelSplit')event.currentTarget.querySelector('button[data-channel-split-cancel="true"]')?.click(); if(panel==='channelPack')event.currentTarget.querySelector('button[data-channel-pack-cancel="true"]')?.click(); if(panel==='paletteImage')event.currentTarget.querySelector('button[data-palette-image-cancel="true"]')?.click(); closePanel(); } }} aria-label={panel === 'spriteSlice' ? 'slice sprite sheet panel' : panel === 'channelSplit' ? 'extract channels panel' : panel === 'channelPack' ? 'channel pack panel' : panel === 'luminanceMask' ? 'photo mask panel' : panel === 'normalMap' ? 'normal map panel' : panel === 'distanceField' ? 'distance field panel' : panel === 'paletteImage' ? 'palette image panel' : `${panel} panel`} onClickCapture={event => { const vectorCancel = vectorFileOwner.current && event.target instanceof Element && event.target.closest('button[data-vector-file-cancel="true"]'); const cutoutCancel=panel==='cutout'&&event.target instanceof Element&&event.target.closest('button[data-photo-cutout-cancel="true"]'); const surfaceCancel=panel==='surface'&&event.target instanceof Element&&event.target.closest('button[data-surface-mockup-cancel="true"]'); const cloneCancel=panel==='clone'&&event.target instanceof Element&&event.target.closest('button[data-clone-repair-cancel="true"]'); const despeckleCancel=panel==='despeckle'&&event.target instanceof Element&&event.target.closest('button[data-despeckle-cancel="true"]'); const redactionCancel=panel==='redaction'&&event.target instanceof Element&&event.target.closest('button[data-redaction-cancel="true"]'); const luminanceMaskCancel=panel==='luminanceMask'&&event.target instanceof Element&&event.target.closest('button[data-luminance-mask-cancel="true"]'); const displacementCancel=panel==='displacement'&&event.target instanceof Element&&event.target.closest('button[data-displacement-cancel="true"]'); const seamlessCancel=panel==='seamless'&&event.target instanceof Element&&event.target.closest('button[data-seamless-cancel="true"]'); const normalMapCancel=panel==='normalMap'&&event.target instanceof Element&&event.target.closest('button[data-normal-map-cancel="true"]'); const distanceFieldCancel=panel==='distanceField'&&event.target instanceof Element&&event.target.closest('button[data-distance-field-cancel="true"]'); const frequencyCancel=panel==='frequency'&&event.target instanceof Element&&event.target.closest('button[data-frequency-cancel="true"]'); const barrierCancel=panel==='barrier'&&event.target instanceof Element&&event.target.closest('button[data-barrier-cancel="true"]'); const stereogramCancel=panel==='stereogram'&&event.target instanceof Element&&event.target.closest('button[data-stereogram-cancel="true"]'); const gradientCancel=panel==='gradient'&&event.target instanceof Element&&event.target.closest('button[data-gradient-cancel="true"]'); const carveCancel=panel==='carve'&&event.target instanceof Element&&event.target.closest('button[data-carve-cancel="true"]'); const visionCancel=panel==='vision'&&event.target instanceof Element&&event.target.closest('button[data-vision-cancel="true"]'); const cubeCancel=panel==='cube'&&event.target instanceof Element&&event.target.closest('button[data-cube-faces-cancel="true"]'); const documentCancel=panel==='document'&&event.target instanceof Element&&event.target.closest('button[data-document-cancel="true"]'); const registrationCancel=panel==='registration'&&event.target instanceof Element&&event.target.closest('button[data-registration-cancel="true"]'); const radialCancel=panel==='radial'&&event.target instanceof Element&&event.target.closest('button[data-radial-cancel="true"]'); const relightCancel=panel==='relight'&&event.target instanceof Element&&event.target.closest('button[data-relight-cancel="true"]'); const chromaCancel=panel==='chroma'&&event.target instanceof Element&&event.target.closest('button[data-chroma-key-cancel="true"]'); const blendCancel=panel==='blend'&&event.target instanceof Element&&event.target.closest('button[data-photo-blend-cancel="true"]'); const asciiCancel=panel==='ascii'&&event.target instanceof Element&&event.target.closest('button[data-ascii-cancel="true"]'); const stitchCancel=panel==='stitch'&&event.target instanceof Element&&event.target.closest('button[data-stitch-cancel="true"]'); const halftoneCancel=panel==='halftone'&&event.target instanceof Element&&event.target.closest('button[data-halftone-cancel="true"]'); const contoursCancel=panel==='contours'&&event.target instanceof Element&&event.target.closest('button[data-contours-cancel="true"]'); const islandsCancel=panel==='islands'&&event.target instanceof Element&&event.target.closest('button[data-islands-cancel="true"]'); const annulusCancel=panel==='annulus'&&event.target instanceof Element&&event.target.closest('button[data-annulus-cancel="true"]'); const atlasCancel=panel==='atlas'&&event.target instanceof Element&&event.target.closest('button[data-atlas-cancel="true"]'); const panoramaCancel=panel==='panorama'&&event.target instanceof Element&&event.target.closest('button[data-panorama-cancel="true"]'); const referenceToneCancel=panel==='referenceTone'&&event.target instanceof Element&&event.target.closest('button[data-reference-tone-cancel="true"]'); const nineSliceCancel=panel==='nineSlice'&&event.target instanceof Element&&event.target.closest('button[data-nine-slice-cancel="true"]'); const cubeLutCancel=panel==='cubeLut'&&event.target instanceof Element&&event.target.closest('button[data-cube-lut-cancel="true"]'); const anaglyphCancel=panel==='anaglyph'&&event.target instanceof Element&&event.target.closest('button[data-anaglyph-cancel="true"]'); const spriteSliceCancel=panel==='spriteSlice'&&event.target instanceof Element&&event.target.closest('button[data-sprite-slice-cancel="true"]'); const channelSplitCancel=panel==='channelSplit'&&event.target instanceof Element&&event.target.closest('button[data-channel-split-cancel="true"]'); const channelPackCancel=panel==='channelPack'&&event.target instanceof Element&&event.target.closest('button[data-channel-pack-cancel="true"]'); const paletteImageCancel=panel==='paletteImage'&&event.target instanceof Element&&event.target.closest('button[data-palette-image-cancel="true"]'); if (busyRef.current && !frequencyCancel && !barrierCancel && !stereogramCancel && !gradientCancel && !carveCancel && !visionCancel && !cubeCancel && !documentCancel && !registrationCancel && !radialCancel && !relightCancel && !chromaCancel && !blendCancel && !asciiCancel && !stitchCancel && !halftoneCancel && !contoursCancel && !islandsCancel && !annulusCancel && !atlasCancel && !panoramaCancel && !referenceToneCancel && !nineSliceCancel && !cubeLutCancel && !anaglyphCancel && !spriteSliceCancel && !channelSplitCancel && !channelPackCancel && !paletteImageCancel && !distanceFieldCancel && !normalMapCancel && !seamlessCancel && !displacementCancel && !luminanceMaskCancel && !despeckleCancel && !redactionCancel && !vectorCancel && !cutoutCancel && !surfaceCancel && !cloneCancel) { event.preventDefault(); event.stopPropagation(); } }}>
+      <div className="panel-title"><h2 ref={panelHeading} tabIndex={-1}>{panel === 'frequency' ? 'Frequency separation' : panel === 'barrier' ? 'Barrier-grid kit' : panel === 'stereogram' ? 'Depth stereogram' : panel === 'gradient' ? 'Gradient paste' : panel === 'carve' ? 'Content-aware resize' : panel === 'vision' ? 'Color-vision proof sheet' : panel === 'cube' ? 'Cube faces' : panel === 'document' ? 'Document cleanup' : panel === 'registration' ? 'Photo registration' : panel === 'radial' ? 'Radial lens' : panel === 'relight' ? 'Normal-map relight' : panel === 'chroma' ? 'Chroma key' : panel === 'blend' ? 'Photo blend' : panel === 'ascii' ? 'ASCII art' : panel === 'stitch' ? 'Stitch chart' : panel === 'halftone' ? 'One-ink halftone' : panel === 'contours' ? 'Height contours' : panel === 'islands' ? 'Separate transparent items' : panel === 'annulus' ? 'Unwrap circular band' : panel === 'atlas' ? 'Texture atlas' : panel === 'panorama' ? 'Panorama view' : panel === 'referenceTone' ? 'Reference tones' : panel === 'nineSlice' ? 'Nine-slice resize' : panel === 'cubeLut' ? 'Cube LUT' : panel === 'spriteSlice' ? 'Slice sprite sheet' : panel === 'channelSplit' ? 'Extract channels' : panel === 'channelPack' ? 'Channel pack' : panel === 'luminanceMask' ? 'Photo mask' : panel === 'normalMap' ? 'Normal map' : panel === 'distanceField' ? 'Distance field' : panel === 'paletteImage' ? 'Palette image' : panel[0].toUpperCase() + panel.slice(1)}</h2><button disabled={busy} onClick={closePanel}>Close panel</button></div>
       {panel === 'layouts' && <><p>Choose what to make. Each result stays editable, and Undo removes one insertion.</p>
-        <div role="group" aria-label="Layout tools" className="tool-grid layout-tools">{[["starter","Starter design"],["cloud","Word cloud"],["table","Table"],["qr","QR artwork"],["barcode","Barcode label"],["dependencies","Dependency diagram"],["palette","Artwork color key"],["chart","Data chart"],["calendar","Month calendar"],["storyboard","Storyboard sheet"]].map(([key,label]) => <button key={key} aria-pressed={layoutTool === key} onClick={() => setLayoutTool(key)}>{label}</button>)}</div>
+        <div role="group" aria-label="Layout tools" className="tool-grid layout-tools">{[["starter","Starter design"],["maze","Maze worksheet"],["jigsaw","Jigsaw guide"],["boxNet","Box net"],["picture","Picture logic"],["cloud","Word cloud"],["table","Table"],["qr","QR artwork"],["barcode","Barcode label"],["dependencies","Dependency diagram"],["palette","Artwork color key"],["chart","Data chart"],["schedule","Production schedule"],["calendar","Month calendar"],["storyboard","Storyboard sheet"]].map(([key,label]) => <button key={key} aria-pressed={layoutTool === key} onClick={() => setLayoutTool(key)}>{label}</button>)}</div>
+        {layoutTool === 'picture' && <PictureLogicTool captureSource={capturePictureSource} isCurrent={pictureCurrent} onApply={insertPicture} />}
+        {layoutTool === 'jigsaw' && <JigsawTool captureSource={captureJigsawSource} isCurrent={jigsawCurrent} onApply={insertJigsaw} />}
+        {layoutTool === 'boxNet' && <BoxNetTool captureSource={captureBoxNetSource} isCurrent={boxNetCurrent} onApply={insertBoxNet} />}
+        {layoutTool === 'maze' && <MazeTool captureSource={captureMazeSource} isCurrent={mazeCurrent} onApply={insertMaze} />}
         {layoutTool === 'cloud' && <WordCloudTool captureCurrent={() => { const editor=api.current,snapshot=encodeDraft(...scene());return () => mounted.current && api.current===editor && !busyRef.current && encodeDraft(...scene())===snapshot; }} onApply={insertCloud} />}
         {layoutTool === 'starter' && <><h3>Make a design your own</h3><p>Choose a starting layout and personalize its words. Creates a grouped white card with editable text and shapes. Double-tap a text block to edit it; Ungroup lets you rearrange individual parts. Nothing is uploaded.</p><label>Starter design style<select aria-label="Starter design style" value={starterStyle} onChange={event => setStarterStyle(event.target.value)}><option value="quote">Quote card</option><option value="announcement">Announcement</option><option value="flyer">Simple flyer</option></select></label><label>Design headline<input maxLength={120} value={starterHeadline} onChange={event => setStarterHeadline(event.target.value)} /></label><label>Design details<textarea aria-label="Design details" rows={3} maxLength={360} value={starterDetails} onChange={event => setStarterDetails(event.target.value)} /></label><label>Design sign-off<input maxLength={120} value={starterSignoff} onChange={event => setStarterSignoff(event.target.value)} /></label><p>Headline and sign-off: up to 60 characters each. Optional details: up to 180 characters across 3 lines. Long lines wrap. Insert keeps your existing artwork; Undo removes the new design.</p><StarterPreview style={starterStyle} headline={starterHeadline} details={starterDetails} signoff={starterSignoff} /><button onClick={() => insertLayout('starter')}>Insert editable starter design</button></>}
         {layoutTool === 'table' && <><h3>Editable comparison table</h3><p>Paste tab-separated cells from a spreadsheet, or separate cells with |. The first row is the header. Use 2–6 columns and 2–10 rows, up to 64 characters per cell. Creates editable cells and bound text; formulas and links remain plain text.</p><label>Table title<input maxLength={60} value={tableTitle} onChange={event => setTableTitle(event.target.value)} /></label><label>Table rows<textarea aria-label="Table rows" rows={5} maxLength={4096} value={tableRows} onChange={event => setTableRows(event.target.value)} /></label><button onClick={() => insertLayout('table')}>Insert editable table</button></>}
@@ -1029,12 +1666,13 @@ function Editor() {
         {layoutTool === 'palette' && <><h3>Artwork color key</h3><p>Create editable swatches and hex labels from visible stroke and fill colors, up to 32 colors. Includes object opacity; this reads assigned colors, not rendered pixels. Hidden objects are excluded.</p><label>Color-key title<input maxLength={60} value={paletteTitle} onChange={event => setPaletteTitle(event.target.value)} /></label><button onClick={() => insertLayout('palette')}>Insert editable color key</button></>}
         {layoutTool === 'chart' && <><h3>Data chart</h3><label>Chart title<input maxLength={60} value={layoutTitle} onChange={event => setLayoutTitle(event.target.value)} /></label>
         <label>Chart rows<textarea aria-label="Chart rows" rows={4} maxLength={1600} value={chartRows} onChange={event => setChartRows(event.target.value)} /></label><p>One label | number per line, up to 12 rows. Positive and negative bars use one linear scale from zero.</p><button onClick={() => insertLayout('chart')}>Insert editable chart</button></>}
+        {layoutTool === 'schedule' && <><h3>Production schedule</h3><p>Turn dated tasks into editable timeline artwork. Bar positions and lengths use inclusive calendar days; weekends count and overlapping tasks stay on separate rows.</p><label>Schedule title<input maxLength={60} value={scheduleTitle} onChange={event => setScheduleTitle(event.target.value)} /></label><label>Schedule tasks<textarea aria-label="Schedule tasks" rows={6} maxLength={4096} value={scheduleRows} onChange={event => setScheduleRows(event.target.value)} /></label><p>One task | YYYY-MM-DD | YYYY-MM-DD per line. Use 1–16 tasks, names up to 48 characters and a total span up to 366 days. Real dates from 1900–2299 are supported. Input order is kept.</p><p>This creates a static planning snapshot, with no reminders or automatic rescheduling. Ungroup to edit labels and bars. Existing artwork stays; Undo removes the new schedule.</p><button onClick={() => insertLayout('schedule')}>Insert editable production schedule</button></>}
         {layoutTool === 'calendar' && <><h3>Month calendar</h3><label>Calendar month<input type="month" min="1900-01" max="2299-12" value={calendarMonth} onChange={event => setCalendarMonth(event.target.value)} /></label><label className="check-label"><input type="checkbox" checked={mondayFirst} onChange={event => setMondayFirst(event.target.checked)} />Monday starts the week</label><button onClick={() => insertLayout('calendar')}>Insert editable calendar</button></>}
         {layoutTool === 'storyboard' && <><h3>Storyboard sheet</h3><label>Storyboard title<input maxLength={60} value={storyTitle} onChange={event => setStoryTitle(event.target.value)} /></label><label>Scene briefs<textarea aria-label="Scene briefs" rows={4} maxLength={1600} value={storyBriefs} onChange={event => setStoryBriefs(event.target.value)} /></label><p>One scene brief per line, up to 12 scenes. Empty frames are ready for your own artwork. This creates a planning sheet.</p><button onClick={() => insertLayout('storyboard')}>Insert editable storyboard</button></>}
       </>}
       {panel === 'objects' && <><TextContrastReview elements={objects} expanded={contrastOpen} onToggle={() => setContrastOpen(value => !value)} background={contrastBackground} onBackgroundChange={setContrastBackground} onLocate={locateObject} /><label>Find artwork<input type="search" maxLength={100} value={objectQuery} onChange={event => setObjectQuery(event.target.value)} placeholder="Text or object type" /></label><label>Object type<select aria-label="Object type" value={objectType} onChange={event => setObjectType(event.target.value)}><option value="all">All objects</option><option value="text">Text</option><option value="photos">Photos</option><option value="shapes">Shapes, lines & frames</option></select></label><p>{foundObjects.length} of {objects.length} objects. Searches this drawing only; hidden objects must be shown before locating.</p>{!!(objectQuery || objectType !== 'all') && <button onClick={() => { setObjectQuery(''); setObjectType('all'); }}>Clear object filters</button>}{!!objects.length && !foundObjects.length && <p>No matching objects. Try another word or clear the filters.</p>}<p>Top objects appear in front. Changes share the drawing Undo control. Replace photo fits a new local copy inside the old photo’s box, keeping its center, rotation and flip; any old crop is cleared. Originals stay unchanged.</p>{!objects.length && <p>Add a shape or text to start a composition.</p>}
         {foundObjects.map(({ element, number, hidden, label }) => <article key={element.id} className="object-row"><strong>{label}{hidden ? ' · hidden' : element.locked ? ' · locked' : ''}</strong><div className="tool-grid"><button disabled={hidden} aria-label={`Find object ${number} on canvas`} onClick={() => locateObject(element.id)}>Find on canvas</button>
-          {element.type === 'image' && <PhotoObjectTools number={number} disabled={element.locked || !!element.customData?.nobleHidden} onAction={action => ({clone:() => openClone(element.id),replace:() => choosePhoto(element.id),framing:() => openFraming(element.id),rectify:() => openRectify(element.id),surface:() => openSurface(element.id),outline:() => openCutout(element.id),wand:() => openWand(element.id),trace:() => openWand(element.id,true),mosaic:() => openMosaic(element.id)})[action]?.()} />}
+          {element.type === 'image' && <PhotoObjectTools number={number} disabled={element.locked || !!element.customData?.nobleHidden} onAction={action => ({frequency:() => openFrequency(element.id),barrier:() => openBarrier(element.id),stereogram:() => openStereogram(element.id),gradient:() => openGradient(element.id),carve:() => openCarve(element.id),vision:() => openVision(element.id),cube:() => openCube(element.id),document:() => openDocument(element.id),registration:() => openRegistration(element.id),radial:() => openRadial(element.id),relight:() => openRelight(element.id),chroma:() => openChroma(element.id),blend:() => openBlend(element.id),ascii:() => openAscii(element.id),stitch:() => openStitch(element.id),halftone:() => openHalftone(element.id),contours:() => openContours(element.id),islands:() => openIslands(element.id),annulus:() => openAnnulus(element.id),atlas:() => openAtlas(element.id),panorama:() => openPanorama(element.id),referenceTone:() => openReferenceTone(element.id),nineSlice:() => openNineSlice(element.id),cubeLut:() => openCubeLut(element.id),anaglyph:() => openAnaglyph(element.id),spriteSlice:() => openSpriteSlice(element.id),channelSplit:() => openChannelSplit(element.id),channelPack:() => openChannelPack(element.id),paletteImage:() => openPaletteImage(element.id),distanceField:() => openDistanceField(element.id),normalMap:() => openNormalMap(element.id),seamless:() => openSeamless(element.id),displacement:() => openDisplacement(element.id),luminanceMask:() => openLuminanceMask(element.id),redaction:() => openRedaction(element.id),despeckle:() => openDespeckle(element.id),clone:() => openClone(element.id),replace:() => choosePhoto(element.id),framing:() => openFraming(element.id),rectify:() => openRectify(element.id),surface:() => openSurface(element.id),outline:() => openCutout(element.id),wand:() => openWand(element.id),trace:() => openWand(element.id,true),mosaic:() => openMosaic(element.id)})[action]?.()} />}
           <button onClick={() => objectAction(element.id, 'visibility')}>{element.customData?.nobleHidden ? 'Show' : 'Hide'}</button>
           <button disabled={!!element.customData?.nobleHidden} onClick={() => objectAction(element.id, 'lock')}>{element.locked ? 'Unlock' : 'Lock'}</button>
           <button disabled={element.locked} onClick={() => objectAction(element.id, 'up')}>Forward</button><button disabled={element.locked} onClick={() => objectAction(element.id, 'down')}>Backward</button>
@@ -1043,6 +1681,42 @@ function Editor() {
       {panel === 'mosaic' && mosaicTarget && <PhotoMosaicTool target={mosaicTarget} isCurrent={() => framingCurrent(mosaicTarget)} onApply={insertMosaic} onCancel={closePanel} />}
       {panel === 'trace' && wandTarget && <PhotoWandTool target={wandTarget} mode="trace" isCurrent={() => framingCurrent(wandTarget)} onApply={insertTrace} onCancel={closePanel} />}
       {panel === 'surface' && surfaceTarget && <PhotoSurfaceMockupTool target={surfaceTarget} isCurrent={artwork => surfaceTarget.valid && framingCurrent(surfaceTarget) && !!artwork && api.current.getFiles()[artwork.photo.fileId]?.dataURL === artwork.dataURL} onApply={insertSurface} onCancel={() => {surfaceTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'displacement' && displacementTarget && <PhotoDisplacementTool target={displacementTarget} isCurrent={() => displacementTarget.valid && framingCurrent(displacementTarget)} onApply={insertDisplacement} onCancel={() => {displacementTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'luminanceMask' && luminanceMaskTarget && <PhotoLuminanceMaskTool target={luminanceMaskTarget} isCurrent={() => luminanceMaskTarget.valid && framingCurrent(luminanceMaskTarget)} onApply={insertLuminanceMask} onCancel={() => {luminanceMaskTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'redaction' && redactionTarget && <PhotoRedactionTool target={redactionTarget} isCurrent={() => redactionTarget.valid && framingCurrent(redactionTarget)} onApply={insertRedaction} onCancel={() => {redactionTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'distanceField' && distanceFieldTarget && <PhotoDistanceFieldTool target={distanceFieldTarget} isCurrent={() => distanceFieldTarget.valid && framingCurrent(distanceFieldTarget)} onApply={insertDistanceField} onUseExact={useDistanceFieldImage} onCancel={() => {distanceFieldTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'frequency' && frequencyTarget && <PhotoFrequencyTool target={frequencyTarget} isCurrent={() => frequencyTarget.valid && framingCurrent(frequencyTarget)} onApply={insertFrequency} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,frequencyTarget,'frequency layer')} onCancel={() => {frequencyTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'barrier' && barrierTarget && <PhotoBarrierTool target={barrierTarget} isCurrent={() => barrierTarget.valid && framingCurrent(barrierTarget)} onApply={insertBarrier} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,barrierTarget,'barrier kit')} onCancel={() => {barrierTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'gradient' && gradientTarget && <PhotoGradientTool target={gradientTarget} isCurrent={() => gradientTarget.valid && framingCurrent(gradientTarget)} onApply={insertGradient} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,gradientTarget,'gradient-paste photo')} onCancel={() => {gradientTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'stereogram' && stereogramTarget && <PhotoStereogramTool target={stereogramTarget} isCurrent={() => stereogramTarget.valid && framingCurrent(stereogramTarget)} onApply={insertStereogram} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,stereogramTarget,'stereogram photo')} onCancel={() => {stereogramTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'carve' && carveTarget && <PhotoCarveTool target={carveTarget} isCurrent={() => carveTarget.valid && framingCurrent(carveTarget)} onApply={insertCarve} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,carveTarget,'content-aware photo')} onCancel={() => {carveTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'vision' && visionTarget && <PhotoVisionTool target={visionTarget} isCurrent={() => visionTarget.valid && framingCurrent(visionTarget)} onApply={insertVision} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,visionTarget,'color-vision proof')} onCancel={() => {visionTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'cube' && cubeTarget && <PhotoCubeFacesTool target={cubeTarget} isCurrent={() => cubeTarget.valid && framingCurrent(cubeTarget)} onApply={insertCube} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,cubeTarget,'cube face')} onCancel={() => {cubeTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'document' && documentTarget && <PhotoDocumentTool target={documentTarget} isCurrent={() => documentTarget.valid && framingCurrent(documentTarget)} onApply={insertDocument} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,documentTarget,'document photo')} onCancel={() => {documentTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'registration' && registrationTarget && <PhotoRegistrationTool target={registrationTarget} isCurrent={() => registrationTarget.valid && framingCurrent(registrationTarget)} onApply={insertRegistration} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,registrationTarget,'registration photo')} onCancel={() => {registrationTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'radial' && radialTarget && <PhotoRadialTool target={radialTarget} isCurrent={() => radialTarget.valid && framingCurrent(radialTarget)} onApply={insertRadial} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,radialTarget,'radial photo')} onCancel={() => {radialTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'relight' && relightTarget && <PhotoRelightTool target={relightTarget} isCurrent={() => relightTarget.valid && framingCurrent(relightTarget)} onApply={insertRelight} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,relightTarget,'relit photo')} onCancel={() => {relightTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'chroma' && chromaTarget && <PhotoChromaKeyTool target={chromaTarget} isCurrent={() => chromaTarget.valid && framingCurrent(chromaTarget)} onApply={insertChroma} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,chromaTarget,'keyed photo')} onCancel={() => {chromaTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'blend' && blendTarget && <PhotoBlendTool target={blendTarget} isCurrent={() => blendTarget.valid && framingCurrent(blendTarget)} onApply={insertBlend} onUseExact={(proposal,current)=>useExactPhotoImage(proposal,current,blendTarget,'blended photo')} onCancel={() => {blendTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'ascii' && asciiTarget && <PhotoAsciiTool target={asciiTarget} isCurrent={() => asciiTarget.valid && framingCurrent(asciiTarget)} onApply={insertAscii} onCancel={() => {asciiTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'stitch' && stitchTarget && <PhotoStitchTool target={stitchTarget} isCurrent={() => stitchTarget.valid && framingCurrent(stitchTarget)} onApply={insertStitch} onCancel={() => {stitchTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'halftone' && halftoneTarget && <PhotoHalftoneTool target={halftoneTarget} isCurrent={() => halftoneTarget.valid && framingCurrent(halftoneTarget)} onApply={insertHalftone} onCancel={() => {halftoneTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'contours' && contoursTarget && <PhotoContoursTool target={contoursTarget} isCurrent={() => contoursTarget.valid && framingCurrent(contoursTarget)} onApply={insertContours} onCancel={() => {contoursTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'islands' && islandsTarget && <PhotoIslandsTool target={islandsTarget} isCurrent={() => islandsTarget.valid && framingCurrent(islandsTarget)} onApply={insertIslands} onUseExact={useIslandsImage} onCancel={() => {islandsTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'annulus' && annulusTarget && <PhotoAnnulusTool target={annulusTarget} isCurrent={() => annulusTarget.valid && framingCurrent(annulusTarget)} onApply={insertAnnulus} onUseExact={useAnnulusImage} onCancel={() => {annulusTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'atlas' && atlasTarget && <PhotoAtlasTool target={atlasTarget} isCurrent={() => atlasTarget.valid && framingCurrent(atlasTarget)} onApply={insertAtlas} onUseExact={useAtlasImage} onCancel={() => {atlasTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'panorama' && panoramaTarget && <PhotoPanoramaTool target={panoramaTarget} isCurrent={() => panoramaTarget.valid && framingCurrent(panoramaTarget)} onApply={insertPanorama} onUseExact={usePanoramaImage} onCancel={() => {panoramaTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'referenceTone' && referenceToneTarget && <PhotoReferenceToneTool target={referenceToneTarget} isCurrent={() => referenceToneTarget.valid && framingCurrent(referenceToneTarget)} onApply={insertReferenceTone} onUseExact={useReferenceToneImage} onCancel={() => {referenceToneTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'nineSlice' && nineSliceTarget && <PhotoNineSliceTool target={nineSliceTarget} isCurrent={() => nineSliceTarget.valid && framingCurrent(nineSliceTarget)} onApply={insertNineSlice} onUseExact={useNineSliceImage} onCancel={() => {nineSliceTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'cubeLut' && cubeLutTarget && <PhotoCubeLutTool target={cubeLutTarget} isCurrent={() => cubeLutTarget.valid && framingCurrent(cubeLutTarget)} onApply={insertCubeLut} onUseExact={useCubeLutImage} onCancel={() => {cubeLutTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'anaglyph' && anaglyphTarget && <PhotoAnaglyphTool target={anaglyphTarget} isCurrent={() => anaglyphTarget.valid && framingCurrent(anaglyphTarget)} onApply={insertAnaglyph} onUseExact={useAnaglyphImage} onCancel={() => {anaglyphTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'spriteSlice' && spriteSliceTarget && <PhotoSpriteSliceTool target={spriteSliceTarget} isCurrent={() => spriteSliceTarget.valid && framingCurrent(spriteSliceTarget)} onApply={insertSpriteFrames} onUseExact={useSpriteFrameImage} onCancel={() => {spriteSliceTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'channelSplit' && channelSplitTarget && <PhotoChannelSplitTool target={channelSplitTarget} isCurrent={() => channelSplitTarget.valid && framingCurrent(channelSplitTarget)} onApply={insertChannelSplit} onUseExact={useChannelSplitImage} onCancel={() => {channelSplitTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'channelPack' && channelPackTarget && <PhotoChannelPackTool target={channelPackTarget} isCurrent={() => channelPackTarget.valid && framingCurrent(channelPackTarget)} onApply={insertChannelPack} onUseExact={useChannelPackImage} onCancel={() => {channelPackTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'paletteImage' && paletteImageTarget && <PhotoPaletteImageTool target={paletteImageTarget} isCurrent={() => paletteImageTarget.valid && framingCurrent(paletteImageTarget)} onApply={insertPaletteImage} onUseExact={usePaletteImage} onCancel={() => {paletteImageTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'normalMap' && normalMapTarget && <PhotoNormalMapTool target={normalMapTarget} isCurrent={() => normalMapTarget.valid && framingCurrent(normalMapTarget)} onApply={insertNormalMap} onUseExact={useNormalMapImage} onCancel={() => {normalMapTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'seamless' && seamlessTarget && <PhotoSeamlessTool target={seamlessTarget} isCurrent={() => seamlessTarget.valid && framingCurrent(seamlessTarget)} onApply={insertSeamless} onUseExact={useSeamlessImage} onCancel={() => {seamlessTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
+      {panel === 'despeckle' && despeckleTarget && <PhotoDespeckleTool target={despeckleTarget} isCurrent={() => despeckleTarget.valid && framingCurrent(despeckleTarget)} onApply={insertDespeckle} onCancel={() => {despeckleTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
       {panel === 'clone' && cloneTarget && <PhotoCloneRepairTool target={cloneTarget} isCurrent={() => cloneTarget.valid && framingCurrent(cloneTarget)} onApply={insertClone} onCancel={() => {cloneTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
       {panel === 'cutout' && cutoutTarget && <PhotoOutlineCutoutTool target={cutoutTarget} isCurrent={() => cutoutTarget.valid && framingCurrent(cutoutTarget)} onApply={insertCutout} onCancel={() => {cutoutTarget.valid=false;setPanel(null);document.querySelector('[data-panel-trigger="objects"]')?.focus({preventScroll:true});}} />}
       {panel === 'wand' && wandTarget && <PhotoWandTool target={wandTarget} isCurrent={() => framingCurrent(wandTarget)} onApply={insertWand} onCancel={closePanel} />}

@@ -126,6 +126,23 @@ android {
         }
     }
     buildFeatures { buildConfig true }
+    // Framework-dependent JVM fixtures use a real Android sandbox; plain unit tests keep strict stubs.
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+            jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                '--add-opens=java.base/java.util=ALL-UNNAMED',
+                '--add-opens=java.base/java.io=ALL-UNNAMED',
+                '--add-opens=java.base/java.net=ALL-UNNAMED',
+                '--add-opens=java.base/java.security=ALL-UNNAMED',
+                '--add-opens=java.base/java.text=ALL-UNNAMED',
+                '--add-opens=java.base/jdk.internal.access=ALL-UNNAMED',
+                '--add-opens=java.desktop/java.awt.font=ALL-UNNAMED',
+                '--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED'
+        }
+    }
+
     sourceSets {
         // Keep the standalone Compose UI out of the React Native Kotlin compile.
         main.java.srcDir("../../../android-app/app/src/main/java/app/honorable/search")
@@ -203,7 +220,9 @@ gradle.taskGraph.whenReady { graph ->
 }
 
 dependencies {
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.17")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     // The version of react-native is set by the React Native Gradle Plugin
@@ -213,6 +232,7 @@ dependencies {
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
+    implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")
     implementation("androidx.media3:media3-common:1.11.1")

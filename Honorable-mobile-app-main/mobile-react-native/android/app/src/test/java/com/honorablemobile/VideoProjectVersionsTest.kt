@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import app.honorable.editor.PhotoPresetNamespace
 import org.junit.Assert.*
 import org.junit.Test
@@ -7,6 +11,8 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.UUID
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoProjectVersionsTest {
     private val scope=VideoVersionScope(PhotoPresetNamespace.GUEST,"content://synthetic/primary")
     private fun draft():VideoDraft=VideoDraft(8000,listOf(

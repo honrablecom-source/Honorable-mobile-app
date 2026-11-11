@@ -23,6 +23,15 @@ import { colors, WorkspaceHeader } from '../design-system';
 import { useLibrary } from '../library/LibraryContext';
 import { honorableNative } from '../native/HonorableNative';
 import { FilterTabs } from '../design-system/CreativeChrome';
+import { LibraryCollectionsPanel, collectionEntries } from '../library/LibraryCollections';
+import { LibraryDuplicateCheck } from '../library/LibraryDuplicateCheck';
+import { LibraryIntegrityPanel } from '../library/LibraryIntegrity';
+import { PhotoPixelDifferencePanel, PhotoCleanPlatePanel, PhotoFocusStackPanel, PhotoRetargetPanel, PhotoExposureBlendPanel } from '../library/PhotoPixelDifference';
+import { PhotoAlbumPdfPanel } from '../library/PhotoAlbumPdf';
+import { LibraryOriginalArchivePanel } from '../library/LibraryOriginalArchive';
+import { VideoProjectBackupEntry } from '../library/VideoProjectBackupEntry';
+import { PhotoPrivacyAuditPanel } from '../library/PhotoPrivacyAudit';
+import type { LibraryCollection } from '../native/HonorableNative';
 import {
   memoryRows,
   prepareMemoryEntries,
@@ -38,8 +47,9 @@ export function MemoriesScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
   const [selected, setSelected] = useState<MediaItem>();
+  const [collection, setCollection] = useState<LibraryCollection>();
   const [operation, setOperation] = useState<
-    'refresh' | 'more' | 'share' | 'video' | null
+    'refresh' | 'more' | 'share' | 'video' | 'collection' | null
   >(null);
   const [localError, setLocalError] = useState('');
   const [selecting, setSelecting] = useState(false);
@@ -119,9 +129,10 @@ export function MemoriesScreen() {
   ];
 
   const entries = useMemo(() => prepareMemoryEntries(items), [items]);
+  const collectionMedia = useMemo(() => collectionEntries(entries, collection), [entries, collection]);
   const rows = useMemo(
-    () => memoryRows(entries, query, filter),
-    [entries, query, filter],
+    () => memoryRows(collectionMedia, query, filter),
+    [collectionMedia, query, filter],
   );
   const visibleMedia = useMemo(
     () => rows.flatMap(row => (row.kind === 'media' ? row.items : [])),
@@ -167,6 +178,27 @@ export function MemoriesScreen() {
     }
   }, [mediaById]);
   const pickedSet = useMemo(() => new Set(picked), [picked]);
+  const selectedOriginalBindings = picked.flatMap(id => {
+    const item = mediaById.get(id), binding = pickedBindings.current.get(id);
+    return item?.mediaUri && binding?.mediaUri === item.mediaUri && binding?.type === item.type
+      ? [{ id, uri: item.mediaUri, kind: item.type }] : [];
+  });
+  const canStartLibraryOperation = useCallback(() => active.current && !pending.current, []);
+  const selectionBindingsCurrent = () => pickedRef.current.length === selectedOriginalBindings.length && selectedOriginalBindings.every((item, index) => {
+    const source = catalog.current.get(item.id), saved = pickedBindings.current.get(item.id);
+    return pickedRef.current[index] === item.id && source?.mediaUri === item.uri && source.type === item.kind && saved?.mediaUri === item.uri && saved.type === item.kind;
+  });
+  const selectLocationFlagged = (ids: string[]): boolean => {
+    if (!active.current || pending.current || !selectionBindingsCurrent() || !ids.length || ids.length > 20 || new Set(ids).size !== ids.length || ids.some(id => !selectedOriginalBindings.some(item => item.id === id))) return false;
+    const keep = selectedOriginalBindings.filter(item => ids.includes(item.id)).map(item => item.id);
+    pickedRef.current = keep;
+    for (const id of pickedBindings.current.keys()) if (!keep.includes(id)) pickedBindings.current.delete(id);
+    setPicked(keep); setSelected(undefined); setShareError(''); setShareNotice(''); return true;
+  };
+  const collectionBusy = useCallback((busy: boolean) => {
+    pending.current = busy;
+    setOperation(value => busy ? 'collection' : value === 'collection' ? null : value);
+  }, []);
   const beginSelection = () => {
     if (!active.current || pending.current || !catalog.current.size) return;
     selectingRef.current = true;
@@ -417,7 +449,38 @@ export function MemoriesScreen() {
         section={`${total.toLocaleString()} items on your device`}
       />
 
+      {!selecting && <VideoProjectBackupEntry disabled={loading || operation !== null} canStart={canStartLibraryOperation} />}
       {!selecting && selectionPanel}
+      <LibraryCollectionsPanel
+        selectedItems={selectedOriginalBindings}
+        disabled={loading || operation !== null}
+        canStart={canStartLibraryOperation}
+        onBusy={collectionBusy}
+        onReset={() => setCollection(undefined)}
+        onOpen={next => {
+          clearSelection(true); setSelected(undefined); setCollection(next); setQuery(''); setFilter('All');
+        }}
+        onDelete={id => setCollection(value => value?.id === id ? undefined : value)}
+      />
+      {selecting && <LibraryDuplicateCheck items={selectedOriginalBindings} displayNames={Object.fromEntries(selectedOriginalBindings.map(item => [item.id, mediaById.get(item.id)?.displayName ?? 'Original']))} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />}
+      {selecting && <PhotoPixelDifferencePanel items={selectedOriginalBindings} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />}
+      {selecting && <PhotoCleanPlatePanel items={selectedOriginalBindings} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />}
+      {selecting && <PhotoFocusStackPanel items={selectedOriginalBindings} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />}
+      {selecting && <PhotoRetargetPanel items={selectedOriginalBindings} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />}
+      {selecting && <PhotoExposureBlendPanel items={selectedOriginalBindings} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />}
+      {selecting && <LibraryOriginalArchivePanel items={selectedOriginalBindings} names={Object.fromEntries(selectedOriginalBindings.map(item => [item.id, mediaById.get(item.id)?.displayName ?? 'Original']))} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} selectionCurrent={selectionBindingsCurrent} />}
+      {selecting && <PhotoAlbumPdfPanel items={selectedOriginalBindings} names={Object.fromEntries(selectedOriginalBindings.map(item => [item.id, mediaById.get(item.id)?.displayName ?? 'Photo']))} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} selectionCurrent={selectionBindingsCurrent} />}
+      {selecting && <PhotoPrivacyAuditPanel items={selectedOriginalBindings} names={Object.fromEntries(selectedOriginalBindings.map(item => [item.id, mediaById.get(item.id)?.displayName ?? 'Photo']))} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} selectionCurrent={selectionBindingsCurrent} onSelectLocation={selectLocationFlagged} />}
+      <LibraryIntegrityPanel items={selectedOriginalBindings} disabled={loading || operation !== null} canStart={canStartLibraryOperation} onBusy={collectionBusy} />
+      {collection && <View>
+        <Text style={styles.loadedNotice}>
+          {collection.name}: {collectionMedia.length} of {collection.items.length} saved originals loaded.
+          Others may not be loaded or available. Filename and type filters can hide loaded matches.
+        </Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Show all Library originals" disabled={operation !== null} onPress={() => { if (!pending.current) { setCollection(undefined); setSelected(undefined); } }} style={styles.selectionAction}>
+          <Text style={styles.selectionActionText}>Show all originals</Text>
+        </Pressable>
+      </View>}
       <HonorableSearchBar
         compact
         value={query}
@@ -432,19 +495,19 @@ export function MemoriesScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.collections}
       >
-        {smartCollections.map(collection => (
+        {smartCollections.map(preset => (
           <Pressable
-            key={collection.label}
+            key={preset.label}
             accessibilityRole="button"
-            accessibilityLabel={`Show ${collection.label}`}
+            accessibilityLabel={`Show ${preset.label}`}
             onPress={() => {
-              setFilter(collection.filter);
-              setQuery(collection.query);
+              setFilter(preset.filter);
+              setQuery(preset.query);
             }}
             style={styles.collectionChip}
           >
             <Text className="text-[11px] font-semibold">
-              {collection.label}
+              {preset.label}
             </Text>
           </Pressable>
         ))}

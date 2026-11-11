@@ -5,7 +5,7 @@ enum class EditorAccessMode {
     ACCOUNT,
     GUEST_BASIC;
 
-    /** Only bundled on-device editing models; never authorizes search, credits or paid generation. */
+    /** On-device editing inference only; downloadable models need explicit setup consent. Never authorizes search, credits or paid generation. */
     val allowsOnDeviceAi: Boolean get() = true
     val allowsAccountDrafts: Boolean get() = this == ACCOUNT
 

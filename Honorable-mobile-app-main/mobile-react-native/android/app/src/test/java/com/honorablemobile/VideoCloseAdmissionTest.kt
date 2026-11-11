@@ -1,14 +1,19 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.app.Activity
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoCloseAdmissionTest {
     private fun activity():HonorableVideoEditorActivity {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        return (field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        return JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
     }
     private fun request(activity:HonorableVideoEditorActivity) {
         activity.javaClass.getDeclaredMethod("requestClose").apply{isAccessible=true}.invoke(activity)

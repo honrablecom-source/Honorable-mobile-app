@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Intent
@@ -7,6 +11,8 @@ import android.net.Uri
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoEditClipboardTest {
     private val edit=PhotoEdit(exposure=.25f,finish=PhotoFinish(caption=PhotoCaption("Keep caption")))
     private fun textItem(item:ClipData.Item)=ClipData(ClipDescription("Synthetic",arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN)),item)

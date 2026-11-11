@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.SeekBar
@@ -7,6 +11,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /** Actual Activity/controller metadata boundaries; no Android UI/render/lifecycle execution. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoObjectArrangeAdmissionTest {
     private val type=Class.forName("sun.misc.Unsafe");private val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
     private val uuid="11111111-1111-1111-1111-111111111111";private val scope=PhotoSessionCodec.scope("guest-activity:$uuid","local-only","content://synthetic/photo")
@@ -15,7 +21,7 @@ class PhotoObjectArrangeAdmissionTest {
     private fun set(value:Any,name:String,data:Any?)=value.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(value,data)
     private fun get(value:Any,name:String)=value.javaClass.getDeclaredField(name).apply{isAccessible=true}.get(value)
     private fun call(value:Any,name:String,vararg args:Any?)=value.javaClass.declaredMethods.single{it.name==name&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(value,*args)
-    private fun fixture()=(allocate(PhotoEditorActivity::class.java)as PhotoEditorActivity).also{
+    private fun fixture()=(uncreatedPhotoActivity()as PhotoEditorActivity).also{
         set(it,"accessMode",EditorAccessMode.GUEST_BASIC);set(it,"guestInstance",uuid);set(it,"source",Uri.parse("content://synthetic/photo"));set(it,"loadedScope",scope);set(it,"edit",initial)
         set(it,"undo",mutableListOf<PhotoEdit>());set(it,"redo",mutableListOf<PhotoEdit>());set(it,"sliders",mutableListOf<SeekBar>());set(it,"bitmap",allocate(Bitmap::class.java));set(it,"copyForeground",true);set(it,"copyGeneration",4L);set(it,"revision",3)
         set(it,"protectedOriginals",listOf(Uri.parse("content://synthetic/protected")))

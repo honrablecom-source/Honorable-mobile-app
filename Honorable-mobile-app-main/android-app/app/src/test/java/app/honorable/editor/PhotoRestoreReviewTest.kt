@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.graphics.Bitmap
 import android.net.Uri
 import org.junit.Assert.*
@@ -16,7 +20,7 @@ private object RestoreFixture {
   val method=PhotoEditorActivity::class.java.declaredMethods.single{it.name==name&&it.parameterCount==args.size}.apply{isAccessible=true}
   return method.invoke(activity,*args)
  }
- fun activity()=(allocate(PhotoEditorActivity::class.java)as PhotoEditorActivity).also{
+ fun activity()=(uncreatedPhotoActivity()as PhotoEditorActivity).also{
   set(it,"accessMode",EditorAccessMode.GUEST_BASIC);set(it,"bitmap",allocate(Bitmap::class.java))
  }
  fun ready():PhotoEditorActivity=activity().also{
@@ -29,6 +33,8 @@ private object RestoreFixture {
   call(activity,"canApprovePhotoRestore",token,base,original,scope,namespace,generation,projectId,origins,mode)as Boolean
 }
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoRestoreForegroundTest {
  @Test fun pausedOriginalAndCanvasRestoreRefuseBeforeScopeStorageOrUi(){
   for(command in listOf("photoProjectOperation","restoreCanvasProject")){
@@ -45,6 +51,8 @@ class PhotoRestoreForegroundTest {
  }
 }
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoRestoreReviewTest {
  @Test fun requestAdmissionRefusesPausedBusyUnloadedOrClosedEditorBeforeUi(){
   val paused=RestoreFixture.activity();RestoreFixture.call(paused,"requestPhotoRestore")

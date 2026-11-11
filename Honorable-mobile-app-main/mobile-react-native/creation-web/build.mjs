@@ -1,3 +1,4 @@
+import { fullFontExportSource } from './font-export-patch.mjs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -13,12 +14,12 @@ const sourceSnapshot = collectDrawingInputs(root);
 await fs.mkdir(out, { recursive: true });
 // Inline geometry workers for offline WebView: no worker network requests.
 const workerSources = new Map();
-for (const name of ['shape-boolean', 'svg-import', 'photo-clone']) {
+for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours']) {
   const worker = await build({ entryPoints: [path.join(root, name + '-worker.mjs')], bundle: true, minify: true, write: false, format: 'iife', platform: 'browser', target: ['chrome90'], nodePaths: [modules], legalComments: 'inline', banner: { js: 'var process={env:{POLYGON_CLIPPING_MAX_QUEUE_SIZE:20000,POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS:20000}};' } });
   workerSources.set('noble:' + name + '-worker', worker.outputFiles[0].text);
 }
 const inlineGeometryWorker = { name: 'noble-local-workers', setup(builder) {
-  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
+  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
   builder.onLoad({ filter: /.*/, namespace: 'noble-local-worker' }, args => ({ contents: 'export default ' + JSON.stringify(workerSources.get(args.path)) + ';', loader: 'js' }));
 } };
 
@@ -47,7 +48,13 @@ const localFonts = { name: 'noble-local-fonts', setup(builder) {
     return { contents, loader: 'js', resolveDir: path.dirname(args.path) };
   });
 } };
-await build({ plugins: [localKeyboardHistory, localFonts, inlineGeometryWorker], entryPoints: [path.join(root, 'editor.jsx')], bundle: true, minify: true, format: 'iife', target: ['chrome90'], outfile: path.join(out, 'editor.js'), nodePaths: [modules], conditions: ['production'], define: { 'process.env.NODE_ENV': '"production"', 'import.meta.url': '"https://honorable-drawing.local/drawing/editor.js"' }, legalComments: 'external', loader: { '.woff2': 'file', '.woff': 'file', '.ttf': 'file', '.wasm': 'file' } });
+// Preserve the existing lossless WOFF2 fallback without attempting CSP-blocked subsetting.
+const subsetFile=path.join(modules,'@excalidraw/excalidraw/dist/prod/chunk-EIO257PC.js');
+const fullFontSource=fullFontExportSource(await fs.readFile(subsetFile,'utf8'));
+const fullFontExport={name:'noble-full-font-export',setup(builder){
+  builder.onLoad({filter:/chunk-EIO257PC\.js$/},args=>args.path===subsetFile?{contents:fullFontSource,loader:'js',resolveDir:path.dirname(args.path)}:undefined);
+}};
+await build({ plugins: [localKeyboardHistory, localFonts, fullFontExport, inlineGeometryWorker], entryPoints: [path.join(root, 'editor.jsx')], bundle: true, minify: true, format: 'iife', target: ['chrome90'], outfile: path.join(out, 'editor.js'), nodePaths: [modules], conditions: ['production'], define: { 'process.env.NODE_ENV': '"production"', 'import.meta.url': '"https://honorable-drawing.local/drawing/editor.js"' }, legalComments: 'external', loader: { '.woff2': 'file', '.woff': 'file', '.ttf': 'file', '.wasm': 'file' } });
 const upstream = path.join(modules, '@excalidraw/excalidraw/dist/prod');
 await fs.cp(path.join(upstream, 'fonts'), path.join(out, 'fonts'), { recursive: true });
 await fs.cp(path.join(upstream, 'data'), path.join(out, 'data'), { recursive: true });

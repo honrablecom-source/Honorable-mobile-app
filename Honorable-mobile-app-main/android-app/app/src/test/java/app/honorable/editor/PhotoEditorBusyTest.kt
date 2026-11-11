@@ -1,10 +1,16 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.graphics.Bitmap
 import org.junit.Assert.*
 import org.junit.Test
 
-/** Constructor-free admission checks. No bitmap access, worker, inference or Android UI execution. */
+/** Uncreated Activity admission checks with an absent edit; no pixels, workers, inference or UI. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoEditorBusyTest {
  private val allocatorType=Class.forName("sun.misc.Unsafe")
  private val allocator=allocatorType.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
@@ -12,7 +18,9 @@ class PhotoEditorBusyTest {
  private fun set(activity:PhotoEditorActivity,name:String,value:Any?)=PhotoEditorActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)
  private fun get(activity:PhotoEditorActivity,name:String)=PhotoEditorActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.get(activity)
  private fun invoke(activity:PhotoEditorActivity,name:String)=PhotoEditorActivity::class.java.getDeclaredMethod(name).apply{isAccessible=true}.invoke(activity)
- private fun fixture()=(allocate(PhotoEditorActivity::class.java) as PhotoEditorActivity).also{
+ private fun fixture()=(uncreatedPhotoActivity() as PhotoEditorActivity).also{
+  // Preserve the deliberately absent edit previously provided by constructor-free allocation.
+  set(it,"edit",null)
   set(it,"accessMode",EditorAccessMode.GUEST_BASIC)
   set(it,"bitmap",allocate(Bitmap::class.java))
  }

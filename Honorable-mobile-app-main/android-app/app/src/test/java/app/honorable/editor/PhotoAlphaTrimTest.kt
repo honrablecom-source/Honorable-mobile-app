@@ -1,9 +1,15 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
 import kotlin.random.Random
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoAlphaTrimTest {
  private fun box(width:Int,height:Int,pixels:IntArray)=PhotoAlphaTrim.bounds(width,height){y,row->pixels.copyInto(row,0,y*width,(y+1)*width)}
  @Test fun findsAsymmetricVisibleBoundsWithoutCenterCropping(){
@@ -55,7 +61,7 @@ class PhotoAlphaTrimTest {
   val type=Class.forName("sun.misc.Unsafe")
   val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
   fun allocate(clazz:Class<*>)=type.getMethod("allocateInstance",Class::class.java).invoke(allocator,clazz)
-  val activity=allocate(PhotoEditorActivity::class.java) as PhotoEditorActivity
+  val activity=uncreatedPhotoActivity() as PhotoEditorActivity
   PhotoEditorActivity::class.java.getDeclaredField("accessMode").apply{isAccessible=true}.set(activity,EditorAccessMode.GUEST_BASIC)
   PhotoEditorActivity::class.java.getDeclaredField("bitmap").apply{isAccessible=true}.set(activity,allocate(android.graphics.Bitmap::class.java))
   assertEquals(true,PhotoEditorActivity::class.java.getDeclaredMethod("canFinish").apply{isAccessible=true}.invoke(activity))

@@ -1,15 +1,21 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
+
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Actual bridge admission and ownership, without Activity/WebView/provider/chooser construction. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class DrawingSvgAdmissionTest {
     private fun field(activity:HonorableDrawingActivity,name:String,value:Any){activity.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)}
     private fun instance():HonorableDrawingActivity {
-        val unsafe=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null) as Unsafe
+        val unsafe=JvmTestAllocator
         return (unsafe.allocateInstance(HonorableDrawingActivity::class.java) as HonorableDrawingActivity).also{field(it,"operationLock",Any());field(it,"exporting",AtomicBoolean(false));field(it,"importing",AtomicBoolean(false))}
     }
     private fun exporting(a:HonorableDrawingActivity)=a.javaClass.getDeclaredField("exporting").apply{isAccessible=true}.get(a) as AtomicBoolean

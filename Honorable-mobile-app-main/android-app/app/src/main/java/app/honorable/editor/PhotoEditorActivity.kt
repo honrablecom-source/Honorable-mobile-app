@@ -80,6 +80,7 @@ class PhotoEditorActivity:Activity(){
    PhotoSessionCodec.scope(account,api,source.toString())
   })
  }.getOrNull()
+ private val textReadGate=PhotoTextReadGate()
  private var readingText=false;private var enhancing=false;private var cuttingOut=false;private var exportEdit:PhotoEdit?=null
  @Volatile private var personMask:Bitmap?=null
  private var cutoutJob:AutoCloseable?=null
@@ -220,6 +221,8 @@ class PhotoEditorActivity:Activity(){
  button(row(assist),"AI photo looks"){chooseLook()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"Cut out person (beta)"){cutOutPerson()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI person background"){chooseBackground()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"AI upscale copy"){openNeuralUpscaleCopy()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"AI subject asset pack"){openSubjectAssetPack()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"Read text"){readText()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  val tabs=row();val tabButtons=mutableListOf<Button>()
  fun selectCategory(name:String){
@@ -402,6 +405,8 @@ class PhotoEditorActivity:Activity(){
   PhotoPaletteControls.show(this,width,height,result,canCopy){colors->paletteShelfControls(canCopy)?.save(colors)}
  }
  private var colorPaletteControls:PhotoColorPaletteControls?=null
+ @Volatile private var neuralUpscaleControls:PhotoNeuralUpscaleControls?=null
+ @Volatile private var subjectAssetControls:PhotoSubjectAssetControls?=null
  private fun paletteShelfControls(extraGuard:()->Boolean={true}):PhotoColorPaletteControls? {
   if(!copyForeground)return null
   val scope=photoControlScope()?:return null
@@ -502,6 +507,64 @@ class PhotoEditorActivity:Activity(){
     }}catch(failure:Exception){photoProjectBusy=false;if(current())note.text="Could not start creating the copy. Current edits were kept."}
    }.show()
  }
+ private fun openNeuralUpscaleCopy(){
+  if(!canFinish()||!copyForeground||isDestroyed||neuralUpscaleControls!=null||accessMode?.allowsOnDeviceAi!=true)return
+  val scope=photoControlScope()?:return
+  val input=bitmap?:return;val state=edit;val original=source;val mask=personMask;val mode=accessMode
+  if(before||renderedEdit!=state){note.text="Wait for the edited preview, then open AI upscale again.";return}
+  if(state.needsPersonMask&&mask==null){note.text="Wait for the current person-mask preview, then try again.";return}
+  val generation=copyGeneration;val inherited=protectedOriginals.map{it.toString()}
+  lateinit var controls:PhotoNeuralUpscaleControls
+  fun sameFields()=neuralUpscaleControls===controls&&photoProjectBusy&&copyForeground&&copyGeneration==generation&&!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&personMask===mask&&accessMode==mode&&loadedScope==scope&&protectedOriginals.map{it.toString()}==inherited
+  fun same()=sameFields()&&runCatching{currentScope()==scope}.getOrDefault(false)
+  controls=PhotoNeuralUpscaleControls(this,worker,
+   prepareInput={current->
+    current();val preview=PhotoRasterRenderer.render(input,state,mask);var fitted:Bitmap?=null;var delivered=false
+    try{
+     val scale=minOf(1f,PhotoNeuralUpscale.MAX_EDGE.toFloat()/maxOf(preview.width,preview.height))
+     fitted=if(scale<1f)Bitmap.createScaledBitmap(preview,(preview.width*scale).toInt().coerceAtLeast(1),(preview.height*scale).toInt().coerceAtLeast(1),true)else preview
+     current();val result=requireNotNull(fitted);delivered=true;result
+    }finally{if(fitted!==preview)preview.recycle();if(!delivered)fitted?.recycle()}
+   },isCurrent={same()},requireWorkerCurrent={check(sameFields()&&currentScope()==scope){"Photo or session changed"}},
+   share={file->
+    check(same()){"Photo or session changed"}
+    val uri=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+    val send=Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION).apply{clipData=android.content.ClipData.newUri(contentResolver,"Reviewed AI upscale copy",uri)}
+    startActivity(Intent.createChooser(send,"Save or share AI upscale copy").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+   },message={value->if(neuralUpscaleControls===controls&&copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text=value},
+   released={if(neuralUpscaleControls===controls){neuralUpscaleControls=null;photoProjectBusy=false}})
+  neuralUpscaleControls=controls;photoProjectBusy=true
+  runCatching{controls.open()}.onFailure{controls.close();if(copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text="AI upscale controls could not open. Your photo and edits were kept."}
+ }
+ private fun openSubjectAssetPack(){
+  if(!canFinish()||!copyForeground||isDestroyed||subjectAssetControls!=null||accessMode?.allowsOnDeviceAi!=true)return
+  val scope=photoControlScope()?:return
+  val input=bitmap?:return;val state=edit;val original=source;val mask=personMask;val mode=accessMode
+  if(before||renderedEdit!=state){note.text="Wait for the edited preview, then open AI subject assets again.";return}
+  if(state.needsPersonMask&&mask==null){note.text="Wait for the current person-mask preview, then try again.";return}
+  val generation=copyGeneration;val inherited=protectedOriginals.map{it.toString()}
+  lateinit var controls:PhotoSubjectAssetControls
+  fun sameFields()=subjectAssetControls===controls&&photoProjectBusy&&copyForeground&&copyGeneration==generation&&!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&personMask===mask&&accessMode==mode&&loadedScope==scope&&protectedOriginals.map{it.toString()}==inherited
+  fun same()=sameFields()&&runCatching{currentScope()==scope}.getOrDefault(false)
+  controls=PhotoSubjectAssetControls(this,worker,
+   prepareInput={current->
+    current();val preview=PhotoRasterRenderer.render(input,state,mask);var fitted:Bitmap?=null;var delivered=false
+    try{
+     val scale=minOf(1f,PhotoSubjectAssets.MAX_EDGE.toFloat()/maxOf(preview.width,preview.height))
+     fitted=if(scale<1f)Bitmap.createScaledBitmap(preview,(preview.width*scale).toInt().coerceAtLeast(1),(preview.height*scale).toInt().coerceAtLeast(1),true)else preview
+     current();val result=requireNotNull(fitted);delivered=true;result
+    }finally{if(fitted!==preview)preview.recycle();if(!delivered)fitted?.recycle()}
+   },isCurrent={same()},requireWorkerCurrent={check(sameFields()&&currentScope()==scope){"Photo or session changed"}},
+   share={file->
+    check(same()){"Photo or session changed"}
+    val uri=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+    val send=Intent(Intent.ACTION_SEND).setType("application/zip").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION).apply{clipData=android.content.ClipData.newUri(contentResolver,"Reviewed AI subject asset pack",uri)}
+    startActivity(Intent.createChooser(send,"Save or share selected AI cutouts").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+   },message={value->if(subjectAssetControls===controls&&copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text=value},
+   released={if(subjectAssetControls===controls){subjectAssetControls=null;photoProjectBusy=false}})
+  subjectAssetControls=controls;photoProjectBusy=true
+  runCatching{controls.open()}.onFailure{controls.close();if(copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text="AI subject controls could not open. Your photo and edits were kept."}
+ }
  private fun createComparison(){
   if(!copyForeground)return
   val scope=photoControlScope()?:return
@@ -558,7 +621,7 @@ class PhotoEditorActivity:Activity(){
    "Create & compose" to PhotoCompositionTool.values().map{kind->t(kind.title){compositionAdjust(kind)}},
    "Editable project" to (listOf(t("Save editable photo edits"){photoProjectOperation("save")},t("Restore editable photo edits"){requestPhotoRestore()},t("Delete saved photo edits"){deletePhotoProject()},t("Copy editable photo settings"){copyPhotoSettings()},t("Paste editable photo settings"){pastePhotoSettings()})+if(!isCreatedPhotoSource())listOf(t("Saved photo versions"){savedPhotoVersions()})else emptyList()),
    "Saved looks" to listOf(t("Save current adjustments"){saveCurrentLook()},t("Apply saved look"){chooseSavedLook()},t("Delete saved look"){deleteSavedLook()}),
-    "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Read text"){readText()})else emptyList()),
+    "On-device AI" to (if(accessMode?.allowsOnDeviceAi==true)listOf(t("Photo looks"){chooseLook()},t("Person background"){chooseBackground()},t("Person cutout"){cutOutPerson()},t("Subject asset pack"){openSubjectAssetPack()},t("AI upscale copy"){openNeuralUpscaleCopy()},t("Read text"){readText()})else emptyList()),
    "Output" to listOf(t("Export PNG / JPEG"){chooseExport()},t("Create before/after image"){createComparison()})
    ).filter{it.second.isNotEmpty()})
  }
@@ -1092,27 +1155,36 @@ class PhotoEditorActivity:Activity(){
    .addOnCompleteListener { enhancing=false;labeler.close();owned.recycle() }
   }catch(e:Exception){enhancing=false;labeler.close();owned.recycle();if(unchanged())note.text="Scene analysis failed. Try manual adjustments."}
  }
+ private fun finishTextRead(request:PhotoTextReadGate.Request,message:String?,current:()->Boolean) {
+  textReadGate.settle(request)
+  readingText=textReadGate.busy
+  if(message!=null&&current())note.text=message
+ }
  private fun readText() {
-   if(!allowOnDeviceAi())return
+  if(!copyForeground||!allowOnDeviceAi())return
   val input=bitmap?:return
   val scope=photoControlScope()?:return
   val state=edit
-  fun current()=!activityClosed&&!isDestroyed&&!isFinishing&&!photoProjectBusy&&exportEdit==null&&bitmap===input&&edit==state&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
-  readingText=true
+  val generation=copyGeneration
+  val request=textReadGate.begin(generation,copyForeground)?:return
+  fun current()=textReadGate.isCurrent(request,copyGeneration,copyForeground)&&!activityClosed&&!isDestroyed&&!isFinishing&&!photoProjectBusy&&exportEdit==null&&bitmap===input&&edit==state&&loadedScope==scope&&runCatching{currentScope()==scope}.getOrDefault(false)
+  readingText=textReadGate.busy
   note.text="Reading text on this device…"
-  worker.execute {
+  try { worker.execute {
    try {
-    if(!current()){runOnUiThread{readingText=false};return@execute}
+    if(!current()){runOnUiThread{finishTextRead(request,null,::current)};return@execute}
     val snapshot=render(input,state)
     runOnUiThread {
-     if(!current()){snapshot.recycle();readingText=false;return@runOnUiThread}
-     PhotoTextReader.read(this,snapshot,::current){message->readingText=false;if(message!=null&&current())note.text=message}
+     if(!current()){snapshot.recycle();finishTextRead(request,null,::current);return@runOnUiThread}
+     PhotoTextReader.read(this,snapshot,::current){message->finishTextRead(request,message,::current)}
     }
    } catch(e:Exception) {
-    runOnUiThread{readingText=false;if(current())note.text="Unable to read this photo. Try again."}
+    runOnUiThread{finishTextRead(request,"Unable to read this photo. Try again.",::current)}
    } catch(e:OutOfMemoryError) {
-    runOnUiThread{readingText=false;if(current())note.text="Not enough memory to read this photo. Try a smaller image."}
+    runOnUiThread{finishTextRead(request,"Not enough memory to read this photo. Try a smaller image.",::current)}
    }
+  } } catch(e:java.util.concurrent.RejectedExecutionException) {
+   finishTextRead(request,"Unable to start text recognition. Your photo was kept.",::current)
   }
  }
  @Deprecated("Platform result API")
@@ -1302,6 +1374,6 @@ class PhotoEditorActivity:Activity(){
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel();if(photoExport?.isCancelled==true&&::note.isInitialized)note.text="Stopping the previous export. Check Files before retrying.";publishPhotoExportNotice();resumePendingExport()}
- override fun onPause(){photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){neuralUpscaleControls?.close();subjectAssetControls?.close();subjectAssetControls=null;photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){neuralUpscaleControls?.close();subjectAssetControls?.close();subjectAssetControls=null;photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }

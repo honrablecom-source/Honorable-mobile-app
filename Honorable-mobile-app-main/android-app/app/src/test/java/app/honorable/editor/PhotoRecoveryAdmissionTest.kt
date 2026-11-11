@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -8,6 +12,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /** Actual metadata/controller methods without native UI, source decoding, lifecycle or export writes. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoRecoveryAdmissionTest {
     private val type=Class.forName("sun.misc.Unsafe")
     private val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
@@ -19,7 +25,7 @@ class PhotoRecoveryAdmissionTest {
     private fun set(activity:PhotoEditorActivity,name:String,value:Any?)=PhotoEditorActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)
     private fun get(activity:PhotoEditorActivity,name:String)=PhotoEditorActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.get(activity)
     private fun call(activity:PhotoEditorActivity,name:String,vararg args:Any?):Any?=PhotoEditorActivity::class.java.declaredMethods.single{it.name==name&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(activity,*args)
-    private fun fixture()=(allocate(PhotoEditorActivity::class.java)as PhotoEditorActivity).also{
+    private fun fixture()=(uncreatedPhotoActivity()as PhotoEditorActivity).also{
         set(it,"accessMode",EditorAccessMode.GUEST_BASIC);set(it,"guestInstance",uuid);set(it,"source",Uri.parse(source));set(it,"loadedScope",scope)
         set(it,"edit",PhotoEdit(exposure=.1f));set(it,"undo",mutableListOf(PhotoEdit()));set(it,"redo",mutableListOf<PhotoEdit>());set(it,"before",false);set(it,"activeTool",0)
         set(it,"protectedOriginals",listOf(Uri.parse("content://synthetic/protected")));set(it,"copyForeground",true);set(it,"copyGeneration",4L);set(it,"revision",3)

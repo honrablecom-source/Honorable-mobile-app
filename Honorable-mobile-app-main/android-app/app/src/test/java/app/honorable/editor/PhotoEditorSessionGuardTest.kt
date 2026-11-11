@@ -1,11 +1,17 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.graphics.Bitmap
 import android.net.Uri
 import org.junit.Assert.*
 import org.junit.Test
 
 /** Host actual Activity guard + actual guest lifecycle scope; no UI, pixels or account keystore. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoEditorSessionGuardTest {
  private val uuid="11111111-1111-1111-1111-111111111111"
  private val source="content://fixture/photo"
@@ -16,7 +22,7 @@ class PhotoEditorSessionGuardTest {
  private fun fixture():PhotoEditorActivity {
   val type=Class.forName("sun.misc.Unsafe");val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
   fun allocate(clazz:Class<*>)=type.getMethod("allocateInstance",Class::class.java).invoke(allocator,clazz)
-  val activity=allocate(PhotoEditorActivity::class.java) as PhotoEditorActivity
+  val activity=uncreatedPhotoActivity() as PhotoEditorActivity
   for((name,value)in listOf("copyForeground" to true,"accessMode" to EditorAccessMode.GUEST_BASIC,"guestInstance" to uuid,"source" to Uri.parse(source),"loadedScope" to scope,"edit" to original,"bitmap" to allocate(Bitmap::class.java)))set(activity,name,value)
   return activity
  }

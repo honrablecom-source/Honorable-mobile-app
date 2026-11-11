@@ -1,19 +1,25 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import app.honorable.auth.SecureAccountStore
 import android.util.AtomicFile
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
+
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 
 /** Actual storage reader and real AtomicFile with synthetic bytes; no Android keystore or credentials. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class SecureAccountStoreReadTest {
     private fun store(file:File):SecureAccountStore {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val instance=(field.get(null)as Unsafe).allocateInstance(SecureAccountStore::class.java)as SecureAccountStore
+
+        val instance=JvmTestAllocator.allocateInstance(SecureAccountStore::class.java)as SecureAccountStore
         instance.javaClass.getDeclaredField("file").apply{isAccessible=true}.set(instance,AtomicFile(file))
         return instance
     }

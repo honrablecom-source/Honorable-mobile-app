@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -11,10 +15,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /** Real Activity/controller metadata and Intent phases, without constructors/UI/provider/Keystore execution. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoTimelineCaptionAdmissionTest {
     private val type=Class.forName("sun.misc.Unsafe");private val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
     private val document="content://synthetic/playback-subtitles"
-    private fun allocate(clazz:Class<*>)=type.getMethod("allocateInstance",Class::class.java).invoke(allocator,clazz)
+    private fun allocate(clazz:Class<*>)=JvmTestAllocator.allocateInstance(clazz)
     private fun set(value:Any,name:String,data:Any?)=value.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(value,data)
     private fun get(value:Any,name:String)=value.javaClass.getDeclaredField(name).apply{isAccessible=true}.get(value)
     private fun call(value:Any,name:String,vararg args:Any?)=value.javaClass.declaredMethods.single{it.name==name&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(value,*args)

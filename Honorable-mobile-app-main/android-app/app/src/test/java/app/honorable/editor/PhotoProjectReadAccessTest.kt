@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.net.Uri
 import java.io.ByteArrayInputStream
 import java.io.IOException
@@ -11,6 +15,8 @@ import java.nio.file.Files
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoProjectReadAccessTest {
     private val source="content://media/external_primary/images/media/42"
     private val synthetic="Synthetic original image bytes, never uploaded".toByteArray()

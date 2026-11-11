@@ -9,7 +9,31 @@ function create(media){return{schemaVersion:1,name:media.name||'Untitled',media:
 function stable(v){if(Array.isArray(v))return v.map(stable);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])]));return v}
 function serialize(p){return JSON.stringify(stable(p),null,2)}
 function safePath(path){if(typeof path!=='string'||path.length>200||path.startsWith('/')||path.split('/').some(x=>!x||x==='.'||x==='..')||/[\\\u0000-\u001f]/.test(path)||['__proto__','constructor','prototype'].some(x=>path.split('/').includes(x)))throw Error('Invalid virtual project path');return path}
-function fileOperation(p,op,from,to,text){p=clone(p);safePath(from);if(to)safePath(to);if(['create','folder'].includes(op)){if(p.files[from])throw Error('File already exists');p.files[from]=op==='folder'?{kind:'folder'}:{kind:'script',language:from.endsWith('.java')?'java':'python',text:text||''};}else{if(!p.files[from])throw Error('File not found');if(op==='save'){if(p.files[from].kind!=='script')throw Error('Not a script');p.files[from].text=text||''}else if(op==='delete'){for(const k of Object.keys(p.files))if(k===from||k.startsWith(from+'/'))delete p.files[k]}else if(['move','duplicate'].includes(op)){if(!to||to.startsWith(from+'/'))throw Error('Invalid destination');const keys=Object.keys(p.files).filter(k=>k===from||k.startsWith(from+'/'));for(const k of keys)if(p.files[to+k.slice(from.length)])throw Error('Destination exists');for(const k of keys){p.files[to+k.slice(from.length)]=clone(p.files[k]);if(op==='move')delete p.files[k]}}else throw Error('Unsupported file operation')}return p}
+function fileOperation(p,op,from,to,text){
+ p=clone(p);safePath(from);if(to)safePath(to);
+ const has=path=>Object.prototype.hasOwnProperty.call(p.files,path);
+ const validateDestination=path=>{
+  const parts=path.split('/');
+  for(let i=1;i<parts.length;i++){const parent=parts.slice(0,i).join('/');if(has(parent)&&p.files[parent].kind!=='folder')throw Error('Parent is not a folder');}
+  if(has(path)||Object.keys(p.files).some(k=>k.startsWith(path+'/')))throw Error('Destination exists');
+ };
+ if(['create','folder'].includes(op)){
+  validateDestination(from);
+  p.files[from]=op==='folder'?{kind:'folder'}:{kind:'script',language:from.endsWith('.java')?'java':'python',text:text||''};
+ }else{
+  if(!has(from))throw Error('File not found');
+  if(op==='save'){if(p.files[from].kind!=='script')throw Error('Not a script');p.files[from].text=text||'';}
+  else if(op==='delete'){for(const k of Object.keys(p.files))if(k===from||k.startsWith(from+'/'))delete p.files[k];}
+  else if(['move','duplicate'].includes(op)){
+   if(!to||to.startsWith(from+'/'))throw Error('Invalid destination');
+   const keys=Object.keys(p.files).filter(k=>k===from||k.startsWith(from+'/'));
+   // Validate the entire destination before changing any entry.
+   for(const k of keys)validateDestination(to+k.slice(from.length));
+   for(const k of keys){p.files[to+k.slice(from.length)]=clone(p.files[k]);if(op==='move')delete p.files[k];}
+  }else throw Error('Unsupported file operation');
+ }
+ return p;
+}
 function timelineOperation(project,operation,{studio=false}={}){
  if(!studio)throw Error('STUDIO_REQUIRED');const p=clone(project),t=p.timeline;
  const track=t.tracks.find(x=>x.id===operation.trackId);

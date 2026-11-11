@@ -1,9 +1,15 @@
 package com.honorablemobile
+
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import org.junit.Assert.*
 import org.junit.Test
 import android.net.Uri
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoClipCaptionLifecycleTest {
- private val unsafe=Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null) as sun.misc.Unsafe
+ private val unsafe=JvmTestAllocator
  private fun activity()=unsafe.allocateInstance(HonorableVideoEditorActivity::class.java) as HonorableVideoEditorActivity
  private fun set(a:Any,n:String,v:Any?)=a.javaClass.getDeclaredField(n).apply{isAccessible=true}.set(a,v)
  private fun call(a:Any,n:String,vararg v:Any?)=a.javaClass.declaredMethods.single{it.name==n&&it.parameterCount==v.size}.apply{isAccessible=true}.invoke(a,*v)

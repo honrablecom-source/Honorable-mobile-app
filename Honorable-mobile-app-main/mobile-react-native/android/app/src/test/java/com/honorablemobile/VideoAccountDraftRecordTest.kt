@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.util.Base64
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -7,6 +11,8 @@ import org.junit.Test
 import java.nio.ByteBuffer
 
 /** Execute production envelope parsing with Android Base64/JSON and the actual current draft codec. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoAccountDraftRecordTest {
     private val draft=VideoDraft(8000,listOf(VideoSegment(1000,6000,title="Saved words 😀")),0,2000,1000,6000)
     private fun record(bytes:ByteArray=VideoDraftCodec.encode(draft))=JSONObject().put("draft",Base64.encodeToString(bytes,Base64.NO_WRAP))

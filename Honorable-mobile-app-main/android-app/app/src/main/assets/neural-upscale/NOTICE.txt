@@ -1,0 +1,18 @@
+Swin2SR lightweight x2 neural photo reconstruction model
+
+Research: Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration (2022), Marcos V. Conde, Ui-Jin Choi, Maxime Burchi and Radu Timofte.
+Original research/code: https://github.com/mv-lab/swin2sr
+Author model: https://huggingface.co/caidas/swin2SR-lightweight-x2-64
+Author model revision: 07e8e61492ce6daf4f34c651622960faf110c17f
+Author model card declares Apache License 2.0. Full license accompanies this file.
+
+ONNX conversion published by Xenova:
+https://huggingface.co/Xenova/swin2SR-lightweight-x2-64
+Revision: 92a21aca5713f20faf9a87590cdfbdce2e34112c
+Original artifact: onnx/model.onnx
+Unmodified artifact SHA-256: c2abbfe0cc8e685b5e11964970f8ebe3d24072e904fd5545a30ac31ec1e110db
+Artifact length: 8078888 bytes
+
+Noble bundles the unmodified public ONNX model for a separate local inference session. No private image or query upload is needed. Source/current-image RGB input is normalized to [0,1], symmetrically padded to the next multiple of eight, and reconstructed at twice its dimensions. Separate Kotlin preprocessing/tiling/UI code is not a modification to the model weights.
+
+AI output estimates detail and can change faces, text or patterns; it does not recover guaranteed original information. Review the complete output before sharing. Model authors/converter do not endorse Noble. No accuracy, device performance or fitness warranty. See the full accompanying license.

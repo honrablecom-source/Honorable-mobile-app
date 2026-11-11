@@ -1,15 +1,20 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import app.honorable.editor.EditorAccessMode
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Actual restore entry/approval guards; views and storage remain deliberately unavailable. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoRestoreReviewTest {
     private fun activity(mode:EditorAccessMode):HonorableVideoEditorActivity {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val value=(field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        val value=JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
         val project=VideoEditProject(8000);project.restore(listOf(VideoSegment(0,8000,title="Keep current")))
         set(value,"project",project);set(value,"accessMode",mode);set(value,"durationMs",8000);set(value,"primaryDurationMs",8000L)
         return value

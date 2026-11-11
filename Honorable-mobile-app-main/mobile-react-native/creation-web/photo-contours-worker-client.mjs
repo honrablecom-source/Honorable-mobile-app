@@ -1,0 +1,1 @@
+import source from'noble:photo-contours-worker';export function makeContoursWorker(){const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));try{return{worker:new Worker(url),dispose:()=>URL.revokeObjectURL(url)};}catch(error){URL.revokeObjectURL(url);throw error;}}

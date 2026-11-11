@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import app.honorable.editor.PhotoPresetNamespace
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -7,6 +11,8 @@ import org.junit.Test
 import java.io.IOException
 import java.util.concurrent.Executors
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoProjectVersionStoreTest {
     private class Record:VideoVersionRecord {
         var bytes:ByteArray?=null;var writes=0;var failWrite=false;var failVerification=false

@@ -1,5 +1,9 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.app.Activity
 import android.content.ContextWrapper
 import android.content.ContentResolver
@@ -10,9 +14,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Actual private Activity dispatch with synthetic picker metadata; no provider or Android UI. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class DrawingProjectOperationTest {
     private class Queue:AbstractExecutorService(){
         val jobs=mutableListOf<Runnable>();var reject=false;var providerAccess=0
@@ -24,7 +29,7 @@ class DrawingProjectOperationTest {
         override fun awaitTermination(timeout:Long,unit:TimeUnit)=false
     }
     private class ProbeContext(val queue:Queue):ContextWrapper(null){override fun getContentResolver():ContentResolver {queue.providerAccess++;error("Unexpected provider access in host fixture")}}
-    private val unsafe=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null) as Unsafe
+    private val unsafe=JvmTestAllocator
     private fun set(a:HonorableDrawingActivity,name:String,value:Any?){a.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(a,value)}
     private fun importing(a:HonorableDrawingActivity)=a.javaClass.getDeclaredField("importing").apply{isAccessible=true}.get(a) as AtomicBoolean
     private fun setup(saving:Boolean=true):Pair<HonorableDrawingActivity,Queue>{

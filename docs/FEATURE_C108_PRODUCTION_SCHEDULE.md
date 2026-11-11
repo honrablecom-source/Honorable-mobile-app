@@ -1,0 +1,13 @@
+# C108 — Editable production-schedule artwork
+
+1 newly added user-facing source workflow; built as an isolated web bundle and browser checked. Not native-integrated or device-tested.
+
+Layouts → Production schedule accepts 1–16 literal task | YYYY-MM-DD | YYYY-MM-DD rows, task names up to48 Unicode codepoints, a60-character title and4096-character input. Dates must exist between1900 and2299; finish includes its calendar day and cannot precede start. The complete schedule may span at most366 days. Task order, repeats and overlaps remain explicit separate rows. Weekends count.
+
+The generated group contains editable text, dated grid lines and bars sharing a720-unit linear time scale. One-day tasks occupy one whole day, including on a one-day overall schedule. Input errors leave the drawing unchanged. This is static planning artwork, not a reminder service or a live rescheduling system. Ungroup to edit. Original artwork stays; insertion uses the existing bounded commit, Undo, local draft, portable JSON, SVG and PNG paths. Wide task text wraps at16 codepoints; grid-line width/height are explicit to preserve renderer geometry after restore.
+
+Validation:7 focused parser/geometry cases pass. The full drawing suite passed372 cases before subsequent C111 source was introduced. Actual Chromium test `test/schedule-preview.cjs` passes invalid-date refusal/nonmutation, input retention across tool switches, exact renderer date scaling, group membership, original geometry/style protection, Undo/Redo, semantic reload and portable recovery, SVG literal text and real PNG gray/black pixels. Forms fit320/390/844px with44px insert targets and no page/CSP/external-request errors. Evidence is `.context/noble-fast-web/schedule-browser/verification.json`; PNG1275×662,30608 gray pixels and1563 black pixels. Final source/271-asset manifest verified using `scripts/drawing-assets.cjs`.
+
+Renderer revision timestamps/nonces and empty binding arrays can normalize across insertion/restore; tests compare semantic state for recovery and retain exact geometry assertions. No personal media or queries were used. No dependency manifest/lock changes; locked local dependencies and Playwright browser libraries were installed for validation. The web bundler warns that the parent React Native TypeScript base config is unavailable at that checkpoint; bundle succeeds, but no mobile typecheck claim follows.
+
+No tracked Android asset refresh, full native/app/APK build, Android WebView, physical device, TalkBack or store acceptance. Existing search/ranking and credit/server-ledger paths are unchanged. This adds one outcome, not one per task/bar/control.

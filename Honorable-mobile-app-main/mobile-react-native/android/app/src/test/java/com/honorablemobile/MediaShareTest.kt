@@ -1,10 +1,16 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.content.Intent
 import android.net.Uri
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class MediaShareTest {
     private val raw = "content://synthetic.provider/media/selected"
     private fun fails(action: () -> Unit) {

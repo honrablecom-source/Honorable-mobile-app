@@ -1,10 +1,16 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.net.Uri
 import app.honorable.editor.EditorAccessMode
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoCaptionHighlightsTest {
  private val cues=listOf(VideoCaption(500,1000,"Keep first"),VideoCaption(1000,1500,"Keep next"),VideoCaption(2500,3000,"Other"),VideoCaption(4000,4800,"Keep last"))
  private fun clip()=VideoSegment(0,5000,speed=2f,title="Appearance stays",volume=.5f,captions=cues,captionSourceUri="content://synthetic/subtitles")
@@ -24,7 +30,7 @@ class VideoCaptionHighlightsTest {
  @Test fun inputCollectionsAreDefensivelyCopied(){val mutable=cues.toMutableList();val clips=mutableListOf(clip().copy(captions=mutable));val p=plan(clips,0 to 0);mutable.clear();clips.clear();assertEquals(cues,p.base.single().captions);assertEquals(cues[0],p.segments.single().captions.single());assertEquals(1,p.excerpts.size)}
  @Test fun oneUndoRedoKeepsMusicAndAllOriginalSubtitleHistory(){val p=VideoEditProject(5000);val music=VideoSoundtrack("content://synthetic/music",10000,loop=false);p.restore(listOf(clip()),soundtrack=music);val cut=VideoCaptionHighlights.prepare(p.segments,listOf(VideoCaptionHighlights.Selection(0,0)),music);cut.apply(p){};assertSame(music,p.soundtrack);assertTrue(p.captionSourceUris().contains("content://synthetic/subtitles"));assertTrue(p.undo());assertEquals(listOf(clip()),p.segments);assertFalse(p.canUndo);assertTrue(p.redo());assertEquals(cut.segments,p.segments)}
  @Test fun changedBaseAndCancelledApprovalNeverApply(){val p=VideoEditProject(5000);p.restore(listOf(clip()));val cut=plan(p.segments,0 to 0);try{cut.apply(p){error("Stopped")};fail("Ignored guard")}catch(_:IllegalStateException){};assertFalse(p.canUndo);p.split(0,2000);val before=p.segments;rejected{cut.apply(p){}};assertSame(before,p.segments)}
- private val unsafe=Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)as sun.misc.Unsafe
+ private val unsafe=JvmTestAllocator
  private fun set(a:Any,n:String,v:Any?)=a.javaClass.getDeclaredField(n).apply{isAccessible=true}.set(a,v)
  private fun get(a:Any,n:String)=a.javaClass.getDeclaredField(n).apply{isAccessible=true}.get(a)
  private fun call(a:Any,n:String,vararg args:Any?)=a.javaClass.declaredMethods.single{it.name==n&&it.parameterCount==args.size}.apply{isAccessible=true}.invoke(a,*args)

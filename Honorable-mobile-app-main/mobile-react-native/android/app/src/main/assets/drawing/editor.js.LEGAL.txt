@@ -1,7 +1,6 @@
 Bundled license information:
 
 react/cjs/react.production.js:
-react/cjs/react.production.js:
   /**
    * @license React
    * react.production.js
@@ -220,3 +219,15 @@ mermaid/dist/mermaid.core.mjs:
   /*!
    * Wait for document loaded before starting the execution
    */
+
+magic-wand-tool/dist/magic-wand.js:
+  /*
+   Magic wand tool (fuzzy selection) by color
+  
+   @package magic-wand-tool
+   @author Ryasnoy Paul <ryasnoypaul@gmail.com>
+   @version 1.1.7
+   @license MIT
+   @copyright (c) 2014-2020, Ryasnoy Paul <ryasnoypaul@gmail.com>
+  
+  */

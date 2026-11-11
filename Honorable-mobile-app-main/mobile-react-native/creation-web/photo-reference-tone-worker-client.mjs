@@ -1,0 +1,1 @@
+import source from'noble:photo-reference-tone-worker';export function makeReferenceToneWorker(){const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));try{return{worker:new Worker(url),dispose:()=>URL.revokeObjectURL(url)};}catch(error){URL.revokeObjectURL(url);throw error;}}

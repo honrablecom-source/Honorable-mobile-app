@@ -38,6 +38,8 @@
       </provider>
       <activity android:name=".HonorableDrawingActivity" android:exported="false" android:theme="@style/AppTheme" />
       <activity android:name=".HonorableVideoEditorActivity" android:exported="false" android:theme="@style/AppTheme" android:enableOnBackInvokedCallback="true" />
+      <activity android:name=".VideoProjectBackupsActivity" android:exported="false" android:launchMode="singleTop" android:theme="@style/AppTheme" />
+      <provider android:name=".VideoProjectBackupMediaProvider" android:authorities="${applicationId}.video-project-media" android:exported="false" android:grantUriPermissions="false" />
       <activity android:name=".VoiceoverRecorderActivity" android:exported="false" android:theme="@style/AppTheme" />
       <provider android:name=".VoiceoverProvider" android:authorities="${applicationId}.voiceovers" android:exported="false" android:grantUriPermissions="false" />
     <activity android:name="app.honorable.editor.CanvasProjectsActivity" android:exported="false" />

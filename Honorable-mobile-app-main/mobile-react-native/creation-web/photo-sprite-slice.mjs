@@ -1,0 +1,13 @@
+export function spriteSliceSettings(width,height,columns=2,rows=2,margin=0,gap=0){
+ if(!Number.isInteger(width)||!Number.isInteger(height)||width<8||height<8||width>1024||height>1024)throw Error('Use an embedded sprite sheet from 8 to 1024 pixels on each side.');
+ if(!Number.isInteger(columns)||!Number.isInteger(rows)||columns<1||rows<1||columns>6||rows>6||columns*rows<2||columns*rows>6)throw Error('Choose a grid containing 2–6 frames.');
+ if(!Number.isInteger(margin)||!Number.isInteger(gap)||margin<0||gap<0||margin>128||gap>128)throw Error('Use whole-pixel margins and gaps from 0 to 128.');
+ const innerWidth=width-2*margin-(columns-1)*gap,innerHeight=height-2*margin-(rows-1)*gap,frameWidth=innerWidth/columns,frameHeight=innerHeight/rows;
+ if(!Number.isInteger(frameWidth)||!Number.isInteger(frameHeight)||frameWidth<8||frameHeight<8)throw Error('The grid must leave equal whole-pixel frames at least 8 pixels on each side. Check margins, gaps and source dimensions.');
+ const cells=Array.from({length:columns*rows},(_,index)=>({index,x:margin+(index%columns)*(frameWidth+gap),y:margin+Math.floor(index/columns)*(frameHeight+gap),width:frameWidth,height:frameHeight}));return{width,height,columns,rows,margin,gap,frameWidth,frameHeight,cells};
+}
+function capture(input,width,height,columns,rows,margin,gap){const settings=spriteSliceSettings(width,height,columns,rows,margin,gap);if(!(input instanceof Uint8Array||input instanceof Uint8ClampedArray)||!(input.buffer instanceof ArrayBuffer)||input.length!==width*height*4)throw Error('The embedded sprite-sheet pixels are incomplete.');return{settings,source:new Uint8ClampedArray(input),frames:settings.cells.map(cell=>({...cell,data:new Uint8ClampedArray(cell.width*cell.height*4)}))};}
+function copyRows(task,start,end){for(let y=start;y<end;y++)for(const frame of task.frames){if(y<frame.y||y>=frame.y+frame.height)continue;const first=(y*task.settings.width+frame.x)*4;frame.data.set(task.source.subarray(first,first+frame.width*4),(y-frame.y)*frame.width*4);}}
+const finish=task=>({...task.settings,frames:task.frames});
+export function spriteSlicePixels(input,width,height,columns=2,rows=2,margin=0,gap=0){const task=capture(input,width,height,columns,rows,margin,gap);copyRows(task,0,height);return finish(task);}
+export async function spriteSlicePixelsAsync(input,width,height,columns=2,rows=2,margin=0,gap=0,requireCurrent=()=>{},onProgress=()=>{},yieldTurn=()=>new Promise(resolve=>setTimeout(resolve,0))){requireCurrent();const task=capture(input,width,height,columns,rows,margin,gap);for(let y=0;y<height;y+=8){requireCurrent();copyRows(task,y,Math.min(height,y+8));onProgress(Math.min(height,y+8)/height);await yieldTurn();}requireCurrent();return finish(task);}

@@ -1,0 +1,15 @@
+// One-bit opaque grayscale PNG, filter 0, zlib with byte-aligned stored DEFLATE blocks.
+function dimensions(width,height){if(![width,height].every(n=>Number.isInteger(n)&&n>=1&&n<=1024))throw Error('Use a binary PNG grid from 1 to 1024 pixels per side.');}
+export function binaryPngSize(width,height){dimensions(width,height);const raw=(Math.ceil(width/8)+1)*height;return raw+63+5*Math.ceil(raw/65535);}
+const u32=(bytes,offset,value)=>new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).setUint32(offset,value>>>0);
+function chunk(name,data){const bytes=new Uint8Array(data.length+12);u32(bytes,0,data.length);for(let i=0;i<4;i++)bytes[4+i]=name.charCodeAt(i);bytes.set(data,8);let crc=0xffffffff;for(let i=4;i<bytes.length-4;i++){crc^=bytes[i];for(let bit=0;bit<8;bit++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}u32(bytes,bytes.length-4,(crc^0xffffffff)>>>0);return bytes;}
+function capture(input,width,height){dimensions(width,height);if(!(input instanceof Uint8Array)||!(input.buffer instanceof ArrayBuffer)||input.length!==width*height||!input.every(n=>n===0||n===1))throw Error('Use one black-or-white bit per binary PNG pixel.');return{source:new Uint8Array(input),width,height};}
+function* work({source,width,height}){const stride=Math.ceil(width/8)+1,raw=new Uint8Array(stride*height);for(let y=0;y<height;y++){for(let x=0;x<width;x++)raw[y*stride+1+(x>>>3)]|=source[y*width+x]<<(7-(x&7));if((y+1)%16===0||y===height-1)yield(y+1)/height;}
+ const zlib=new Uint8Array(raw.length+6+5*Math.ceil(raw.length/65535));zlib.set([0x78,0x01]);let at=2;for(let start=0;start<raw.length;start+=65535){const length=Math.min(65535,raw.length-start);zlib[at++]=start+length===raw.length?1:0;zlib[at++]=length&255;zlib[at++]=length>>>8;zlib[at++]=(~length)&255;zlib[at++]=((~length)>>>8)&255;zlib.set(raw.subarray(start,start+length),at);at+=length;}
+ // Closed-form Adler sums. Bounds here keep weighted accumulation below 2^53.
+ let sum=1,weighted=raw.length;for(let i=0;i<raw.length;i++){sum+=raw[i];weighted+=(raw.length-i)*raw[i];}u32(zlib,at,(weighted%65521)*65536+sum%65521);
+ const ihdr=new Uint8Array(13);u32(ihdr,0,width);u32(ihdr,4,height);ihdr[8]=1;
+ const chunks=[new Uint8Array([137,80,78,71,13,10,26,10]),chunk('IHDR',ihdr),chunk('IDAT',zlib),chunk('IEND',new Uint8Array())],bytes=new Uint8Array(binaryPngSize(width,height));let offset=0;for(const part of chunks){bytes.set(part,offset);offset+=part.length;}if(offset!==bytes.length)throw Error('Binary PNG size changed unexpectedly.');return bytes;
+}
+export function binaryPng(input,width,height){const iterator=work(capture(input,width,height));let step;do{step=iterator.next();}while(!step.done);return step.value;}
+export async function binaryPngAsync(input,width,height,current=()=>{},onProgress=()=>{},yieldTurn=()=>new Promise(resolve=>setTimeout(resolve,0))){current();const iterator=work(capture(input,width,height));for(;;){current();const step=iterator.next();if(step.done){current();return step.value;}onProgress(step.value);await yieldTurn();}}

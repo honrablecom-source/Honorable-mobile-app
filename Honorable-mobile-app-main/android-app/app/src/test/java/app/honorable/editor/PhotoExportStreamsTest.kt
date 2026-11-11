@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.net.Uri
@@ -8,6 +12,8 @@ import java.security.MessageDigest
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoExportStreamsTest {
     private val bytes=ByteArray(600_123){(it%251).toByte()}
     @Test fun completeCopyAndDigestMatchReferenceWithoutTakingStreamOwnership(){

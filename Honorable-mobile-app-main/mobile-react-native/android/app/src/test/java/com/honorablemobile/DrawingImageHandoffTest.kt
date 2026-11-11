@@ -1,13 +1,18 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import java.util.concurrent.AbstractExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
 
 /** Actual bridge and private ownership protocol. No bitmap/provider/Activity construction or launch. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class DrawingImageHandoffTest {
     private class Queue:AbstractExecutorService(){
         val jobs=mutableListOf<Runnable>();var reject=false
@@ -18,7 +23,7 @@ class DrawingImageHandoffTest {
         override fun isTerminated()=false
         override fun awaitTermination(timeout:Long,unit:TimeUnit)=false
     }
-    private val unsafe=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null) as Unsafe
+    private val unsafe=JvmTestAllocator
     private fun set(a:HonorableDrawingActivity,name:String,value:Any){a.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(a,value)}
     private fun flag(a:HonorableDrawingActivity,name:String)=a.javaClass.getDeclaredField(name).apply{isAccessible=true}.get(a) as AtomicBoolean
     private fun setup():Pair<HonorableDrawingActivity,Queue>{

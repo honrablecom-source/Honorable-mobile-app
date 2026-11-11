@@ -1,5 +1,6 @@
 import React from 'react';
 import Renderer, { act } from 'react-test-renderer';
+import { AppState } from 'react-native';
 import { MemoriesScreen } from '../src/screens/MemoriesScreen';
 import type { LibraryItem } from '../src/native/HonorableNative';
 
@@ -27,13 +28,48 @@ let mockItems = fixtures,
   mockIndexing = false,
   mockError = '';
 const mockShare = jest.fn(),
-  mockCreateVideo = jest.fn();
+  mockCreateVideo = jest.fn(),
+  mockCollections = jest.fn(),
+  mockCompare = jest.fn(),
+  mockCancelCompare = jest.fn(),
+  mockIntegrity = jest.fn(),
+  mockPrepareExposureBlend = jest.fn(),
+  mockPrepareRetarget = jest.fn(),
+  mockPrepareFocusStack = jest.fn(),
+  mockPrepareCleanPlate = jest.fn(),
+  mockPrepareDifference = jest.fn(),
+  mockReleaseDifference = jest.fn(),
+  mockOpenDifference = jest.fn();
+const mockPreparePdf = jest.fn(), mockOpenPdf = jest.fn(), mockReleasePdf = jest.fn();
+const mockInspectPrivacy = jest.fn();
+const mockPrepareArchive = jest.fn(), mockShareArchive = jest.fn(), mockReleaseArchive = jest.fn();
 jest.mock('../src/native/HonorableNative', () => ({
   honorableNative: {
+    prepareLibraryOriginalArchive: (...args: unknown[]) => mockPrepareArchive(...args),
+    shareLibraryOriginalArchive: (...args: unknown[]) => mockShareArchive(...args),
+    releaseLibraryOriginalArchive: (...args: unknown[]) => mockReleaseArchive(...args),
+    inspectPhotoPrivacy: (...args: unknown[]) => mockInspectPrivacy(...args),
+    preparePhotoAlbumPdf: (...args: unknown[]) => mockPreparePdf(...args),
+    openPhotoAlbumPdf: (...args: unknown[]) => mockOpenPdf(...args),
+    releasePhotoAlbumPdf: (...args: unknown[]) => mockReleasePdf(...args),
+    libraryCollections: (...args: unknown[]) => mockCollections(...args),
+    compareLibraryOriginals: (...args: unknown[]) => mockCompare(...args),
+    cancelLibraryDuplicateCheck: (...args: unknown[]) => mockCancelCompare(...args),
+    libraryIntegrity: (...args: unknown[]) => mockIntegrity(...args),
+    preparePhotoExposureBlend: (...args: unknown[]) => mockPrepareExposureBlend(...args),
+    preparePhotoRetarget: (...args: unknown[]) => mockPrepareRetarget(...args),
+    preparePhotoFocusStack: (...args: unknown[]) => mockPrepareFocusStack(...args),
+    preparePhotoCleanPlate: (...args: unknown[]) => mockPrepareCleanPlate(...args),
+    preparePhotoDifference: (...args: unknown[]) => mockPrepareDifference(...args),
+    releasePhotoDifference: (...args: unknown[]) => mockReleaseDifference(...args),
+    openPhotoDifference: (...args: unknown[]) => mockOpenDifference(...args),
     shareMediaBatch: (...args: unknown[]) => mockShare(...args),
     createPhotoVideoFromLibraryGuest: (...args: unknown[]) =>
       mockCreateVideo(...args),
   },
+}));
+jest.mock('../src/passes/MemoryPassContext', () => ({
+  useMemoryPass: () => ({ signedIn: true, account: { accountId: 'synthetic-owner' } }),
 }));
 const mockLoadMore = jest.fn(),
   mockReload = jest.fn();
@@ -153,6 +189,12 @@ async function update() {
 }
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() });
+  mockCollections.mockResolvedValue({ owner: 'synthetic-private-owner', collections: [] });
+  mockCompare.mockResolvedValue({ bytesRead: 0, checked: [], skipped: [], groups: [] });
+  mockIntegrity.mockResolvedValue({ owner: 'synthetic-private-owner', baselines: [] });
+  mockPrepareDifference.mockResolvedValue({ token: 'difference', previewUri: 'content://synthetic.creation/map', width: 1, height: 1, sourceWidth: 1, sourceHeight: 1, sampled: false, threshold: 0, changedPixels: 0, maximumDelta: 0, meanDelta: 0 });
+  mockOpenDifference.mockResolvedValue({ opened: true });
   mockItems = fixtures;
   mockTotal = 4;
   mockLoading = false;
@@ -681,4 +723,239 @@ test('a refused creator opening is reported rather than claiming a prepared vide
       ),
   ).toBe(true);
   expect(button('Make video from selected photos').props.disabled).toBe(false);
+});
+
+test('a saved collection filters exact original bindings and can return to all loaded media', async () => {
+  mockCollections.mockResolvedValue({ owner: 'synthetic-private-owner', collections: [{ id: 'trip', name: 'Trip', items: [{ id: '1', uri: fixtures[0].mediaUri, kind: 'IMAGE' }] }] });
+  await mount();
+  await act(async () => button('Private collections').props.onPress());
+  await act(async () => button('Open collection Trip').props.onPress());
+  expect(grid().props.items.map((item: { id: string }) => item.id)).toEqual(['1']);
+  await act(async () => button('Show all Library originals').props.onPress());
+  expect(grid().props.items.map((item: { id: string }) => item.id)).toEqual(['1', '2']);
+});
+
+test('collection saving uses the exact selected originals and blocks competing library actions', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0));
+  await act(async () => button('Private collections').props.onPress());
+  const name = tree.root.findAll(node => node.props.accessibilityLabel === 'Collection name' && typeof node.props.onChangeText === 'function')[0];
+  await act(async () => name.props.onChangeText('Exact originals'));
+  let resolve!: (value: unknown) => void;
+  mockCollections.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await act(async () => button('Save selected originals as collection').props.onPress());
+  expect(mockCollections).toHaveBeenLastCalledWith('create', 'synthetic-private-owner', '', 'Exact originals', [{ id: '1', uri: fixtures[0].mediaUri, kind: 'IMAGE' }]);
+  expect(button('Share selected originals').props.disabled).toBe(true);
+  await act(async () => resolve({ owner: 'synthetic-private-owner', collections: [] }));
+  expect(button('Share selected originals').props.disabled).toBe(false);
+});
+
+test('a reused Library media ID never appears as the saved collection original', async () => {
+  mockCollections.mockResolvedValue({ owner: 'synthetic-private-owner', collections: [{ id: 'trip', name: 'Trip', items: [{ id: '1', uri: 'content://synthetic/previous-original', kind: 'IMAGE' }] }] });
+  await mount();
+  await act(async () => button('Private collections').props.onPress());
+  await act(async () => button('Open collection Trip').props.onPress());
+  expect(tree.root.findAllByProps({ testID: 'media-grid' })).toHaveLength(0);
+});
+
+test('same-tick duplicate checking blocks a competing collection open and releases on cancel', async () => {
+  await mount();
+  await act(async () => button('Select library originals').props.onPress());
+  await act(async () => { chooseTile(0); chooseTile(1); });
+  const oldCollections = button('Private collections').props.onPress;
+  let resolve!: (value: unknown) => void;
+  mockCompare.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await act(async () => { button('Check selected originals for exact duplicates').props.onPress(); oldCollections(); });
+  expect(mockCompare).toHaveBeenCalledWith([
+    { id: '1', uri: fixtures[0].mediaUri, kind: 'IMAGE' }, { id: '2', uri: fixtures[1].mediaUri, kind: 'VIDEO' },
+  ], expect.any(String));
+  expect(mockCollections).not.toHaveBeenCalled(); expect(button('Share selected originals').props.disabled).toBe(true);
+  await act(async () => button('Cancel duplicate check').props.onPress());
+  expect(mockCancelCompare).toHaveBeenCalledWith(mockCompare.mock.calls[0][1]);
+  expect(button('Share selected originals').props.disabled).toBe(false);
+  await act(async () => resolve({ bytesRead: 0, checked: [], skipped: [], groups: [] }));
+});
+
+test('a pending collection save blocks a retained duplicate-check callback in the same tick', async () => {
+  await mount(); await act(async () => button('Select library originals').props.onPress());
+  await act(async () => { chooseTile(0); chooseTile(1); });
+  await act(async () => button('Private collections').props.onPress());
+  const name = tree.root.findAll(node => node.props.accessibilityLabel === 'Collection name' && typeof node.props.onChangeText === 'function')[0];
+  await act(async () => name.props.onChangeText('Mixed originals'));
+  const oldCompare = button('Check selected originals for exact duplicates').props.onPress;
+  let resolve!: (value: unknown) => void;
+  mockCollections.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await act(async () => { button('Save selected originals as collection').props.onPress(); oldCompare(); });
+  expect(mockCompare).not.toHaveBeenCalled();
+  await act(async () => resolve({ owner: 'synthetic-private-owner', collections: [] }));
+});
+
+test('one selected original can record an integrity baseline while blocking a competing collection open', async () => {
+  await mount(); await act(async () => button('Select library originals').props.onPress());
+  await act(async () => chooseTile(0)); await act(async () => button('Private integrity baselines').props.onPress());
+  const name = tree.root.findAll(node => node.props.accessibilityLabel === 'Integrity baseline name' && typeof node.props.onChangeText === 'function')[0];
+  await act(async () => name.props.onChangeText('Before changes'));
+  const oldCollections = button('Private collections').props.onPress;
+  let resolve!: (value: unknown) => void;
+  mockIntegrity.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await act(async () => { button('Record selected original fingerprints').props.onPress(); oldCollections(); });
+  expect(mockIntegrity).toHaveBeenLastCalledWith('create', 'synthetic-private-owner', '', 'Before changes', [{ id: '1', uri: fixtures[0].mediaUri, kind: 'IMAGE' }], expect.any(String));
+  expect(mockCollections).not.toHaveBeenCalled(); expect(button('Share selected originals').props.disabled).toBe(true);
+  await act(async () => button('Cancel integrity work').props.onPress()); expect(button('Share selected originals').props.disabled).toBe(false);
+  await act(async () => resolve({ owner: 'synthetic-private-owner', baselines: [] }));
+});
+
+test('a saved integrity baseline verifies without needing a current Library selection', async () => {
+  mockIntegrity.mockResolvedValue({ owner: 'synthetic-private-owner', baselines: [{ id: 'before', name: 'Before', count: 1, recordedAt: 1000 }] });
+  await mount(); await act(async () => button('Private integrity baselines').props.onPress());
+  await act(async () => button('Verify baseline Before').props.onPress());
+  expect(mockIntegrity).toHaveBeenLastCalledWith('verify', 'synthetic-private-owner', 'before', '', [], expect.any(String));
+  expect(mockShare).not.toHaveBeenCalled(); expect(mockCompare).not.toHaveBeenCalled();
+});
+
+test('two selected photo originals create a difference map only after review and explicit Prepare', async () => {
+  mockItems = [fixtures[0], { ...fixtures[1], mediaUri: 'content://synthetic/photo-two', mediaType: 'IMAGE', displayName: 'Second.jpg' }];
+  await mount(); await act(async () => button('Select library originals').props.onPress()); await act(async () => { chooseTile(0); chooseTile(1); });
+  await act(async () => button('Create photo pixel-difference map').props.onPress()); expect(mockPrepareDifference).not.toHaveBeenCalled();
+  await act(async () => button('Prepare difference map').props.onPress());
+  expect(mockPrepareDifference).toHaveBeenCalledWith([{ id: '1', uri: fixtures[0].mediaUri, kind: 'IMAGE' }, { id: '2', uri: 'content://synthetic/photo-two', kind: 'IMAGE' }], 0, expect.any(String));
+  await act(async () => button('Open map as separate photo').props.onPress());
+  expect(mockOpenDifference).toHaveBeenCalledWith('difference', expect.any(String)); expect(mockShare).not.toHaveBeenCalled(); expect(mockReleaseDifference).not.toHaveBeenCalledWith('difference');
+});
+
+test('a changed selected source drops a staged map and a retained Open cannot substitute new media', async () => {
+  mockItems = [fixtures[0], { ...fixtures[1], mediaUri: 'content://synthetic/photo-two', mediaType: 'IMAGE' }];
+  await mount(); await act(async () => button('Select library originals').props.onPress()); await act(async () => { chooseTile(0); chooseTile(1); });
+  await act(async () => button('Create photo pixel-difference map').props.onPress()); await act(async () => button('Prepare difference map').props.onPress());
+  const oldOpen = button('Open map as separate photo').props.onPress;
+  mockItems = [mockItems[0], { ...mockItems[1], mediaUri: 'content://synthetic/reused-source' }]; await update();
+  await act(async () => oldOpen()); expect(mockOpenDifference).not.toHaveBeenCalled(); expect(mockReleaseDifference).toHaveBeenCalledWith('difference');
+});
+
+test('same-tick difference preparation owns Library admission before disabled state renders', async () => {
+  mockItems = [fixtures[0], { ...fixtures[1], mediaUri: 'content://synthetic/photo-two', mediaType: 'IMAGE' }];
+  await mount(); await act(async () => button('Select library originals').props.onPress()); await act(async () => { chooseTile(0); chooseTile(1); });
+  await act(async () => button('Create photo pixel-difference map').props.onPress());
+  const oldCollections = button('Private collections').props.onPress;
+  let resolve!: (value: unknown) => void; mockPrepareDifference.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await act(async () => { button('Prepare difference map').props.onPress(); oldCollections(); });
+  expect(mockCollections).not.toHaveBeenCalled(); expect(button('Share selected originals').props.disabled).toBe(true);
+  await act(async () => button('Cancel pixel-difference work').props.onPress()); expect(button('Share selected originals').props.disabled).toBe(false);
+  await act(async () => resolve({ token: 'late-map', previewUri: 'content://synthetic.creation/late', width: 1, height: 1, sourceWidth: 1, sourceHeight: 1, threshold: 0, meanDelta: 0, maximumDelta: 0, changedPixels: 0, sampled: false })); expect(mockReleaseDifference).toHaveBeenCalledWith('late-map');
+});
+
+test('three selected photos review, prepare and transfer a separate clean plate',async()=>{
+ mockItems=Array.from({length:3},(_,i)=>({...fixtures[0],mediaId:i+1,mediaUri:`content://synthetic/burst/${i}`}));
+ mockPrepareCleanPlate.mockResolvedValueOnce({token:'clean',operation:'clean-plate',frames:3,previewUri:'content://synthetic.creation/clean',width:1,height:1,sourceWidth:1,sourceHeight:1,sampled:false,threshold:0,changedPixels:1,maximumDelta:0,meanDelta:0});
+ await mount();await act(async()=>button('Select library originals').props.onPress());await act(async()=>{chooseTile(0);chooseTile(1);chooseTile(2);});
+ await act(async()=>button('Create aligned-burst clean plate').props.onPress());expect(mockPrepareCleanPlate).not.toHaveBeenCalled();
+ await act(async()=>button('Prepare clean plate').props.onPress());expect(mockPrepareCleanPlate).toHaveBeenCalledWith(mockItems.map(it=>({id:String(it.mediaId),uri:it.mediaUri,kind:'IMAGE'})),expect.any(String));
+ await act(async()=>button('Open clean plate as separate photo').props.onPress());expect(mockOpenDifference).toHaveBeenCalledWith('clean',expect.any(String));expect(mockReleaseDifference).not.toHaveBeenCalledWith('clean');
+});
+
+test('three selected focus brackets explicitly prepare and transfer a separate sharpness stack',async()=>{
+ mockItems=Array.from({length:3},(_,i)=>({...fixtures[0],mediaId:i+1,mediaUri:`content://synthetic/burst/${i}`}));
+ mockPrepareFocusStack.mockResolvedValueOnce({token:'focus',operation:'focus-stack',frames:3,previewUri:'content://synthetic.creation/clean',width:1,height:1,sourceWidth:1,sourceHeight:1,sampled:false,threshold:0,changedPixels:1,maximumDelta:0,meanDelta:0});
+ await mount();await act(async()=>button('Select library originals').props.onPress());await act(async()=>{chooseTile(0);chooseTile(1);chooseTile(2);});
+ await act(async()=>button('Create aligned focus stack').props.onPress());expect(mockPrepareFocusStack).not.toHaveBeenCalled();
+ await act(async()=>button('Prepare focus stack').props.onPress());expect(mockPrepareFocusStack).toHaveBeenCalledWith(mockItems.map(it=>({id:String(it.mediaId),uri:it.mediaUri,kind:'IMAGE'})),expect.any(String));
+ await act(async()=>button('Open focus stack as separate photo').props.onPress());expect(mockOpenDifference).toHaveBeenCalledWith('focus',expect.any(String));expect(mockReleaseDifference).not.toHaveBeenCalledWith('focus');
+});
+
+test('one selected photo explicitly prepares and transfers a separate content-aware narrowed PNG',async()=>{
+ mockItems=[fixtures[0]];mockPrepareRetarget.mockResolvedValueOnce({token:'narrowed',operation:'retarget',frames:1,removedColumns:1,previewUri:'content://synthetic.creation/narrowed',width:2,height:1,sourceWidth:3,sourceHeight:1,sampled:false,threshold:0,changedPixels:0,maximumDelta:0,meanDelta:0});
+ await mount();await act(async()=>button('Select library originals').props.onPress());await act(async()=>chooseTile(0));
+ await act(async()=>button('Create content-aware narrowed photo').props.onPress());expect(mockPrepareRetarget).not.toHaveBeenCalled();await act(async()=>button('Prepare narrowed photo').props.onPress());expect(mockPrepareRetarget).toHaveBeenCalledWith([{id:'1',uri:fixtures[0].mediaUri,kind:'IMAGE'}],10,expect.any(String));
+ await act(async()=>button('Open narrowed photo as separate photo').props.onPress());expect(mockOpenDifference).toHaveBeenCalledWith('narrowed',expect.any(String));expect(mockReleaseDifference).not.toHaveBeenCalledWith('narrowed');
+});
+
+test('two selected photos explicitly prepare and transfer a protected exposure-bracket blend',async()=>{
+ mockItems=[fixtures[0],{...fixtures[1],mediaType:'IMAGE',mediaUri:'content://synthetic/bracket-two'}];mockPrepareExposureBlend.mockResolvedValueOnce({token:'exposure',operation:'exposure-blend',frames:2,previewUri:'content://synthetic.creation/exposure',width:2,height:1,sourceWidth:2,sourceHeight:1,sampled:false,threshold:0,changedPixels:1,maximumDelta:0,meanDelta:0});
+ await mount();await act(async()=>button('Select library originals').props.onPress());await act(async()=>{chooseTile(0);chooseTile(1);});await act(async()=>button('Blend exposure brackets').props.onPress());expect(mockPrepareExposureBlend).not.toHaveBeenCalled();await act(async()=>button('Prepare exposure blend').props.onPress());expect(mockPrepareExposureBlend).toHaveBeenCalledWith([{id:'1',uri:fixtures[0].mediaUri,kind:'IMAGE'},{id:'2',uri:'content://synthetic/bracket-two',kind:'IMAGE'}],expect.any(String));
+ await act(async()=>button('Open exposure blend as separate photo').props.onPress());expect(mockOpenDifference).toHaveBeenCalledWith('exposure',expect.any(String));expect(mockReleaseDifference).not.toHaveBeenCalledWith('exposure');
+});
+
+test('photo PDF preserves selection order and owns Library admission before disabled state renders', async () => {
+  mockItems = Array.from({ length: 3 }, (_, i) => ({ ...fixtures[0], mediaId: i + 1, mediaUri: `content://synthetic/pdf/${i}` }));
+  let finish!: (value: unknown) => void;
+  mockPreparePdf.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  mockOpenPdf.mockResolvedValueOnce({ opened: true });
+  await mount(); await act(async () => button('Select library originals').props.onPress());
+  await act(async () => { chooseTile(2); chooseTile(0); chooseTile(1); });
+  await act(async () => button('Create photo PDF').props.onPress());
+  expect(mockPreparePdf).not.toHaveBeenCalled();
+  const otherOperation = button('Private collections').props.onPress;
+  await act(async () => { button('Prepare photo PDF').props.onPress(); otherOperation(); });
+  expect(mockCollections).not.toHaveBeenCalled(); expect(button('Share selected originals').props.disabled).toBe(true);
+  expect(mockPreparePdf.mock.calls[0][0]).toEqual([mockItems[2], mockItems[0], mockItems[1]].map(item => ({ id: String(item.mediaId), uri: item.mediaUri, kind: 'IMAGE' })));
+  await act(async () => finish({ token: 'library-pdf', bytes: 1024, pages: Array.from({ length: 3 }, () => ({ width: 1, height: 1, sourceWidth: 1, sourceHeight: 1, sampled: false })) }));
+  expect(button('Share selected originals').props.disabled).toBe(false);
+  await act(async () => button('Open prepared photo PDF').props.onPress());
+  expect(mockOpenPdf).toHaveBeenCalledWith('library-pdf', expect.any(String)); expect(mockReleasePdf).not.toHaveBeenCalledWith('library-pdf');
+});
+
+test('same-tick Library selection change rejects a retained PDF preparation before native reads', async () => {
+  mockItems = Array.from({ length: 2 }, (_, i) => ({ ...fixtures[0], mediaId: i + 1, mediaUri: `content://synthetic/pdf/${i}` }));
+  await mount(); await act(async () => button('Select library originals').props.onPress());
+  await act(async () => { chooseTile(0); chooseTile(1); });
+  await act(async () => button('Create photo PDF').props.onPress());
+  const retained = button('Prepare photo PDF').props.onPress;
+  await act(async () => { chooseTile(0); retained(); });
+  expect(mockPreparePdf).not.toHaveBeenCalled(); expect(mockOpenPdf).not.toHaveBeenCalled();
+});
+
+test('EXIF audit owns Library admission and focuses only reviewed location-flagged originals', async () => {
+  mockItems = Array.from({ length: 3 }, (_, i) => ({ ...fixtures[0], mediaId: i + 1, mediaUri: `content://synthetic/privacy/${i}` }));
+  let finish!: (value: unknown) => void;
+  mockInspectPrivacy.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await mount(); await act(async () => button('Select library originals').props.onPress());
+  await act(async () => { chooseTile(2); chooseTile(0); chooseTile(1); });
+  const other = button('Private collections').props.onPress;
+  await act(async () => { button('Inspect photo EXIF privacy').props.onPress(); other(); });
+  expect(mockCollections).not.toHaveBeenCalled(); expect(button('Share selected originals').props.disabled).toBe(true);
+  const ordered = [mockItems[2], mockItems[0], mockItems[1]];
+  expect(mockInspectPrivacy.mock.calls[0][0]).toEqual(ordered.map(item => ({ id: String(item.mediaId), uri: item.mediaUri, kind: 'IMAGE' })));
+  await act(async () => finish({ entries: ordered.map((item, index) => ({ id: String(item.mediaId), uri: item.mediaUri, status: 'READ', fields: index === 1 ? ['GPS_LATITUDE'] : ['BODY_SERIAL', 'DATE_ORIGINAL'] })) }));
+  await act(async () => button('Select location-flagged photos').props.onPress());
+  await act(async () => button('Share selected originals').props.onPress());
+  expect(mockShare).toHaveBeenCalledWith([{ mediaUri: mockItems[0].mediaUri, mediaType: 'IMAGE' }]);
+  expect(mockInspectPrivacy).toHaveBeenCalledTimes(1);
+});
+
+test('same-tick Library selection change rejects retained EXIF inspection before native reads', async () => {
+  await mount(); await act(async () => button('Select library originals').props.onPress()); await act(async () => chooseTile(0));
+  const retained = button('Inspect photo EXIF privacy').props.onPress;
+  await act(async () => { chooseTile(0); retained(); });
+  expect(mockInspectPrivacy).not.toHaveBeenCalled();
+});
+
+
+test('original archive reviews exact mixed selection order, owns admission and shares only a prepared token', async () => {
+  let finish!: (value: unknown) => void;
+  mockPrepareArchive.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  mockShareArchive.mockResolvedValueOnce({ opened: true });
+  await mount(); await act(async () => button('Select library originals').props.onPress());
+  await act(async () => { chooseTile(1); chooseTile(0); });
+  await act(async () => button('Create original archive').props.onPress());
+  expect(mockPrepareArchive).not.toHaveBeenCalled();
+  const other = button('Private collections').props.onPress;
+  await act(async () => { button('Prepare original archive').props.onPress(); other(); });
+  expect(mockCollections).not.toHaveBeenCalled(); expect(button('Share selected originals').props.disabled).toBe(true);
+  expect(mockPrepareArchive.mock.calls[0][0]).toEqual([fixtures[1], fixtures[0]].map(item => ({id: String(item.mediaId), uri: item.mediaUri, kind: item.mediaType})));
+  await act(async () => finish({token: 'library-archive', bytes: 1200, sha256: 'a'.repeat(64), entries: [
+    {name: 'originals/001.mp4', mime: 'video/mp4', bytes: 100, sha256: 'b'.repeat(64)},
+    {name: 'originals/002.jpg', mime: 'image/jpeg', bytes: 200, sha256: 'c'.repeat(64)},
+  ]}));
+  await act(async () => button('Share prepared original archive').props.onPress());
+  expect(mockShareArchive).toHaveBeenCalledWith('library-archive', expect.any(String));
+  expect(mockShare).not.toHaveBeenCalled(); expect(mockReleaseArchive).not.toHaveBeenCalledWith('library-archive');
+});
+
+test('same-tick selection change refuses retained original archive preparation before native reads', async () => {
+  await mount(); await act(async () => button('Select library originals').props.onPress()); await act(async () => chooseTile(0));
+  await act(async () => button('Create original archive').props.onPress());
+  const retained = button('Prepare original archive').props.onPress;
+  await act(async () => { chooseTile(0); retained(); });
+  expect(mockPrepareArchive).not.toHaveBeenCalled(); expect(mockShareArchive).not.toHaveBeenCalled();
 });

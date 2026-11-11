@@ -1,13 +1,19 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
+
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoProjectVersionAdmissionTest {
-    private val unsafe:Unsafe get(){val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true};return field.get(null)as Unsafe}
+    private val unsafe = JvmTestAllocator
     private fun set(value:Any,name:String,data:Any){value.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(value,data)}
     @Test fun pausedBusyAndPendingRecoveryRefuseBeforeAndroidStorageOrWidgets() {
         for(kind in 0..2){

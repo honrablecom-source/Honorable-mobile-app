@@ -1,15 +1,21 @@
 package com.honorablemobile
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
-import sun.misc.Unsafe
+
 import java.lang.reflect.InvocationTargetException
 
 /** Execute the actual restore method; absent Android widgets deliberately fail after model application. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class VideoRestoreAdmissionTest {
     private fun activity(project:VideoEditProject,sources:Map<String,VideoSource> = emptyMap()):HonorableVideoEditorActivity {
-        val field=Unsafe::class.java.getDeclaredField("theUnsafe").apply{isAccessible=true}
-        val instance=(field.get(null)as Unsafe).allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
+
+        val instance=JvmTestAllocator.allocateInstance(HonorableVideoEditorActivity::class.java)as HonorableVideoEditorActivity
         for((name,value) in mapOf("project" to project,"importedSources" to LinkedHashMap(sources)))
             instance.javaClass.getDeclaredField(name).apply{isAccessible=true}.set(instance,value)
         return instance

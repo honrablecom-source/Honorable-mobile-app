@@ -1,0 +1,71 @@
+const { withProjectView } = require('./project-navigation.cjs');
+const { chromium } = require('../../../ui-previews/node_modules/playwright');
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
+const output = path.resolve(__dirname, '../../../../.context/noble-fast-web/schedule-browser');
+fs.mkdirSync(output, {recursive:true});
+const url = process.env.NOBLE_PREVIEW_URL || 'http://127.0.0.1:4179/drawing/', origin = new URL(url).origin;
+const semantic = elements => elements.map(({updated,version,versionNonce,boundElements,...element})=>({...element,boundElements:boundElements||[]}));
+const fixture = {id:'original',type:'rectangle',x:-40,y:-40,width:30,height:30,angle:0,opacity:100,strokeColor:'#111111',backgroundColor:'#dddddd',fillStyle:'solid',strokeWidth:1,roughness:0,seed:1,version:1,versionNonce:1,groupIds:[],boundElements:null,locked:false};
+(async () => {
+ const browser = await chromium.launch({args:['--no-sandbox']}); let page;
+ try {
+  page = await browser.newPage({viewport:{width:390,height:844}});
+  const errors = [], external = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {if (message.type()==='error' && message.text().includes('Content Security Policy')) errors.push(message.text());});
+  await page.route('**/*', route => {const target=route.request().url();if(!target.startsWith(origin) && !target.startsWith('data:') && !target.startsWith('blob:')){external.push(target);return route.abort();}return route.continue();});
+  await page.addInitScript(fixture => {
+   if(!localStorage.getItem('honorable-drawing-v1')) localStorage.setItem('honorable-drawing-v1', JSON.stringify({version:1,elements:[fixture],appState:{viewBackgroundColor:'#ffffff',currentItemFontFamily:2}}));
+   window.HonorableDrawing={usePng:png=>{window.__png=png;window.honorableExportResult('Synthetic schedule ready');}};
+  }, fixture);
+  await page.goto(url);
+  const save=async()=>{await page.getByRole('button',{name:'Save draft',exact:true}).click();return page.evaluate(()=>JSON.parse(localStorage.getItem('honorable-drawing-v1')));};
+  const before = await save();
+  await page.getByRole('button',{name:'Layouts',exact:true}).click();
+  await page.getByRole('button',{name:'Production schedule',exact:true}).click();
+  await page.getByLabel('Schedule tasks',{exact:true}).fill('Bad | 2026-02-29 | 2026-03-01');
+  await page.getByRole('button',{name:'Insert editable production schedule',exact:true}).click();
+  await page.getByRole('status').getByText(/real calendar dates/).waitFor();
+  assert.deepEqual((await save()).elements,before.elements);
+  const input = 'Later | 2026-01-04 | 2026-01-05\nEarlier | 2026-01-01 | 2026-01-05\nSingle & final | 2026-01-03 | 2026-01-03';
+  await page.getByLabel('Schedule title',{exact:true}).fill('Local production');
+  await page.getByLabel('Schedule tasks',{exact:true}).fill(input);
+  await page.getByRole('button',{name:'Data chart',exact:true}).click();
+  await page.getByRole('button',{name:'Production schedule',exact:true}).click();
+  assert.equal(await page.getByLabel('Schedule tasks',{exact:true}).inputValue(),input);
+  for(const width of [320,390,844]){
+   await page.setViewportSize({width,height:844});
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   const box=await page.getByRole('button',{name:'Insert editable production schedule',exact:true}).boundingBox();assert(box.height>=44);
+   await page.screenshot({path:path.join(output,`form-${width}.png`)});
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'Insert editable production schedule',exact:true}).click();
+  await page.getByRole('status').getByText(/Editable layout inserted/).waitFor();
+  const saved = await save(), inserted=saved.elements.filter(element=>element.id!=='original'), bars=inserted.filter(element=>element.type==='rectangle');
+  assert.equal(bars.length,3);assert.equal(bars[0].width,288);assert.equal(bars[1].width,720);assert.equal(bars[2].width,144);
+  assert.equal(bars[0].x-bars[1].x,432);assert.equal(bars[2].x-bars[1].x,288);
+  assert(inserted.every(element=>element.groupIds.length===1 && element.groupIds[0]===inserted[0].groupIds[0]));
+  for(const field of ['x','y','width','height','angle','opacity','strokeColor','backgroundColor','type','id','groupIds']) assert.deepEqual(saved.elements.find(element=>element.id==='original')[field],before.elements[0][field]);
+  assert(inserted.some(element=>element.text==='2026-01-03 → 2026-01-03 · 1 day'));
+  await page.getByTestId('button-undo').click();assert.equal((await save()).elements.length,1);
+  await page.getByTestId('button-redo').click();assert.equal((await save()).elements.length,saved.elements.length);
+  await page.reload();assert.deepEqual(semantic((await save()).elements),semantic(saved.elements));
+  await page.getByRole('button',{name:'Projects',exact:true}).click();
+  await withProjectView(page,'advanced',()=>page.getByRole('button',{name:'Export project JSON',exact:true}).click());
+  const portable=JSON.parse(await withProjectView(page,'advanced',()=>page.getByLabel('Project JSON',{exact:true}).inputValue()));
+  assert.deepEqual(semantic(JSON.parse(portable.scene).elements),semantic(saved.elements));
+  await withProjectView(page,'advanced',()=>page.getByRole('button',{name:'Prepare vector SVG',exact:true}).click());
+  const svg=await withProjectView(page,'advanced',()=>page.getByLabel('Vector SVG',{exact:true}).inputValue());
+  assert(svg.includes('Single &amp; final'));assert(svg.includes('Local production'));fs.writeFileSync(path.join(output,'schedule.svg'),svg);
+  await page.getByRole('button',{name:'Close panel',exact:true}).click();
+  await page.getByRole('button',{name:'Use image',exact:true}).click();
+  await page.waitForFunction(()=>window.__png?.startsWith('data:image/png;base64,'));
+  const png=await page.evaluate(()=>window.__png);fs.writeFileSync(path.join(output,'schedule.png'),Buffer.from(png.split(',')[1],'base64'));
+  const pixels=await page.evaluate(async()=>{const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=window.__png;});const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const context=canvas.getContext('2d');context.drawImage(image,0,0);const data=context.getImageData(0,0,canvas.width,canvas.height).data;let gray=0,ink=0;for(let i=0;i<data.length;i+=4){if(data[i]===221&&data[i+1]===221&&data[i+2]===221)gray++;if(data[i]===17&&data[i+1]===17&&data[i+2]===17)ink++;}return {gray,ink,width:canvas.width,height:canvas.height};});
+  assert(pixels.gray>1000 && pixels.ink>100);fs.writeFileSync(path.join(output,'pixels.json'),JSON.stringify(pixels,null,2));
+  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+  fs.writeFileSync(path.join(output,'verification.json'),JSON.stringify({passed:true,objects:inserted.length,pixels,deviceChecked:false},null,2));
+  console.log('PASS schedule: actual form/refusal/retention, exact date-scaled geometry, grouped editable objects, source preserved, Undo/Redo, reload/portable, SVG text and PNG ink, phone widths, no page/CSP/external errors. Android unverified.');
+ }catch(error){if(page)await page.screenshot({path:path.join(output,'failure.png')});throw error;}finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

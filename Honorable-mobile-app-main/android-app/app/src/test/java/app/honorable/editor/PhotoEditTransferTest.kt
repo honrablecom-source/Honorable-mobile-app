@@ -1,5 +1,9 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import android.util.Base64
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
@@ -8,6 +12,8 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoEditTransferTest {
     private val scope=PhotoSessionCodec.scope("noble-photo-settings","portable-edit-v1","no-original")
     private val edit=PhotoEdit(rotation=90,crop=.8f,exposure=.25f,finish=PhotoFinish(caption=PhotoCaption("Caption 😀")),

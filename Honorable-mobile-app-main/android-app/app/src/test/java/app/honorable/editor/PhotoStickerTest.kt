@@ -1,11 +1,17 @@
 package app.honorable.editor
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
 import org.junit.Assert.*
 import org.junit.Test
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.random.Random
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE)
 class PhotoStickerTest {
  private val white=-1;private val black=0xff000000.toInt()
  private fun point(pixel:Int=0xff224466.toInt())=intArrayOf(0,0,0,0,pixel,0,0,0,0)
@@ -89,7 +95,7 @@ class PhotoStickerTest {
  @Test fun pausedActivityRefusesStickerDialogBeforeAccessingUi(){
   val type=Class.forName("sun.misc.Unsafe");val allocator=type.getDeclaredField("theUnsafe").apply{isAccessible=true}.get(null)
   fun allocate(clazz:Class<*>)=type.getMethod("allocateInstance",Class::class.java).invoke(allocator,clazz)
-  val activity=allocate(PhotoEditorActivity::class.java) as PhotoEditorActivity
+  val activity=uncreatedPhotoActivity() as PhotoEditorActivity
   PhotoEditorActivity::class.java.getDeclaredField("accessMode").apply{isAccessible=true}.set(activity,EditorAccessMode.GUEST_BASIC)
   PhotoEditorActivity::class.java.getDeclaredField("bitmap").apply{isAccessible=true}.set(activity,allocate(android.graphics.Bitmap::class.java))
   assertEquals(true,PhotoEditorActivity::class.java.getDeclaredMethod("canFinish").apply{isAccessible=true}.invoke(activity))
