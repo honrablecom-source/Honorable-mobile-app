@@ -1,17 +1,28 @@
-# Honorable 1.0.3 / build 4 — internal candidate
+# Noble 1.0.3 / build 4 — core AI internal candidate
 
-Status: complete ARM64 internal APKs have passed package/signature/alignment checks; exact hashes and scope are in docs/HONORABLE_CURRENT_STATUS.md. Local video drafts now pass a separate complete ARM64 build and five focused draft tests; device storage/runtime behavior is unverified. No physical-device verification or public distribution approval.
+Status: source candidate, awaiting the final combined Android build and package checks. The previous APKs have been retired and removed. Source compilation, host inference and browser/native unit checks are separate from an APK, phone acceptance and store readiness. Current artifact identities and availability are recorded in [executable/release.json](../../executable/release.json).
 
-- Adds **Read text** to the native photo editor: the bundled on-device ML Kit Latin-script model reads the current edited preview, then shows selectable text for review and explicit copying. No photo or recognized text is sent to the account server or telemetry. Review recognition accuracy before using copied text.
-- Pixel-budgeted decoding reduces large exports to fit available heap, capped at 6 million pixels (1.5 million on low-RAM devices) and 8192 pixels on the long edge. Export reports actual output dimensions. Original photos remain untouched.
-- Cleans up export/preview bitmaps, handles memory failures, skips stale previews and freezes the edit selected when Save copy opens the document picker.
-- Fixes Windows checkout corruption of the tokenizer by preserving exact asset bytes. Model/tokenizer integrity pins are unchanged.
-- Adds a self-contained internal variant using release optimization and the public debug signing key. This is a tester artifact, not a store release.
-- CI installs the declared SDK/NDK, runs native/JavaScript/server checks, verifies assets/package/signature/ZIP alignment, and records artifact SHA-256/source identity.
-- Fixes unused-code lint errors and applies compatible dependency security updates. The production npm audit has no critical advisories; 25 high and 5 moderate advisories remain unresolved.
+## New creative capabilities
 
-The working branch includes local Video Editor V1 trim/split/reorder, speed/volume/mute, composition preview and Save As Copy implementation. Its media output still needs physical-device acceptance. Explicit local video draft save/restore is packaged and JVM-tested, using existing encrypted account/source-scoped storage; physical behavior remains unverified. Advanced generative AI image/video manipulation, multitrack editing, store billing and trusted native search completion remain unfinished.
+- **AI depth animation:** bundled Apache2 Depth Anything V2 Small estimates relative depth from the complete edited photo. Review its image/depth preview before opening a separate textured2.5Dscene in the MIT Three.js workspace. Adjust depth, materials and camera animation; export GLB. This is a surface inferred from one photo, with possible distorted edges, not complete geometry or generated unseen sides.
+- **AI object eraser:** paint a mask or select a precise rectangle, run the official bundled MIT MI-GAN pipeline locally, review full before/after images and open a separate PNG copy. Only selected working-image pixels change; the current complete edit is fitted within1024pixels and every unpainted pixel stays exact. Generated textures can contain seams, repeats or wrong shapes; they do not recover hidden original content.
+- **Mobile model workspace:** create bounded primitives, apply local image textures, adjust materials, orbit/zoom, animate a turntable, undo, save locally, add a PNG preview and export real GLB models. Ordinary modeling controls are distinct from neural depth inference.
+- **Shareable GIF animation:** MIT gifenc encodes the current model/depth motion in a cancellable local worker, up to384pixels/10fps/1–6seconds/8MiB. GIF has no audio and can band photo colors. Review the result; original photos/current edits and the saved scene remain intact.
 
-Required phone checks: cold startup without Metro, Google sign-in/session restore, library permissions, real local search, credit completion behavior, editor opening, crop/rotate/undo/compare, Read text review/copy/no-text/error cases, Save copy dimensions, source preservation and low-memory behavior. Test OCR with airplane mode after opening the authorized editor; account authorization still requires the configured HTTPS service.
+Account-owned photos require separate explicit consent before making shared guest-workspace copies, which remain accessible after sign-out/account switching. No personal media or query is uploaded by these integrations. Model weights, complete redistribution notices and generated workspace assets are bundled and package-verified.
 
-The existing public Google Web OAuth client ID was recovered privately, and genuine Google sign-in/session restore/logout passed against the local account server. The accepted hosted HTTPS account API URL and Android sign-in remain unavailable. Local build configuration and CI secrets can differ; consult each artifact's configuration booleans. Do not supply client secrets or tokens in chat.
+## Core app and AI tools
+
+The white/black phone Studio now exposes Photo AI and Video AI import flows directly. Existing Android editing includes crop/color/text/composition, undo/recovery and save-copy export, plus reviewed person/background, neural upscale, OCR text/layout/privacy and subject-asset tools. Existing video tools include timeline/trim/speed/music/titles, recovery/export, local speech captions, Spanish caption translation, visible-text recovery and sound-caption suggestions. Optional public-model downloads require consent; private media/transcripts/queries stay local. Recognition and generated suggestions can be wrong and require review.
+
+Native on-device photo search/ranking and original-media protection remain unchanged. V3 stays locked/unchargeable; V1/V2 costs1/3,15free monthly credits, free-first deductions, no free rollover and nonexpiring purchases retain existing server-ledger authority. Failed/cancelled searches are not charged. Account sign-in depends on the configured HTTPS account service; artifact metadata reports configuration presence, not a successful phone login.
+
+## Validation and distribution scope
+
+React Native531cases/typecheck/lint0errors and creation831cases pass. Whole photo/drawing AndroidAPI37 source compiles; exact production neural models run on licensed public/generated host fixtures. Eraser/depth/native drawing/browser/GLB/GIF/Stop/ownership checks pass. Full AGP validation found desktop-codec, static JDK-class and default-application fixture problems; their focused repairs preserve all original behavior assertions. The final combined whole-app build, package/signature/alignment/ABI/model checks and physical-device acceptance remain pending.
+
+Internal Android builds use the public debug signing certificate and are not store releases; developer debug APKs require Metro. Inspect each artifact's source hash, ABI, signing and bundled-code metadata. Never infer current APK contents from a source commit alone.
+
+The published iOS simulator ZIP is a separate verified shell preview. Native iOS search/editing/AI modules are absent. Xcode produced an unsigned device archive, but archive metadata verification failed; a tested parser repair is rerunning on Mac CI. No verified device archive or signed IPA is available yet. Private Apple signing, phone tests and store readiness are separate work.
+
+Required phone acceptance includes cold startup without Metro, authorized gallery/index/search/cancellation, account/session/credit behavior, original-preserving photo/video export and recovery, actual model quality/memory/thermal/cancellation behavior, touch/accessibility and3D/GIF sharing. No expensive search benchmark or Seran holdout was used for build validation.
