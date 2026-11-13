@@ -19,8 +19,8 @@
         "sha256": "1f1d64d71037dc34e71e7be61916b2637dea64ba860040a09d5caef7c74c1323"
       },
       "ModelStudio.jsx": {
-        "bytes": 20535,
-        "sha256": "22c58f109a2c7e3999c9d0596d0db5d4571505ab746767e0ecb52e9a75b64eee"
+        "bytes": 26249,
+        "sha256": "130dd387b9b8bdec1673a712b84993fb6eb07bb779bb8f4f729c038cea03d7f3"
       },
       "PersonalizeTool.jsx": {
         "bytes": 5330,
@@ -239,8 +239,8 @@
         "sha256": "0c16c326b536ebaec446a3bf003a7e9097de4fb8236a000d65ff014f13609f93"
       },
       "build.mjs": {
-        "bytes": 6214,
-        "sha256": "99886e75520a6c80fd12bee2b8104d635f30f23e0b5e61dbcbd4f3d22049f786"
+        "bytes": 6236,
+        "sha256": "b748caaff692937e4c31ad87f0d5e8286c558b7144bb7edbc05908f76a139176"
       },
       "clone-strokes.mjs": {
         "bytes": 1171,
@@ -298,6 +298,18 @@
         "bytes": 5571,
         "sha256": "4184c06157705fd23d7efaffba1d970e5886036cc869406f140693e695e6c00b"
       },
+      "model-gif-worker-client.mjs": {
+        "bytes": 2684,
+        "sha256": "3c903114a5dbc69db57a75aed458ae5d3f71bce22127017d67faa7f9fcf85a4a"
+      },
+      "model-gif-worker.mjs": {
+        "bytes": 1065,
+        "sha256": "75a408432f46f55739bbaf1393bb7e199a5da4ed9eac7df5dfd5f814d6206087"
+      },
+      "model-gif.mjs": {
+        "bytes": 3624,
+        "sha256": "ab13ac427c9c2e11727b2605f773d3ae505705849e4452f6de458c00e74c18fd"
+      },
       "model-import.mjs": {
         "bytes": 8280,
         "sha256": "d1db6ffaf8484965b7ad27fe5080c3ef8f14995928ee1d24be22f08946e3af26"
@@ -327,12 +339,12 @@
         "sha256": "b3edc342efca6062e30d74ec8a0c371f4e00363b59ebc89e7016dae15a4dc0cf"
       },
       "package-lock.json": {
-        "bytes": 134139,
-        "sha256": "18339530235094e6cd0b28b3d390ba5c1af33898f1fe6e4e9fcc8c3676fcec1c"
+        "bytes": 134769,
+        "sha256": "65753aac8cc4b084e06a05803bd0f4487d52e1e4939a194b6e34c249ad73054e"
       },
       "package.json": {
-        "bytes": 980,
-        "sha256": "72d50eeeb37dc1e209101761e3a8ff8e068588acc2bedb010e81d0f677d9cbf0"
+        "bytes": 1027,
+        "sha256": "2bd62d62a7a2e921d78001db7e3394d2604d1e381636cb145b7ff179d76995a6"
       },
       "palette.mjs": {
         "bytes": 2441,
@@ -962,6 +974,10 @@
         "bytes": 10361,
         "sha256": "48f91dd0ae412801bef88610ed2d81e165a2d979ef7a41c43d83eb94e0856741"
       },
+      "THIRD_PARTY/GIFENC-MIT.txt": {
+        "bytes": 1083,
+        "sha256": "47bc590c39d8ccccfc544875a9faebf44bafa828ef20315b396b5d0629f0cfd6"
+      },
       "THIRD_PARTY/MAGIC-WAND-LICENSE.txt": {
         "bytes": 1178,
         "sha256": "05e6ca514e3d4e2086ec4914d524e3f9a190027f6463236f2d4548e4028b9d27"
@@ -1058,6 +1074,10 @@
       "bytes": 10361,
       "sha256": "48f91dd0ae412801bef88610ed2d81e165a2d979ef7a41c43d83eb94e0856741"
     },
+    "THIRD_PARTY/GIFENC-MIT.txt": {
+      "bytes": 1083,
+      "sha256": "47bc590c39d8ccccfc544875a9faebf44bafa828ef20315b396b5d0629f0cfd6"
+    },
     "THIRD_PARTY/MAGIC-WAND-LICENSE.txt": {
       "bytes": 1178,
       "sha256": "05e6ca514e3d4e2086ec4914d524e3f9a190027f6463236f2d4548e4028b9d27"
@@ -1147,8 +1167,8 @@
       "sha256": "576633441c283504a3e549be1d285a6915f27f93b1c324bf81a94a8f5b0cefee"
     },
     "editor.js": {
-      "bytes": 10288110,
-      "sha256": "57afa6780fca3a056693f491d57a638bbe22f237238f55d3e7e2c4d7c639b8d7"
+      "bytes": 10315339,
+      "sha256": "aa31b20af21b70d72e9242603786bd219d37996ff17c067319cbec833e9bcba8"
     },
     "editor.js.LEGAL.txt": {
       "bytes": 8585,

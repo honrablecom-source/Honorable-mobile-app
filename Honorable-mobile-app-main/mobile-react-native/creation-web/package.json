@@ -15,6 +15,7 @@
     "d3-cloud": "1.2.9",
     "delaunator": "5.1.0",
     "earcut": "3.0.2",
+    "gifenc": "1.0.3",
     "jsbarcode": "3.12.3",
     "magic-wand-tool": "1.1.7",
     "path-data-parser": "0.1.0",
@@ -33,6 +34,7 @@
     "@zxing/library": "0.23.0",
     "esbuild": "0.25.12",
     "jsqr": "1.4.0",
+    "omggif": "1.0.10",
     "typescript": "6.0.3"
   }
 }

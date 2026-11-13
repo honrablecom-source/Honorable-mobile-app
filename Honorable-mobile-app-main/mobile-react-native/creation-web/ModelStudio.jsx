@@ -1,3 +1,6 @@
+import gifWorkerSource from 'noble:model-gif-worker';
+import { checkedGifOptions, sendGif } from './model-gif.mjs';
+import { startGifWorker } from './model-gif-worker-client.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { loadDepthModel, disposeImportedModel } from './model-import.mjs';
 import * as THREE from 'three';
@@ -49,7 +52,9 @@ export function ModelStudio({
     life = useRef({ mounted: true, revision: 0, busy: false, operation: 0 }),
     history = useRef([]),
     request = useRef(Math.floor(Math.random() * 900_000_000)),
-    pending = useRef(null);
+    pending = useRef(null),
+    pendingKind = useRef(null),
+    gifJob = useRef(null);
   const specRef = useRef(spec);
   specRef.current = spec;
   const playingRef = useRef(playing);
@@ -57,43 +62,65 @@ export function ModelStudio({
   const status = value => {
     if (life.current.mounted) setMessage(value);
   };
+  const releasePending = () => {
+    const id = pending.current,
+      kind = pendingKind.current;
+    pending.current = null;
+    pendingKind.current = null;
+    if (id === null) return;
+    try {
+      if (kind === 'gif') window.HonorableDrawing?.releaseGifShare?.(id);
+      else window.HonorableDrawing?.releaseModelShare?.(id);
+    } catch {
+      /* Native pause/close also invalidates retained ownership. */
+    }
+  };
   useEffect(() => {
     life.current.mounted = true;
-    const reply = result => {
-      if (pending.current !== result?.requestId) return;
+    const reply = (kind, result) => {
+      if (pending.current !== result?.requestId || pendingKind.current !== kind)
+        return;
       pending.current = null;
+      pendingKind.current = null;
       life.current.busy = false;
       setBusy(false);
       status(
         result.error ||
           (result.opened
-            ? 'Android share sheet opened. Choose a destination to keep the GLB; sharing is not proof it was saved.'
-            : 'Model sharing did not complete.'),
+            ? `Android share sheet opened. Choose a destination to keep the ${
+                kind === 'gif' ? 'GIF' : 'GLB'
+              }; sharing is not proof it was saved.`
+            : 'Sharing did not complete.'),
       );
     };
-    window.honorableModelShareResult = reply;
+    const modelReply = result => reply('model', result),
+      gifReply = result => reply('gif', result);
+    window.honorableModelShareResult = modelReply;
+    window.honorableGifShareResult = gifReply;
     const hidden = () => {
       if (!document.hidden) return;
+      gifJob.current?.stop();
+      gifJob.current = null;
       setPlaying(false);
+      playingRef.current = false;
       life.current.revision++;
       life.current.operation++;
-      const id = pending.current;
-      if (id !== null) {
-        window.HonorableDrawing?.releaseModelShare?.(id);
-        pending.current = null;
-      }
+      releasePending();
       life.current.busy = false;
       setBusy(false);
     };
     document.addEventListener('visibilitychange', hidden);
     return () => {
+      gifJob.current?.stop();
+      gifJob.current = null;
       life.current.mounted = false;
       life.current.revision++;
       document.removeEventListener('visibilitychange', hidden);
-      if (window.honorableModelShareResult === reply)
+      if (window.honorableModelShareResult === modelReply)
         delete window.honorableModelShareResult;
-      if (pending.current !== null)
-        window.HonorableDrawing?.releaseModelShare?.(pending.current);
+      if (window.honorableGifShareResult === gifReply)
+        delete window.honorableGifShareResult;
+      releasePending();
     };
   }, []);
   useEffect(() => {
@@ -176,7 +203,7 @@ export function ModelStudio({
         const mixer = new THREE.AnimationMixer(model.root);
         for (const clip of model.clips) mixer.clipAction(clip).play();
         const clock = new THREE.Clock();
-        live.current = { renderer, scene, camera, model, mixer };
+        live.current = { renderer, scene, camera, model, mixer, controls };
         const tick = () => {
           if (disposed) return;
           const delta = Math.min(clock.getDelta(), 0.1);
@@ -327,11 +354,13 @@ export function ModelStudio({
       if (window.HonorableDrawing) {
         const id = (request.current = (request.current % 1_000_000_000) + 1);
         pending.current = id;
+        pendingKind.current = 'model';
         try {
           status('Preparing Android model share sheet…');
           sendModel(window.HonorableDrawing, id, bytes);
         } catch (error) {
           pending.current = null;
+          pendingKind.current = null;
           throw error;
         }
       } else {
@@ -348,6 +377,125 @@ export function ModelStudio({
         status('GLB download requested. Check your downloads.');
       }
     });
+  const shareGif = () =>
+    run(async current => {
+      const source = live.current,
+        dimensions = source.renderer.getSize(new THREE.Vector2()),
+        scale = Math.min(1, 384 / dimensions.x, 384 / dimensions.y);
+      const options = checkedGifOptions({
+        width: Math.floor(dimensions.x * scale),
+        height: Math.floor(dimensions.y * scale),
+        duration: spec.duration,
+      });
+      if (!spec.animate)
+        throw Error('Include an animation before sharing GIF.');
+      const canvas = document.createElement('canvas');
+      canvas.width = options.width;
+      canvas.height = options.height;
+      const context = canvas.getContext('2d');
+      if (!context) throw Error('GIF frame capture is unavailable.');
+      const camera = source.camera.clone(),
+        time = source.mixer.time,
+        quaternion = source.model.root.quaternion.clone(),
+        enabled = source.controls.enabled;
+      const controller = new AbortController();
+      let worker,
+        restored = false;
+      const restore = () => {
+        if (restored) return;
+        restored = true;
+        if (live.current === source && gifJob.current === task) {
+          source.mixer.setTime(time);
+          source.model.root.quaternion.copy(quaternion);
+          source.controls.enabled = enabled;
+        }
+      };
+      const task = {
+        stop() {
+          controller.abort();
+          worker?.stop();
+          restore();
+        },
+      };
+      gifJob.current = task;
+      setPlaying(false);
+      playingRef.current = false;
+      source.controls.enabled = false;
+      let bytes;
+      try {
+        status(`Rendering GIF 0/${options.frames} on this device…`);
+        worker = startGifWorker(gifWorkerSource, options, controller.signal);
+        await worker.ready;
+        for (let number = 0; number < options.frames; number++) {
+          current();
+          if (controller.signal.aborted || live.current !== source)
+            throw Error('GIF export stopped. No GIF was shared.');
+          source.mixer.setTime(number / 10);
+          source.renderer.render(source.scene, camera);
+          context.drawImage(
+            source.renderer.domElement,
+            0,
+            0,
+            options.width,
+            options.height,
+          );
+          await worker.frame(
+            number,
+            context.getImageData(0, 0, options.width, options.height).data
+              .buffer,
+          );
+          current();
+          status(
+            `Rendering GIF ${number + 1}/${options.frames} on this device…`,
+          );
+        }
+        bytes = await worker.finish();
+        current();
+        if (controller.signal.aborted)
+          throw Error('GIF export stopped. No GIF was shared.');
+      } finally {
+        worker?.stop();
+        restore();
+        if (gifJob.current === task) gifJob.current = null;
+      }
+      if (window.HonorableDrawing) {
+        const id = (request.current = (request.current % 1_000_000_000) + 1);
+        pending.current = id;
+        pendingKind.current = 'gif';
+        try {
+          status('Preparing Android GIF share sheet…');
+          sendGif(window.HonorableDrawing, id, bytes);
+        } catch (error) {
+          pending.current = null;
+          pendingKind.current = null;
+          throw error;
+        }
+      } else {
+        const url = URL.createObjectURL(
+            new Blob([bytes], { type: 'image/gif' }),
+          ),
+          link = document.createElement('a');
+        link.href = url;
+        link.download = 'Noble-animation.gif';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        status('GIF download requested. Check your downloads.');
+      }
+    });
+  const stopGif = () => {
+    gifJob.current?.stop();
+    gifJob.current = null;
+    if (pendingKind.current === 'gif') releasePending();
+    life.current.revision++;
+    life.current.operation++;
+    life.current.busy = false;
+    setBusy(false);
+    status(
+      'GIF export stopped. Check an already-open share destination before retrying.',
+    );
+  };
   const image = () =>
     run(async current => {
       const view = live.current;
@@ -599,19 +747,30 @@ export function ModelStudio({
           <button disabled={!ready} onClick={share}>
             Share GLB
           </button>
+          <button disabled={!ready || !spec.animate} onClick={shareGif}>
+            Share GIF animation
+          </button>
           <button disabled={!ready} onClick={image}>
             Add preview to drawing
           </button>
         </div>
       </fieldset>
+      {busy && (gifJob.current || pendingKind.current === 'gif') && (
+        <button onClick={stopGif}>Stop GIF export</button>
+      )}
+
       <p role="status" aria-live="polite">
         {message}
       </p>
       <p>
-        Saved models and drawing copies use shared local storage on this device, remain after logout, and are not protected by an account. One object per model. The model has its own saved draft and undo
-        history; drawing Save draft does not save it. Animation exports inside
-        GLB, not as a rendered video. Unsaved edits are lost when closing this
-        panel.
+        Saved models and drawing copies use shared local storage on this device,
+        remain after logout, and are not protected by an account. One object per
+        model. The model has its own saved draft and undo history; drawing Save
+        draft does not save it. Animation exports inside GLB. GIF uses your
+        framed preview and background, up to 384 px at 10 fps for 1–6 seconds.
+        GIF has no audio and can show color banding. Pinch to frame your
+        animation before sharing. Processing stays on your device. Unsaved edits
+        are lost when closing this panel.
       </p>
     </section>
   );

@@ -14,12 +14,12 @@ const sourceSnapshot = collectDrawingInputs(root);
 await fs.mkdir(out, { recursive: true });
 // Inline geometry workers for offline WebView: no worker network requests.
 const workerSources = new Map();
-for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours']) {
+for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours','model-gif']) {
   const worker = await build({ entryPoints: [path.join(root, name + '-worker.mjs')], bundle: true, minify: true, write: false, format: 'iife', platform: 'browser', target: ['chrome90'], nodePaths: [modules], legalComments: 'inline', banner: { js: 'var process={env:{POLYGON_CLIPPING_MAX_QUEUE_SIZE:20000,POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS:20000}};' } });
   workerSources.set('noble:' + name + '-worker', worker.outputFiles[0].text);
 }
 const inlineGeometryWorker = { name: 'noble-local-workers', setup(builder) {
-  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
+  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours|model-gif)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
   builder.onLoad({ filter: /.*/, namespace: 'noble-local-worker' }, args => ({ contents: 'export default ' + JSON.stringify(workerSources.get(args.path)) + ';', loader: 'js' }));
 } };
 

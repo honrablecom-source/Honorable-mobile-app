@@ -60,6 +60,8 @@ class HonorableDrawingActivity : Activity() {
     @Volatile private var activePrint:PrintOperation?=null
     private class SvgOperation(val upload:DrawingSvgUpload){var preparing=false}
     @Volatile private var svgOperation:SvgOperation?=null
+    private class GifOperation(val upload:DrawingGifUpload){var preparing=false}
+    @Volatile private var gifOperation:GifOperation?=null
     private class ModelOperation(val upload:DrawingModelUpload){var preparing=false}
     @Volatile private var modelOperation:ModelOperation?=null
     private class ImageOperation { var launching=false }
@@ -238,6 +240,30 @@ class HonorableDrawingActivity : Activity() {
         nativeMessage.text=error?:"Print dialog closed. Check Android print status or the saved PDF; delivery is not confirmed."
         web.evaluateJavascript("window.honorablePrintResult && window.honorablePrintResult($result)",null)
     }
+    private fun currentGif(value:GifOperation)=synchronized(operationLock){gifOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
+    private fun gifReply(id:Int,error:String?=null,opened:Boolean=false){
+        if(printClosed||!::web.isInitialized)return
+        val result=JSONObject().put("requestId",id).put("opened",opened);if(error!=null)result.put("error",error)
+        web.evaluateJavascript("window.honorableGifShareResult && window.honorableGifShareResult($result)",null)
+    }
+    private fun releaseGif(value:GifOperation,error:String?=null){
+        val owned=synchronized(operationLock){if(gifOperation!==value)false else{gifOperation=null;exporting.set(false);true}}
+        if(owned&&error!=null)runOnUiThread{gifReply(value.upload.id,error)}
+    }
+    private fun prepareGif(value:GifOperation){
+        try{worker.execute{
+            val prepared=runCatching{check(currentGif(value));DrawingGifShare.prepare(File(cacheDir,"created-images"),value.upload.finish()){check(currentGif(value)&&!Thread.currentThread().isInterrupted)}}
+            runOnUiThread{prepared.onSuccess{file->
+                if(!currentGif(value)){file.delete();releaseGif(value,"GIF sharing stopped. Try again when active.");return@onSuccess}
+                val shared=runCatching{
+                    val uri=FileProvider.getUriForFile(this@HonorableDrawingActivity,packageName+".creation",file)
+                    val send=Intent(Intent.ACTION_SEND).apply{type="image/gif";putExtra(Intent.EXTRA_STREAM,uri);clipData=android.content.ClipData.newUri(contentResolver,"Noble GIF animation",uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+                    releaseGif(value);startActivity(Intent.createChooser(send,"Share GIF animation"))
+                }
+                shared.onSuccess{gifReply(value.upload.id,opened=true)}.onFailure{file.delete();releaseGif(value);gifReply(value.upload.id,"The GIF share sheet could not open. Try again.")}
+            }.onFailure{releaseGif(value,"GIF preparation failed or stopped. Your model is unchanged; try again.")}}
+        }}catch(_:java.util.concurrent.RejectedExecutionException){releaseGif(value,"GIF sharing stopped. Reopen the workspace.")}
+    }
     private fun currentModel(value:ModelOperation)=synchronized(operationLock){modelOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
     private fun modelReply(id:Int,error:String?=null,opened:Boolean=false){
         if(printClosed||!::web.isInitialized)return
@@ -301,6 +327,20 @@ class HonorableDrawingActivity : Activity() {
             value.substring(offset,minOf(value.length,offset+32768))
         }
         @JavascriptInterface fun releaseDepthModel(){synchronized(operationLock){depthModel=null}}
+        @JavascriptInterface fun beginGifShare(requestId:Int,length:Int):Boolean=synchronized(operationLock){
+            if(!printForeground||printClosed||isDestroyed||isFinishing||gifOperation!=null||!claimExport())return@synchronized false
+            runCatching{GifOperation(DrawingGifUpload(requestId,length))}.fold({gifOperation=it;true},{exporting.set(false);false})
+        }
+        @JavascriptInterface fun appendGifShareChunk(requestId:Int,value:String):Boolean=synchronized(operationLock){
+            val operation=gifOperation?.takeIf{it.upload.id==requestId&&!it.preparing}?:return@synchronized false
+            if(!currentGif(operation))return@synchronized false
+            runCatching{operation.upload.append(value);true}.getOrElse{releaseGif(operation);false}
+        }
+        @JavascriptInterface fun finishGifShare(requestId:Int){runOnUiThread{
+            val operation=synchronized(operationLock){gifOperation?.takeIf{it.upload.id==requestId&&!it.preparing}?.also{it.preparing=true}}?:return@runOnUiThread
+            if(currentGif(operation))prepareGif(operation)else releaseGif(operation,"GIF sharing stopped. Try again when active.")
+        }}
+        @JavascriptInterface fun releaseGifShare(requestId:Int){val operation=synchronized(operationLock){gifOperation?.takeIf{it.upload.id==requestId}}?:return;releaseGif(operation)}
         @JavascriptInterface fun beginModelShare(requestId:Int,length:Int):Boolean=synchronized(operationLock){
             if(!printForeground||printClosed||isDestroyed||isFinishing||modelOperation!=null||!claimExport())return@synchronized false
             runCatching{ModelOperation(DrawingModelUpload(requestId,length))}.fold({modelOperation=it;true},{exporting.set(false);false})
@@ -651,6 +691,6 @@ class HonorableDrawingActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
     override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();vectorOperation?.let{startVectorRead(it)};projectOperation?.let{startProjectOperation(it)};photoOperation?.let{startPhotoOperation(it)}}}
-    override fun onPause(){printForeground=false;modelOperation?.let{releaseModel(it,"Model sharing stopped before its sheet opened. Try again when active.")};invalidateResetReview();cancelVectorRead();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;depthModel=null;if(isFinishing&&!isChangingConfigurations)depthHandoffFile?.delete();depthHandoffFile=null;modelOperation?.let{releaseModel(it)};printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};vectorOperation?.let{releaseVectorOperation(it)};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onPause(){printForeground=false;gifOperation?.let{releaseGif(it,"GIF sharing stopped before its sheet opened. Try again when active.")};modelOperation?.let{releaseModel(it,"Model sharing stopped before its sheet opened. Try again when active.")};invalidateResetReview();cancelVectorRead();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;gifOperation?.let{releaseGif(it)};depthModel=null;if(isFinishing&&!isChangingConfigurations)depthHandoffFile?.delete();depthHandoffFile=null;modelOperation?.let{releaseModel(it)};printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};vectorOperation?.let{releaseVectorOperation(it)};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }
