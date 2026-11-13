@@ -23,7 +23,6 @@ import org.robolectric.annotation.LooperMode
 import org.robolectric.shadows.ShadowAlertDialog
 import java.io.File
 import java.util.concurrent.Executor
-import javax.imageio.ImageIO
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], manifest = Config.NONE)
@@ -75,7 +74,7 @@ class PhotoTextPrivacyControlsTest {
         confirm.isChecked = true; share.performClick(); share.performClick(); shadowOf(Looper.getMainLooper()).idle()
         assertEquals(1, queue.tasks.size); queue.next(); share.performClick()
         assertEquals(1, shared.size); val file = shared.single(); assertTrue(file.name.startsWith("noble-text-privacy-")); assertTrue(file.isFile)
-        val decoded = ImageIO.read(file); assertEquals(16, decoded.width); assertEquals(12, decoded.height)
+        val decoded = PixelPngFixture.read(file); assertEquals(16, decoded.width); assertEquals(12, decoded.height)
         assertArrayEquals(expected, decoded.getRGB(0, 0, 16, 12, null, 0, 16))
         assertTrue(notices.any { it?.contains("copy shared") == true }); assertFalse(original.isRecycled)
     }

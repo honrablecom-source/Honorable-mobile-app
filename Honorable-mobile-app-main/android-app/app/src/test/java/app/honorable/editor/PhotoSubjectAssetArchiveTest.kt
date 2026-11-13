@@ -1,6 +1,5 @@
 package app.honorable.editor
 
-import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -8,12 +7,11 @@ import java.nio.file.Files
 import java.util.zip.CRC32
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.ZipFile
-import javax.imageio.ImageIO
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
 
-/** Real PNG/zlib/CRC/ZIP bytes and JDK image decoder; all model masks are explicitly synthetic. */
+/** Real PNG/zlib/CRC/ZIP bytes and independent PNG decoder; all model masks are explicitly synthetic. */
 class PhotoSubjectAssetArchiveTest {
     private val files = mutableListOf<File>()
     private fun temp(extension: String) = Files.createTempFile("noble-subject-test-", extension).toFile().also { files += it }
@@ -25,8 +23,7 @@ class PhotoSubjectAssetArchiveTest {
         PhotoSubjectAssets.Mask(1, 1, 3, 1, floatArrayOf(1f, 0f, .5f)),
     ))
     private fun encode(cut: PhotoSubjectAssets.Cutout): PhotoSubjectAssetArchive.Encoded {
-        val file = temp(".png"); val image = BufferedImage(cut.width, cut.height, BufferedImage.TYPE_INT_ARGB)
-        image.setRGB(0, 0, cut.width, cut.height, cut.pixels(), 0, cut.width); assertTrue(ImageIO.write(image, "png", file))
+        val file = temp(".png"); assertTrue(PixelPngFixture.write(cut.width, cut.height, cut.pixels(), file))
         return PhotoSubjectAssetArchive.capture(file, cut)
     }
     private fun png(width: Int, height: Int, raw: ByteArray, extra: String? = null): ByteArray {
@@ -47,7 +44,7 @@ class PhotoSubjectAssetArchiveTest {
             for (index in listOf(0, 2)) {
                 val entry = archive.getEntry("subjects/00${index + 1}.png")
                 val bytes = archive.getInputStream(entry).use { it.readBytes() }; assertArrayEquals(images[index].file.readBytes(), bytes)
-                val decoded = ImageIO.read(bytes.inputStream()); val actual = decoded.getRGB(0, 0, decoded.width, decoded.height, null, 0, decoded.width)
+                val decoded = PixelPngFixture.read(bytes.inputStream()); val actual = decoded.getRGB(0, 0, decoded.width, decoded.height, null, 0, decoded.width)
                 assertArrayEquals(cuts[index].pixels(), actual); assertEquals(entry.crc, CRC32().apply { update(bytes) }.value)
             }
             assertEquals(prepared.manifest, archive.getInputStream(archive.getEntry("manifest.json")).use { it.readBytes().toString(Charsets.UTF_8) })

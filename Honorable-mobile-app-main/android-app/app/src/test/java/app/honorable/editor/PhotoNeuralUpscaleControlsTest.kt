@@ -25,7 +25,6 @@ import org.robolectric.shadows.ShadowAlertDialog
 import java.io.File
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
-import javax.imageio.ImageIO
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], manifest = Config.NONE)
@@ -94,7 +93,7 @@ class PhotoNeuralUpscaleControlsTest {
         for (y in 0 until 10) for (x in 0 until 14) assertEquals(original.getPixel(x / 2, y / 2), expected[y * 14 + x])
         queueShare(); button.performClick(); assertEquals(1, queue.tasks.size); queue.next(); button.performClick()
         assertEquals(1, shared.size); assertEquals(1, released); assertTrue(shared.single().isFile)
-        val png = ImageIO.read(shared.single()); assertArrayEquals(expected, png.getRGB(0, 0, 14, 10, null, 0, 14))
+        val png = PixelPngFixture.read(shared.single()); assertArrayEquals(expected, png.getRGB(0, 0, 14, 10, null, 0, 14))
         assertFalse(original.isRecycled); assertTrue(inputs.single().isRecycled); assertTrue(bitmap.isRecycled)
         val bytes = shared.single().readBytes(); assertArrayEquals(byteArrayOf(0x89.toByte(), 80, 78, 71, 13, 10, 26, 10), bytes.copyOfRange(0, 8))
         assertFalse(String(bytes, Charsets.ISO_8859_1).contains("Exif"))

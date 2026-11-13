@@ -8,7 +8,6 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.zip.CRC32
 import java.util.zip.InflaterInputStream
-import javax.imageio.ImageIO
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -113,7 +112,7 @@ class PhotoTextPrivacyTest {
     @Test fun exactPngContainsOnlyFlattenedRgbAndStandardChunksWithIndependentDecoder() {
         val r = review().render(setOf(1), 2); val bytes = r.png()
         assertTrue(bytes.size < PhotoTextPrivacy.MAX_PNG_BYTES); assertArrayEquals(r.pixels(), decode(bytes, r.width, r.height))
-        val decoded = ImageIO.read(ByteArrayInputStream(bytes)); assertNotNull(decoded)
+        val decoded = PixelPngFixture.read(ByteArrayInputStream(bytes)); assertNotNull(decoded)
         assertArrayEquals(r.pixels(), decoded.getRGB(0, 0, r.width, r.height, null, 0, r.width))
     }
     @Test fun maximumEntropyGridAndMergedOverlapsRemainExactAndBounded() {
