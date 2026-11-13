@@ -9,7 +9,7 @@ Status: source candidate, awaiting the final combined Android build and package 
 - **Mobile model workspace:** create bounded primitives, apply local image textures, adjust materials, orbit/zoom, animate a turntable, undo, save locally, add a PNG preview and export real GLB models. Ordinary modeling controls are distinct from neural depth inference.
 - **Shareable GIF animation:** MIT gifenc encodes the current model/depth motion in a cancellable local worker, up to384pixels/10fps/1–6seconds/8MiB. GIF has no audio and can band photo colors. Review the result; original photos/current edits and the saved scene remain intact.
 
-Account-owned photos require separate explicit consent before making shared guest-workspace copies, which remain accessible after sign-out/account switching. No personal media or query is uploaded by these integrations. Model weights, complete redistribution notices and generated workspace assets are bundled and package-verified.
+Account-owned photos require separate explicit consent before making shared guest-workspace copies, which remain accessible after sign-out/account switching. No personal media or query is uploaded by these integrations. Model weights, complete redistribution notices and generated workspace assets are bundled in source; the release build checks their exact packaged bytes.
 
 ## Core app and AI tools
 
