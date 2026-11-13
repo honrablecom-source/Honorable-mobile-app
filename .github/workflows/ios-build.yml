@@ -41,14 +41,14 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: Honorable-mobile-app-main/mobile-react-native/package-lock.json
+      - name: Test artifact verification
+        run: node --test ../scripts/verify-ios-artifact.test.cjs
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
           working-directory: Honorable-mobile-app-main/mobile-react-native
       - name: Install JavaScript dependencies
         run: npm ci --no-audit --no-fund
-      - name: Test artifact verification
-        run: node --test ../scripts/verify-ios-artifact.test.cjs
       - name: Install CocoaPods and resolve iOS dependencies
         run: |
           bundle install
