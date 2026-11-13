@@ -4,7 +4,7 @@ const test = require("node:test"),
   fs = require("node:fs"),
   os = require("node:os"),
   path = require("node:path");
-const { parseMachO, verifyBundle } = require("./verify-ios-artifact.cjs");
+const { parseMachO, readPlist, verifyBundle } = require("./verify-ios-artifact.cjs");
 function thin(cpu = 0x0100000c, platform = 2) {
   const b = Buffer.alloc(2048);
   b.writeUInt32LE(0xfeedfacf, 0);
@@ -184,4 +184,38 @@ test("filesystem aliases keep plist identity after canonicalizing the app path",
   const receipt = verifyBundle({ ...f.options, appDir: alias, archiveDir: f.archive });
   assert.equal(receipt.platform, "iphoneos");
   assert.equal(receipt.slices[0].architecture, "arm64");
+});
+
+// Real plist serialization exercises the production reader, including the archive date
+// that the former plutil-to-JSON adapter could not represent.
+function writeRealPlists(f, binary, applicationPath = "Applications/HonorableMobile.app") {
+  require("node:child_process").execFileSync("python3", ["-c", `
+import datetime, json, plistlib, sys
+fmt = plistlib.FMT_BINARY if sys.argv[4] == "binary" else plistlib.FMT_XML
+with open(sys.argv[1], "wb") as target:
+    plistlib.dump(json.loads(sys.argv[3]), target, fmt=fmt)
+archive = {"CreationDate": datetime.datetime(2026, 11, 13, 22, 0, 0),
+           "ApplicationProperties": {"ApplicationPath": sys.argv[5]},
+           "FixtureData": b"generated", "Name": "Noble"}
+with open(sys.argv[2], "wb") as target:
+    plistlib.dump(archive, target, fmt=fmt)
+`, path.join(f.app, "Info.plist"), path.join(f.archive, "Info.plist"),
+    JSON.stringify(f.info), binary ? "binary" : "xml", applicationPath], {stdio: "pipe"});
+}
+for (const binary of [false, true])
+  test(`production reader verifies real ${binary ? "binary" : "XML"} archive metadata with CreationDate`, (t) => {
+    const f = fixture(t); writeRealPlists(f, binary);
+    const info = readPlist(path.join(f.archive, "Info.plist"));
+    assert.deepEqual(info.CreationDate, {$plistDate: "2026-11-13T22:00:00"});
+    const {plistReader, ...options} = f.options;
+    const receipt = verifyBundle({...options, archiveDir: f.archive});
+    assert.equal(receipt.kind, "device"); assert.equal(receipt.deviceTested, false);
+    assert.equal(receipt.nativeFeatureParityVerified, false); assert.equal(receipt.storeReady, false);
+    writeRealPlists(f, binary, "../escaped.app");
+    assert.throws(() => verifyBundle({...options, archiveDir: f.archive}), /Archive application path/);
+  });
+test("production plist reader rejects malformed or oversized metadata", (t) => {
+  const f = fixture(t); const file = path.join(f.archive, "Info.plist");
+  assert.throws(() => readPlist(file));
+  fs.writeFileSync(file, Buffer.alloc(1048577)); assert.throws(() => readPlist(file));
 });

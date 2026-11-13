@@ -105,10 +105,28 @@ function parseMachO(bytes) {
   }
   return slices;
 }
+// Apple's archive metadata contains plist dates; plutil's JSON conversion rejects them.
+// Python's standard plist parser supports both real XML and binary archive plists.
 const readPlist = (file) =>
   JSON.parse(
-    execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", file], {
+    execFileSync("python3", ["-c", `
+import base64, datetime, json, plistlib, sys
+with open(sys.argv[1], "rb") as source:
+    data = source.read(1048577)
+if len(data) > 1048576:
+    raise ValueError("Property list exceeds metadata limit")
+def encode(value):
+    if isinstance(value, datetime.datetime):
+        return {"$plistDate": value.isoformat()}
+    if isinstance(value, bytes):
+        return {"$plistData": base64.b64encode(value).decode("ascii")}
+    if isinstance(value, plistlib.UID):
+        return {"$plistUID": value.data}
+    raise TypeError("Unsupported property-list value")
+json.dump(plistlib.loads(data), sys.stdout, default=encode)
+`, file], {
       encoding: "utf8",
+      stdio: "pipe",
       maxBuffer: 1024 * 1024,
     })
   );
@@ -243,4 +261,4 @@ if (require.main === module) {
     process.exitCode = 1;
   }
 }
-module.exports = { parseMachO, verifyBundle };
+module.exports = { parseMachO, readPlist, verifyBundle };

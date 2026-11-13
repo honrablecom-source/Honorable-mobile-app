@@ -11,7 +11,7 @@
     "file": "Noble-iOS-simulator.zip",
     "signedIpaAvailable": false,
     "nativeEditorParity": false,
-    "status": "Verified simulator shell ZIP. Native iOS search/editing/AI modules are absent; not iPhone-installable. Unsigned device archive still building.",
+    "status": "Verified simulator shell ZIP. Native iOS search/editing/AI modules are absent; not iPhone-installable. Device archive compilation succeeded but metadata verification failed; tested parser repair awaits Mac rerun.",
     "kind": "simulator",
     "sourceCommit": "878e8f47b7c90457dd77f018ba2b308d515de64c",
     "sizeBytes": 20259844,
@@ -20,7 +20,9 @@
     "freshBuildVerified": true,
     "signing": "UNSIGNED",
     "deviceTested": false,
-    "storeReady": false
+    "storeReady": false,
+    "deviceArchiveCompiled": true,
+    "deviceArchiveVerified": false
   },
   "historicalReport": "apk-report.json",
   "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here."

@@ -36,6 +36,7 @@ jobs:
           test -d "$DEVELOPER_DIR"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
+          python3 --version
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -119,6 +120,22 @@ jobs:
             ${{ runner.temp }}/Noble-iOS-device.receipt.json
           if-no-files-found: error
           retention-days: 14
+      - name: Preserve unverified archive when verification fails
+        if: failure()
+        run: |
+          if [[ -d "$RUNNER_TEMP/Noble-iOS-device-unsigned.xcarchive" ]]; then
+            ditto -c -k --sequesterRsrc --keepParent \
+              "$RUNNER_TEMP/Noble-iOS-device-unsigned.xcarchive" \
+              "$RUNNER_TEMP/Noble-iOS-device-xcarchive-UNVERIFIED.zip"
+          fi
+      - name: Upload unverified archive diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noble-iOS-device-UNVERIFIED-diagnostics
+          path: ${{ runner.temp }}/Noble-iOS-device-xcarchive-UNVERIFIED.zip
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Preserve build logs and receipts
         if: always()
         uses: actions/upload-artifact@v4
