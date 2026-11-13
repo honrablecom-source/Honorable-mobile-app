@@ -7,6 +7,8 @@ on:
       - "Honorable-mobile-app-main/mobile-react-native/**"
       - "Honorable-mobile-app-main/android-app/**"
       - "Honorable-mobile-app-main/scripts/**"
+      # iOS metadata-only repairs do not invalidate Android source/artifacts.
+      - "!Honorable-mobile-app-main/scripts/verify-ios-artifact*"
       - "Honorable-mobile-app-main/dev-server/**"
       - "Honorable-mobile-app-main/product/studio/**"
       - "Honorable-mobile-app-main/beta-operations/RELEASE-NOTES-*.md"
@@ -16,6 +18,8 @@ on:
       - "Honorable-mobile-app-main/mobile-react-native/**"
       - "Honorable-mobile-app-main/android-app/**"
       - "Honorable-mobile-app-main/scripts/**"
+      # iOS metadata-only repairs do not invalidate Android source/artifacts.
+      - "!Honorable-mobile-app-main/scripts/verify-ios-artifact*"
       - "Honorable-mobile-app-main/dev-server/**"
       - "Honorable-mobile-app-main/product/studio/**"
       - "Honorable-mobile-app-main/beta-operations/RELEASE-NOTES-*.md"
