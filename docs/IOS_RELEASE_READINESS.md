@@ -21,7 +21,7 @@ The device archive uses the ordinary application archive action with code signin
 
 The Mach-O constants and layout were checked against Apple's published [loader header](https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/loader.h) and [CPU definitions](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/mach/machine.h). The verifier is original project code; no Apple header implementation is copied or bundled.
 
-Nine focused Node cases pass on Linux, covering actual byte-layout fixtures, thin/universal architectures, platform spoofing, truncated/overlapping tables, executable path escape, absent JS, linked executables, provisioning profiles and archive identity. This validates the verifier, not an iOS build.
+Ten focused Node cases pass on Linux, covering actual byte-layout fixtures, thin/universal architectures, platform spoofing, truncated/overlapping tables, executable path escape, absent JS, linked executables, provisioning profiles and archive identity. This validates the verifier, not an iOS build.
 
 ## Readiness boundary
 
@@ -29,4 +29,8 @@ The latest prior simulator workflow observed during this audit was [run402264610
 
 This Linux workspace has no Xcode. A new successful macOS run and downloaded/verified current artifacts are still required before claiming fresh iOS packages. The current RN iOS target does not implement Android's native media search, photo/video editing or on-device AI modules. A successful shell archive cannot substitute for those ports or for real-device acceptance. The UI must continue to describe unavailable native tools honestly.
 
-Count: zero new user-facing iOS features and zero claimed iOS runtime fixes. This is one packaging/verification improvement, with nine passing verifier tests. Native iOS parity, current macOS build evidence, private signing and device testing remain unfinished.
+Count: zero new user-facing iOS features and zero claimed iOS runtime fixes. This is one packaging/verification improvement, with ten passing verifier tests. Native iOS parity, current macOS build evidence, private signing and device testing remain unfinished.
+
+## First current-source macOS attempt
+
+Run [43516346381](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/43516346381) at `b125035f1e222959421df2ca46d64e03fee848be` stopped before CocoaPods/native compilation: seven verifier tests passed and two fixture-backed cases failed. macOS canonicalizes `/var` temporary paths to `/private/var`; the injected test plist reader compared a noncanonical fixture path against the production verifier's canonical path. The fixture now canonicalizes its application directory and a filesystem-alias regression checks that valid app/archive identity still passes. Production validation and rejection assertions are unchanged. This is one test-fixture portability fix, not a native iOS app fix or build-success claim; a fresh macOS run is required.

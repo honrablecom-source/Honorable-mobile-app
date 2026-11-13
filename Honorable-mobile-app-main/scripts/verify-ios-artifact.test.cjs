@@ -40,9 +40,10 @@ function fat(wide = false) {
 function fixture(t, kind = "device") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "noble-ios-receipt-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const archive = path.join(root, "Noble.xcarchive"),
-    app = path.join(archive, "Products", "Applications", "HonorableMobile.app");
+  const archive = path.join(root, "Noble.xcarchive");
+  let app = path.join(archive, "Products", "Applications", "HonorableMobile.app");
   fs.mkdirSync(app, { recursive: true });
+  app = fs.realpathSync(app);
   fs.writeFileSync(path.join(app, "Info.plist"), "fixture");
   fs.writeFileSync(path.join(archive, "Info.plist"), "fixture");
   fs.writeFileSync(
@@ -174,4 +175,13 @@ test("archive path must identify the exact verified application", (t) => {
       plistReader: reader,
     })
   );
+});
+
+test("filesystem aliases keep plist identity after canonicalizing the app path", (t) => {
+  const f = fixture(t);
+  const alias = path.join(f.root, "Aliased.app");
+  fs.symlinkSync(f.app, alias, "dir");
+  const receipt = verifyBundle({ ...f.options, appDir: alias, archiveDir: f.archive });
+  assert.equal(receipt.platform, "iphoneos");
+  assert.equal(receipt.slices[0].architecture, "arm64");
 });
