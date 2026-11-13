@@ -1,6 +1,6 @@
 # Noble creative expansion register
 
-183 source outcomes / 500 target. Frozen138 debug APK built and artifact-verified (requires Metro); internal variant/full batch accounting and device acceptance remain pending. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
+184 source outcomes / 500 target. Frozen138 debug APK built and artifact-verified (requires Metro); internal variant/full batch accounting and device acceptance remain pending. Source implementation, local-web checks, API compilation, full-app builds and device acceptance remain separate evidence levels.
 
 See [machine-readable register](CREATIVE_500_REGISTER.json), [work log](CREATIVE_500_WORKLOG.md), and [plan](CREATIVE_500_PLAN.md).
 
@@ -324,6 +324,8 @@ Human-readable entries reconciled with the authoritative JSON register November 
 - **C176** — Translate all existing English clip captions into Spanish locally, correct every cue and fully review source/target text before one undoable replacement preserving exact timestamps. Experimental source/API37/28focused cases+8existing parent regressions and actual pinned-model host inference/Stop/install verified; phone/general translation quality/live HTTP/current APK unverified. [Evidence and limits](FEATURE_C176_AI_CAPTION_TRANSLATION.md).
 
 - **C197** — Recognize edited-photo lettering locally, correct and explicitly choose lines, review a complete text-only reconstruction and insert editable typography over preserved original/photo layers with one Apply/Undo. Experimental source/API37/38current cases+42prior regressions; actual OCR/device/current APK unverified. [Evidence and limits](FEATURE_C197_AI_TEXT_LAYOUT.md).
+
+- **C178** — Recognize original-video sound categories locally, choose approximate timed suggestions with all initially skipped, correct labels/timing and review every cue before one undoable caption replacement. Experimental source/API37/21current+12parent regression cases and exact production host model/install/Stop verified; phone/general accuracy/live HTTP/current APK unverified. [Evidence and limits](FEATURE_C178_AI_SOUND_EVENTS.md).
 
 ## Uncounted existing-workflow extensions
 

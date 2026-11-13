@@ -2,10 +2,10 @@
   "product": "Noble",
   "target": 500,
   "counting_rule": "Distinct new user outcomes. Parameters, presets, buttons, tests and platform copies are not additional features.",
-  "source_implemented": 183,
+  "source_implemented": 184,
   "new_apk_built": 0,
   "device_accepted": 0,
-  "remaining_not_source_complete": 317,
+  "remaining_not_source_complete": 316,
   "features": [
     {
       "id": "C001",
@@ -1386,7 +1386,7 @@
     },
     {
       "id": "C187",
-      "outcome": "Fit a source photo patch’s gradients to another photo’s boundary colors, review the exact destination-size PNG and insert a protected-original copy with Undo or hand off exact bytes",
+      "outcome": "Fit a source photo patch\u2019s gradients to another photo\u2019s boundary colors, review the exact destination-size PNG and insert a protected-original copy with Undo or hand off exact bytes",
       "status": "implemented-source",
       "local_web_checked": true,
       "full_app_build_checked": false,
@@ -1473,6 +1473,15 @@
     {
       "id": "C197",
       "outcome": "Recognize lettering from an edited photo locally, correct and explicitly choose lines, review the complete native text-only reconstruction and insert independently editable typography over preserved photo/layers with one owned Apply and Undo",
+      "status": "implemented-source",
+      "local_web_checked": false,
+      "local_native_api_checked": true,
+      "full_app_build_checked": false,
+      "device_checked": false
+    },
+    {
+      "id": "C178",
+      "outcome": "Recognize original-video sound categories locally with explicitly installed AI weights, choose timed suggestions with none preselected, correct every label and timing, then fully review one undoable clip-caption replacement",
       "status": "implemented-source",
       "local_web_checked": false,
       "local_native_api_checked": true,
