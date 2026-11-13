@@ -222,6 +222,7 @@ class PhotoEditorActivity:Activity(){
  button(row(assist),"Cut out person (beta)"){cutOutPerson()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI person background"){chooseBackground()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI text layout"){openAiTextLayout()}.isEnabled=accessMode?.allowsOnDeviceAi==true
+ button(row(assist),"AI object eraser"){openErasePhoto()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI depth animation"){openDepthPhoto()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI upscale copy"){openNeuralUpscaleCopy()}.isEnabled=accessMode?.allowsOnDeviceAi==true
  button(row(assist),"AI subject asset pack"){openSubjectAssetPack()}.isEnabled=accessMode?.allowsOnDeviceAi==true
@@ -408,6 +409,7 @@ class PhotoEditorActivity:Activity(){
  }
  private var colorPaletteControls:PhotoColorPaletteControls?=null
  @Volatile private var textLayoutControls:PhotoTextLayoutControls?=null
+ @Volatile private var eraseControls:PhotoEraseControls?=null
  @Volatile private var depthControls:PhotoDepthControls?=null
  @Volatile private var neuralUpscaleControls:PhotoNeuralUpscaleControls?=null
  @Volatile private var subjectAssetControls:PhotoSubjectAssetControls?=null
@@ -541,6 +543,37 @@ class PhotoEditorActivity:Activity(){
    released={if(textLayoutControls===controls){textLayoutControls=null;photoProjectBusy=false}})
   textLayoutControls=controls;photoProjectBusy=true
   runCatching{controls.open()}.onFailure{controls.close();if(copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text="Text layout controls could not open. Your photo and edits were kept."}
+ }
+ private fun openErasePhoto(){
+  if(!canFinish()||!copyForeground||isDestroyed||eraseControls!=null||accessMode?.allowsOnDeviceAi!=true)return
+  val scope=photoControlScope()?:return
+  val input=bitmap?:return;val state=edit;val original=source;val mask=personMask;val mode=accessMode
+  if(before||renderedEdit!=state){note.text="Wait for the edited preview, then open AI object eraser again.";return}
+  if(state.needsPersonMask&&mask==null){note.text="Wait for the current person-mask preview, then try again.";return}
+  val generation=copyGeneration;val inherited=protectedOriginals.map{it.toString()}
+  lateinit var controls:PhotoEraseControls
+  fun sameFields()=eraseControls===controls&&photoProjectBusy&&copyForeground&&copyGeneration==generation&&!activityClosed&&!isDestroyed&&!isFinishing&&bitmap===input&&edit==state&&source==original&&personMask===mask&&accessMode==mode&&loadedScope==scope&&protectedOriginals.map{it.toString()}==inherited
+  fun same()=sameFields()&&runCatching{currentScope()==scope}.getOrDefault(false)
+  controls=PhotoEraseControls(this,worker,
+   prepareInput={current->
+    current();val preview=PhotoRasterRenderer.render(input,state,mask);var fitted:Bitmap?=null;var delivered=false
+    try{
+     val scale=minOf(1f,1024f/maxOf(preview.width,preview.height))
+     fitted=if(scale<1f)Bitmap.createScaledBitmap(preview,(preview.width*scale).toInt().coerceAtLeast(1),(preview.height*scale).toInt().coerceAtLeast(1),true)else preview
+     current();val result=requireNotNull(fitted);delivered=true;result
+    }finally{if(fitted!==preview)preview.recycle();if(!delivered)fitted?.recycle()}
+   },isCurrent={same()},requireWorkerCurrent={check(sameFields()&&currentScope()==scope){"Photo or session changed"}},
+   accountOwned=mode==EditorAccessMode.ACCOUNT,
+   openCopy={file->
+    check(same()){"Photo or session changed"}
+    val origins=PhotoComparisonFiles.originals(original.toString(),inherited)
+    check(file.canonicalFile.parentFile==java.io.File(cacheDir,"created-images").canonicalFile)
+    val uri=androidx.core.content.FileProvider.getUriForFile(this,packageName+".creation",file)
+    startActivity(Intent(this,PhotoEditorActivity::class.java).putExtra("uri",uri.toString()).putExtra(EditorAccessMode.EXTRA,EditorAccessMode.GUEST_BASIC.name).putStringArrayListExtra(ImportedPhotoOriginals.EXTRA,ArrayList(origins)))
+   },message={value->if(eraseControls===controls&&copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text=value},
+   released={if(eraseControls===controls){eraseControls=null;photoProjectBusy=false}})
+  eraseControls=controls;photoProjectBusy=true
+  runCatching{controls.open()}.onFailure{controls.close();if(copyForeground&&!activityClosed&&!isDestroyed&&!isFinishing)note.text="AI object eraser controls could not open. Your photo and edits were kept."}
  }
  private fun openDepthPhoto(){
   if(!canFinish()||!copyForeground||isDestroyed||depthControls!=null||accessMode?.allowsOnDeviceAi!=true)return
@@ -1439,6 +1472,6 @@ class PhotoEditorActivity:Activity(){
  override fun onBackPressed(){requestPhotoClose()}
  override fun onTrimMemory(level:Int){super.onTrimMemory(level);if(level>=TRIM_MEMORY_RUNNING_LOW)emit("performance_sample",JSONObject().put("metric","MEMORY_PRESSURE").put("durationMs",0))}
  override fun onResume(){super.onResume();copyGeneration++;copyForeground=true;refreshPhotoRecoveryPanel();if(photoExport?.isCancelled==true&&::note.isInitialized)note.text="Stopping the previous export. Check Files before retrying.";publishPhotoExportNotice();resumePendingExport()}
- override fun onPause(){depthControls?.close();textLayoutControls?.close();neuralUpscaleControls?.close();subjectAssetControls?.close();subjectAssetControls=null;photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
- override fun onDestroy(){depthControls?.close();textLayoutControls?.close();neuralUpscaleControls?.close();subjectAssetControls?.close();subjectAssetControls=null;photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
+ override fun onPause(){eraseControls?.close();depthControls?.close();textLayoutControls?.close();neuralUpscaleControls?.close();subjectAssetControls?.close();subjectAssetControls=null;photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();closePhotoCloseReview();closePhotoRestoreReview();copyForeground=false;copyGeneration++;colorPaletteControls?.close();colorPaletteControls=null;super.onPause()}
+ override fun onDestroy(){eraseControls?.close();depthControls?.close();textLayoutControls?.close();neuralUpscaleControls?.close();subjectAssetControls?.close();subjectAssetControls=null;photoObjectArrange?.close();photoObjectArrange=null;photoTextReplace?.close();photoTextReplace=null;closePhotoDestructiveReview();photoVersions?.close();photoVersions=null;closePhotoSettingsReview();photoExport?.cancel();closePhotoRecoveryDiscard();recoveryToolSelection=null;closePhotoCloseReview();runCatching{releasePhotoBack?.invoke()};releasePhotoBack=null;closePhotoRestoreReview();activityClosed=true;emit("editor_closed",JSONObject().put("durationMs",(System.currentTimeMillis()-openedAt).coerceIn(0,3600000)));revision++;cutoutJob?.close();cutoutJob=null;if(::image.isInitialized)image.setImageDrawable(null);rendered?.recycle();rendered=null;worker.execute{bitmap?.recycle();bitmap=null;personMask?.recycle();personMask=null};worker.shutdown();super.onDestroy()}
 }

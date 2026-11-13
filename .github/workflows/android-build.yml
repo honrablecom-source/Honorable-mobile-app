@@ -47,7 +47,9 @@ jobs:
           cache: npm
           cache-dependency-path: Honorable-mobile-app-main/mobile-react-native/package-lock.json
       - name: Test Android build tooling
-        run: node --test ../scripts/android-sdk-config.test.cjs ../scripts/release-manifest.test.cjs ../scripts/check-account-config.test.cjs ../scripts/drawing-assets.test.cjs
+        run: |
+          node --test ../scripts/android-sdk-config.test.cjs ../scripts/release-manifest.test.cjs ../scripts/check-account-config.test.cjs ../scripts/drawing-assets.test.cjs
+          python3 ../scripts/test_verify_ai_apk.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -129,6 +131,7 @@ jobs:
         run: |
           node ../scripts/drawing-assets.cjs creation-web android/app/src/main/assets/drawing
           python3 ../scripts/verify-drawing-apk.py --assets android/app/src/main/assets/drawing --scan android/app/build/outputs/apk
+          python3 ../scripts/verify-ai-apk.py --scan android/app/build/outputs/apk
       - name: Verify bundled application and local model assets
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         run: |
@@ -189,6 +192,7 @@ jobs:
         run: |
           node ../scripts/drawing-assets.cjs creation-web android/app/src/main/assets/drawing
           python3 ../scripts/verify-drawing-apk.py --assets android/app/src/main/assets/drawing --scan android/app/build/outputs/apk
+          python3 ../scripts/verify-ai-apk.py --scan android/app/build/outputs/apk
       - name: Inspect and stage Noble APKs
         run: python3 ../scripts/verify-noble-apks.py
       - name: Preserve Noble APKs when inspection fails

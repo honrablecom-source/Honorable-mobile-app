@@ -10,7 +10,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],manifest=Config.NONE,application=android.app.Application::class)
 class VideoSpeechActivityTest {
-    private val unsafe=sun.misc.Unsafe::class.java.getDeclaredField("theUnsafe").let{it.isAccessible=true;it.get(null)as sun.misc.Unsafe}
     private fun set(value:Any,key:String,item:Any?){value.javaClass.getDeclaredField(key).apply{isAccessible=true}.set(value,item)}
     private fun get(value:Any,key:String)=value.javaClass.getDeclaredField(key).apply{isAccessible=true}.get(value)
     private fun call(value:Any,name:String,vararg args:Any?)=value.javaClass.declaredMethods.single{it.name==name}.apply{isAccessible=true}.invoke(value,*args)
@@ -19,7 +18,7 @@ class VideoSpeechActivityTest {
         val project=VideoEditProject(5000);project.restore(listOf(clip(),VideoSegment(2500,3500)),soundtrack=VideoSoundtrack("content://synthetic/music",5000))
         set(it,"project",project);set(it,"workspaceActive",true);set(it,"importing",true)
     }
-    private fun owner(activity:HonorableVideoEditorActivity)=(unsafe.allocateInstance(VideoSpeechControls::class.java)as VideoSpeechControls).also{set(activity,"speechControls",it)}
+    private fun owner(activity:HonorableVideoEditorActivity)=(JvmTestAllocator.allocateInstance(VideoSpeechControls::class.java)as VideoSpeechControls).also{set(activity,"speechControls",it)}
     private fun commit(a:HonorableVideoEditorActivity,c:VideoSpeechControls,p:VideoEditProject,clip:VideoSegment,current:Boolean=true)=call(a,"commitSpeech",c,p,0,clip,listOf(VideoCaption(1100,1800,"Corrected")),{current})as Boolean
     @Test fun actualParentApplyClearsCurrentSubtitleBindingPreservesEverythingElseAndOneUndo() {
         val a=activity();val p=get(a,"project")as VideoEditProject;val c=owner(a);val before=p.segments;val music=p.soundtrack
