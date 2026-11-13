@@ -11,18 +11,34 @@
     "file": "Noble-iOS-simulator.zip",
     "signedIpaAvailable": false,
     "nativeEditorParity": false,
-    "status": "Verified simulator shell ZIP. Native iOS search/editing/AI modules are absent; not iPhone-installable. Device archive compilation succeeded but metadata verification failed; tested parser repair awaits Mac rerun.",
+    "status": "Verified simulator ZIP and unsigned arm64 device XCArchive. Native iOS search/editing/AI modules are absent. Archive requires private Apple signing before iPhone installation; no IPA/device/store acceptance.",
     "kind": "simulator",
-    "sourceCommit": "878e8f47b7c90457dd77f018ba2b308d515de64c",
-    "sizeBytes": 20259844,
-    "sha256": "9b11b4fe2d71a3b2e2174e8be3b4cbe1a42fbff2efd3eda822f48d993aa4ab21",
+    "sourceCommit": "1c8397b190e3bcf72d3d1a118ef40e1464c4c7b8",
+    "sizeBytes": 20259845,
+    "sha256": "c8837e1077235c9aa08fc78fa29b6be122d9e095e982416aa2932a9e98e03691",
     "receipt": "Noble-iOS-simulator.receipt.json",
     "freshBuildVerified": true,
     "signing": "UNSIGNED",
     "deviceTested": false,
     "storeReady": false,
     "deviceArchiveCompiled": true,
-    "deviceArchiveVerified": false
+    "deviceArchiveVerified": true,
+    "deviceArchive": {
+      "file": "Noble-iOS-device-xcarchive-unsigned.zip",
+      "kind": "device-xcarchive",
+      "receipt": "Noble-iOS-device.receipt.json",
+      "sourceCommit": "1c8397b190e3bcf72d3d1a118ef40e1464c4c7b8",
+      "sizeBytes": 38103155,
+      "sha256": "d2c4e07605d3be2703f0eaa0cc34144d01fb3d663bb1c653b7651bbbbff31c22",
+      "architectures": [
+        "arm64"
+      ],
+      "signing": "UNSIGNED",
+      "requiresAppleSigning": true,
+      "deviceTested": false,
+      "storeReady": false,
+      "nativeFeatureParityVerified": false
+    }
   },
   "historicalReport": "apk-report.json",
   "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here."

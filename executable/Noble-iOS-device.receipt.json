@@ -1,0 +1,25 @@
+{
+  "sourceSha": "1c8397b190e3bcf72d3d1a118ef40e1464c4c7b8",
+  "kind": "device",
+  "bundleIdentifier": "com.honorablemobile",
+  "version": "1.0.3",
+  "build": "4",
+  "minimumOS": "15.1",
+  "platform": "iphoneos",
+  "slices": [
+    {
+      "architecture": "arm64",
+      "platform": 2,
+      "codeSignatureCommand": false
+    }
+  ],
+  "executableBytes": 3608392,
+  "executableSha256": "ceeb7e5924278e33b41379308585f4af5ef9bbee87531fac85d7adf0a6a80570",
+  "jsBundleBytes": 5147608,
+  "jsBundleSha256": "2553db38092a8d887a923363d038039f8cf86d1b622f9a5b72700187f74e973e",
+  "signing": "Workflow disables signing; distribution identity and installation are not verified",
+  "validationScope": "React Native shell compilation and artifact structure only",
+  "nativeFeatureParityVerified": false,
+  "deviceTested": false,
+  "storeReady": false
+}
