@@ -32,7 +32,7 @@ const server = createServer(async (request, response) => {
     const info = await stat(file);
     if (!info.isFile()) { response.writeHead(404).end(); return; }
     const body = pathname === '/config.js' ? Buffer.from('window.EXCALIDRAW_ASSET_PATH="/drawing/";') : await readFile(file);
-    response.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'" });
+    response.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'" });
     response.end(request.method === 'HEAD' ? undefined : body);
   } catch { response.writeHead(404).end(); }
 });

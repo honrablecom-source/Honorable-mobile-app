@@ -24,7 +24,8 @@
     "qrcode-generator": "2.0.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "smartcrop": "2.0.5"
+    "smartcrop": "2.0.5",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@types/react": "19.2.17",

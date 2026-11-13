@@ -1,36 +1,18 @@
 {
+  "status": "current-source-release-in-progress",
+  "oldArtifactsRemoved": true,
   "android": {
-    "file": "Honorable-Android-1.0.3.apk",
-    "sha256": "409fa2c34747a43dc5ae496e325a5c403bd62b98111bdde572d70c00cb6a87cb",
-    "bytes": 129055463,
-    "version": "1.0.3",
-    "abi": "arm64-v8a",
-    "build": "FAST_INTERNAL; public debug certificate",
-    "tests": {
-      "nativeJvm": 144,
-      "sharedJvm": 147,
-      "reactNative": 60
-    },
+    "file": null,
+    "freshBuildVerified": false,
     "deviceTested": false,
-    "appSourceGitTree": "dc1bb8bb5b282efba53f8b07a726cf2072f6c384",
-    "sourceBinding": "Historical Creative20 artifact; appSourceGitTree identifies its original source, not current HEAD."
+    "storeReady": false
   },
   "ios": {
     "file": null,
     "signedIpaAvailable": false,
     "nativeEditorParity": false,
-    "simulatorWorkflow": ".github/workflows/ios-build.yml",
-    "status": "Previous release unsigned simulator CI passed; no signed IPA or native editor parity",
-    "verifiedSimulatorRun": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/40129418431"
+    "status": "Current iOS native search/editing gap under release audit; no app-parity claim"
   },
-  "nobleReady": {
-    "report": "apk-report.json",
-    "sourceCommits": {
-      "normal": "4b34fbc610af1f16549d2d57931202eb1229350c",
-      "matrix": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288"
-    },
-    "apkCount": 10,
-    "containsAuthoring20": false,
-    "status": "Ten verified earlier Noble APKs. Authoring20 source is pushed; its feature-bearing APK build is pending."
-  }
+  "historicalReport": "apk-report.json",
+  "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here."
 }

@@ -2,9 +2,25 @@
   "version": 1,
   "source": {
     "files": {
+      "BoxNetTool.jsx": {
+        "bytes": 3406,
+        "sha256": "1327f1b4eeadf2a10cc29c3915d1b2161bc2ddab74fb535e3391f9582febfbc2"
+      },
       "DimensionCalloutTool.jsx": {
         "bytes": 5547,
         "sha256": "cb82e174b5eab08f2ddbe8f0c6d0eb70fa061dee50426ec9e12677d56a857a1b"
+      },
+      "JigsawTool.jsx": {
+        "bytes": 3806,
+        "sha256": "f009fb074afc404243152d4177102b2cc490c9874c05dd7e86fb362bc333fc9e"
+      },
+      "MazeTool.jsx": {
+        "bytes": 3737,
+        "sha256": "1f1d64d71037dc34e71e7be61916b2637dea64ba860040a09d5caef7c74c1323"
+      },
+      "ModelStudio.jsx": {
+        "bytes": 20535,
+        "sha256": "22c58f109a2c7e3999c9d0596d0db5d4571505ab746767e0ecb52e9a75b64eee"
       },
       "PersonalizeTool.jsx": {
         "bytes": 5330,
@@ -14,6 +30,30 @@
         "bytes": 5657,
         "sha256": "339ea5df7ed876cc7435977cab57feed7bf5a1616cee8f64231c259d939e2762"
       },
+      "PhotoAnnulusTool.jsx": {
+        "bytes": 7461,
+        "sha256": "a30eadae287d72e3f3050d42239896bf6111c1d5258ddc2d2e5450e79772a03f"
+      },
+      "PhotoAsciiTool.jsx": {
+        "bytes": 6333,
+        "sha256": "fdae708acf5104e9872a382e2a7d7eaa25d6dca99bac443baf32132376933eb1"
+      },
+      "PhotoAtlasTool.jsx": {
+        "bytes": 6216,
+        "sha256": "3e8f51e8b4e6c43abd1c759a18ad44218dbc1c8a86abc7adeedf5918c6639075"
+      },
+      "PhotoBarrierTool.jsx": {
+        "bytes": 8373,
+        "sha256": "7122e4df3418ee56e295440a91a27d5a4c122705c1704afce53ce14e3e4ec388"
+      },
+      "PhotoBlendTool.jsx": {
+        "bytes": 6174,
+        "sha256": "481eb9a257fe87369a4d8bf2a6cc23dc705559492ab470b9da087973ea2449ef"
+      },
+      "PhotoCarveTool.jsx": {
+        "bytes": 6998,
+        "sha256": "51cf401082f38f56d2ceded3dead7ff18888075f24eaf9cdfae5924619aaf413"
+      },
       "PhotoChannelPackTool.jsx": {
         "bytes": 5249,
         "sha256": "0762ae0e8fdeacb104fde55b224fc4c537c1dcb0772c3f76ec63dc03db824e49"
@@ -22,9 +62,21 @@
         "bytes": 4652,
         "sha256": "62b130a0799332bb3de583c98cac6950d66901bc1a13a158176fc4cc3c67266a"
       },
+      "PhotoChromaKeyTool.jsx": {
+        "bytes": 7105,
+        "sha256": "92745a364f30a24505f59d88361b191b8bcbbb9a21a49728a1bd1dd13f6a07c1"
+      },
       "PhotoCloneRepairTool.jsx": {
         "bytes": 12365,
         "sha256": "d468e894fc4589b314630aa611de83ec854b50ba8e62f7817ba99046827314c8"
+      },
+      "PhotoContoursTool.jsx": {
+        "bytes": 6040,
+        "sha256": "55c2f8f701e62ea4d17798d588dde325758c2f8ef3cf6c744e6bb56c391bafe1"
+      },
+      "PhotoCubeFacesTool.jsx": {
+        "bytes": 5442,
+        "sha256": "1daca7cb284a8bf49893c7af2bc40733e83ffc63a3a4eade8fcb2392f3a4b7e7"
       },
       "PhotoCubeLutTool.jsx": {
         "bytes": 6487,
@@ -42,9 +94,29 @@
         "bytes": 5838,
         "sha256": "4885489eca777126fb3c915ce548b326bbbaaa4a6e50831ae97134960fb62fbc"
       },
+      "PhotoDocumentTool.jsx": {
+        "bytes": 4971,
+        "sha256": "acbacac268f12b144c96b91929720f87bb881f3726f8a8443fa236febd59556c"
+      },
       "PhotoFramingPreview.jsx": {
         "bytes": 3017,
         "sha256": "2dbc1d3247d4d3e279d32de60039cb8da4643b869f6cc78145e1ab6a08db5ec0"
+      },
+      "PhotoFrequencyTool.jsx": {
+        "bytes": 8140,
+        "sha256": "0ad1a5d36f264b7ff8dfc404175ca30bf68d319adaa459a6d99180eeb58ee10c"
+      },
+      "PhotoGradientTool.jsx": {
+        "bytes": 7162,
+        "sha256": "e695c80321378cb08cb218cb18e1406ea9ff0e56684fc502983f3cdcfc7519a1"
+      },
+      "PhotoHalftoneTool.jsx": {
+        "bytes": 5430,
+        "sha256": "ebb5f9fc43c6d3bbb2ca5b3107a82463410c8b1701f814f0354922bd06438e15"
+      },
+      "PhotoIslandsTool.jsx": {
+        "bytes": 5326,
+        "sha256": "586ee99d8e873dccc0458858db1dd625355818fcecfc5f9061d729720131301f"
       },
       "PhotoLuminanceMaskTool.jsx": {
         "bytes": 4909,
@@ -63,8 +135,8 @@
         "sha256": "03b7a21059d0f7dfedda4821fe2b7427bf95d556e513b79d9972a3639b7b9c62"
       },
       "PhotoObjectTools.jsx": {
-        "bytes": 2528,
-        "sha256": "7097431fee9f81b9b9836178f238453bc804f8b89cad504df7fbadad554a4298"
+        "bytes": 3768,
+        "sha256": "f32345aa5014c0e915f109f5de1763d3ab0df9f4c0f15ed8c0e30c29ad4077d3"
       },
       "PhotoOutlineCutoutTool.jsx": {
         "bytes": 9139,
@@ -78,6 +150,10 @@
         "bytes": 5233,
         "sha256": "c358d11f06b8566dd3c2e4dd373c086569504f71011ba2bd68c84a16a5175409"
       },
+      "PhotoRadialTool.jsx": {
+        "bytes": 7170,
+        "sha256": "2039b89abb9d15037b03e535b0d5d4eeff5b307dfb92dab3fe5bc2c64700a3b4"
+      },
       "PhotoRectifyTool.jsx": {
         "bytes": 6568,
         "sha256": "3d478f3cc0a1bd103d178c3e52ba317ee5330bb5edbdfabf01ebb305d2aa2d47"
@@ -90,6 +166,14 @@
         "bytes": 5535,
         "sha256": "17deb20f130d04ae9804b4dd1caa438db8356b4398a8e4cbc6f1de86ae11bc43"
       },
+      "PhotoRegistrationTool.jsx": {
+        "bytes": 9399,
+        "sha256": "6b26c90eda69f7c36eb0ff9f0e9d09cccd2d6950abd6b568a710352b937710d9"
+      },
+      "PhotoRelightTool.jsx": {
+        "bytes": 6421,
+        "sha256": "91da219822fe86c186545327466d564de2be6757990f2085301d78460a280996"
+      },
       "PhotoSeamlessTool.jsx": {
         "bytes": 5818,
         "sha256": "f63e968c8606fa8627b34bf22c6b0e9b22f9ac58bbd1155ea2c99b2475213e88"
@@ -98,13 +182,29 @@
         "bytes": 6507,
         "sha256": "3781f04732ce2f5b573fc34d0f320a3bd665bf1bfcab0de083f21efa8c048cfd"
       },
+      "PhotoStereogramTool.jsx": {
+        "bytes": 6563,
+        "sha256": "a5474c189399bb43dc18685b6129b1f11609b43d91f805e77b10bf31883c4a34"
+      },
+      "PhotoStitchTool.jsx": {
+        "bytes": 5791,
+        "sha256": "0b81cd19df82301ca583c062bad11e99e3ee2b40189310f6bc0f45e2779ddb02"
+      },
       "PhotoSurfaceMockupTool.jsx": {
         "bytes": 8208,
         "sha256": "3cc1396da08bcc0b1951ca5abc4f529dec03affe211f8b2301bc7bbd5a8e5acc"
       },
+      "PhotoVisionTool.jsx": {
+        "bytes": 4880,
+        "sha256": "0a563e60ea91341964092b49d27f05e70e3f48cee22942a6d5070275a14395ba"
+      },
       "PhotoWandTool.jsx": {
         "bytes": 6863,
         "sha256": "ed16026e270f693abfaf11bdc97efa645be2a790e9782300141717879efea087"
+      },
+      "PictureLogicTool.jsx": {
+        "bytes": 5331,
+        "sha256": "19ccca62e650633eca2edb065bdb2aef2d88722642d0b63ac7c859b51994d011"
       },
       "ShapeBooleanTool.jsx": {
         "bytes": 5614,
@@ -130,9 +230,17 @@
         "bytes": 2262,
         "sha256": "292596f2bb38d6af9e09644fc6b0d89375f429082c1439677db0dd3d6c34f90e"
       },
+      "binary-png.mjs": {
+        "bytes": 3022,
+        "sha256": "a24b81a545eee4607a8f709f60905c838ba5c0fe424069b1ad555dad00457dcb"
+      },
+      "box-net.mjs": {
+        "bytes": 4684,
+        "sha256": "0c16c326b536ebaec446a3bf003a7e9097de4fb8236a000d65ff014f13609f93"
+      },
       "build.mjs": {
-        "bytes": 5499,
-        "sha256": "3336a7310c165301a853879bad2f96336c39641b10378f457b99358582bc094f"
+        "bytes": 6214,
+        "sha256": "99886e75520a6c80fd12bee2b8104d635f30f23e0b5e61dbcbd4f3d22049f786"
       },
       "clone-strokes.mjs": {
         "bytes": 1171,
@@ -155,8 +263,12 @@
         "sha256": "49e5c6f1262f5a96f12d36c1f8f6e1759dc36b077d36223c753bbc0f075acf32"
       },
       "editor.jsx": {
-        "bytes": 167024,
-        "sha256": "dd431800c77c7187e3fcc43bf7e7c4fcb325a8eb3d393e5b770eafbd84df485b"
+        "bytes": 246640,
+        "sha256": "1a27b71da9cd3af171403225365938b933d41ea1e7f8ceb3ae44c18f0174ba7f"
+      },
+      "font-export-patch.mjs": {
+        "bytes": 562,
+        "sha256": "a906ec451c158447c8882e01a503fcdda4d5b7f52e4abba6910bca8ef6f42c88"
       },
       "honorable.css": {
         "bytes": 7013,
@@ -170,25 +282,57 @@
         "bytes": 1084,
         "sha256": "6318a9c1823ae0d9712fc18906f9ca414068eef16b51b48b67da4fedc5f377bf"
       },
+      "jigsaw.mjs": {
+        "bytes": 4053,
+        "sha256": "fcd1c3e8a255c5d16c9f192e4979f26ef9933290145d4bb366ed8848f4f774a3"
+      },
       "layouts.mjs": {
         "bytes": 4627,
         "sha256": "be0236b87300e3b703287871b4b9174f81d59935c2b23191aa63912747be9b67"
       },
+      "maze.mjs": {
+        "bytes": 5675,
+        "sha256": "754078540d3a334e7598668343f0e2a136c69389d1adc0673266cf6f324c1c92"
+      },
       "merge-project.mjs": {
         "bytes": 5571,
         "sha256": "4184c06157705fd23d7efaffba1d970e5886036cc869406f140693e695e6c00b"
+      },
+      "model-import.mjs": {
+        "bytes": 8280,
+        "sha256": "d1db6ffaf8484965b7ad27fe5080c3ef8f14995928ee1d24be22f08946e3af26"
+      },
+      "model-studio.mjs": {
+        "bytes": 7626,
+        "sha256": "7f208ab5f87dc4528842db22cb01c8d26e06522ef7736c0b98ad45031e8814f5"
+      },
+      "nonogram-task.mjs": {
+        "bytes": 2598,
+        "sha256": "40b423e7bdbf5b54db2e3280679330edd8334cb45773e7c1c0cfb8b2e9e051e6"
+      },
+      "nonogram-worker-client.mjs": {
+        "bytes": 279,
+        "sha256": "3b566e9524a9586556fb990db8cb0d10d16f66ca2789908882e7f103774eb105"
+      },
+      "nonogram-worker.mjs": {
+        "bytes": 404,
+        "sha256": "cc87b4f396cf2e666fb59896ebd28ec61138f38fff19f87c35833691152219e8"
+      },
+      "nonogram.mjs": {
+        "bytes": 7681,
+        "sha256": "58ba9a12e02cc500764e3d31db8cc74eeccf863c0410e1357dab8965b13407ad"
       },
       "object-finder.mjs": {
         "bytes": 1499,
         "sha256": "b3edc342efca6062e30d74ec8a0c371f4e00363b59ebc89e7016dae15a4dc0cf"
       },
       "package-lock.json": {
-        "bytes": 133833,
-        "sha256": "151ac3bc64562e0243858702ff3ee104e0d980ca209b06a168c07e05a55a4ebc"
+        "bytes": 134139,
+        "sha256": "18339530235094e6cd0b28b3d390ba5c1af33898f1fe6e4e9fcc8c3676fcec1c"
       },
       "package.json": {
-        "bytes": 956,
-        "sha256": "e5c32481b41b2fe90115027c05f16810f007ad85ecf50bc917e3605c0f69fcca"
+        "bytes": 980,
+        "sha256": "72d50eeeb37dc1e209101761e3a8ff8e068588acc2bedb010e81d0f677d9cbf0"
       },
       "palette.mjs": {
         "bytes": 2441,
@@ -222,6 +366,78 @@
         "bytes": 2510,
         "sha256": "53cad0c417c6ee1343e9574f59d27f1f6e6d2e56ddb60db437de8d460c4aeaf9"
       },
+      "photo-annulus-image.mjs": {
+        "bytes": 3185,
+        "sha256": "d8edb727ad0c3d3375bfaca11c9a40c6b962efa997e3c45a27705bac3310cc61"
+      },
+      "photo-annulus-task.mjs": {
+        "bytes": 3900,
+        "sha256": "c9868bd320ef8175fd241b26079b0e660074dc92a212df97926859dac45b31b6"
+      },
+      "photo-annulus-worker-client.mjs": {
+        "bytes": 284,
+        "sha256": "96a0f806ebc083b6d76e9af260215db16028fb72d1c36163112108bf05bdc5c9"
+      },
+      "photo-annulus-worker.mjs": {
+        "bytes": 585,
+        "sha256": "b1f657c8d54fb054aca739542c5a11b08868011bf63831b3308f01946f4043de"
+      },
+      "photo-annulus.mjs": {
+        "bytes": 3531,
+        "sha256": "f2f33ebe85e3b528de85775c4a9ddf41cc717896b36fa99299dd0aec0cc8479d"
+      },
+      "photo-ascii-image.mjs": {
+        "bytes": 2304,
+        "sha256": "249a0392f311f7c6649066f04b224e975e137782e75111144ced039f64085423"
+      },
+      "photo-ascii.mjs": {
+        "bytes": 5122,
+        "sha256": "7d11b1098b7ad0d5912695d08f91e6c713c23787f87f7f9d6b33160067bd8a8d"
+      },
+      "photo-atlas-image.mjs": {
+        "bytes": 3915,
+        "sha256": "f908e54254bff86f141ae1a982ca1feb236d983537b20030dd1264ac347bc198"
+      },
+      "photo-atlas-task.mjs": {
+        "bytes": 3267,
+        "sha256": "150fa35e1335df555d717bafb3592554b28735238d332c8f1414f1a2cd4a647a"
+      },
+      "photo-atlas-worker-client.mjs": {
+        "bytes": 280,
+        "sha256": "3be141cc1da0b5ccea0b44a4f4454f8c1569164d20e95ddf9e35b570624a08d0"
+      },
+      "photo-atlas-worker.mjs": {
+        "bytes": 464,
+        "sha256": "b79716646bbe48155b1cdc2e66fd6eb25dc76d4ee4ab69436f45e1d522c9628f"
+      },
+      "photo-atlas.mjs": {
+        "bytes": 5363,
+        "sha256": "25eef0719c75a6c1e0e0895f8dd941816565bc6d0d8f6b1b2e0ba7aa27d18bce"
+      },
+      "photo-barrier-image.mjs": {
+        "bytes": 3188,
+        "sha256": "62b9ae4853771c981a41fb7e765b286d3ab1187f2f290ee2944a5efac98d107b"
+      },
+      "photo-barrier.mjs": {
+        "bytes": 4924,
+        "sha256": "52bafd5e50ebec2ad1b0d5f38dd0cf393efb4ba40a8f9cfec4257b283fc2313c"
+      },
+      "photo-blend-image.mjs": {
+        "bytes": 3556,
+        "sha256": "c7d9d4f277942956b339b38fb7c15efe7520b249fdc735efcc699e8260cc1896"
+      },
+      "photo-blend.mjs": {
+        "bytes": 2848,
+        "sha256": "808fe3f16bffb79454bf5188c52ecb02a8cc5cfbc47ff00369ec0f4272d35004"
+      },
+      "photo-carve-image.mjs": {
+        "bytes": 2995,
+        "sha256": "cd11a1d3c7592950c7cef94aefd7506918a0e9f7744f11b2f6356794b104faf1"
+      },
+      "photo-carve.mjs": {
+        "bytes": 5174,
+        "sha256": "9797a9bf0ffa7267afd5a516ed30bac4881ccaa8b877597a1282602d204c8fdf"
+      },
       "photo-channel-pack-image.mjs": {
         "bytes": 3542,
         "sha256": "8667813c9966d9c5de343d31661213f17d6c2d0fcf314057ff003ba8158fb46a"
@@ -254,6 +470,14 @@
         "bytes": 1813,
         "sha256": "f2ad0d0a5e644c0dab4bfa90f3635ef3ac979c04a3ae9321b4b09ee168b10c4f"
       },
+      "photo-chroma-key-image.mjs": {
+        "bytes": 3670,
+        "sha256": "fd09b1cc0c4cce6afc572f7586e0d77e7c8bdb9a88858ba9d2b36e05d3be5e06"
+      },
+      "photo-chroma-key.mjs": {
+        "bytes": 4705,
+        "sha256": "6f64816f686aec7f801800cee562bf1a3d486b5c271493e49bcb8ddb8fa0d248"
+      },
       "photo-clone-image.mjs": {
         "bytes": 3331,
         "sha256": "721c928ef098e87555443755eb9d0a6256d885b5d8c82999f8acb7b98b425513"
@@ -273,6 +497,34 @@
       "photo-clone-worker.mjs": {
         "bytes": 684,
         "sha256": "67337015b890266caa15f1ecb4712be8d2d7bbf92ca296a27534944a56cee37b"
+      },
+      "photo-contours-image.mjs": {
+        "bytes": 2440,
+        "sha256": "bad476a3f67da2bdcdb4a849bbe5c6453af885888eef380a5658723a604f7809"
+      },
+      "photo-contours-task.mjs": {
+        "bytes": 3972,
+        "sha256": "7a9299c55022ab4346538ed94a8d7bb8329f57684dc272de0ee7b05ef07a413a"
+      },
+      "photo-contours-worker-client.mjs": {
+        "bytes": 286,
+        "sha256": "0118c4b15c107db0864ea7bc67208a88c27a84238203922f2c9aeed5a202e904"
+      },
+      "photo-contours-worker.mjs": {
+        "bytes": 459,
+        "sha256": "7b9a593e9679e30e3c40bfb6767a6de679b992d25e532b623664857f5f741f41"
+      },
+      "photo-contours.mjs": {
+        "bytes": 8100,
+        "sha256": "9e4719aaf3be37f7c3a1e68afe53427e236ef646c470a61e454a17a1c2b0470e"
+      },
+      "photo-cube-faces-image.mjs": {
+        "bytes": 3045,
+        "sha256": "4e55835e80e2ebe77c22eb9b61b24482a2b3d4d854779d076c5188ede188463e"
+      },
+      "photo-cube-faces.mjs": {
+        "bytes": 5023,
+        "sha256": "7e5270ac83abb2b3917e97e7095467a6911df7549620a4b2050c36824d6c60cd"
       },
       "photo-cube-lut-image.mjs": {
         "bytes": 3701,
@@ -330,6 +582,14 @@
         "bytes": 528,
         "sha256": "ee5f63bab4c3f600b4d07140e438f7ef926b8962837b598a84e76f244c99416e"
       },
+      "photo-document-image.mjs": {
+        "bytes": 3078,
+        "sha256": "500e15c7616b750df8e421773cf6daeaa24e709c70665035bd522ce3d9502b2a"
+      },
+      "photo-document.mjs": {
+        "bytes": 4248,
+        "sha256": "1f72deb058315bcb745d11cd58c856523e9b0b3d914486e347da28efe1e3cac0"
+      },
       "photo-exact-copy.mjs": {
         "bytes": 1325,
         "sha256": "0dfa10e16a293c2498c44426a762dd8a3092d69ff5becf6d63f480eecdcb0500"
@@ -338,9 +598,57 @@
         "bytes": 4293,
         "sha256": "7d9261be4b1335f2d3828b77efcb42649c901d88c5234d5615e7cb7994c5bbc5"
       },
+      "photo-frequency-image.mjs": {
+        "bytes": 4020,
+        "sha256": "3dbb8f853d80021e504641914dc215f724ba671637ab331662f09330a09b02dd"
+      },
+      "photo-frequency-source.mjs": {
+        "bytes": 1212,
+        "sha256": "86837009e51b5bb94b63a013790e06eae5ec86568b4ab76ada4f5fd666ca99d0"
+      },
+      "photo-frequency.mjs": {
+        "bytes": 6456,
+        "sha256": "0578547947eea50aa9e33d33cd58369e3c22b134c07368c328aa0de6bbd00913"
+      },
+      "photo-gradient-image.mjs": {
+        "bytes": 3713,
+        "sha256": "532619dbb8430a520f2fea069792358b46645531f8e747c7865a522a47a3dd57"
+      },
+      "photo-gradient.mjs": {
+        "bytes": 6381,
+        "sha256": "84ac68ab7d2938cf003b6b5bc53fac61eeb854ef41ebd66c62a197804cec42e7"
+      },
+      "photo-halftone-image.mjs": {
+        "bytes": 2263,
+        "sha256": "96174f0e15ac6ad5c3a8d05b26bb53d6d35e1251d1c6c76ae2227e1d46792a36"
+      },
+      "photo-halftone.mjs": {
+        "bytes": 4645,
+        "sha256": "b50fc6a84abba92bcfe28eb1b8e72dcfaeea1e80fa77c2a695ad652c083d0297"
+      },
       "photo-import.mjs": {
         "bytes": 4005,
         "sha256": "1d8ebb260d9c4823efcd1a7bc3d9af08a274289857700312872ac57f23a4b279"
+      },
+      "photo-islands-image.mjs": {
+        "bytes": 3368,
+        "sha256": "e95fa3101cb89eaa7f3dcfb66210221faee3de2bb78a4a2c38dc5414da39b648"
+      },
+      "photo-islands-task.mjs": {
+        "bytes": 4834,
+        "sha256": "f50e56f92d6fb305ce697f0361cef31c23071b7e3f8cef2c55eb28cde12954f5"
+      },
+      "photo-islands-worker-client.mjs": {
+        "bytes": 284,
+        "sha256": "14e763734dc58acd3398cba4040a7913696c701fd3323b83b580115c177ca9cc"
+      },
+      "photo-islands-worker.mjs": {
+        "bytes": 479,
+        "sha256": "ebee67b7ce1a785dbb7358bf39da4211661261ffc1aa57831a6dd526d71eddb6"
+      },
+      "photo-islands.mjs": {
+        "bytes": 4210,
+        "sha256": "ec4b47e85b3b50e6490e7dff2ae9cf48012aad53863a019ed7ff6c5ad4c61ef8"
       },
       "photo-luminance-mask-image.mjs": {
         "bytes": 3424,
@@ -406,6 +714,14 @@
         "bytes": 3697,
         "sha256": "ac8dd7b7534b8f8a33dce34254234beb0d5eb77bb5081896b354ff21a84e0a6d"
       },
+      "photo-radial-image.mjs": {
+        "bytes": 2961,
+        "sha256": "402acf1de5614e93316d3f6c71fccb0a7c7be77a339c8c1e49abeb5a83c3d9c4"
+      },
+      "photo-radial.mjs": {
+        "bytes": 3648,
+        "sha256": "ae5562f4df21b8c27b620c3733df8c0074ad029c9dfd79d0e25ee4f686b4f7a6"
+      },
       "photo-rectify.mjs": {
         "bytes": 7524,
         "sha256": "2b2e3abe8fc388ea3fb477492f736935a6c973bed18b4c6de05acb44c6caa8d7"
@@ -438,6 +754,22 @@
         "bytes": 4356,
         "sha256": "809717a590c36dc1d9e292e53ec73e140f5ecf550e903f4fc82064ebf0bf9518"
       },
+      "photo-registration-image.mjs": {
+        "bytes": 3604,
+        "sha256": "25763b087d7f1d39f2248afc0e9bdae38c3ff42c4a2707551d83c5c7b4c9b361"
+      },
+      "photo-registration.mjs": {
+        "bytes": 4591,
+        "sha256": "1f5f934a6f47ae5de31773d1d850ef384bdd47be8b302e6c2c18e6050ea1d89b"
+      },
+      "photo-relight-image.mjs": {
+        "bytes": 3841,
+        "sha256": "5d92319fd8e963a4e5caaf607e065c31376e21b6a612e30dc2ca9cd8cfc2c12e"
+      },
+      "photo-relight.mjs": {
+        "bytes": 3087,
+        "sha256": "78960fb2852945eed22735f34dbddfd44781ee1c69b2a84d491cba0851072487"
+      },
       "photo-replace.mjs": {
         "bytes": 1567,
         "sha256": "f8d93d7c6a37da486c389030958c4a2c05a938b173633149037de21994354857"
@@ -466,6 +798,22 @@
         "bytes": 2738,
         "sha256": "d5cec0af5033183e18e7c948092bc47afa597fe483cc0416bc05132b0ad09727"
       },
+      "photo-stereogram-image.mjs": {
+        "bytes": 3157,
+        "sha256": "497929223fca86855c5c6c5831e464fb343ad6666d9b58cb5234a931a6691cbf"
+      },
+      "photo-stereogram.mjs": {
+        "bytes": 4050,
+        "sha256": "d4a6c7d81cd91356fb13e58e94a1c91bbcfcfbe6da8c3148ca71b6f73edab172"
+      },
+      "photo-stitch-image.mjs": {
+        "bytes": 2324,
+        "sha256": "01acb66b9314c27d275e3ed0a39f2b1369f074057b1beb0179673f225d1dbd44"
+      },
+      "photo-stitch.mjs": {
+        "bytes": 5957,
+        "sha256": "52f7bbf6f95e112b4600d20331157011833fff130e7085a3a09cb277402a8681"
+      },
       "photo-surface-image.mjs": {
         "bytes": 3728,
         "sha256": "9b8d79f3eaf51781d514e3d69971ab4d635108bc58533953ba4849667bd52451"
@@ -478,13 +826,21 @@
         "bytes": 3541,
         "sha256": "20839a60d0455738374d63271aa17b8ca9958f691124745b340a12daf41b9dff"
       },
+      "photo-vision-image.mjs": {
+        "bytes": 3119,
+        "sha256": "07bd6e46c7aa3806bbd59bf0956423010fbd523b300bccd43386f246dfc51c38"
+      },
+      "photo-vision.mjs": {
+        "bytes": 4374,
+        "sha256": "0f044d523c9e4e10e89e0fc33efba849758224334ea39d42e1d859fe60875a66"
+      },
       "photo-wand.mjs": {
         "bytes": 3393,
         "sha256": "161c1ae6d7c9b125a0b31546795808112c4e90c9906972b42eed2e6d686a0009"
       },
       "preview.mjs": {
-        "bytes": 3247,
-        "sha256": "7bd3e941319bddbce68d39e9df115be04434ff9f7309e0c64b561bcaa3eba434"
+        "bytes": 3253,
+        "sha256": "6d6e3a87939c923099050ad89be1c53165fb113ba49712fabbf2ffdef619ba0f"
       },
       "print-artwork.mjs": {
         "bytes": 2469,
@@ -650,6 +1006,10 @@
         "bytes": 1101,
         "sha256": "ee0abf2ef497474b599b4bda829e8bb52ef6a29feb2aff2d497fee9c110f44f6"
       },
+      "THIRD_PARTY/THREE-MIT.txt": {
+        "bytes": 1081,
+        "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+      },
       "THIRD_PARTY/jsbarcode-MIT-LICENSE.txt": {
         "bytes": 1076,
         "sha256": "636e31528d9409e080917cc4b0c6bc8d6f6f46c07c75c52808709cd81747365c"
@@ -742,6 +1102,10 @@
       "bytes": 1101,
       "sha256": "ee0abf2ef497474b599b4bda829e8bb52ef6a29feb2aff2d497fee9c110f44f6"
     },
+    "THIRD_PARTY/THREE-MIT.txt": {
+      "bytes": 1081,
+      "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
     "THIRD_PARTY/jsbarcode-MIT-LICENSE.txt": {
       "bytes": 1076,
       "sha256": "636e31528d9409e080917cc4b0c6bc8d6f6f46c07c75c52808709cd81747365c"
@@ -783,12 +1147,12 @@
       "sha256": "576633441c283504a3e549be1d285a6915f27f93b1c324bf81a94a8f5b0cefee"
     },
     "editor.js": {
-      "bytes": 9215501,
-      "sha256": "9baf35c7328b7aa552e6761e3797b5f353622d7f0cd4fae38a6d1f9211c8133f"
+      "bytes": 10288110,
+      "sha256": "57afa6780fca3a056693f491d57a638bbe22f237238f55d3e7e2c4d7c639b8d7"
     },
     "editor.js.LEGAL.txt": {
-      "bytes": 8426,
-      "sha256": "06d1964a3fa3ceafbfa56bc27fc6a44621c9b555149ee36644c52a0cfbacab3c"
+      "bytes": 8585,
+      "sha256": "e2d1aa311ec35a1bb6065761f87d0d2b2c77a02cef27249ff44ae0eafd8fff2f"
     },
     "fonts/Assistant/Assistant-Bold.woff2": {
       "bytes": 20380,

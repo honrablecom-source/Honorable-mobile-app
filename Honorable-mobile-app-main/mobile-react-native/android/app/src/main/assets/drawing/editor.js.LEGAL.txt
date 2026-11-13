@@ -231,3 +231,11 @@ magic-wand-tool/dist/magic-wand.js:
    @copyright (c) 2014-2020, Ryasnoy Paul <ryasnoypaul@gmail.com>
   
   */
+
+three/build/three.core.js:
+three/build/three.module.js:
+  /**
+   * @license
+   * Copyright 2010-2026 Three.js Authors
+   * SPDX-License-Identifier: MIT
+   */

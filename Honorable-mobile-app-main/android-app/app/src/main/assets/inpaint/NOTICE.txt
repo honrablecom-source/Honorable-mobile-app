@@ -1,0 +1,7 @@
+MI-GAN mobile neural object removal
+Official project: https://github.com/Picsart-AI-Research/MI-GAN
+Code and weights: MIT, Copyright (c) 2024 Picsart AI Research (PAIR).
+Official end-to-end ONNX pipeline: https://huggingface.co/andraniksargsyan/migan
+Revision406830d0fa60666da0071c342ad2fbc8f30c5c64
+migan_pipeline_v2.onnx28079181bytes SHA2566f1f3530a1a2324b19752018ce756088b07973cda8d7d890034ace5c8a48c40b
+No training or weight modification. The supplied graph performs crop/resize, preprocessing, neural inpainting and postprocessing. Noble supplies the owner-painted mask, preserves every unpainted ARGB working-image pixel exactly, and requires preview/explicit save-copy approval. Image content is processed locally, never uploaded. Reconstructed content can be incorrect and is not a recovery of the original hidden scene. Full weights license is included in LICENSE-WEIGHTS.txt.

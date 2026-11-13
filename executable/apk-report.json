@@ -184,5 +184,8 @@
   "sourceCommits": {
     "normal": "4b34fbc610af1f16549d2d57931202eb1229350c",
     "matrix": "6659e1e43ed67c03cfb8b72b1c5ea7b537479288"
-  }
+  },
+  "status": "retired-owner-request-2026-11-13",
+  "filesAvailable": false,
+  "note": "Historical identity only. Old APK files were removed at owner request; this report does not describe a current downloadable release."
 }

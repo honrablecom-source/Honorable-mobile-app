@@ -1,3 +1,9 @@
+# Current build instruction — owner November13
+
+The owner explicitly scraps the500-feature target and requests finishing the core app, fixing bugs/UI, integrating practical open-source AI/creative tools, deleting old APKs and producing fresh Android/iOS artifacts. **The earlier100-feature/~238 next-build boundary is superseded. Current full native/Gradle/APK builds are authorized for release integration.**
+
+Build the coherent current source after core fixes, verify artifacts and their source/asset hashes, and retain actual failures. Do not repeat packaging after every small change without a reason. Device/store signing/iOS parity remain separate evidence. Historical instructions below document the old cadence only; they are not active constraints.
+
 # Build cadence — owner instruction, November4
 
 Owner: “dont build after every fetue make sure you make a lot of fetures befor you build lieke for example100”.

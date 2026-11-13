@@ -4,6 +4,15 @@ import { AppState } from 'react-native';
 import { MemoriesScreen } from '../src/screens/MemoriesScreen';
 import type { LibraryItem } from '../src/native/HonorableNative';
 
+// React Native lazily loads these modules. Resolve fixture dependencies before
+// the first async test's deadline; retain the normal 5s behavior assertions.
+Object.values({
+  Modal: require('react-native').Modal,
+  FlatList: require('react-native').FlatList,
+  RefreshControl: require('react-native').RefreshControl,
+  ActivityIndicator: require('react-native').ActivityIndicator,
+});
+
 const fixtures: LibraryItem[] = [
   {
     mediaId: 1,

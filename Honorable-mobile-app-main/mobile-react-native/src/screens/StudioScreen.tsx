@@ -238,7 +238,7 @@ export function StudioScreen({
           },
           {
             title: 'Local AI tools',
-            detail: 'Photo looks, people and backgrounds',
+            detail: 'Subject cutouts, backgrounds, neural upscale and editable text',
             Icon: WandSparkles,
           },
           {
@@ -265,7 +265,7 @@ export function StudioScreen({
           },
           {
             title: 'Local AI tools',
-            detail: 'Video looks and rough cuts',
+            detail: 'Speech captions, translation, visible text and sound captions',
             Icon: WandSparkles,
           },
           {
@@ -354,7 +354,7 @@ export function StudioScreen({
           <Text accessibilityRole="header" style={s.launchTitle}>
             Studio
           </Text>
-          <Text style={s.subtitle}>Photo & video editing</Text>
+          <Text style={s.subtitle}>Create and edit with on-device AI</Text>
         </View>
         <View style={s.headerActions}>
           {onReturnToLibrary && (
@@ -414,6 +414,53 @@ export function StudioScreen({
             <Text style={s.sourceActionText}>Edit photo</Text>
             <ArrowUpRight size={16} color={colors.textPrimary} />
           </Pressable>
+        </View>
+        <View style={s.creationSection}>
+          <Text accessibilityRole="header" style={s.creationHeading}>
+            Make more with AI
+          </Text>
+          <Text style={s.creationCopy}>
+            Start with your media. Review the result. Keep the original.
+          </Text>
+          {[
+            {
+              kind: 'IMAGE' as const,
+              title: 'Photo AI',
+              label: 'Explore photo AI tools',
+              detail: 'Separate subjects, change backgrounds, upscale and turn text into editable layers.',
+              hint: 'Choose a photo, then open Assist in the photo editor.',
+              Icon: Photo,
+            },
+            {
+              kind: 'VIDEO' as const,
+              title: 'Video AI',
+              label: 'Explore video AI tools',
+              detail: 'Create speech captions, translate captions and recover visible text or sounds.',
+              hint: 'Choose a video, then use its AI caption tools. Optional models ask before downloading.',
+              Icon: Film,
+            },
+          ].map(({ kind, title, label, detail, hint, Icon }) => (
+            <Pressable
+              key={kind}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityHint={hint}
+              accessibilityState={{ disabled: busy, busy }}
+              disabled={busy}
+              onPress={() => importMedia(kind)}
+              style={[s.creationCard, busy && s.disabled]}
+            >
+              <Icon size={22} color={colors.textPrimary} strokeWidth={1.5} />
+              <View style={s.creationCardCopy}>
+                <Text style={s.creationTitle}>{title}</Text>
+                <Text style={s.creationCopy}>{detail}</Text>
+              </View>
+              <ArrowUpRight size={16} color={colors.textSecondary} />
+            </Pressable>
+          ))}
+          <Text style={s.creationCopy}>
+            Check AI results before exporting. Originals stay untouched.
+          </Text>
         </View>
         <View style={s.creationSection}>
           <Text accessibilityRole="header" style={s.creationHeading}>

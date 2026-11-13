@@ -1,4 +1,4 @@
-name: iOS simulator build
+name: iOS unsigned builds
 
 on:
   workflow_dispatch:
@@ -10,6 +10,7 @@ on:
       - 'Honorable-mobile-app-main/mobile-react-native/package*.json'
       - 'Honorable-mobile-app-main/mobile-react-native/Gemfile*'
       - '.github/workflows/ios-build.yml'
+      - 'Honorable-mobile-app-main/scripts/verify-ios-artifact*.cjs'
 
 permissions:
   contents: read
@@ -22,12 +23,19 @@ jobs:
   simulator-build:
     # Standard public-repository runner; no paid larger runner or signing secrets.
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     defaults:
       run:
         working-directory: Honorable-mobile-app-main/mobile-react-native
     steps:
       - uses: actions/checkout@v4
+      - name: Check selected Xcode
+        run: |
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -39,6 +47,8 @@ jobs:
           working-directory: Honorable-mobile-app-main/mobile-react-native
       - name: Install JavaScript dependencies
         run: npm ci --no-audit --no-fund
+      - name: Test artifact verification
+        run: node --test ../scripts/verify-ios-artifact.test.cjs
       - name: Install CocoaPods and resolve iOS dependencies
         run: |
           bundle install
@@ -58,21 +68,70 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/honorable-ios" \
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RUNNER_TEMP/honorable-ios-build.log"
-          test -s "$RUNNER_TEMP/honorable-ios/Build/Products/Release-iphonesimulator/HonorableMobile.app/main.jsbundle"
+          node ../scripts/verify-ios-artifact.cjs \
+            --app "$RUNNER_TEMP/honorable-ios/Build/Products/Release-iphonesimulator/HonorableMobile.app" \
+            --kind simulator --source-sha "$GITHUB_SHA" \
+            --out "$RUNNER_TEMP/Noble-iOS-simulator.receipt.json"
       - name: Package unsigned simulator app
         run: |
           ditto -c -k --sequesterRsrc --keepParent \
             "$RUNNER_TEMP/honorable-ios/Build/Products/Release-iphonesimulator/HonorableMobile.app" \
-            "$RUNNER_TEMP/Honorable-iOS-simulator.zip"
+            "$RUNNER_TEMP/Noble-iOS-simulator.zip"
       - name: Upload simulator app
         uses: actions/upload-artifact@v4
         with:
-          name: Honorable-iOS-simulator-unsigned
-          path: ${{ runner.temp }}/Honorable-iOS-simulator.zip
+          name: Noble-iOS-simulator-unsigned
+          path: |
+            ${{ runner.temp }}/Noble-iOS-simulator.zip
+            ${{ runner.temp }}/Noble-iOS-simulator.receipt.json
           if-no-files-found: error
           retention-days: 14
+      - name: Archive unsigned arm64 device application
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/HonorableMobile.xcworkspace \
+            -scheme HonorableMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/noble-ios-device" \
+            -archivePath "$RUNNER_TEMP/Noble-iOS-device-unsigned.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            archive 2>&1 | tee "$RUNNER_TEMP/noble-ios-device-build.log"
+          node ../scripts/verify-ios-artifact.cjs \
+            --app "$RUNNER_TEMP/Noble-iOS-device-unsigned.xcarchive/Products/Applications/HonorableMobile.app" \
+            --archive "$RUNNER_TEMP/Noble-iOS-device-unsigned.xcarchive" \
+            --kind device --source-sha "$GITHUB_SHA" \
+            --out "$RUNNER_TEMP/Noble-iOS-device.receipt.json"
+      - name: Package unsigned device archive
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/Noble-iOS-device-unsigned.xcarchive" \
+            "$RUNNER_TEMP/Noble-iOS-device-xcarchive-unsigned.zip"
+      - name: Upload unsigned device archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noble-iOS-device-xcarchive-unsigned
+          path: |
+            ${{ runner.temp }}/Noble-iOS-device-xcarchive-unsigned.zip
+            ${{ runner.temp }}/Noble-iOS-device.receipt.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve build logs and receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noble-iOS-build-evidence
+          path: |
+            ${{ runner.temp }}/honorable-ios-build.log
+            ${{ runner.temp }}/noble-ios-device-build.log
+            ${{ runner.temp }}/Noble-iOS-*.receipt.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Record scope of this check
         if: always()
         run: |
-          echo '## iOS shell compilation' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Unsigned simulator compilation only. Native Honorable search/editing modules are not implemented for iOS. This is not an IPA, phone test, editor acceptance or feature-parity claim.' >> "$GITHUB_STEP_SUMMARY"
+          echo '## iOS unsigned shell builds' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Simulator ZIP and unsigned arm64 device XCArchive are separate build artifacts. Native Noble search/editing/AI modules are not implemented for iOS. An unsigned archive requires private Apple signing before installation; it is not an IPA, phone test, editor acceptance, feature parity or store-readiness claim.' >> "$GITHUB_STEP_SUMMARY"

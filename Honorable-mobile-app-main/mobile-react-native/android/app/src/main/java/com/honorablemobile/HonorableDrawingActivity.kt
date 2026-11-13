@@ -21,6 +21,18 @@ import org.json.JSONObject
 
 /** Trusted bundled drawing code and explicit local photo selection. No network pages, file access or remote collaboration. */
 class HonorableDrawingActivity : Activity() {
+    companion object { const val EXTRA_DEPTH_GLB_PATH="noble.depth.glb.path" }
+    private var depthHandoffFile:File?=null
+    private var depthHandoffError:String?=null
+    @Volatile private var depthModel:String?=null
+    private fun loadDepthHandoff(){
+        val path=intent.getStringExtra(EXTRA_DEPTH_GLB_PATH)?:return
+        runCatching{
+            val file=DrawingDepthHandoff.file(File(cacheDir,"noble-depth-handoff"),path)
+            val bytes=DrawingDepthHandoff.read(file)
+            depthHandoffFile=file;depthModel=Base64.encodeToString(bytes,Base64.NO_WRAP)
+        }.onFailure{depthHandoffError="The local AI depth model could not be opened. Your photo is unchanged; return to the photo editor and prepare it again."}
+    }
     private lateinit var web:WebView
     private lateinit var nativeMessage:TextView
     private var interruptedFileKind:String?=null
@@ -48,6 +60,8 @@ class HonorableDrawingActivity : Activity() {
     @Volatile private var activePrint:PrintOperation?=null
     private class SvgOperation(val upload:DrawingSvgUpload){var preparing=false}
     @Volatile private var svgOperation:SvgOperation?=null
+    private class ModelOperation(val upload:DrawingModelUpload){var preparing=false}
+    @Volatile private var modelOperation:ModelOperation?=null
     private class ImageOperation { var launching=false }
     @Volatile private var imageOperation:ImageOperation?=null
     private class PhotoOperation(val id:Int,val leased:Boolean){var received=false;var started=false;var ready=false;var uri:android.net.Uri?=null}
@@ -62,11 +76,12 @@ class HonorableDrawingActivity : Activity() {
     private class VectorOperation(val id:Int,val code:Int){var received=false;var started=false;var uri:android.net.Uri?=null;var text:String?=null}
     @Volatile private var vectorOperation:VectorOperation?=null
     private var lastVectorCode=0
-    private val csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    private val csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     @Suppress("SetJavaScriptEnabled")
     override fun onCreate(state:Bundle?) {
         super.onCreate(state)
         if(intent.getStringExtra(EditorAccessMode.EXTRA)!=EditorAccessMode.GUEST_BASIC.name){finish();return}
+        loadDepthHandoff()
         interruptedFileKind=state?.getString(fileStateKey)?.takeIf{it=="save"||it=="open"}
         lastVectorCode=state?.getInt("noble-drawing-vector-code",0)?.takeIf{DrawingVectorFiles.acceptsCode(it)}?:0
         val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.WHITE)}
@@ -82,6 +97,7 @@ class HonorableDrawingActivity : Activity() {
         if(state?.getBoolean("noble-drawing-svg-pending")==true)message.text="SVG sharing was interrupted by screen recreation. Check your drawing and share again when ready."
         if(state?.getBoolean("noble-drawing-photo-pending")==true)message.text="Photo selection or preparation was interrupted. Your saved drawing stays here; choose the photo again when ready."
         if(state?.getBoolean("noble-drawing-vector-pending")==true)message.text="SVG artwork selection was interrupted. Choose the file again; your drawing is kept."
+        depthHandoffError?.let{message.text=it}
         nativeMessage=message
         web=WebView(this).apply {
             setBackgroundColor(Color.WHITE)
@@ -222,6 +238,31 @@ class HonorableDrawingActivity : Activity() {
         nativeMessage.text=error?:"Print dialog closed. Check Android print status or the saved PDF; delivery is not confirmed."
         web.evaluateJavascript("window.honorablePrintResult && window.honorablePrintResult($result)",null)
     }
+    private fun currentModel(value:ModelOperation)=synchronized(operationLock){modelOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
+    private fun modelReply(id:Int,error:String?=null,opened:Boolean=false){
+        if(printClosed||!::web.isInitialized)return
+        val result=JSONObject().put("requestId",id).put("opened",opened);if(error!=null)result.put("error",error)
+        web.evaluateJavascript("window.honorableModelShareResult && window.honorableModelShareResult($result)",null)
+    }
+    private fun releaseModel(value:ModelOperation,error:String?=null){
+        val owned=synchronized(operationLock){if(modelOperation!==value)false else{modelOperation=null;exporting.set(false);true}}
+        if(owned&&error!=null)runOnUiThread{modelReply(value.upload.id,error)}
+    }
+    private fun prepareModel(value:ModelOperation){
+        try{worker.execute{
+            val prepared=runCatching{check(currentModel(value));DrawingModelShare.prepare(File(cacheDir,"created-images"),value.upload.finish()){check(currentModel(value)&&!Thread.currentThread().isInterrupted)}}
+            runOnUiThread{prepared.onSuccess{file->
+                if(!currentModel(value)){file.delete();releaseModel(value,"Model sharing stopped. Try again when active.");return@onSuccess}
+                val shared=runCatching{
+                    val uri=FileProvider.getUriForFile(this@HonorableDrawingActivity,packageName+".creation",file)
+                    val send=Intent(Intent.ACTION_SEND).apply{type="model/gltf-binary";putExtra(Intent.EXTRA_STREAM,uri);clipData=android.content.ClipData.newUri(contentResolver,"Noble 3D model",uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+                    // Release ownership before the chooser pauses this activity.
+                    releaseModel(value);startActivity(Intent.createChooser(send,"Share 3D model"))
+                }
+                shared.onSuccess{modelReply(value.upload.id,opened=true)}.onFailure{file.delete();releaseModel(value);modelReply(value.upload.id,"The model share sheet could not open. Try again.")}
+            }.onFailure{releaseModel(value,"Model preparation failed or stopped. Your saved model is unchanged; try again.")}}
+        }}catch(_:java.util.concurrent.RejectedExecutionException){releaseModel(value,"Model sharing stopped. Reopen the workspace.")}
+    }
     private fun currentSvgOperation(value:SvgOperation)=synchronized(operationLock){svgOperation===value&&printForeground&&!printClosed&&!isDestroyed&&!isFinishing}
     private fun releaseSvgOperation(value:SvgOperation,error:String?=null){
         val owned=synchronized(operationLock){if(svgOperation!==value)false else{svgOperation=null;exporting.set(false);true}}
@@ -253,6 +294,30 @@ class HonorableDrawingActivity : Activity() {
         web.evaluateJavascript("window.honorableSvgShareResult && window.honorableSvgShareResult($result)",null)
     }
     inner class Bridge {
+        @JavascriptInterface fun getDepthModelLength():Int=synchronized(operationLock){if(printClosed)0 else depthModel?.length?:0}
+        @JavascriptInterface fun readDepthModelChunk(offset:Int):String?=synchronized(operationLock){
+            val value=depthModel?:return@synchronized null
+            if(printClosed||offset<0||offset>=value.length)return@synchronized null
+            value.substring(offset,minOf(value.length,offset+32768))
+        }
+        @JavascriptInterface fun releaseDepthModel(){synchronized(operationLock){depthModel=null}}
+        @JavascriptInterface fun beginModelShare(requestId:Int,length:Int):Boolean=synchronized(operationLock){
+            if(!printForeground||printClosed||isDestroyed||isFinishing||modelOperation!=null||!claimExport())return@synchronized false
+            runCatching{ModelOperation(DrawingModelUpload(requestId,length))}.fold({modelOperation=it;true},{exporting.set(false);false})
+        }
+        @JavascriptInterface fun appendModelShareChunk(requestId:Int,value:String):Boolean=synchronized(operationLock){
+            val operation=modelOperation?.takeIf{it.upload.id==requestId&&!it.preparing}?:return@synchronized false
+            if(!currentModel(operation))return@synchronized false
+            runCatching{operation.upload.append(value);true}.getOrElse{releaseModel(operation);false}
+        }
+        @JavascriptInterface fun finishModelShare(requestId:Int){runOnUiThread{
+            val operation=synchronized(operationLock){modelOperation?.takeIf{it.upload.id==requestId&&!it.preparing}?.also{it.preparing=true}}?:return@runOnUiThread
+            if(currentModel(operation))prepareModel(operation)else releaseModel(operation,"Model sharing stopped. Try again when active.")
+        }}
+        @JavascriptInterface fun releaseModelShare(requestId:Int){
+            val operation=synchronized(operationLock){modelOperation?.takeIf{it.upload.id==requestId}}?:return
+            releaseModel(operation)
+        }
         @JavascriptInterface fun beginSvgShare(requestId:Int,length:Int):Boolean=synchronized(operationLock){
             if(!printForeground||printClosed||isDestroyed||isFinishing||svgOperation!=null||!claimExport())return@synchronized false
             runCatching{SvgOperation(DrawingSvgUpload(requestId,length))}.fold({svgOperation=it;true},{exporting.set(false);false})
@@ -586,6 +651,6 @@ class HonorableDrawingActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
     override fun onResume(){super.onResume();if(!printClosed){printForeground=true;finishResetDispatch();vectorOperation?.let{startVectorRead(it)};projectOperation?.let{startProjectOperation(it)};photoOperation?.let{startPhotoOperation(it)}}}
-    override fun onPause(){printForeground=false;invalidateResetReview();cancelVectorRead();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
-    override fun onDestroy(){printClosed=true;printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};vectorOperation?.let{releaseVectorOperation(it)};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
+    override fun onPause(){printForeground=false;modelOperation?.let{releaseModel(it,"Model sharing stopped before its sheet opened. Try again when active.")};invalidateResetReview();cancelVectorRead();cancelProjectTransfer();cancelPhotoTransfer();if(abandonImageOperation())showError("Image preparation stopped before opening the editor. Your drawing draft stays here; try again when active.");svgOperation?.let{releaseSvgOperation(it,"SVG sharing stopped before its sheet opened. Try again when the drawing is active.")};printUpload?.let{releasePrintUpload(it,"Printing stopped before the print sheet opened. Try again when the drawing is active.")};if(::web.isInitialized)web.evaluateJavascript("window.honorableSaveDraft && window.honorableSaveDraft()",null);super.onPause()}
+    override fun onDestroy(){printClosed=true;depthModel=null;if(isFinishing&&!isChangingConfigurations)depthHandoffFile?.delete();depthHandoffFile=null;modelOperation?.let{releaseModel(it)};printForeground=false;invalidateResetReview();synchronized(operationLock){resetDispatch=null};imageOperation?.let{releaseImageOperation(it)};svgOperation?.let{releaseSvgOperation(it)};printUpload?.let{releasePrintUpload(it)};activePrint?.let{runCatching{it.job?.cancel()};it.adapter.close("Drawing closed. Check Android print status before retrying.")};vectorOperation?.let{releaseVectorOperation(it)};projectUpload=null;projectRead=null;projectOperation=null;photoOperation=null;importing.set(false);worker.shutdownNow();if(::web.isInitialized){web.removeJavascriptInterface("HonorableDrawing");web.stopLoading();web.destroy()};super.onDestroy()}
 }

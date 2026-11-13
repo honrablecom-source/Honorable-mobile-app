@@ -718,3 +718,36 @@ test('an open inspector never substitutes a new original sharing the old media I
     type: 'IMAGE',
   });
 });
+
+
+test('AI entry points reuse the authorized media picker and preserve the selected original', async () => {
+  await act(async () => button('Explore photo AI tools').props.onPress());
+  expect(mockOpen).toHaveBeenLastCalledWith('IMAGE');
+  await act(async () => button('Explore video AI tools').props.onPress());
+  expect(mockOpen).toHaveBeenLastCalledWith('VIDEO');
+  await act(async () => button('Edit First.jpg').props.onPress());
+  expect(mockEdit).toHaveBeenLastCalledWith({ id: '1', mediaUri: 'content://fixture/photo1', type: 'IMAGE' });
+});
+
+test('a pending AI import blocks competing AI and creation launches and stale callbacks', async () => {
+  let complete!: () => void;
+  mockOpen.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+  const photo = button('Explore photo AI tools').props.onPress;
+  const video = button('Explore video AI tools').props.onPress;
+  await act(async () => {
+    photo();
+    video();
+    button('Design with photos & text').props.onPress();
+    button('Edit First.jpg').props.onPress();
+  });
+  try {
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+    expect(mockDraw).not.toHaveBeenCalled();
+    expect(mockEdit).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => complete());
+  }
+  await act(async () => tree.unmount());
+  await act(async () => { await photo(); await video(); });
+  expect(mockOpen).toHaveBeenCalledTimes(1);
+});
