@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.util.Base64
 
 @org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
-@org.robolectric.annotation.Config(sdk=[34],manifest=org.robolectric.annotation.Config.NONE)
+@org.robolectric.annotation.Config(sdk=[34],manifest=org.robolectric.annotation.Config.NONE,application=android.app.Application::class)
 class DrawingModelShareTest {
     private fun fixture():ByteArray=ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN).putInt(0x46546c67).putInt(2).putInt(24).putInt(4).putInt(0x4e4f534a).put("{}  ".toByteArray()).array()
     private fun rejects(action:()->Unit){assertTrue(runCatching(action).isFailure)}
