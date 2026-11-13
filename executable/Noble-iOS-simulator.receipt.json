@@ -1,0 +1,30 @@
+{
+  "sourceSha": "878e8f47b7c90457dd77f018ba2b308d515de64c",
+  "kind": "simulator",
+  "bundleIdentifier": "com.honorablemobile",
+  "version": "1.0.3",
+  "build": "4",
+  "minimumOS": "15.1",
+  "platform": "iphonesimulator",
+  "slices": [
+    {
+      "architecture": "x86_64",
+      "platform": 7,
+      "codeSignatureCommand": false
+    },
+    {
+      "architecture": "arm64",
+      "platform": 7,
+      "codeSignatureCommand": true
+    }
+  ],
+  "executableBytes": 16222496,
+  "executableSha256": "a92a968a360c42c3e54c6a59ad5fa9c59c842bbebf4092a494167ed6ad12f737",
+  "jsBundleBytes": 5147544,
+  "jsBundleSha256": "62969ff5dbd91af26e6d505e807cbfa5d9800661ba906a61611cdb3ee8ae4f4e",
+  "signing": "Workflow disables signing; distribution identity and installation are not verified",
+  "validationScope": "React Native shell compilation and artifact structure only",
+  "nativeFeatureParityVerified": false,
+  "deviceTested": false,
+  "storeReady": false
+}

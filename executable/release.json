@@ -8,10 +8,19 @@
     "storeReady": false
   },
   "ios": {
-    "file": null,
+    "file": "Noble-iOS-simulator.zip",
     "signedIpaAvailable": false,
     "nativeEditorParity": false,
-    "status": "Current iOS native search/editing gap under release audit; no app-parity claim"
+    "status": "Verified simulator shell ZIP. Native iOS search/editing/AI modules are absent; not iPhone-installable. Unsigned device archive still building.",
+    "kind": "simulator",
+    "sourceCommit": "878e8f47b7c90457dd77f018ba2b308d515de64c",
+    "sizeBytes": 20259844,
+    "sha256": "9b11b4fe2d71a3b2e2174e8be3b4cbe1a42fbff2efd3eda822f48d993aa4ab21",
+    "receipt": "Noble-iOS-simulator.receipt.json",
+    "freshBuildVerified": true,
+    "signing": "UNSIGNED",
+    "deviceTested": false,
+    "storeReady": false
   },
   "historicalReport": "apk-report.json",
   "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here."

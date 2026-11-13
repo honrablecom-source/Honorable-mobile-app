@@ -20,7 +20,7 @@ internal class PhotoEraseMaskView(context:Context):View(context){
     private var drawing=false
     var radius=16f
         set(value){require(value.isFinite()&&value in 1f..96f);field=value}
-    init{contentDescription="Paint the object to remove. Red marks show the selected pixels.";isClickable=true;setBackgroundColor(Color.WHITE)}
+    init{contentDescription="Paint the object to remove. Shaded marks show the selected pixels.";isClickable=true;setBackgroundColor(Color.WHITE)}
     fun setPhoto(bitmap:Bitmap){
         require(!bitmap.isRecycled&&bitmap.width in 16..1024&&bitmap.height in 16..1024)
         release();photo=bitmap;selected=BooleanArray(bitmap.width*bitmap.height);overlay=Bitmap.createBitmap(bitmap.width,bitmap.height,Bitmap.Config.ARGB_8888);invalidate()
@@ -44,7 +44,7 @@ internal class PhotoEraseMaskView(context:Context):View(context){
         val source=photo?:return null;val target=bounds();if(!x.isFinite()||!y.isFinite()||!target.contains(x,y)||target.width()<=0||target.height()<=0)return null
         return (x-target.left)/target.width()*source.width to (y-target.top)/target.height()*source.height
     }
-    private fun mark(x:Int,y:Int){val source=photo?:return;selected[y*source.width+x]=true;overlay?.setPixel(x,y,0x88ff3333.toInt())}
+    private fun mark(x:Int,y:Int){val source=photo?:return;selected[y*source.width+x]=true;overlay?.setPixel(x,y,0x88000000.toInt())}
     private fun stroke(a:Pair<Float,Float>,b:Pair<Float,Float>){
         val source=photo?:return;val r=radius;val x0=floor(minOf(a.first,b.first)-r).toInt().coerceAtLeast(0);val x1=ceil(maxOf(a.first,b.first)+r).toInt().coerceAtMost(source.width-1)
         val y0=floor(minOf(a.second,b.second)-r).toInt().coerceAtLeast(0);val y1=ceil(maxOf(a.second,b.second)+r).toInt().coerceAtMost(source.height-1)
