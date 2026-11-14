@@ -1,3 +1,7 @@
+## Active Android startup-repair build — November14
+
+Canonical Android run43650751564 is building exact source10ce6970e916f6c4ef113c4eff28392d79520427,1.0.5/build6. Initial tooling, JavaScript/account/type/lint and native host tests passed; APK compilation is in progress. Do not start a duplicate build or claim constructor/device success yet. Poll ignored .context/account-recovery/check-startup-repair.ps1; it verifies exact source and saves run/jobs/artifact metadata. When artifacts appear, verify manifest/hash/signing/editor payloads and actual executable Room constructor before using the corrected candidate in a repeat physical Spark test. Existing1.0.4 is a known failing baseline. This checkpoint adds0features and does not establish investor readiness.
+
 ## November14 — first physical Android run failed; startup repair candidate
 
 **0new user-facing features;1Android startup compatibility fix in source.** Owner uploaded the published tester and started Firebase Robo matrix matrix-1e1fvv7v7jwei (matrix ID8785757009255450364). The actual Firebase catalog with Device type=Physical confirms Pixel5/API30 is physical; no emulator/VM was used. Spark/no-cost plan remains visible. The run failed after1m9s: Unable to get provider androidx.startup.InitializationProvider, caused by NoSuchMethodException androidx.work.impl.WorkDatabase_Impl.<init> []. Robo could not crawl the app. This overrides any earlier suggestion that build/package/browser checks establish working device startup.
