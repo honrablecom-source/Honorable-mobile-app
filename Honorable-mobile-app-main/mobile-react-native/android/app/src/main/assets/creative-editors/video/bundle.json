@@ -19,9 +19,9 @@
       "bytes": 190467,
       "sha256": "49b9c465b5f463b7de4bdf5499ce5befd27e8db5891a8226e27cdf1d80363e3f"
     },
-    "editor_bg.wasm": {
-      "bytes": 55488963,
-      "sha256": "03738c82c579a5a83074826ff6c2594cbc97a4210746b8203554f70763cda1c7"
+    "editor_bg.wasm.gz": {
+      "bytes": 17761953,
+      "sha256": "f612c51f44a17dd0a5c12db03ef069fbc7c756098ee3d57332cee9f980cb7635"
     },
     "host-bridge.js": {
       "bytes": 4008,
@@ -32,8 +32,8 @@
       "sha256": "5dfbdccb22b00976bd3aedbbade7467040bcb839f704326725805f35c41bea6e"
     },
     "provenance.json": {
-      "bytes": 624,
-      "sha256": "5b9bf0e227139ddf9ef06db671881001228e426752da63be07443d3dedb5e46e"
+      "bytes": 753,
+      "sha256": "a632cd8a88c921de60cbb7e831abe9bd59dddebcb1ea4b8187225df50152e890"
     },
     "snippets/eframe-d31a8450ea12dfc1/inline0.js": {
       "bytes": 280,

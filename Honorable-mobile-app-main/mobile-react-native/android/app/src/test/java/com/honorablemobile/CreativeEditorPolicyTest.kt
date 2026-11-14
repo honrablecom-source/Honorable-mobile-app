@@ -28,6 +28,24 @@ class CreativeEditorPolicyTest {
             ?: java.io.File("src/main/assets")
         for(kind in listOf("image", "video")) assertTrue("The real packaged full editor must match its byte receipt", CreativeEditorPolicy.verified(kind) { java.io.File(root, it).inputStream() })
     }
+    @Test fun compressedRuntimeStreamsMatchTheOriginalCompilerOutputs() {
+        val folder = "Honorable-mobile-app-main/mobile-react-native/android/app/src/main/assets"
+        val root = generateSequence(java.io.File(System.getProperty("user.dir")).canonicalFile) { it.parentFile }
+            .map { java.io.File(it, folder) }.firstOrNull { java.io.File(it, "creative-editors/video/bundle.json").isFile }
+            ?: java.io.File("src/main/assets")
+        for(kind in listOf("image", "video")) {
+            val prefix = "creative-editors/$kind/"
+            assertFalse(java.io.File(root, prefix + "editor_bg.wasm").exists())
+            val expected = JSONObject(java.io.File(root, prefix + "provenance.json").readText()).getJSONObject("wasm")
+            val digest = MessageDigest.getInstance("SHA-256"); var count = 0L
+            CreativeEditorPolicy.openRuntimeAsset(prefix + "editor_bg.wasm") { java.io.File(root, it).inputStream() }.use { input ->
+                val buffer = ByteArray(32768)
+                while(true) { val n=input.read(buffer); if(n<0)break; if(n==0)continue;count+=n;digest.update(buffer,0,n) }
+            }
+            assertEquals(expected.getLong("bytes"), count)
+            assertEquals(expected.getString("sha256"), digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) })
+        }
+    }
     @Test fun everyBundledByteMustMatchTheReceipt() {
         val data = linkedMapOf("index.html" to "editor".toByteArray(), "host-bridge.js" to "bridge".toByteArray(), "editor.wasm" to byteArrayOf(0,97,115,109))
         val files = JSONObject()

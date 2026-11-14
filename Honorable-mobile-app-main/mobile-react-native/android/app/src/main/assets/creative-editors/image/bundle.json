@@ -15,9 +15,9 @@
       "bytes": 179890,
       "sha256": "a732cd27028c75e50e5ecb445ec349eb1b5ad9023299334650435008cb1a71da"
     },
-    "editor_bg.wasm": {
-      "bytes": 78260935,
-      "sha256": "94d0b64b5acb79f74e87d1784da2e502c9e76c6360300a1e15c25142bf0c98d2"
+    "editor_bg.wasm.gz": {
+      "bytes": 23079994,
+      "sha256": "64704a49eaa6e479eb09d5e372f55cb6bd7407427f14e8ec506eec102fbb4993"
     },
     "fonts/manifest.txt": {
       "bytes": 1,
@@ -32,8 +32,8 @@
       "sha256": "93b479a23c5126a2e7c9fe85153988c272c9eb3824289e6ae1f8597342c324b2"
     },
     "provenance.json": {
-      "bytes": 861,
-      "sha256": "59b2853ead48ea6002d17d20dc07d150e73fa32d1c626c19825a97e800f39e3a"
+      "bytes": 990,
+      "sha256": "de3f9bd7a6b16ef5145026d870500d48cd99c43f93e104541e7678e9cd512e20"
     },
     "snippets/eframe-d31a8450ea12dfc1/inline0.js": {
       "bytes": 280,

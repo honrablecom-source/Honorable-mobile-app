@@ -11,7 +11,11 @@
     "profile.release.package.filmcraft-ui-egui.opt-level=0",
     "profile.release.package.filmcraft-ui-egui.codegen-units=256"
   ],
-  "wasmOpt": null,
+  "wasm": {
+    "compression": "gzip",
+    "bytes": 55488963,
+    "sha256": "03738c82c579a5a83074826ff6c2594cbc97a4210746b8203554f70763cda1c7"
+  },
   "experimental": true,
   "deviceTested": false,
   "dependencyPackages": 273

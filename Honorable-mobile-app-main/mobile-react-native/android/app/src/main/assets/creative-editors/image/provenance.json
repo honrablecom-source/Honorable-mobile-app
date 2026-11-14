@@ -15,7 +15,11 @@
     "profile.wasm-release.lto=false",
     "profile.wasm-release.codegen-units=16"
   ],
-  "wasmOpt": null,
+  "wasm": {
+    "compression": "gzip",
+    "bytes": 78260935,
+    "sha256": "94d0b64b5acb79f74e87d1784da2e502c9e76c6360300a1e15c25142bf0c98d2"
+  },
   "experimental": true,
   "deviceTested": false,
   "dependencyPackages": 292

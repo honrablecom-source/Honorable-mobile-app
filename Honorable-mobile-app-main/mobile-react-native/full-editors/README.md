@@ -17,7 +17,7 @@ node full-editors/package.mjs image /tmp/noble-image-build/source /tmp/noble-ima
 node full-editors/package.mjs video /tmp/noble-video-build/source /tmp/noble-video-build/web /tmp/noble-video-notices /tmp/noble-video-package
 ```
 
-The notice collector reads public source/cache files and fails for missing license evidence. Pinned root-license fallbacks match each crate's original repository/revision and exact byte digests. Bundles include Rust standard-library and original font/dependency notices. Packaging checks the full source revision/reviewed patch, emits original runtime files plus local pages and records every asset's size/SHA256 in `bundle.json`. The96MiB executable-file cap is separate from128MiB imports/64MiB exports.
+The notice collector reads public source/cache files and fails for missing license evidence. Pinned root-license fallbacks match each crate's original repository/revision and exact byte digests. Bundles include Rust standard-library and original font/dependency notices. Packaging checks the full source revision/reviewed patch, stores the original WASM in deterministic gzip form and emits local runtime pages and records every asset's size/SHA256 in `bundle.json`. The native host decodes bounded streams at the unchanged `.wasm` URLs; native tests verify the decoded sizes/SHA256 against the original compiler outputs. This reduces packager memory without modifying either engine. The96MiB executable-file cap is separate from128MiB imports/64MiB exports.
 
 Validation (browser tests use the existing `../ui-previews` Playwright dependency and generated fixtures only):
 
@@ -25,6 +25,9 @@ Validation (browser tests use the existing `../ui-previews` Playwright dependenc
 node --test full-editors/host-bridge.test.cjs
 node full-editors/browser-image.test.cjs --out /tmp/noble-image-test
 node full-editors/browser-video.test.cjs --out /tmp/noble-video-test
+python3 full-editors/verify-apk.py /tmp/full-react-native.apk
 ```
 
 Image acceptance checks PNG edit/alpha/exact Undo and editable layered-project pixel round-trip. Video acceptance checks cut/Undo/Redo, project reopening, real H.264 encoding, MP4 decoding and exact mobile export transport. Both use the production CSP and390px viewport. Android policy/share tests also hash the actual packaged binaries. Component/browser/API compilation does not establish a whole-app build, physical-device behavior or store readiness. See `docs/FULL_EDITOR_MOBILE_ROADMAP.md` at the outer repository root for verified evidence and outstanding work.
+
+Android99421da compiled but exhausted the build daemon heap during APK packaging. The gzip packaging fix and4GiB build-only heap are awaiting a combined native retry. The new read-only follow-up CI checks actual internal/release APK contents after a successful Android run. iOS99421da simulator/device archive structures were verified, but remain guest-shell formats without these native studio hosts.

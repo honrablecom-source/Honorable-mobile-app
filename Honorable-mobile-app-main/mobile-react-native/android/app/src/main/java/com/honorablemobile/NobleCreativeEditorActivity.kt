@@ -87,7 +87,7 @@ class NobleCreativeEditorActivity : Activity() {
                 return runCatching {
                     val mime = CreativeEditorPolicy.mime(path)
                     WebResourceResponse(mime, if(mime.startsWith("text/")||mime=="application/json")"UTF-8" else null, 200, "OK",
-                        mapOf("Content-Security-Policy" to CreativeEditorPolicy.CSP, "X-Content-Type-Options" to "nosniff", "Cache-Control" to "no-store", "Cross-Origin-Resource-Policy" to "same-origin"), assets.open(path))
+                        mapOf("Content-Security-Policy" to CreativeEditorPolicy.CSP, "X-Content-Type-Options" to "nosniff", "Cache-Control" to "no-store", "Cross-Origin-Resource-Policy" to "same-origin"), CreativeEditorPolicy.openRuntimeAsset(path) { assets.open(it) })
                 }.getOrElse { blocked() }
             }
             override fun onPageFinished(view: WebView, url: String) {

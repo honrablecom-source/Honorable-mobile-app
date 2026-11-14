@@ -1,0 +1,60 @@
+name: Full editor APK contents
+
+on:
+  workflow_run:
+    workflows: [Android build]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push", "workflow_dispatch"]'), github.event.workflow_run.event)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download self-contained tester and verified ABI artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name honorable-android-internal --dir downloaded/internal
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name Noble-android-apks --dir downloaded/matrix
+      - name: Verify exact studios in installable application packages
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, subprocess, sys
+          root = pathlib.Path('Honorable-mobile-app-main/mobile-react-native/full-editors')
+          checker = root / 'verify-apk.py'
+          if not checker.is_file():
+              raise SystemExit('Full-editor APK verifier is missing from this source commit.')
+          packages = list(pathlib.Path('downloaded/internal').rglob('*.apk'))
+          packages += [p for p in pathlib.Path('downloaded/matrix').rglob('*.apk') if '-release' in p.name]
+          if not packages:
+              raise SystemExit('No self-contained internal/release APKs were downloaded.')
+          reports = pathlib.Path('reports'); reports.mkdir()
+          for index, package in enumerate(sorted(packages)):
+              result = subprocess.run([sys.executable, str(checker), str(package)], capture_output=True, text=True, check=True)
+              report = json.loads(result.stdout)
+              report['apk'] = package.name
+              (reports / f'{index:02d}-{package.stem}.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(f'Verified exact editor assets/native descriptors in {len(packages)} APKs; device/signing acceptance remains separate.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Noble-full-editor-APK-verification
+          path: reports/
+          if-no-files-found: error
+          retention-days: 14

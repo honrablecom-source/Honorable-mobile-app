@@ -1,6 +1,8 @@
 package com.honorablemobile
 
 import java.io.InputStream
+import java.io.FilterInputStream
+import java.util.zip.GZIPInputStream
 import java.security.MessageDigest
 import org.json.JSONObject
 
@@ -29,6 +31,19 @@ internal object CreativeEditorPolicy {
         "webp" -> "image/webp"; "gif" -> "image/gif"
         else -> "application/octet-stream"
     }
+    // Keep large compiler outputs compressed in the APK packager. WebAssembly still
+    // receives the original stream at its unchanged private runtime URL.
+    fun openRuntimeAsset(path: String, open: (String) -> InputStream): InputStream {
+        if (!path.endsWith(".wasm")) return open(path)
+        val packed = runCatching { open(path + ".gz") }.getOrNull() ?: return open(path)
+        val decoded = try { GZIPInputStream(packed) } catch (error: Exception) { packed.close(); throw error }
+        return object : FilterInputStream(decoded) {
+            private var count = 0L
+            private fun bounded(n: Int): Int { if(n > 0) { count += n; require(count <= MAX_ASSET) }; return n }
+            override fun read(): Int { val value=super.read(); if(value >= 0) bounded(1); return value }
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int = bounded(super.read(buffer, offset, length))
+        }
+    }
     const val CSP = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     fun verified(kind: String, open: (String) -> InputStream): Boolean = runCatching {
         require(kind in kinds)
@@ -55,7 +70,7 @@ internal object CreativeEditorPolicy {
                 }
             }
             require(actual == length && digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == expected)
-            if (name.endsWith(".wasm")) wasm = true
+            if (name.endsWith(".wasm") || name.endsWith(".wasm.gz")) wasm = true
         }
         require(wasm); true
     }.getOrDefault(false)
