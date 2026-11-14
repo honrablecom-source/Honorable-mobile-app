@@ -1,0 +1,23 @@
+"roboscript": {
+  "executionMode": { "strict": true, "notify": false },
+  "postscript": { "terminate": true }
+}
+[
+  { "eventType": "WAIT", "delayTime": 8000, "description": "Allow the standalone Noble app to cold-launch" },
+  { "eventType": "ASSERTION", "contextDescriptor": { "condition": "app_under_test_shown" } },
+  {
+    "eventType": "VIEW_CLICKED",
+    "elementDescriptors": [{ "contentDescription": "Edit without an account" }],
+    "description": "Enter local creative tools without signing into an account"
+  },
+  { "eventType": "WAIT", "delayTime": 4000 },
+  {
+    "eventType": "ASSERTION",
+    "contextDescriptor": {
+      "condition": "element_present",
+      "elementDescriptors": [{ "textRegex": "Your ideas\\.\\s*Your studio\\." }]
+    },
+    "description": "Require the real guest studio screen; a successful install alone is insufficient"
+  },
+  { "eventType": "ASSERTION", "contextDescriptor": { "condition": "app_under_test_shown" } }
+]
