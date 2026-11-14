@@ -7,6 +7,7 @@ import {OBJECT_MODEL} from './ai-object.mjs';
 import {STYLE_MODEL} from '../creation-web/neural-style.mjs';
 import {DENOISE_MODEL} from '../creation-web/neural-denoise.mjs';
 import {collectAiInputs} from './ai-inputs.mjs';
+import {COLOR_MODEL,COLOR_TABLES} from './ai-color.mjs';
 const root=dirname(fileURLToPath(import.meta.url)),creation=resolve(root,'../creation-web');
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export async function packageAi(out){
@@ -21,8 +22,9 @@ export async function packageAi(out){
   }};
   await build({entryPoints:[join(root,'ai-tools.mjs')],plugins:[plugin],bundle:true,minify:true,format:'iife',platform:'browser',tsconfigRaw:{compilerOptions:{}},target:['chrome90'],nodePaths:[modules],legalComments:'inline',outfile:join(out,'ai-tools.js')});
   mkdirSync(join(out,'ai'),{recursive:true});
-  for(const pin of [OBJECT_MODEL,STYLE_MODEL,DENOISE_MODEL]){
-    const source=join(pin===OBJECT_MODEL?root:creation,'ai-assets',pin.file),bytes=readFileSync(source);
+  for(const pin of [OBJECT_MODEL,STYLE_MODEL,DENOISE_MODEL,COLOR_MODEL,COLOR_TABLES]){
+    const directory=pin===OBJECT_MODEL?join(root,'ai-assets'):pin===COLOR_MODEL||pin===COLOR_TABLES?join(root,'color-assets'):join(creation,'ai-assets');
+    const source=join(directory,pin.file),bytes=readFileSync(source);
     if(bytes.length!==pin.bytes||hash(bytes)!==pin.sha256)throw Error('A pinned studio neural model changed.');
     writeFileSync(join(out,'ai',pin.file),bytes);
   }
@@ -34,8 +36,14 @@ export async function packageAi(out){
     writeFileSync(join(out,'ai',name),bytes);
   }
   for(const [source,name] of [[join(root,'ai-assets/provenance.json'),'object-provenance.json'],[join(creation,'ai-assets/provenance.json'),'style-provenance.json'],[join(creation,'ai-assets/dncnn-provenance.json'),'denoise-provenance.json']])writeFileSync(join(out,'ai',name),readFileSync(source,'utf8').replace(/\r\n/g,'\n'));
-  const licenseFiles=[join(root,'ai-assets/U2NET-LICENSE.txt'),join(root,'ai-assets/REMBG-LICENSE.txt'),join(creation,'THIRD_PARTY/NEURAL-STYLE-BSD.txt'),join(creation,'THIRD_PARTY/DNCNN-MIT.txt'),join(creation,'THIRD_PARTY/ORT-WEB-MIT.txt')];
-  const notice='Noble local AI image tools. U2NETP: Xuebin Qin et al., Apache-2.0; ONNX distribution/preprocessing reference: Daniel Gatis/rembg, MIT. Mosaic neural style: ONNX Model Zoo/PyTorch contributors, BSD-3-Clause. DnCNN: KAIR/cszn, MIT. ONNX Runtime Web1.20.1: Microsoft, MIT. Original license texts follow. Model/source pins are in ai/*provenance.json. No media is uploaded.\n\n';
+  const color=JSON.parse(readFileSync(join(root,'color-assets/provenance.json'),'utf8'));
+  if(hash(Buffer.from(readFileSync(join(root,'export-color.py'),'utf8').replace(/\r\n/g,'\n')))!==color.converterCanonicalLfSha256)throw Error('The color converter changed. Reproduce and review its provenance.');
+  for(const [name,pin] of Object.entries(color.inputPins)){
+    if(!['models.py','classifier.pth','LUTs.pth'].includes(name)||hash(readFileSync(join(root,'color-assets/upstream',name)))!==pin)throw Error('A pinned color conversion input changed.');
+  }
+  writeFileSync(join(out,'ai/color-provenance.json'),JSON.stringify(color,null,2)+'\n');
+  const licenseFiles=[join(root,'ai-assets/U2NET-LICENSE.txt'),join(root,'ai-assets/REMBG-LICENSE.txt'),join(root,'color-assets/upstream/LICENSE'),join(creation,'THIRD_PARTY/NEURAL-STYLE-BSD.txt'),join(creation,'THIRD_PARTY/DNCNN-MIT.txt'),join(creation,'THIRD_PARTY/ORT-WEB-MIT.txt')];
+  const notice='Noble local AI image tools. U2NETP: Xuebin Qin et al., Apache-2.0; ONNX distribution/preprocessing reference: Daniel Gatis/rembg, MIT. Image-Adaptive-3DLUT: Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao and Lei Zhang, Apache-2.0; original signed basis-weight fusion/bin convention retained. Mosaic neural style: ONNX Model Zoo/PyTorch contributors, BSD-3-Clause. DnCNN: KAIR/cszn, MIT. ONNX Runtime Web1.20.1: Microsoft, MIT. Original license texts follow. Model/source pins are in ai/*provenance.json. No media is uploaded.\n\n';
   writeFileSync(join(out,'AI-NOTICES.txt'),notice+licenseFiles.map(file=>readFileSync(file,'utf8').replace(/\r\n/g,'\n')).join('\n\n'));
   if(JSON.stringify(inputs)!==JSON.stringify(collectAiInputs()))throw Error('AI source changed during packaging. Choose fresh output and retry.');
   writeFileSync(join(out,'ai-build.json'),JSON.stringify({version:1,inputs,deviceTested:false},null,2)+'\n');

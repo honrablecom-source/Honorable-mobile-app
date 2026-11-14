@@ -1,10 +1,10 @@
 # Noble readiness criteria
 
-Owner instruction November14: keep developing a fully functional, investor-ready app with more genuine AI. Prioritize coherent outcomes and release blockers over feature counts. The current goal is active; it has not been achieved.
+Owner instruction November14: keep developing a fully functional, investor-ready app with more genuine AI. Prioritize coherent outcomes and release blockers over feature counts. The current goal is active; it has not been achieved. Android first; iOS follows, as explicitly clarified by the owner. iOS parity is a subsequent milestone rather than a gate for the first Android demo.
 
 | Area | Evidence now | Gate still open |
 |---|---|---|
-| Android core/editor package | Full source3f3b506 build and5-APK editor gate passed; exact current tester published | Later AI source needs its own complete build/package proof |
+| Android core/editor package | Source0f0cc5a full build43621271622 and5-APK gate43625813335 passed; published tester remains3f3b506 | Combined four-tool1.0.4 candidate needs complete build/package proof |
 | Full image/video studios | Real browser edit/project/export pipelines; native host and package checks | Broad media/error/recovery acceptance, phone WebView and performance |
 | Useful local AI | Existing search, photo/video/creation AI; new general-object model and full-studio AI workflow source/browser verified | Model quality, resource limits, discoverability and combined native release |
 | Search/account integrity | Native engine preserved; ledger/ranking/privacy guards retained | Approved live account API, OAuth production identity, actual sign-in/credit-backed search |

@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "ai-inputs.mjs": {
-      "bytes": 1467,
-      "sha256": "373e0faa698dc434a5d8a5b35695f2f2cbd059e6ba1a8646ca97ff9ea976aff9"
+      "bytes": 1946,
+      "sha256": "32dc57249a5208893c91c734b3902c78ebdaea499cbbc209c2c536d60eac76e6"
     },
     "ai-object.mjs": {
       "bytes": 2551,
@@ -13,25 +13,37 @@
       "bytes": 1405,
       "sha256": "260f0dde45ceb50ff7f291a924e195755e4256515cba3ea79c8144991880d790"
     },
+    "ai-color.mjs": {
+      "bytes": 3269,
+      "sha256": "271dabd3dd36a3d28c677ff3d4659236a8c9de9268eb0de20a4f6e6072ce4586"
+    },
+    "ai-capture.mjs": {
+      "bytes": 3826,
+      "sha256": "28acf0f84635b2bbd484cffe6a342d04d489c8791b90f42a44910634b0acdc79"
+    },
     "ai-worker.mjs": {
-      "bytes": 3710,
-      "sha256": "ec05bcf6c8b4d887288fb99acd3146c185b36a1a161f6bc0fe1bb73f4128dc78"
+      "bytes": 4579,
+      "sha256": "fccb75d3eb0ecde7cf2038843cabff380f0ee92438d9a5a84867c16c4efc32c7"
     },
     "ai-client.mjs": {
-      "bytes": 1895,
-      "sha256": "69e1f08dde3aa090faaf314c351a69f1999a0c6777a71a11d0fa1de8f6d350c9"
+      "bytes": 1903,
+      "sha256": "76ba5f804b181f0026b8cdc77477b78a9bf0d3b46796bbef4cec8880e0076ba1"
     },
     "ai-tools.mjs": {
-      "bytes": 13546,
-      "sha256": "4fef3eab5067ab3bb5ce7045dafd260de04488bc2195476def41229b6a76ea47"
+      "bytes": 16524,
+      "sha256": "08277f641200cd330948530691739d209cd69a78f29ec4e56d6f6dc7dbed89e6"
     },
     "package-ai.mjs": {
-      "bytes": 3935,
-      "sha256": "ef8b8a1cb98188151c017311b9229f1f1aef5454942cca7e5a9a6839fb1aa274"
+      "bytes": 4978,
+      "sha256": "3035c40a40ebbd778dd63ded00d11cf1c4e8afe047a13956ddc5c76b70f6ce01"
     },
     "build-ai.mjs": {
       "bytes": 2192,
-      "sha256": "d97f44a1e7a383117dccfbfbb73f5e5fd42094401cfd0d2cf8dead115001b6c2"
+      "sha256": "6b5619f5c94fbd0f3ba0c39d8892b01ac891ca35b4e21376aff60b29bbc49213"
+    },
+    "export-color.py": {
+      "bytes": 4818,
+      "sha256": "07dc4538fb0cb5b431c1cdf0c6d248d1b4c275451dca88cdeb575fe7e0b22478"
     },
     "pages/image/index.html": {
       "bytes": 2803,
@@ -84,6 +96,34 @@
     "../creation-web/THIRD_PARTY/ORT-WEB-MIT.txt": {
       "bytes": 339663,
       "sha256": "a12bb022fa93060001ce823c5d24debe250181dc5a37fd0c1cc9656a6b77923b"
+    },
+    "color-assets/provenance.json": {
+      "bytes": 1256,
+      "sha256": "ca04abb360a11f7048a5b00b14ec30f309bfda178347a721150556a835ca5ef3"
+    },
+    "color-assets/upstream/models.py": {
+      "bytes": 12014,
+      "sha256": "3f39c49aebd2b85787638bc9d402d21d5d664b844edd5fb8d5e4ce1fdb1d9f3f"
+    },
+    "color-assets/upstream/LICENSE": {
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    "color-assets/upstream/classifier.pth": {
+      "bytes": 1083261,
+      "sha256": "bae9865395625ecae58cfe86147e521093bb1e29e7b2544e02adb238b8035021"
+    },
+    "color-assets/upstream/LUTs.pth": {
+      "bytes": 1294452,
+      "sha256": "c1bb2bc4b7239c1a7e96159f5923123ba796b1fceb0b8c3132b423ea825b821a"
+    },
+    "color-assets/adaptive-color.onnx": {
+      "bytes": 1084794,
+      "sha256": "fce4887fa153575bd20678a397b0fe8e7dcb0e611c154ecb4f19434a535bd607"
+    },
+    "color-assets/lut-bases.f32": {
+      "bytes": 1293732,
+      "sha256": "f2279e4b88cd9d5e50c2f72e37b99a7dad050ac5b32af8add5b0f933448594d7"
     }
   },
   "deviceTested": false

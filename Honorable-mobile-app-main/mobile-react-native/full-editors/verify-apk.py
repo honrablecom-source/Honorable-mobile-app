@@ -5,16 +5,19 @@ WebView, real-device behavior or store readiness. No APK extraction is performed
 """
 import hashlib
 import gzip
+import argparse
 import json
 from pathlib import Path
 import re
 import sys
 import zipfile
 
-if len(sys.argv) != 2:
-    raise SystemExit('Usage: python3 full-editors/verify-apk.py PATH_TO_FULL_REACT_NATIVE_APK')
-apk = Path(sys.argv[1])
-assets = Path(__file__).resolve().parent.parent / 'android/app/src/main/assets/creative-editors'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('apk', type=Path)
+parser.add_argument('--assets-root', type=Path, default=Path(__file__).resolve().parent.parent / 'android/app/src/main/assets/creative-editors', help='Exact source-commit editor asset directory when newer development is in progress.')
+args = parser.parse_args()
+apk = args.apk
+assets = args.assets_root
 report = {'version': 1, 'editors': {}, 'deviceTested': False, 'signatureVerified': False}
 with zipfile.ZipFile(apk) as archive:
     members = archive.namelist()

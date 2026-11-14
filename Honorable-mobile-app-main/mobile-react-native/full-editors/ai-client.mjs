@@ -1,5 +1,5 @@
 export function startStudioAi(workerSource, image, kind, modelRgba, progress=()=>{}) {
-  if(!['object','denoise','style'].includes(kind))throw Error('Choose an available AI tool.');
+  if(!['object','denoise','style','color'].includes(kind))throw Error('Choose an available AI tool.');
   const id=Math.floor(Math.random()*900000000)+1;
   let worker,url,timer,settled=false,rejectTask;
   const clean=()=>{clearTimeout(timer);worker?.terminate();if(url)URL.revokeObjectURL(url);};

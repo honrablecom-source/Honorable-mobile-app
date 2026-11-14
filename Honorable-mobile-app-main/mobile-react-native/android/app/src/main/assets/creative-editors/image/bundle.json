@@ -3,6 +3,14 @@
   "kind": "image",
   "sourceRevision": "f143ce58498f201a8dfc9c07f5e24147c6a22bee",
   "files": {
+    "ai/adaptive-color.onnx": {
+      "bytes": 1084794,
+      "sha256": "fce4887fa153575bd20678a397b0fe8e7dcb0e611c154ecb4f19434a535bd607"
+    },
+    "ai/color-provenance.json": {
+      "bytes": 1255,
+      "sha256": "533f61cb0c385d004db53e31bba7e4d8d9fceac11fd8adea47d483054e7f7e9a"
+    },
     "ai/denoise-provenance.json": {
       "bytes": 1257,
       "sha256": "41d50f8608125cf24b89d89718b892f8ddff12b78caa5db62a779a79d1b2a982"
@@ -10,6 +18,10 @@
     "ai/dncnn25-128.onnx": {
       "bytes": 2226850,
       "sha256": "5dc5803550a81466bb3edc011cfb1b37ba082ea6fa396d466a9055aec298be37"
+    },
+    "ai/lut-bases.f32": {
+      "bytes": 1293732,
+      "sha256": "f2279e4b88cd9d5e50c2f72e37b99a7dad050ac5b32af8add5b0f933448594d7"
     },
     "ai/mosaic-9.onnx": {
       "bytes": 6728029,
@@ -36,16 +48,16 @@
       "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8"
     },
     "ai-build.json": {
-      "bytes": 3149,
-      "sha256": "a6d7c89dc2cf9a0adbc2821a7f19f9d9c810420e005e739e16a901a322917622"
+      "bytes": 4626,
+      "sha256": "7f7dd75a34037da6d8bf6780c6ae5062ac49ebe520398473441e5ed36193af30"
     },
     "AI-NOTICES.txt": {
-      "bytes": 355053,
-      "sha256": "6c3e2634bba01792ae3cfd9d75370419a5b8482267c94fbebb2c2b512f968daa"
+      "bytes": 366566,
+      "sha256": "7a5282d34f6ba63cc596bef6a420b5b82472f87206b3866fb75ca426c1752843"
     },
     "ai-tools.js": {
-      "bytes": 70905,
-      "sha256": "122045fa03736287608438503a56ac94b711e58581547fc649d8721bf5949cf4"
+      "bytes": 78316,
+      "sha256": "bb6c7dc373e83d6de9bb9e0689d2b0a2deceded3dadc2d41371f4cf5b9acfd6b"
     },
     "bootstrap.js": {
       "bytes": 611,

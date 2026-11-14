@@ -6,6 +6,7 @@ import {verifyAiInputs} from './ai-inputs.mjs';
 import {OBJECT_MODEL} from './ai-object.mjs';
 import {STYLE_MODEL} from '../creation-web/neural-style.mjs';
 import {DENOISE_MODEL} from '../creation-web/neural-denoise.mjs';
+import {COLOR_MODEL,COLOR_TABLES} from './ai-color.mjs';
 const root=dirname(fileURLToPath(import.meta.url));
 const bundle=resolve(process.argv[2]||resolve(root,'../android/app/src/main/assets/creative-editors/image'));
 verifyAiInputs(bundle);
@@ -15,8 +16,8 @@ for(const [name,pin] of Object.entries(receipt.files)){
   const bytes=readFileSync(resolve(bundle,name));
   if(bytes.length!==pin.bytes||createHash('sha256').update(bytes).digest('hex')!==pin.sha256)throw Error('A bundled image studio asset changed.');
 }
-for(const pin of [OBJECT_MODEL,STYLE_MODEL,DENOISE_MODEL]){
+for(const pin of [OBJECT_MODEL,STYLE_MODEL,DENOISE_MODEL,COLOR_MODEL,COLOR_TABLES]){
   const bytes=readFileSync(resolve(bundle,'ai',pin.file));
   if(bytes.length!==pin.bytes||createHash('sha256').update(bytes).digest('hex')!==pin.sha256)throw Error('A pinned studio neural model changed.');
 }
-console.log('Studio AI source, bundled assets and all three exact neural models verified; device acceptance remains separate.');
+console.log('Studio AI source, bundled assets and all four exact neural models/learned tables verified; device acceptance remains separate.');

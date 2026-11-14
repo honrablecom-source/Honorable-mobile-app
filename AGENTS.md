@@ -38,3 +38,7 @@ The owner has no Android phone available and requests open-source testing soluti
 ## Owner instruction November14 — continue toward investor readiness
 
 Keep developing a fully functional investor-ready app with more genuine AI. Prioritize coherent tools, core correctness and production/platform gaps over feature counts. User authorized inspecting/creating missing account configuration through Chrome; its saved Google Cloud origin policy currently blocks access, so do not circumvent. Continue independent offline work and retain explicit source/build/device/production readiness evidence. The active acceptance ledger is docs/INVESTOR_READINESS.md.
+
+## Owner clarification November14 — demo platform
+
+Android first; iOS follows. Complete the investor demo against Android acceptance criteria. iOS native parity is a follow-up; describe its shell status honestly.

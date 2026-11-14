@@ -19,4 +19,4 @@ cpSync(base,out,{recursive:true});await packageAi(out);
 for(const name of ['index.html','bootstrap.js'])writeFileSync(join(out,name),readFileSync(join(root,'pages/image',name),'utf8').replace(/\r\n/g,'\n'));
 const files={};function collect(directory){for(const entry of readdirSync(directory,{withFileTypes:true})){const file=join(directory,entry.name);if(entry.isDirectory())collect(file);else if(entry.isFile()&&file!==join(out,'bundle.json')){const bytes=readFileSync(file);files[relative(out,file).replaceAll('\\','/')]={bytes:bytes.length,sha256:digest(bytes)};}}}
 collect(out);writeFileSync(join(out,'bundle.json'),JSON.stringify({...receipt,files},null,2)+'\n');
-console.log(JSON.stringify({kind:'image',files:Object.keys(files).length,neuralModels:3,deviceTested:false}));
+console.log(JSON.stringify({kind:'image',files:Object.keys(files).length,neuralModels:4,deviceTested:false}));

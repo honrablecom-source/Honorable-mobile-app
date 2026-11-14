@@ -2,8 +2,11 @@ import workerSource from 'noble:studio-ai-worker';
 import {imageInfo} from '../creation-web/image-assets.mjs';
 import {startStudioAi} from './ai-client.mjs';
 import {alphaSnapshot,restoreAlpha,paintAlpha} from './ai-mask.mjs';
+import {mixColorPixels} from './ai-color.mjs';
+import {startDocumentSnapshot} from './ai-capture.mjs';
 
 const tools={object:{label:'Object cutout',side:1024,note:'Find the main foreground object. Soft edges and complex scenes can need manual correction. Up to 1024 px.'},
+  color:{label:'Neural color & tone',side:1024,note:'A learned color-and-tone suggestion, not calibrated white balance. Review the colors and adjust strength. Up to 1024 px.'},
   denoise:{label:'Neural noise cleanup',side:256,note:'Reduce luminance noise with a learned model. This is a small 256 px working copy, not detail recovery.'},
   style:{label:'Neural painting',side:224,note:'Reinterpret the photo with the Mosaic neural model. This creates a small 224 px artwork, not a restored photo.'}};
 const style=document.createElement('style');
@@ -15,14 +18,16 @@ document.body.appendChild(bar);
 const openButton=bar.querySelector('button');
 const panel=document.createElement('section');panel.id='noble-ai-dialog';panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','noble-ai-title');
 panel.innerHTML=`<header><h2 id="noble-ai-title">AI photo tools</h2><button type="button" data-close>Close</button></header>
-<p>Choose a local photo and review a separate AI copy. Your open editor document and original file stay intact.</p>
-<label>Tool <select data-tool><option value="object">Object cutout</option><option value="denoise">Neural noise cleanup</option><option value="style">Neural painting</option></select></label>
+<p>Choose a local photo or use your current document, then review a separate AI copy. Your layered project and original file stay intact.</p>
+<label>Tool <select data-tool><option value="object">Object cutout</option><option value="color">Neural color &amp; tone</option><option value="denoise">Neural noise cleanup</option><option value="style">Neural painting</option></select></label>
 <p data-note></p><label>Source photo <input data-file type="file" accept="image/png,image/jpeg"></label>
+<div class="actions"><button type="button" data-current>Use current document</button></div><p data-source></p>
 <p>PNG or JPEG, up to 12 MB and 16 megapixels. Processing stays on this device. Working copies are resized to the tool’s limit.</p>
 <div class="actions"><button type="button" data-run disabled>Run local AI</button><button type="button" data-stop disabled>Stop</button></div>
 <div role="status" aria-live="polite" data-status></div>
 <figure><figcaption>Before</figcaption><canvas data-before width="1" height="1" hidden></canvas></figure>
 <figure><figcaption>AI preview</figcaption><canvas data-after width="1" height="1" hidden></canvas></figure>
+<div data-color hidden><label>Color strength <output data-strength-label>70%</output><input data-strength type="range" min="0" max="100" value="70"></label><p>Release the slider to update the preview. Review each strength change before using the copy.</p></div>
 <div data-refine hidden><p>Refine object edges before approval. Paint on the preview; scroll outside it.</p><div class="actions"><button type="button" data-erase aria-pressed="false">Erase background</button><button type="button" data-restore aria-pressed="false">Restore subject</button><button type="button" data-mask-undo disabled>Undo mask stroke</button></div><label>Brush size <input data-radius type="range" min="2" max="128" value="24"></label></div>
 <label><input type="checkbox" data-approve disabled>I reviewed this AI preview and want to use this copy.</label>
 <div class="actions"><button type="button" data-apply disabled>Open copy in image studio</button><button type="button" data-export disabled>Export PNG copy</button></div>
@@ -30,20 +35,21 @@ panel.innerHTML=`<header><h2 id="noble-ai-title">AI photo tools</h2><button type
 document.body.appendChild(panel);
 const get=name=>panel.querySelector(`[data-${name}]`);
 const selection=get('tool'),picker=get('file'),run=get('run'),stop=get('stop'),approval=get('approve'),apply=get('apply'),exportButton=get('export'),before=get('before'),after=get('after');
-let epoch=0,source=null,working=null,result=null,task=null,preparing=false,brush=null,stroke=null,maskHistory=[];
+let epoch=0,source=null,working=null,result=null,task=null,capture=null,preparing=false,brush=null,stroke=null,maskHistory=[],strengthPending=false;
 const current=token=>!panel.hidden&&!document.hidden&&epoch===token;
 const status=text=>{get('status').textContent=text;};
 function controls(){
   const busy=!!task||preparing||!!stroke;
   picker.disabled=selection.disabled=busy;run.disabled=!source||busy;stop.disabled=!busy;
-  approval.disabled=!result||busy;
-  apply.disabled=exportButton.disabled=!result||!approval.checked||busy;
+  get('current').disabled=busy||!window.nobleImage;
+  approval.disabled=!result||busy||strengthPending;
+  apply.disabled=exportButton.disabled=!result||!approval.checked||busy||strengthPending;
 }
-function discardResult(){if(stroke&&after.hasPointerCapture(stroke.pointer))after.releasePointerCapture(stroke.pointer);result=null;approval.checked=false;after.hidden=true;after.width=after.height=1;maskHistory=[];stroke=null;brush=null;get('refine').hidden=true;get('mask-undo').disabled=true;get('erase').setAttribute('aria-pressed','false');get('restore').setAttribute('aria-pressed','false');after.style.touchAction='auto';controls();}
+function discardResult(){if(stroke&&after.hasPointerCapture(stroke.pointer))after.releasePointerCapture(stroke.pointer);result=null;approval.checked=false;after.hidden=true;after.width=after.height=1;maskHistory=[];stroke=null;brush=null;strengthPending=false;get('color').hidden=true;get('refine').hidden=true;get('mask-undo').disabled=true;get('erase').setAttribute('aria-pressed','false');get('restore').setAttribute('aria-pressed','false');after.style.touchAction='auto';controls();}
 function cancel(message='AI stopped. Your original and editor document are unchanged.'){
-  epoch++;task?.stop();task=null;preparing=false;discardResult();if(!panel.hidden)status(message);controls();
+  epoch++;task?.stop();capture?.stop();task=capture=null;preparing=false;discardResult();if(!panel.hidden)status(message);controls();
 }
-function close(){cancel();source=working=null;picker.value='';before.hidden=true;before.width=before.height=1;panel.hidden=true;openButton.focus();}
+function close(){cancel();source=working=null;picker.value='';get('source').textContent='';before.hidden=true;before.width=before.height=1;panel.hidden=true;openButton.focus();}
 function draw(canvas,image){canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d').putImageData(new ImageData(image.rgba,image.width,image.height),0,0);canvas.hidden=false;}
 function resized(bitmap,side,stretch=false){
   const scale=Math.min(1,side/Math.max(bitmap.width,bitmap.height));
@@ -60,9 +66,7 @@ panel.onkeydown=event=>{event.stopPropagation();if(event.key==='Escape'){event.p
 }};
 for(const name of ['keyup','keypress','wheel'])panel.addEventListener(name,event=>event.stopPropagation());
 selection.onchange=()=>{cancel('Tool changed. Run AI and review a fresh preview.');working=null;before.hidden=true;get('note').textContent=tools[selection.value].note;};
-picker.onchange=async()=>{
-  cancel('Preparing a metadata-free working copy…');source=working=null;before.hidden=true;
-  const file=picker.files?.[0],token=epoch;preparing=true;controls();
+async function preparePhoto(file,token,label){
   let bitmap;
   try{
     if(!file||file.size<1||file.size>12*1024*1024)throw Error('Choose a PNG or JPEG up to 12 MB.');
@@ -72,9 +76,26 @@ picker.onchange=async()=>{
     if(!current(token))return;
     if(bitmap.width*bitmap.height!==info.width*info.height)throw Error('Photo dimensions could not be verified.');
     const copy=resized(bitmap,1024);
-    source=copy;status('Photo ready. Run AI, then review the preview.');
+    source=copy;get('source').textContent=label;status('Photo ready. Run AI, then review the preview.');
   }catch(error){if(current(token))status(error.message||'This photo could not be opened.');}
-  finally{bitmap?.close();if(epoch===token){preparing=false;controls();}}
+  finally{bitmap?.close();}
+}
+picker.onchange=async()=>{
+  cancel('Preparing a metadata-free working copy…');source=working=null;before.hidden=true;get('source').textContent='';
+  const file=picker.files?.[0],token=epoch;preparing=true;controls();
+  try{await preparePhoto(file,token,'Local photo working copy');}finally{if(epoch===token){preparing=false;controls();}}
+};
+get('current').onclick=async()=>{
+  if(task||preparing)return;cancel('Preparing a flattened working copy. The layered document stays intact…');
+  source=working=null;picker.value='';get('source').textContent='';before.hidden=true;
+  const token=epoch;preparing=true;controls();
+  try{
+    const request=async(method,params={})=>{const reply=await window.nobleImage.request(method,params);if(!reply.ok)throw Error('The image studio could not prepare a working copy. Choose a PNG/JPEG photo or try again.');return reply.result;};
+    const owned=startDocumentSnapshot(request,()=>current(token));capture=owned;
+    const blob=await owned.promise;if(!current(token)||capture!==owned)return;capture=null;
+    await preparePhoto(blob,token,'Current document working copy · layered source unchanged');
+  }catch(error){if(current(token))status(error.message||'The working copy could not be prepared. Your project is unchanged.');}
+  finally{if(epoch===token){capture=null;preparing=false;controls();}}
 };
 run.onclick=async()=>{
   if(!source||task||preparing)return;cancel('Preparing local AI…');
@@ -82,16 +103,24 @@ run.onclick=async()=>{
   try{
     const sourceCanvas=document.createElement('canvas');draw(sourceCanvas,source);
     working=resized(sourceCanvas,tools[kind].side);draw(before,working);
-    const model=kind==='object'?resized(sourceCanvas,320,true).rgba:undefined;
+    const model=kind==='object'?resized(sourceCanvas,320,true).rgba:kind==='color'?resized(sourceCanvas,256,true).rgba:undefined;
     const owned=startStudioAi(workerSource,working,kind,model,text=>{if(current(token))status(text);});
     task=owned;preparing=false;controls();
     const pixels=await owned.promise;
     if(!current(token)||task!==owned)return;
     task=null;result={width:working.width,height:working.height,rgba:pixels,kind,token};
-    draw(after,result);get('refine').hidden=kind!=='object';status(`Review the ${result.width} × ${result.height} AI copy. It has not been applied or saved.`);controls();
+    if(kind==='color'){result.rawPixels=pixels;result.rgba=mixColorPixels(working,pixels,Number(get('strength').value)/100);}
+    draw(after,result);get('color').hidden=kind!=='color';get('refine').hidden=kind!=='object';status(`Review the ${result.width} × ${result.height} AI copy. It has not been applied or saved.`);controls();
   }catch(error){if(current(token)){task=null;preparing=false;status(error.message||'AI could not finish. Your original is unchanged.');controls();}}
 };
 approval.onchange=controls;
+get('strength').oninput=()=>{if(result?.kind!=='color')return;strengthPending=true;approval.checked=false;get('strength-label').textContent=get('strength').value+'%';controls();};
+function updateStrength(){
+  if(result?.kind!=='color'||!current(result.token)){strengthPending=false;controls();return;}
+  result.rgba=mixColorPixels(working,result.rawPixels,Number(get('strength').value)/100);draw(after,result);approval.checked=false;strengthPending=false;controls();
+}
+get('strength').onchange=get('strength').onpointercancel=updateStrength;
+get('strength').onblur=()=>{if(strengthPending)updateStrength();};
 for(const mode of ['erase','restore'])get(mode).onclick=()=>{
   if(!result||result.kind!=='object'||preparing||task)return;
   brush=brush===mode?null:mode;for(const name of ['erase','restore'])get(name).setAttribute('aria-pressed',String(brush===name));after.style.touchAction=brush?'none':'auto';
@@ -116,7 +145,7 @@ get('mask-undo').onclick=()=>{
 };
 async function output(mode){
   const owned=result;
-  if(!owned||!approval.checked||!current(owned.token)||task||preparing||stroke)return;
+  if(!owned||!approval.checked||!current(owned.token)||task||preparing||stroke||strengthPending)return;
   preparing=true;controls();
   try{
     const blob=await new Promise((resolve,reject)=>after.toBlob(value=>value?resolve(value):reject(Error('PNG export could not finish.')),'image/png'));

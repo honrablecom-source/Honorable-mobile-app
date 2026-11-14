@@ -26,10 +26,11 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
     page.on('pageerror',error=>errors.push(error.message));
     page.on('request',request=>{if(/^https?:/.test(request.url())&&!request.url().startsWith(origin+'/'))external.push(request.url());});
     await page.addInitScript(()=>{
-      window.__shareCopies=[];let task=null;
+      window.__shareCopies=[];window.__shareBegins=0;window.__internalDocumentClicks=0;let task=null;
+      document.addEventListener('click',event=>{if(event.target.closest?.('a[download]')?.download.startsWith('Noble-AI-snapshot-'))window.__internalDocumentClicks++;},true);
       const create=URL.createObjectURL.bind(URL);
       URL.createObjectURL=blob=>{if(blob.type==='image/png')window.__lastPNGBlob=blob;return create(blob);};
-      window.NobleCreative={beginSave(id,length,title){if(task)return false;task={id,length,title,raw:''};return true;},appendSave(id,chunk){if(task?.id!==id)return false;task.raw+=atob(chunk);return true;},finishSave(id){if(task?.id!==id||task.raw.length!==task.length)return false;window.__shareCopies.push(task);task=null;return true;},cancelSave(id){if(task?.id===id)task=null;}};
+      window.NobleCreative={beginSave(id,length,title){window.__shareBegins++;if(task)return false;task={id,length,title,raw:''};return true;},appendSave(id,chunk){if(task?.id!==id)return false;task.raw+=atob(chunk);return true;},finishSave(id){if(task?.id!==id||task.raw.length!==task.length)return false;window.__shareCopies.push(task);task=null;return true;},cancelSave(id){if(task?.id===id)task=null;}};
     });
     await page.goto(origin+'/image/?empty&webgl');
     await page.waitForFunction(()=>window.nobleImage&&!document.getElementById('photocraft_loading'),null,{timeout:120000});
@@ -81,6 +82,54 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
     const applied=await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result);
     assert.ok(applied.views.length>=2,'AI must open a separate document');
     await page.getByRole('button',{name:'AI photo tools',exact:true}).click();
+    const hasColor=await page.locator('[data-tool] option[value=color]').count();assert.equal(hasColor,1,'The current studio must expose neural color');let colorStats=null;
+    if(hasColor){
+      await page.locator('[data-tool]').selectOption('color');
+      const docBefore=await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document);
+      const sharesBefore=await page.evaluate(()=>window.__shareBegins);
+      await page.getByRole('button',{name:'Use current document',exact:true}).click();
+      await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled,null,{timeout:60000});
+      assert.deepEqual(await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document),docBefore);
+      assert.equal(await page.evaluate(()=>window.__shareBegins),sharesBefore);
+      assert.equal(await page.evaluate(()=>window.__internalDocumentClicks),0);
+      await page.locator('[data-run]').click();
+      await page.waitForFunction(()=>!document.querySelector('[data-approve]').disabled,null,{timeout:180000});
+      colorStats=await page.evaluate(()=>{
+        const a=document.querySelector('[data-before]'),b=document.querySelector('[data-after]'),x=a.getContext('2d').getImageData(0,0,a.width,a.height).data,y=b.getContext('2d').getImageData(0,0,b.width,b.height).data;let changed=0,alphaKept=true;for(let i=0;i<x.length;i++)if(i%4===3){if(x[i]!==y[i])alphaKept=false;}else if(x[i]!==y[i])changed++;return {width:b.width,height:b.height,changed,alphaKept};
+      });
+      assert.ok(colorStats.changed>1000&&colorStats.alphaKept,JSON.stringify(colorStats));
+      await page.locator('[data-approve]').check();await page.locator('[data-strength]').focus();await page.keyboard.press('Home');
+      await page.waitForFunction(()=>document.querySelector('[data-strength]').value==='0'&&!document.querySelector('[data-approve]').disabled);
+      assert.equal(await page.locator('[data-approve]').isChecked(),false);
+      assert.ok(await page.evaluate(()=>{
+        const a=document.querySelector('[data-before]'),b=document.querySelector('[data-after]'),x=a.getContext('2d').getImageData(0,0,a.width,a.height).data,y=b.getContext('2d').getImageData(0,0,b.width,b.height).data;return x.every((v,i)=>v===y[i]);
+      }),'Zero color strength must restore the exact displayed source');
+      await page.keyboard.press('End');await page.waitForFunction(()=>document.querySelector('[data-strength]').value==='100'&&!document.querySelector('[data-approve]').disabled);
+      await page.locator('[data-approve]').check();await page.locator('[data-apply]').click();await page.waitForFunction(()=>document.querySelector('#noble-ai-dialog').hidden);
+      await page.waitForFunction(async()=>(await nobleImage.request('ui.inspect',{})).result.document?.name==='AI-color.png');
+      await page.getByRole('button',{name:'AI photo tools',exact:true}).click();
+      const originalRequest=await page.evaluate(()=>{
+        window.__originalRequest=nobleImage.request;
+        nobleImage.request=(method,params={})=>method==='app.save'&&params.path?.includes('Noble-AI-snapshot-')?
+          new Promise((resolve,reject)=>{window.__heldSnapshot=()=>window.__originalRequest(method,params).then(resolve,reject);}):window.__originalRequest(method,params);
+        return window.__shareBegins;
+      });
+      await page.locator('[data-current]').click();await page.waitForFunction(()=>window.__heldSnapshot);
+      await page.locator('[data-stop]').click();
+      await page.evaluate(async()=>{await window.__heldSnapshot();nobleImage.request=window.__originalRequest;await nobleImage.request('ui.inspect',{});});
+      assert.equal(await page.evaluate(()=>window.__shareBegins),originalRequest);
+      assert.equal(await page.evaluate(()=>window.__internalDocumentClicks),0);
+      assert.equal(await page.locator('[data-run]').isEnabled(),false);
+      colorStats.currentDocumentCopyPreserved=true;colorStats.snapshotNeverShared=true;colorStats.cancelledLateSnapshotNeverShared=true;colorStats.strengthRevokesApproval=true;colorStats.zeroStrengthExact=true;
+      await page.route('**/ai/adaptive-color.onnx',route=>route.fulfill({status:200,contentType:'application/octet-stream',body:Buffer.alloc(1084794)}));
+      await page.locator('[data-current]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);
+      const beforeBadModel=await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document);
+      await page.locator('[data-run]').click();
+      await page.waitForFunction(()=>document.querySelector('[data-status]').textContent.includes('could not finish'),null,{timeout:60000});
+      assert.equal(await page.locator('[data-apply]').isEnabled(),false);
+      assert.deepEqual(await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document),beforeBadModel);
+      colorStats.corruptedModelRefused=true;await page.unroute('**/ai/adaptive-color.onnx');
+    }
     await page.locator('[data-tool]').selectOption('denoise');
     assert.equal(await page.locator('[data-approve]').isChecked(),false);
     const noisePng=await page.evaluate(()=>{
@@ -115,7 +164,7 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
     assert.equal(await page.locator('[data-approve]').isChecked(),false);
     assert.equal(await page.locator('[data-apply]').isEnabled(),false);
     assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
-    const report={objectStats,denoise,styleStats,maskBrushAndExactUndo:true,maskEditRevokesApproval:true,originalPreserved:true,separateDocument:true,exactNativeExportBytes:true,stopDuringInference:true,toolChangeRevokesApproval:true,simulatedBackgroundRevokesApproval:true,errors,external,note:'Actual local model and full-editor browser workflow; not Android WebView/physical device acceptance. Object fixture must be separately licensed.'};
+    const report={objectStats,colorStats,denoise,styleStats,maskBrushAndExactUndo:true,maskEditRevokesApproval:true,originalPreserved:true,separateDocument:true,exactNativeExportBytes:true,stopDuringInference:true,toolChangeRevokesApproval:true,simulatedBackgroundRevokesApproval:true,errors,external,note:'Actual local model and full-editor browser workflow; not Android WebView/physical device acceptance. Object fixture must be separately licensed.'};
     await fs.writeFile(path.join(out,'ai-studio.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
   }finally{await browser?.close();server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

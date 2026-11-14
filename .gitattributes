@@ -11,3 +11,6 @@ Honorable-mobile-app-main/third_party/onnxruntime-jni-1.20.0/** -text
 Honorable-mobile-app-main/mobile-react-native/android/app/src/main/assets/creative-editors/** -text
 # Preserve the exact pinned Emscripten runtime, including upstream whitespace.
 Honorable-mobile-app-main/mobile-react-native/android/app/src/main/assets/creative-editors/image/ai/ort-wasm-simd-threaded.js -whitespace
+# Original color-model source/weights are immutable conversion inputs.
+Honorable-mobile-app-main/mobile-react-native/full-editors/color-assets/upstream/** -text -whitespace
+Honorable-mobile-app-main/mobile-react-native/full-editors/color-assets/*.f32 -text
