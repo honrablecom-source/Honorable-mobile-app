@@ -1,0 +1,41 @@
+// Exact-version JNI alignment backport; published Java/core entry bytes are preserved.
+def nobleRoot = project.projectDir
+while (nobleRoot != null && !new File(nobleRoot, 'scripts/ort-jni16kb.py').isFile()) {
+    nobleRoot = nobleRoot.parentFile
+}
+if (nobleRoot == null) throw new GradleException('Noble JNI build helper is missing')
+def nobleVendor = new File(nobleRoot, 'third_party/onnxruntime-jni-1.20.0')
+def nobleScript = new File(nobleRoot, 'scripts/ort-jni16kb.py')
+def nobleOriginal = configurations.create('nobleOrtOriginal') {
+    canBeConsumed = false
+    canBeResolved = true
+    transitive = false
+}
+dependencies.add('nobleOrtOriginal', 'com.microsoft.onnxruntime:onnxruntime-android:1.20.0@aar')
+def nobleOutput = layout.buildDirectory.file('noble-ort16kb/onnxruntime-android-1.20.0-jni16kb.aar')
+def noblePrepare = tasks.register('prepareNobleOrtJni16Kb', Exec) {
+    inputs.files(nobleOriginal)
+    inputs.file(nobleScript)
+    inputs.dir(nobleVendor)
+    inputs.property('hostOs', System.getProperty('os.name'))
+    outputs.file(nobleOutput)
+    doFirst {
+        def ndk = providers.gradleProperty('nobleOrtNdkDirectory').orNull
+        if (ndk == null) {
+            def sdk = providers.environmentVariable('ANDROID_HOME').orElse(providers.environmentVariable('ANDROID_SDK_ROOT')).orNull
+            if (sdk == null) {
+                def local = new Properties()
+                def propertiesFile = rootProject.file('local.properties')
+                if (propertiesFile.isFile()) propertiesFile.withInputStream { local.load(it) }
+                sdk = local.getProperty('sdk.dir')
+            }
+            if (sdk == null) throw new GradleException('Configure the Android SDK before building the JNI bridge')
+            ndk = new File(sdk, 'ndk/27.1.12297006').absolutePath
+        }
+        def javac = new File(System.getProperty('java.home'), 'bin/javac' + (System.getProperty('os.name').startsWith('Windows') ? '.exe' : ''))
+        def python = providers.gradleProperty('noblePythonExecutable').orElse(System.getProperty('os.name').startsWith('Windows') ? 'python' : 'python3').get()
+        commandLine python, nobleScript, '--aar', nobleOriginal.singleFile,
+            '--ndk', ndk, '--javac', javac, '--out', nobleOutput.get().asFile
+    }
+}
+dependencies.add('implementation', files(nobleOutput).builtBy(noblePrepare))

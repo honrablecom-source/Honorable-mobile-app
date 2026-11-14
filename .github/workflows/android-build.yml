@@ -58,6 +58,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Test exact native runtime compatibility backport
+        run: python3 ../scripts/test_ort_jni16kb.py
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools

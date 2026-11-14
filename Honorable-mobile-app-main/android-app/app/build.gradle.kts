@@ -4,6 +4,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+apply(from = "../../scripts/ort-jni16kb.gradle")
+
 val releaseStoreFile = providers.environmentVariable("HONORABLE_RELEASE_STORE_FILE").orNull
 val releaseStorePassword = providers.environmentVariable("HONORABLE_RELEASE_STORE_PASSWORD").orNull
 val releaseKeyAlias = providers.environmentVariable("HONORABLE_RELEASE_KEY_ALIAS").orNull
@@ -84,7 +86,6 @@ dependencies {
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")

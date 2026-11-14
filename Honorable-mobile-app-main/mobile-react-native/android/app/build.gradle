@@ -3,6 +3,7 @@ import groovy.json.JsonOutput
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply from: file("../../../scripts/ort-jni16kb.gradle")
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -237,7 +238,6 @@ dependencies {
     implementation("androidx.media3:media3-effect:1.11.1")
     implementation("androidx.media3:media3-common:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.credentials:credentials:1.5.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.5.0")

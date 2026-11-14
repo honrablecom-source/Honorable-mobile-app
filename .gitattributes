@@ -3,3 +3,6 @@ Honorable-mobile-app-main/android-app/app/src/main/assets/tinyclip/tokenizer.jso
 *.onnx -text
 executable/*.apk filter=lfs diff=lfs merge=lfs -text
 executable/*.ipa filter=lfs diff=lfs merge=lfs -text
+
+# Immutable upstream JNI source bytes are verified before the compatibility backport.
+Honorable-mobile-app-main/third_party/onnxruntime-jni-1.20.0/** -text
