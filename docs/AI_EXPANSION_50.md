@@ -1,3 +1,7 @@
+## Current Android-first color milestone
+
+Source c4bc0ec adds one new learned image-adaptive color capability in the full image studio, plus a current-document input improvement. All four real studio graphs and failure/cancellation/source-preservation browser cases pass; combined Android43627674085 is running. Previous three-tool source0f0cc5a passed full Android43621271622 and five-APK43625813335. Generic cutout/denoise/painting are not counted again. Historical targets below are inventory, not the current objective. Android is first; iOS follows. See AI_STUDIO_INTEGRATION.md and ANDROID_INVESTOR_DEMO.md.
+
 ## November14 latest direction
 
 The owner now prioritizes a fully functional investor-ready app over reaching a number. Historical IDs below remain an inventory. The full image studio adds a self-contained U2NETP object-cutout path and access to the existing A01/A02 models. Native C170 already handles non-person cutouts, so this is0net-new generic AI outcomes,1newly bundled model and3studio integrations. It is not accepted as A03 toward the historical feature inventory. Source/production-browser tests pass; fresh native build acceptance is pending. See AI_STUDIO_INTEGRATION.md and INVESTOR_READINESS.md.

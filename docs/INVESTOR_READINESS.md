@@ -10,7 +10,7 @@ Owner instruction November14: keep developing a fully functional, investor-ready
 | Search/account integrity | Native engine preserved; ledger/ranking/privacy guards retained | Approved live account API, OAuth production identity, actual sign-in/credit-backed search |
 | iOS | Verified simulator and unsigned device shell archive at99421da | Native editor/search/AI host parity; private owner signing and installation |
 | Release trust | Exact source/run/hash/signing provenance, immutable models/notices, current internal artifacts | Store signing/release review, privacy/support policy and reproducible product demo |
-| Investor demo | Offline/guest creation workflows can be tested without account credentials | End-to-end acceptance script, stable current demo build and honest platform/quality scope |
+| Investor demo | Offline/guest creation workflows can be tested without account credentials | Execute [Android demo sequence](ANDROID_INVESTOR_DEMO.md), validate stable current build and platform/quality scope |
 
 The owner authorized inspecting and, if needed, creating Google account/backend configuration through Chrome. The extension twice rejected `console.cloud.google.com`, most recently due to a saved permission/managed policy. Do not circumvent that browser block. Continue independent offline work; account setup requires access to be enabled through the normal connection before inspection/creation can proceed. Never print or commit tokens/secrets or invent a production endpoint.
 
