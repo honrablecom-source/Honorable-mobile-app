@@ -15,6 +15,7 @@ import { colors } from '../design-system/tokens';
 import { useOpenWorkspace } from '../native/openWorkspace';
 import { StudioStartGuide } from '../components/StudioStartGuide';
 import { CanvasPreview } from '../components/CanvasPreview';
+import { AdvancedEditors } from '../components/AdvancedEditors';
 import {
   Image as Photo,
   Film,
@@ -242,6 +243,7 @@ export function GuestEditingScreen({ onSignIn, onCanvasClose }: CreationRoute) {
         {!choosingCanvas && <Pressable accessibilityRole="button" accessibilityLabel="Create a video" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={photoVideo}><Text style={s.buttonText}>Create a video</Text><Text style={s.cardDetail}>Photos into an editable local timeline</Text></Pressable>}
         {!choosingCanvas && <Pressable accessibilityRole="button" accessibilityLabel="Saved photo videos" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={videoProjects}><Text style={s.buttonText}>Saved photo videos</Text><Text style={s.cardDetail}>Reopen prepared clips and your saved timeline</Text></Pressable>}
         {!choosingCanvas && <Pressable accessibilityRole="button" accessibilityLabel="Saved image projects" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={projects}><Text style={s.buttonText}>Saved image projects</Text><Text style={s.cardDetail}>Reopen editable canvases kept on this device</Text></Pressable>}
+        {!choosingCanvas && <AdvancedEditors busy={busy} />}
         {choosingCanvas && (
           <View style={s.canvasChoices}>
             <Pressable

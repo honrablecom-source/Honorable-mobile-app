@@ -37,6 +37,7 @@
         <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/creation_paths" />
       </provider>
       <activity android:name=".HonorableDrawingActivity" android:exported="false" android:theme="@style/AppTheme" />
+      <activity android:name=".NobleCreativeEditorActivity" android:exported="false" android:theme="@style/AppTheme" android:enableOnBackInvokedCallback="false" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" />
       <activity android:name=".HonorableVideoEditorActivity" android:exported="false" android:theme="@style/AppTheme" android:enableOnBackInvokedCallback="true" />
       <activity android:name=".VideoProjectBackupsActivity" android:exported="false" android:launchMode="singleTop" android:theme="@style/AppTheme" />
       <provider android:name=".VideoProjectBackupMediaProvider" android:authorities="${applicationId}.video-project-media" android:exported="false" android:grantUriPermissions="false" />

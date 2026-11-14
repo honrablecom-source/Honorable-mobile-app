@@ -1,0 +1,207 @@
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 3639ff0..767093b 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -34,7 +34,7 @@ impl FilmcraftApp {
+         Self {
+             session,
+             ui: UiState { language, ..UiState::default() },
+-            tokens: Tokens::for_kind(ThemeKind::Dark),
++            tokens: Tokens::noble_light(),
+             frames,
+             playback: Playback { speed: 1.0, ..Default::default() },
+             source_playback: Default::default(),
+diff --git a/crates/ui-egui/src/brand.rs b/crates/ui-egui/src/brand.rs
+index 3bab46e..cbf61d4 100644
+--- a/crates/ui-egui/src/brand.rs
++++ b/crates/ui-egui/src/brand.rs
+@@ -1,33 +1,7 @@
+-//! The ArtCraft wordmark (first-party trademark, used with permission; see `docs/brand/` and
+-//! AGENTS.md §1.8), decoded once and kept as a texture.
+-
+-const LOGO_LIGHT_INK: &[u8] = include_bytes!("../../../docs/brand/artcraft-logo-white.png");
+-const LOGO_DARK_INK: &[u8] = include_bytes!("../../../docs/brand/artcraft-logo.png");
+-
+-/// The wordmark for a dark (`dark = true`) or light UI: light ink on dark themes. Its aspect
+-/// ratio is width / height of the returned texture.
+-pub fn wordmark(ctx: &egui::Context, dark: bool) -> Option<egui::TextureHandle> {
+-    let id = egui::Id::unique(("artcraft-wordmark", dark));
+-    if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
+-        return Some(t);
+-    }
+-    let bytes = if dark { LOGO_LIGHT_INK } else { LOGO_DARK_INK };
+-    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png).ok()?;
+-    // Large enough to stay sharp at 2x for the sizes we draw (≤ 320 pt wide).
+-    let img = img.resize(1024, 1024, image::imageops::FilterType::Lanczos3).to_rgba8();
+-    let color = egui::ColorImage::from_rgba_unmultiplied([img.width() as usize, img.height() as usize], img.as_raw());
+-    let tex = ctx.load_texture("artcraft-wordmark", color, egui::TextureOptions::LINEAR);
+-    ctx.data_mut(|d| d.insert_temp(id, tex.clone()));
+-    Some(tex)
+-}
+-
+-/// Draw the wordmark `height` points tall with its left edge at `left_center` (vertically centred).
+-/// Returns the drawn rect.
+-pub fn paint_wordmark(ui: &egui::Ui, left_center: egui::Pos2, height: f32, dark: bool) -> Option<egui::Rect> {
+-    let tex = wordmark(ui.ctx(), dark)?;
+-    let [w, h] = tex.size();
+-    let width = height * w as f32 / h.max(1) as f32;
+-    let r = egui::Rect::from_min_size(egui::pos2(left_center.x, left_center.y - height / 2.0), egui::vec2(width, height));
+-    ui.painter().image(tex.id(), r, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), egui::Color32::WHITE);
+-    Some(r)
++//! Noble fork: original text branding, without restricted ArtCraft logo assets.
++pub fn wordmark(_ctx:&egui::Context,_dark:bool)->Option<egui::TextureHandle>{None}
++pub fn paint_wordmark(ui:&egui::Ui,left_center:egui::Pos2,height:f32,dark:bool)->Option<egui::Rect>{
++ let rect=egui::Rect::from_min_size(egui::pos2(left_center.x,left_center.y-height/2.0),egui::vec2(height*3.0,height));
++ ui.painter().text(rect.left_center(),egui::Align2::LEFT_CENTER,"Noble",egui::FontId::proportional(height*0.85),if dark{egui::Color32::WHITE}else{egui::Color32::BLACK});
++ Some(rect)
+ }
+diff --git a/crates/ui-egui/src/dock_ui.rs b/crates/ui-egui/src/dock_ui.rs
+index 9c98ca9..2e9f642 100644
+--- a/crates/ui-egui/src/dock_ui.rs
++++ b/crates/ui-egui/src/dock_ui.rs
+@@ -228,9 +228,34 @@ impl FilmcraftApp {
+             || ctx.memory(|memory| memory.top_modal_layer().is_some())
+     }
+ 
+-    pub(crate) fn dock_area(&mut self, ui: &mut egui::Ui, body: Rect) {
++    pub(crate) fn dock_area(&mut self, ui: &mut egui::Ui, mut body: Rect) {
+         let t = self.tokens;
+         let ctx = ui.ctx().clone();
++        let phone = cfg!(target_arch = "wasm32") && body.width() < 600.0;
++        let phone_id = egui::Id::unique("noble-phone-video-panel");
++        let mut phone_panel = ctx.data_mut(|data| data.get_temp::<PanelKind>(phone_id).unwrap_or(PanelKind::Program));
++        if phone {
++            let bar = Rect::from_min_size(body.min, vec2(body.width(), 52.0));
++            let mut controls = ui.new_child(egui::UiBuilder::new().max_rect(bar).id_salt("noble-phone-video-tasks"));
++            controls.spacing_mut().interact_size.y = 44.0;
++            controls.horizontal(|ui| {
++                for (panel, label) in [(PanelKind::Program, "Preview"), (PanelKind::Timeline, "Timeline"), (PanelKind::Project, "Media")] {
++                    if ui.add_enabled(self.ui.dock.is_docked(panel), egui::Button::new(label).selected(phone_panel == panel)).clicked() {
++                        phone_panel = panel;
++                    }
++                }
++                egui::ComboBox::from_id_salt("noble-video-more").selected_text("More").width(60.0).show_ui(ui, |ui| {
++                    ui.spacing_mut().interact_size.y = 44.0;
++                    for panel in PanelKind::ALL {
++                        if ui.add_enabled(self.ui.dock.is_docked(panel), egui::Button::new(panel.title()).selected(phone_panel == panel)).clicked() {
++                            phone_panel = panel;
++                        }
++                    }
++                });
++            });
++            ctx.data_mut(|data| data.insert_temp(phone_id, phone_panel));
++            body.min.y = (body.min.y + 52.0).min(body.max.y);
++        }
+         let seqs = SeqTabs {
+             open: self
+                 .session
+@@ -253,7 +278,7 @@ impl FilmcraftApp {
+         let armed = std::sync::Arc::clone(&self.native_ctrl_click_armed);
+         let mut area = DockArea::new(area_id())
+             .float_bounds(self.float_bounds(&ctx))
+-            .maximized(self.ui.keys.maximized.filter(|panel| self.ui.dock.is_docked(*panel)))
++            .maximized(if phone { Some(phone_panel).filter(|panel| self.ui.dock.is_docked(*panel)) } else { self.ui.keys.maximized.filter(|panel| self.ui.dock.is_docked(*panel)) })
+             .input_blocked(self.modal_open(&ctx))
+             .native_input_hook(move |_ctx, raw_input| crate::rewrite_native_window_input(control_input_only, &armed, raw_input));
+         if let Some(panel) = self.pending_panel_raise.take() {
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 13a9cc6..f4279b0 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -150,6 +150,96 @@ pub struct Tokens {
+ }
+ 
+ impl Tokens {
++    /// Noble mobile chrome: neutral controls; media/scopes keep their own content colors.
++    pub fn noble_light() -> Self {
++        let mut t=Self::for_kind(ThemeKind::Light);
++        {let c=t.app_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.app_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.header_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.header_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.panel_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.panel_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tab_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tab_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tab_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tab_text=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tab_text_active;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tab_text_active=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.focus;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.focus=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.accent;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.accent_hover;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_hover=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.text_dim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text_dim=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.text_faint;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text_faint=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.icon;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.icon=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.icon_active;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.icon_active=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.hover;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.hover=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.pressed;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.pressed=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.field_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.field_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.field_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.field_border=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.separator;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.separator=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.row_alt;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.row_alt=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.row_selected;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.row_selected=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.hot_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.hot_text=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.pill_active_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.pill_active_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.clip_bar_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.clip_bar_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.control_surface;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.control_surface=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.control_well;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.control_well=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.control_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.control_border=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.control_handle_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.control_handle_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.control_handle;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.control_handle=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.control_handle_dim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.control_handle_dim=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.plot_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.plot_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.plot_grid;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.plot_grid=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.plot_axis;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.plot_axis=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.plot_handle;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.plot_handle=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.plot_handle_dim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.plot_handle_dim=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.meter_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.meter_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.meter_readout_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.meter_readout_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.meter_clip_off;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.meter_clip_off=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.panner_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.panner_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.panner_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.panner_border=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.panner_speaker;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.panner_speaker=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.fader_knob;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.fader_knob=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.eq_track;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.eq_track=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.eq_tick;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.eq_tick=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.eq_knob;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.eq_knob=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.eq_knob_active;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.eq_knob_active=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.eq_node;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.eq_node=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.eq_node_off;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.eq_node_off=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.crossover_handle;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.crossover_handle=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.keyframe_plot_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.keyframe_plot_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.keyframe_plot_grid;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.keyframe_plot_grid=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.keyframe_plot_axis;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.keyframe_plot_axis=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.keyframe_handle;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.keyframe_handle=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.switch_fill;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.switch_fill=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.switch_knob;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.switch_knob=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.switch_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.switch_border=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.slider_disabled_track;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.slider_disabled_track=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.slider_disabled_knob;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.slider_disabled_knob=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.button_hover;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.button_hover=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.button_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.button_border=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.caption_track_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.caption_track_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.scroll_thumb;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.scroll_thumb=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.scroll_thumb_hover;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.scroll_thumb_hover=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.vertical_scroll_thumb;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.vertical_scroll_thumb=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.disabled_clip_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.disabled_clip_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_track_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_track_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_track_bg_alt;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_track_bg_alt=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_header_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_header_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_ruler_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_ruler_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_ruler_tick;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_ruler_tick=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.tl_ruler_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tl_ruler_text=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.playhead;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.playhead=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.track_target;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.track_target=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.in_out_shade;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.in_out_shade=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.clip_selected_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.clip_selected_border=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.render_red;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.render_red=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.render_yellow;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.render_yellow=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.render_green;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.render_green=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.monitor_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.monitor_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.timecode;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.timecode=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        {let c=t.danger;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.danger=Color32::from_rgba_unmultiplied(y,y,y,c.a());}
++        t.text=Color32::BLACK;t.icon=Color32::BLACK;t.accent=Color32::BLACK;t.focus=Color32::BLACK;
++        t.app_bg=Color32::from_gray(245);t.header_bg=Color32::WHITE;t.panel_bg=Color32::WHITE;
++        t
++    }
++
+     pub fn for_kind(kind: ThemeKind) -> Self {
+         // Measured from Premiere 26 "Darkest" (plan/premiere/02-ui-ux.md §1).
+         let dark = Tokens {

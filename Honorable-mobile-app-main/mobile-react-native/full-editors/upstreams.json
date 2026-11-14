@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "image": {
+    "repository": "https://github.com/storytold/photocraft.git",
+    "revision": "f143ce58498f201a8dfc9c07f5e24147c6a22bee",
+    "crate": "photocraft-web",
+    "profile": "wasm-release",
+    "wasm": "photocraft-web.wasm",
+    "bindgen": "0.2.130",
+    "patch": "photocraft-mobile.patch",
+    "config": [
+      "profile.wasm-release.package.photocraft-engine.opt-level=1",
+      "profile.wasm-release.package.photocraft-engine.codegen-units=8",
+      "profile.wasm-release.package.photocraft-ui-egui.opt-level=0",
+      "profile.wasm-release.package.photocraft-ui-egui.codegen-units=256"
+    ]
+  },
+  "video": {
+    "repository": "https://github.com/storytold/filmcraft.git",
+    "revision": "d1e64ecfcc5e6f21e30f571e6fe3edbe86fdcafa",
+    "crate": "filmcraft-web",
+    "profile": "release",
+    "wasm": "filmcraft_web.wasm",
+    "bindgen": "0.2.129",
+    "patch": "filmcraft-mobile.patch",
+    "config": [
+      "profile.release.package.filmcraft-ui-egui.opt-level=0",
+      "profile.release.package.filmcraft-ui-egui.codegen-units=256"
+    ]
+  }
+}
