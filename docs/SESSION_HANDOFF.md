@@ -1,3 +1,7 @@
+## November14 — active video export cancellation verified
+
+**0new features;1additional regression,0app changes.** The real FilmCraft browser test waits for a1280x720 H.264 job to render at least one frame, cancels while unfinished and requires its terminal result to be cancelled, with no partial output file and no native share request. The full project/recovery/export/playback test passes with no page exceptions or external requests. Evidence: .context/ai-color/video-cancel-final/video-roundtrip.json. This is host browser evidence, not Android hardware/storage acceptance. Frozen sourcec4bc Android43627674085 remains live under observation.
+
 ## November14 — usable loopback studio review without a phone/VM
 
 **0new app features;1developer review tool.** full-editors/preview.mjs serves only exact receipt-verified image/video assets on127.0.0.1:4181, accepts GET/HEAD only and no uploads. Both real engines load at390px; four AI options, fixed keyboard boundaries, path refusal and POST refusal pass against this actual server, without page errors/external requests. Evidence: .context/ai-color/preview-review.json. Live process session8181 currently hosts http://127.0.0.1:4181/. This is a browser review of current checkout assets, not Android/native/account/phone acceptance; current APK may differ. Start again via the README command if the process has ended. Sourcec4bc Android43627674085 remains the frozen canonical build under observation.
