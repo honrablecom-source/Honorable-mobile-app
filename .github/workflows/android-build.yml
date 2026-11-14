@@ -177,6 +177,10 @@ jobs:
           name: honorable-release-identity
           path: Honorable-mobile-app-main/mobile-react-native/release-manifest.json
           if-no-files-found: error
+      - name: Verify full editor assets before publishing tester
+        run: |
+          python3 full-editors/test_verify_apk.py
+          python3 full-editors/verify-apk.py android/app/build/outputs/apk/internal/app-internal.apk
       - name: Upload self-contained tester APK
         uses: actions/upload-artifact@v4
         with:

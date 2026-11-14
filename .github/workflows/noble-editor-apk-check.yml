@@ -46,7 +46,11 @@ jobs:
               raise SystemExit('No self-contained internal/release APKs were downloaded.')
           reports = pathlib.Path('reports'); reports.mkdir()
           for index, package in enumerate(sorted(packages)):
-              result = subprocess.run([sys.executable, str(checker), str(package)], capture_output=True, text=True, check=True)
+              result = subprocess.run([sys.executable, str(checker), str(package)], capture_output=True, text=True)
+              if result.returncode:
+                  print(result.stdout, end='')
+                  print(result.stderr, end='', file=sys.stderr)
+                  raise SystemExit(f'Editor verification failed for {package}')
               report = json.loads(result.stdout)
               report['apk'] = package.name
               (reports / f'{index:02d}-{package.stem}.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -19,7 +19,7 @@
       "bytes": 190467,
       "sha256": "49b9c465b5f463b7de4bdf5499ce5befd27e8db5891a8226e27cdf1d80363e3f"
     },
-    "editor_bg.wasm.gz": {
+    "editor_bg.wasm.gzip": {
       "bytes": 17761953,
       "sha256": "f612c51f44a17dd0a5c12db03ef069fbc7c756098ee3d57332cee9f980cb7635"
     },

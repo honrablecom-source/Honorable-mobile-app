@@ -4,6 +4,7 @@ This verifies packaged bytes and native class descriptors, not signatures, a run
 WebView, real-device behavior or store readiness. No APK extraction is performed.
 """
 import hashlib
+import gzip
 import json
 from pathlib import Path
 import re
@@ -53,6 +54,21 @@ with zipfile.ZipFile(apk) as archive:
                 raise SystemExit(f'{kind}/{name}: wrong packaged bytes.')
             total += count
         report['editors'][kind] = {'files': len(receipt['files']), 'bytes': total, 'sourceRevision': receipt['sourceRevision'], 'receiptSha256': hashlib.sha256(source_receipt).hexdigest()}
+        # Verify the decoded stream too; a correctly pinned but invalid compressed
+        # executable must never pass a publication gate.
+        compiler = json.loads(archive.read(prefix + 'provenance.json'))['wasm']
+        if compiler['compression'] != 'gzip' or not 1 <= compiler['bytes'] <= 96 * 1024 * 1024:
+            raise SystemExit(f'{kind}: invalid compiler provenance.')
+        digest, count = hashlib.sha256(), 0
+        with archive.open(prefix + 'editor_bg.wasm.gzip') as packed, gzip.GzipFile(fileobj=packed) as decoded:
+            while chunk := decoded.read(32768):
+                count += len(chunk)
+                if count > compiler['bytes']:
+                    raise SystemExit(f'{kind}: oversized decoded runtime.')
+                digest.update(chunk)
+        if count != compiler['bytes'] or digest.hexdigest() != compiler['sha256']:
+            raise SystemExit(f'{kind}: decoded runtime differs from original compiler output.')
+        report['editors'][kind]['runtimeSha256'] = digest.hexdigest()
     wanted = {f'Lcom/honorablemobile/{name};'.encode() for name in ('NobleCreativeModule', 'NobleCreativePackage', 'NobleCreativeEditorActivity')}
     found = set()
     overlap = max(map(len, wanted)) - 1

@@ -27,7 +27,7 @@ for(const pkg of inventory.packages){legal+=`${pkg.name} ${pkg.version}\nLicense
 mkdirSync(out,{recursive:true});
 function copy(from,name){const target=join(out,name);mkdirSync(dirname(target),{recursive:true});copyFileSync(from,target);}
 copy(join(web,'editor.js'),'editor.js');
-writeFileSync(join(out,'editor_bg.wasm.gz'),gzipSync(wasm,{level:9}));
+writeFileSync(join(out,'editor_bg.wasm.gzip'),gzipSync(wasm,{level:9}));
 function copyTree(from,prefix){for(const item of readdirSync(from,{withFileTypes:true})){const path=join(from,item.name),name=prefix+item.name;if(item.isDirectory())copyTree(path,name+'/');else if(item.isFile())copy(path,name);}}
 if(existsSync(join(web,'snippets')))copyTree(join(web,'snippets'),'snippets/');
 copyTree(join(root,'pages',kind),'');

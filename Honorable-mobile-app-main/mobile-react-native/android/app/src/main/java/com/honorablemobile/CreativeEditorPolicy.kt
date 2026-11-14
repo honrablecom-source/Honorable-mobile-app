@@ -35,7 +35,7 @@ internal object CreativeEditorPolicy {
     // receives the original stream at its unchanged private runtime URL.
     fun openRuntimeAsset(path: String, open: (String) -> InputStream): InputStream {
         if (!path.endsWith(".wasm")) return open(path)
-        val packed = runCatching { open(path + ".gz") }.getOrNull() ?: return open(path)
+        val packed = runCatching { open(path + ".gzip") }.getOrNull() ?: return open(path)
         val decoded = try { GZIPInputStream(packed) } catch (error: Exception) { packed.close(); throw error }
         return object : FilterInputStream(decoded) {
             private var count = 0L
@@ -70,7 +70,7 @@ internal object CreativeEditorPolicy {
                 }
             }
             require(actual == length && digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == expected)
-            if (name.endsWith(".wasm") || name.endsWith(".wasm.gz")) wasm = true
+            if (name.endsWith(".wasm") || name.endsWith(".wasm.gzip")) wasm = true
         }
         require(wasm); true
     }.getOrDefault(false)
