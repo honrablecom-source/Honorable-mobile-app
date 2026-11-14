@@ -61,7 +61,7 @@ function resized(bitmap,side,stretch=false){
 openButton.onclick=()=>{panel.hidden=false;get('note').textContent=tools[selection.value].note;status('Choose a photo to begin.');get('close').focus();controls();};
 get('close').onclick=close;stop.onclick=()=>cancel();
 panel.onkeydown=event=>{event.stopPropagation();if(event.key==='Escape'){event.preventDefault();close();}else if(event.key==='Tab'){
-  const items=[...panel.querySelectorAll('button,input,select')].filter(el=>!el.disabled);const first=items[0],last=items.at(-1);
+  const items=[...panel.querySelectorAll('button,input,select')].filter(el=>!el.disabled&&el.tabIndex>=0&&el.getClientRects().length>0);const first=items[0],last=items.at(-1);
   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
 }};
 for(const name of ['keyup','keypress','wheel'])panel.addEventListener(name,event=>event.stopPropagation());

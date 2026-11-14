@@ -1,3 +1,7 @@
+## November14 — keyboard focus correction after frozen1.0.4 source
+
+**0new features;1accessibility fix.** Real browser reproduction against frozen sourcec4bc0ec showed Tab could escape the AI dialog when hidden refinement sliders were treated as its final focus boundary. Current source filters disabled, hidden and negative-tab-index controls. New assertions verify Shift+Tab wraps from Close to the last visible action and Tab wraps back. The complete four-model production-bundle workflow also passes with no external requests/page exceptions; generated source/asset pins pass. Evidence: .context/ai-color/focus-fixed-browser. This correction is later source, not part of canonical1.0.4 run43627674085 currently building. Preserve the exact sourcec4bc asset snapshot in .context/ai-color/source-c4bc for its publication checks. Native acceptance of the later correction is pending; do not repeatedly build the whole app per small fix.
+
 ## Combined1.0.4 candidate — learned color and current-document input
 
 Android first; iOS follows. The preceding three-tool source0f0cc5a passed full Android43621271622 and five-APK43625813335. The following combined four-tool candidate still needs its own native build. Published executable metadata remains authoritative; no later tool is implied to be inside an older APK.

@@ -42,6 +42,11 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
     await page.evaluate(()=>nobleImage.request('engine.execute',{command:'layer.duplicate',params:{name:'Keep editable layer'}}));
     const original=await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document);
     await page.getByRole('button',{name:'AI photo tools',exact:true}).click();
+    // Hidden color/mask sliders must never become focus-trap boundaries.
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.locator('[data-current]').evaluate(el=>document.activeElement===el),true);
+    await page.keyboard.press('Tab');
+    assert.equal(await page.locator('[data-close]').evaluate(el=>document.activeElement===el),true);
     await page.keyboard.press('Control+z');
     assert.deepEqual(await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document),original);
     await page.locator('[data-file]').setInputFiles(fixture);

@@ -49,15 +49,15 @@
     },
     "ai-build.json": {
       "bytes": 4626,
-      "sha256": "7f7dd75a34037da6d8bf6780c6ae5062ac49ebe520398473441e5ed36193af30"
+      "sha256": "d458e6ee97d8ebf0e56e966cc8d048a49917e60eae57543b97a78e222a71d6a7"
     },
     "AI-NOTICES.txt": {
       "bytes": 366566,
       "sha256": "7a5282d34f6ba63cc596bef6a420b5b82472f87206b3866fb75ca426c1752843"
     },
     "ai-tools.js": {
-      "bytes": 78316,
-      "sha256": "bb6c7dc373e83d6de9bb9e0689d2b0a2deceded3dadc2d41371f4cf5b9acfd6b"
+      "bytes": 78360,
+      "sha256": "d0f0bda65a9bb36ed6a7a8fef57410cc8e008807a4beb8b3a055e1e4c118be83"
     },
     "bootstrap.js": {
       "bytes": 611,
