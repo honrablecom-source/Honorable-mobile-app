@@ -1,6 +1,6 @@
 ## November14 latest direction
 
-The owner now prioritizes a fully functional investor-ready app over reaching a number. Historical IDs below remain an inventory. A03 adds general-object cutout with a new local U2NETP model; the full image studio also gains access to the existing A01/A02 models. This is1new AI capability/model and2existing-tool integrations, not3new models. Source/production-browser tests pass; fresh native build acceptance is pending. See AI_STUDIO_INTEGRATION.md and INVESTOR_READINESS.md.
+The owner now prioritizes a fully functional investor-ready app over reaching a number. Historical IDs below remain an inventory. The full image studio adds a self-contained U2NETP object-cutout path and access to the existing A01/A02 models. Native C170 already handles non-person cutouts, so this is0net-new generic AI outcomes,1newly bundled model and3studio integrations. It is not accepted as A03 toward the historical feature inventory. Source/production-browser tests pass; fresh native build acceptance is pending. See AI_STUDIO_INTEGRATION.md and INVESTOR_READINESS.md.
 
 # AI expansion requested November 14
 

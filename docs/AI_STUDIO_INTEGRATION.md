@@ -1,6 +1,6 @@
 # Local AI in the full image studio
 
-November 14 source/browser milestone: **one new AI capability (general-object cutout), one new inference model, and two integrations of existing AI tools.** Mask correction controls support the cutout workflow and are not separate features. Existing person-only ML Kit cutout is not counted again. These changes are experimental source/browser verified; a fresh native build is required. The previously published source3f3b506 APK does not contain this later integration.
+November 14 source/browser milestone: **one newly bundled inference model and three full-studio AI integrations; zero net-new generic AI outcomes counted.** A deeper audit found that native C170 already supports non-person subject cutouts through ML Kit. This self-contained U2NETP path removes that tool's Google Play services/model-setup dependency and adds reviewed mask correction in the full studio; it is not counted as another generic cutout feature. DnCNN and Mosaic also reuse existing capabilities. Mask correction controls support the cutout workflow and are not separate features. These changes are experimental source/browser verified; a fresh native build is required. The previously published source3f3b506 APK does not contain this later integration.
 
 ## Reachable workflow
 
