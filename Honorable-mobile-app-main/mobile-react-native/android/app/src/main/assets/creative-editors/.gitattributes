@@ -1,0 +1,4 @@
+# Executable and notice byte receipts must survive every checkout unchanged.
+** -text
+# Keep compiled bundles collapsed in source reviews.
+** linguist-generated=true

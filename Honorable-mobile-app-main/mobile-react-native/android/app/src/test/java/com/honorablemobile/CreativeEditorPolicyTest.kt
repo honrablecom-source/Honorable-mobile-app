@@ -21,6 +21,13 @@ class CreativeEditorPolicyTest {
         assertNull(CreativeEditorPolicy.assetPath("image", "https", CreativeEditorPolicy.HOST, 8080, "/image/index.html"))
         assertNull(CreativeEditorPolicy.kind("model"))
     }
+    @Test fun packagedFullEditorBundlesPassActualStreamingVerification() {
+        val folder = "Honorable-mobile-app-main/mobile-react-native/android/app/src/main/assets"
+        val root = generateSequence(java.io.File(System.getProperty("user.dir")).canonicalFile) { it.parentFile }
+            .map { java.io.File(it, folder) }.firstOrNull { java.io.File(it, "creative-editors/video/bundle.json").isFile }
+            ?: java.io.File("src/main/assets")
+        for(kind in listOf("image", "video")) assertTrue("The real packaged full editor must match its byte receipt", CreativeEditorPolicy.verified(kind) { java.io.File(root, it).inputStream() })
+    }
     @Test fun everyBundledByteMustMatchTheReceipt() {
         val data = linkedMapOf("index.html" to "editor".toByteArray(), "host-bridge.js" to "bridge".toByteArray(), "editor.wasm" to byteArrayOf(0,97,115,109))
         val files = JSONObject()

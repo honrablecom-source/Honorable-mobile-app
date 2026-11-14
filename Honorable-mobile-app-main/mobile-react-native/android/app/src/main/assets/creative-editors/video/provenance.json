@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "kind": "video",
+  "repository": "https://github.com/storytold/filmcraft.git",
+  "sourceRevision": "d1e64ecfcc5e6f21e30f571e6fe3edbe86fdcafa",
+  "patchSha256": "b1845e29646966d3e432c1530d6e4bb53fe74e343bd36b35887dc2a7b380b6b3",
+  "lockSha256": "1e9cee5f684e49c182c830ba265e184f63b01461f3b043f011a682e875d71778",
+  "bindgen": "0.2.129",
+  "profile": "release",
+  "config": [
+    "profile.release.package.filmcraft-ui-egui.opt-level=0",
+    "profile.release.package.filmcraft-ui-egui.codegen-units=256"
+  ],
+  "wasmOpt": null,
+  "experimental": true,
+  "deviceTested": false,
+  "dependencyPackages": 273
+}

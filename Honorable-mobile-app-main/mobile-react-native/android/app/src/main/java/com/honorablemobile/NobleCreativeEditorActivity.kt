@@ -140,7 +140,7 @@ class NobleCreativeEditorActivity : Activity() {
             }.getOrNull()
             runOnUiThread {
                 if(closed||picker!==value)return@runOnUiThread
-                if(approved==null)message.text="Choose up to8 readable files, each up to128MB and up to256MB together. Your project is kept."
+                if(approved==null)message.text="Choose up to 8 readable files, each up to 128 MB and up to 256 MB together. Your project is kept."
                 value.uris=approved?.takeIf{it.isNotEmpty()};value.ready=true;settlePicker()
             }
         }

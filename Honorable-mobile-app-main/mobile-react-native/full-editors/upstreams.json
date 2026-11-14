@@ -12,7 +12,9 @@
       "profile.wasm-release.package.photocraft-engine.opt-level=1",
       "profile.wasm-release.package.photocraft-engine.codegen-units=8",
       "profile.wasm-release.package.photocraft-ui-egui.opt-level=0",
-      "profile.wasm-release.package.photocraft-ui-egui.codegen-units=256"
+      "profile.wasm-release.package.photocraft-ui-egui.codegen-units=256",
+      "profile.wasm-release.lto=false",
+      "profile.wasm-release.codegen-units=16"
     ]
   },
   "video": {

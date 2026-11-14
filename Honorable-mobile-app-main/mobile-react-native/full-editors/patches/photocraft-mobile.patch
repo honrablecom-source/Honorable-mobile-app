@@ -1,27 +1,164 @@
+diff --git a/apps/photocraft-web/Cargo.toml b/apps/photocraft-web/Cargo.toml
+index 075b734..d7a2e0b 100644
+--- a/apps/photocraft-web/Cargo.toml
++++ b/apps/photocraft-web/Cargo.toml
+@@ -19,6 +19,7 @@ name = "photocraft-web"
+ path = "src/main.rs"
+ 
+ [dependencies]
++serde_json = { workspace = true }
+ photocraft-engine = { workspace = true }
+ photocraft-io = { workspace = true }
+ photocraft-codecs = { workspace = true }
+diff --git a/apps/photocraft-web/src/main.rs b/apps/photocraft-web/src/main.rs
+index 6084619..326a7d1 100644
+--- a/apps/photocraft-web/src/main.rs
++++ b/apps/photocraft-web/src/main.rs
+@@ -30,6 +30,9 @@ mod indexed_presets;
+ #[cfg(target_arch = "wasm32")]
+ mod web;
+ 
++#[cfg(target_arch = "wasm32")]
++mod noble_bridge;
++
+ #[cfg(target_arch = "wasm32")]
+ fn main() {
+     web::start();
+diff --git a/apps/photocraft-web/src/noble_bridge.rs b/apps/photocraft-web/src/noble_bridge.rs
+new file mode 100644
+index 0000000..eff69b7
+--- /dev/null
++++ b/apps/photocraft-web/src/noble_bridge.rs
+@@ -0,0 +1,58 @@
++//! Local page adapter for Noble's bundled editor; no network listener or account access.
++use std::cell::RefCell;
++use std::sync::mpsc::{Sender, TryRecvError};
++use photocraft_ui_egui::ControlRequest;
++use wasm_bindgen::prelude::*;
++use wasm_bindgen::JsCast;
++use wasm_bindgen_futures::{JsFuture, future_to_promise};
++
++struct Host { tx: Sender<ControlRequest>, ctx: egui::Context, inbox: super::web::Inbox }
++thread_local! { static HOST: RefCell<Option<Host>> = const { RefCell::new(None) }; }
++pub fn install(tx: Sender<ControlRequest>, ctx: egui::Context, inbox: super::web::Inbox) {
++    HOST.with(|host| *host.borrow_mut() = Some(Host { tx, ctx, inbox }));
++}
++#[wasm_bindgen]
++pub fn noble_import(name: String, bytes: Vec<u8>) -> Result<(), JsValue> {
++    if name.is_empty() || name.len() > 120 || name.chars().any(|c| c.is_control() || c == '/' || c == '\\') || bytes.is_empty() || bytes.len() > 64 * 1024 * 1024 {
++        return Err(JsValue::from_str("Choose a named image or project up to64MB."));
++    }
++    HOST.with(|host| {
++        let borrow = host.borrow();
++        let host = borrow.as_ref().ok_or_else(|| JsValue::from_str("The image editor is not ready."))?;
++        let mut inbox = host.inbox.lock().map_err(|_| JsValue::from_str("The import queue is unavailable."))?;
++        if inbox.len() >= 8 { return Err(JsValue::from_str("Finish the current imports first.")); }
++        inbox.push((name, bytes)); host.ctx.request_repaint(); Ok(())
++    })
++}
++#[wasm_bindgen]
++pub fn noble_request(method: String, params: String) -> js_sys::Promise {
++    future_to_promise(async move {
++        if params.len() > 256 * 1024 || !matches!(method.as_str(), "engine.commands" | "engine.execute" | "ui.inspect" | "ui.menu.invoke" | "ui.key" | "ui.dialog.set" | "ui.dialog.apply" | "ui.dialog.cancel" | "app.save" | "jobs.list" | "jobs.cancel") {
++            return Err(JsValue::from_str("Unsupported local editor request."));
++        }
++        let params = serde_json::from_str(&params).map_err(|_| JsValue::from_str("Invalid local request data."))?;
++        let (request, receiver) = ControlRequest::new(method, params);
++        let dispatch = request.dispatch.clone();
++        HOST.with(|host| {
++            let borrow = host.borrow();
++            let host = borrow.as_ref().ok_or_else(|| JsValue::from_str("The image editor is not ready."))?;
++            host.tx.send(request).map_err(|_| JsValue::from_str("The image editor closed."))?;
++            host.ctx.request_repaint(); Ok::<(), JsValue>(())
++        })?;
++        let began = js_sys::Date::now();
++        loop {
++            match receiver.try_recv() {
++                Ok(reply) => return js_sys::JSON::parse(&reply.to_string()),
++                Err(TryRecvError::Disconnected) => return Err(JsValue::from_str("The image editor closed.")),
++                Err(TryRecvError::Empty) => {}
++            }
++            if js_sys::Date::now() - began > 120_000.0 { return Err(JsValue::from_str(&dispatch.give_up())); }
++            let delay = js_sys::Promise::new(&mut |resolve, reject| {
++                if let Some(window) = web_sys::window() {
++                    if let Err(error) = window.set_timeout_with_callback_and_timeout_and_arguments_0(resolve.unchecked_ref(), 16) { let _ = reject.call1(&JsValue::NULL, &error); }
++                } else { let _ = reject.call1(&JsValue::NULL, &JsValue::from_str("The image editor closed.")); }
++            });
++            JsFuture::from(delay).await?;
++        }
++    })
++}
 diff --git a/apps/photocraft-web/src/web.rs b/apps/photocraft-web/src/web.rs
-index 5f6b71e..efc6d47 100644
+index 5f6b71e..6ee607e 100644
 --- a/apps/photocraft-web/src/web.rs
 +++ b/apps/photocraft-web/src/web.rs
+@@ -14,7 +14,7 @@ use photocraft_ui_egui::theme::ThemeKind;
+ use photocraft_ui_egui::{FileDialogAnswer, FileDialogRequest, PhotocraftApp, Services};
+ use wasm_bindgen::JsCast as _;
+ 
+-type Inbox = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
++pub(crate) type Inbox = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
+ type PlaceInbox = photocraft_ui_egui::PlaceInbox;
+ 
+ /// Everything File › Open reads: PhotoCraft, Photoshop, OpenRaster, Krita and Affinity documents, flat images, and
 @@ -94,7 +94,7 @@ pub fn start() {
                  options,
                  Box::new(move |cc| {
                      PhotocraftApp::install_type_reset_hooks(&cc.egui_ctx);
 -                    PhotocraftApp::setup_context(&cc.egui_ctx, ThemeKind::Pro);
-+                    PhotocraftApp::setup_context(&cc.egui_ctx, ThemeKind::StudioLight);
++                    PhotocraftApp::setup_context(&cc.egui_ctx, ThemeKind::ProLight);
                      let inbox: Inbox = Arc::default();
                      let place_inbox: PlaceInbox = Arc::default();
                      let served: Served = Arc::default();
-@@ -107,7 +107,7 @@ pub fn start() {
+@@ -103,11 +103,14 @@ pub fn start() {
+                     preset_warnings.extend(warnings);
+                     let drag = listen_drag(&pen_target);
+                     let mut app = PhotocraftApp::new(session, services(inbox.clone(), place_inbox.clone(), drag_pos_service(pen_target.clone(), drag)));
++                    let (tx, rx) = std::sync::mpsc::channel();
++                    crate::noble_bridge::install(tx, cc.egui_ctx.clone(), inbox.clone());
++                    app = app.with_control(rx);
+                     if !preset_warnings.is_empty() {
                          photocraft_ui_egui::notices::post(&mut app, i18n::t("Some brush presets could not be loaded"), preset_warnings, true, None);
                      }
                      listen_pen(&pen_target, app.stylus.feed.clone());
 -                    app.set_theme(&cc.egui_ctx, ThemeKind::Pro);
-+                    app.set_theme(&cc.egui_ctx, ThemeKind::StudioLight);
++                    app.set_theme(&cc.egui_ctx, ThemeKind::ProLight);
                      if let Some(rs) = cc.wgpu_render_state.clone()
                          && !force_cpu
                      {
+@@ -545,6 +548,7 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, cursor_pos: photocraft_ui_egu
+             }
+         })),
+         write: Some(Box::new(|path: &str, bytes: &[u8]| download(path, bytes))),
++        automation_write: Some(Box::new(|path: &str, bytes: &[u8]| download(path, bytes))),
+         // A download may be cancelled and never reports back: it doesn't save the document.
+         write_unconfirmed: true,
+         encode_png: Some(Box::new(|w, h, rgba| {
+@@ -572,6 +576,7 @@ fn local_storage() -> Option<web_sys::Storage> {
+ 
+ /// Trigger a browser download of `bytes` named after the last component of `path`.
+ fn download(path: &str, bytes: &[u8]) -> Result<(), String> {
++    if bytes.is_empty() || bytes.len() > 64 * 1024 * 1024 { return Err("Choose an export up to 64 MB. Your project is kept.".into()); }
+     let js = |e: wasm_bindgen::JsValue| format!("{e:?}");
+     let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "photocraft".into());
+     let window = web_sys::window().ok_or("no window")?;
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index ccc4915..5fb8111 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -654,6 +654,10 @@ impl PhotocraftApp {
+     }
+ 
+     fn saved_inner(&mut self, doc: DocId, revision: u64, path: &str, warnings: &[String], copy: bool, kind: SaveKind) {
++        if self.services.write_unconfirmed {
++            self.ui.status = "Export copy prepared. Choose a destination to keep it; this does not confirm it was saved.".into();
++            return;
++        }
+         // Per-output Image Assets failures from the after-save hook, reported with this save (#11117).
+         let mut asset_errors: Vec<String> = Vec::new();
+         // The successful outputs and their folder, kept for the partial-failure status line.
 diff --git a/crates/ui-egui/src/app/frame.rs b/crates/ui-egui/src/app/frame.rs
-index 1b51f3a..a3943bf 100644
+index 1b51f3a..b429c0a 100644
 --- a/crates/ui-egui/src/app/frame.rs
 +++ b/crates/ui-egui/src/app/frame.rs
 @@ -291,18 +291,36 @@ impl PhotocraftApp {
@@ -75,6 +212,15 @@ index 1b51f3a..a3943bf 100644
          let toolbar_side = self.ui.panels.toolbar_side.resolve();
          let toolbar_right = toolbar_side == crate::state::ToolbarSide::Right;
          // The compact layout stacks the dock, rail and toolbar on the dock's physical edge.
+@@ -346,7 +364,7 @@ impl PhotocraftApp {
+                 egui::CentralPanel::default().frame(egui::Frame::NONE.fill(backdrop)).show(ui, |ui| {
+                     canvas::document_area(self, ui);
+                 });
+-                if !home {
++                if !home && (!phone || phone_panel == 4) {
+                     panels::properties_window(self, &ctx);
+                 }
+             }
 diff --git a/crates/ui-egui/src/panels/brand.rs b/crates/ui-egui/src/panels/brand.rs
 index 1c3a35a..1519d60 100644
 --- a/crates/ui-egui/src/panels/brand.rs
@@ -172,3 +318,63 @@ index 1c3a35a..1519d60 100644
 + ui.ctx().data_mut(|d|d.insert_temp(rect_id(),r));
 +}
 +#[cfg(test)] pub fn mark_rect(ctx:&Context)->Option<Rect>{ctx.data(|d|d.get_temp(rect_id()))}
+diff --git a/crates/ui-egui/src/panels/toolbar.rs b/crates/ui-egui/src/panels/toolbar.rs
+index a8ed212..3dc0592 100644
+--- a/crates/ui-egui/src/panels/toolbar.rs
++++ b/crates/ui-egui/src/panels/toolbar.rs
+@@ -6,7 +6,7 @@ use crate::state::ToolbarSide;
+ 
+ /// The toolbar's single-column width and its second column's button width, in points.
+ pub(crate) fn toolbar_columns(pro: bool) -> (f32, f32) {
+-    if pro { (40.0, 30.0) } else { (50.0, 36.0) }
++    if cfg!(target_arch = "wasm32") { (54.0, 44.0) } else if pro { (40.0, 30.0) } else { (50.0, 36.0) }
+ }
+ 
+ /// The toolbar panel's width in points: one column, or two when the header chevron asks for them.
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 2c08f63..6836116 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -1020,7 +1020,41 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
+     // Keep native windows at SystemDefault so macOS continues reporting OS appearance changes,
+     // including when an integration or restored egui state pinned its own theme preference.
+     ctx.set_theme(egui::ThemePreference::System);
+-    let t = Tokens::for_kind(kind);
++    let mut t = Tokens::for_kind(kind);
++    if cfg!(target_arch = "wasm32") {
++        { let c=t.chrome;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.chrome=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.canvas;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.canvas=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.canvas_dot;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.canvas_dot=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.dock;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.dock=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.card;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.card=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.card_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.card_border=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.field;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.field=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.field_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.field_border=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.hover;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.hover=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.pressed;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.pressed=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.text_dim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text_dim=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.text_faint;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text_faint=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.icon;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.icon=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.accent;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.accent_soft;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_soft=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.accent_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_border=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.accent_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.separator;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.separator=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.shadow;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.shadow=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.primary_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.primary_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.primary_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.primary_text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.danger;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.danger=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.warning;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.warning=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.tab_strip;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tab_strip=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.row_selected;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.row_selected=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.histogram_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.histogram_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.caption_close;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.caption_close=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.caption_close_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.caption_close_text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        { let c=t.scrim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.scrim=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
++        t.chrome=Color32::WHITE;t.card=Color32::WHITE;t.dock=Color32::from_gray(245);t.canvas=Color32::from_gray(245);t.canvas_dot=t.canvas;
++        t.text=Color32::BLACK;t.icon=Color32::BLACK;t.accent=Color32::from_gray(220);t.accent_text=Color32::BLACK;t.accent_border=Color32::BLACK;t.primary_bg=Color32::BLACK;t.primary_text=Color32::WHITE;
++    }
+     ctx.data_mut(|d| d.insert_temp(egui::Id::unique("photocraft-theme"), t));
+     let mut v = if t.dark() { Visuals::dark() } else { Visuals::light() };
+     v.panel_fill = t.chrome;

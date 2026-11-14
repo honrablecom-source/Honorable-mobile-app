@@ -1,3 +1,68 @@
+diff --git a/crates/h264enc/src/lib.rs b/crates/h264enc/src/lib.rs
+index c280e61..3c30aad 100644
+--- a/crates/h264enc/src/lib.rs
++++ b/crates/h264enc/src/lib.rs
+@@ -295,13 +295,13 @@ struct Input<P> {
+ 
+ struct Pool {
+     /// Built for every thread count, also 1: rayon calls outside `install` run on the global pool (all cores).
+-    #[cfg(feature = "threads")]
++    #[cfg(all(feature = "threads", not(target_arch = "wasm32")))]
+     pool: Option<rayon::ThreadPool>,
+ }
+ 
+ impl Pool {
+     fn install<R: Send>(&self, f: impl FnOnce() -> R + Send) -> R {
+-        #[cfg(feature = "threads")]
++        #[cfg(all(feature = "threads", not(target_arch = "wasm32")))]
+         if let Some(p) = &self.pool {
+             return p.install(f);
+         }
+@@ -566,7 +566,7 @@ impl<P: Pixel> Core<P> {
+         let pps_nal = nal::nal(3, NAL_PPS, &pps.rbsp());
+         let threads = if cfg.threads == 0 { std::thread::available_parallelism().map_or(1, |n| n.get()) } else { cfg.threads };
+         let slices = if cfg.slices > 0 { cfg.slices.min(mbh) } else { threads.min(mbh.div_ceil(4)).max(1) };
+-        #[cfg(feature = "threads")]
++        #[cfg(all(feature = "threads", not(target_arch = "wasm32")))]
+         let pool = Pool {
+             pool: Some(
+                 rayon::ThreadPoolBuilder::new()
+@@ -575,7 +575,7 @@ impl<P: Pixel> Core<P> {
+                     .map_err(|e| Error::InvalidConfig(format!("cannot build the {threads}-thread pool: {e}")))?,
+             ),
+         };
+-        #[cfg(not(feature = "threads"))]
++        #[cfg(any(not(feature = "threads"), target_arch = "wasm32"))]
+         let pool = Pool {};
+         let record_pass1 = cfg.pass == Pass::First;
+         let mut rc = ratecontrol::RateControl::new(rc_kind, fps, vbv.0, vbv.1);
+@@ -675,9 +675,9 @@ impl<P: Pixel> Core<P> {
+         let aq_of = || if use_aq { lookahead::aq_offsets(&src, mbw, mbh, strength, shift) } else { Vec::new() };
+         // the two analyses are independent: side by side, the pool's threads are not left idle
+         // at the end of each
+-        #[cfg(feature = "threads")]
++        #[cfg(all(feature = "threads", not(target_arch = "wasm32")))]
+         let ((lowres, cplx), aq) = self.pool.install(|| rayon::join(analyse, aq_of));
+-        #[cfg(not(feature = "threads"))]
++        #[cfg(any(not(feature = "threads"), target_arch = "wasm32"))]
+         let ((lowres, cplx), aq) = (analyse(), aq_of());
+         self.prev_lowres = Some(lowres);
+         let display = self.display_count;
+@@ -976,12 +976,12 @@ impl<P: Pixel> Core<P> {
+                 }
+                 (pi, k, out)
+             };
+-            #[cfg(feature = "threads")]
++            #[cfg(all(feature = "threads", not(target_arch = "wasm32")))]
+             let results: Vec<(usize, usize, SliceOut)> = {
+                 use rayon::prelude::*;
+                 if tasks.len() > 1 { this.pool.install(|| tasks.into_par_iter().map(run).collect()) } else { tasks.into_iter().map(run).collect() }
+             };
+-            #[cfg(not(feature = "threads"))]
++            #[cfg(any(not(feature = "threads"), target_arch = "wasm32"))]
+             let results: Vec<(usize, usize, SliceOut)> = tasks.into_iter().map(run).collect();
+             let mut results = results;
+             results.sort_by_key(|r| (r.0, r.1));
 diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
 index 3639ff0..767093b 100644
 --- a/crates/ui-egui/src/app.rs
@@ -11,6 +76,40 @@ index 3639ff0..767093b 100644
              frames,
              playback: Playback { speed: 1.0, ..Default::default() },
              source_playback: Default::default(),
+diff --git a/crates/ui-egui/src/app/frame.rs b/crates/ui-egui/src/app/frame.rs
+index e1a7428..670c843 100644
+--- a/crates/ui-egui/src/app/frame.rs
++++ b/crates/ui-egui/src/app/frame.rs
+@@ -59,7 +59,7 @@ impl FilmcraftApp {
+             ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+             return;
+         }
+-        let header_h = if self.ui.show_header { header::HEIGHT } else { 0.0 };
++        let header_h = if self.ui.show_header { if cfg!(target_arch = "wasm32") && full.width() < 600.0 { 96.0 } else { header::HEIGHT } } else { 0.0 };
+         let header = egui::Rect::from_min_size(full.min, egui::vec2(full.width(), header_h));
+         if self.ui.show_header {
+             header::show(self, ui, header);
+diff --git a/crates/ui-egui/src/app/prefs.rs b/crates/ui-egui/src/app/prefs.rs
+index 254513e..0962f82 100644
+--- a/crates/ui-egui/src/app/prefs.rs
++++ b/crates/ui-egui/src/app/prefs.rs
+@@ -5,7 +5,7 @@ impl FilmcraftApp {
+     pub fn set_theme(&mut self, ctx: &egui::Context, k: ThemeKind) {
+         let a = &self.session.prefs.appearance;
+         let highlight = filmcraft_engine::settings::parse_hex(&a.highlight_color);
+-        self.tokens = Tokens::for_kind(k).with_appearance(highlight, a.accessible_contrast);
++        self.tokens = if cfg!(target_arch = "wasm32") { Tokens::noble_light() } else { Tokens::for_kind(k).with_appearance(highlight, a.accessible_contrast) };
+         theme::apply_visuals(ctx, &self.tokens);
+         self.apply_tooltips(ctx);
+         self.ui.dark = k != ThemeKind::Light;
+@@ -19,6 +19,7 @@ impl FilmcraftApp {
+     /// The theme Settings ▸ Appearance selects: the light or dark theme of the Appearance Mode,
+     /// Auto following the system (dark when it gives no answer).
+     pub fn appearance_kind(&self, ctx: &egui::Context) -> ThemeKind {
++        if cfg!(target_arch = "wasm32") { return ThemeKind::Light; }
+         let light = self.system_theme(ctx).map(|t| t == egui::Theme::Light);
+         ThemeKind::from_pref(self.session.prefs.appearance.shown_theme(light))
+     }
 diff --git a/crates/ui-egui/src/brand.rs b/crates/ui-egui/src/brand.rs
 index 3bab46e..cbf61d4 100644
 --- a/crates/ui-egui/src/brand.rs
@@ -104,8 +203,35 @@ index 9c98ca9..2e9f642 100644
              .input_blocked(self.modal_open(&ctx))
              .native_input_hook(move |_ctx, raw_input| crate::rewrite_native_window_input(control_input_only, &armed, raw_input));
          if let Some(panel) = self.pending_panel_raise.take() {
+diff --git a/crates/ui-egui/src/header.rs b/crates/ui-egui/src/header.rs
+index 6b6d7a0..5c7744d 100644
+--- a/crates/ui-egui/src/header.rs
++++ b/crates/ui-egui/src/header.rs
+@@ -17,6 +17,22 @@ pub const HEIGHT: f32 = 38.0;
+ /// and its menu (the workspaces, then Reset to Saved Layout, Save Changes to this Workspace, Save as
+ /// New Workspace… and Edit Workspaces…), Discord and the quick actions.
+ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
++    if cfg!(target_arch = "wasm32") && rect.width() < 600.0 {
++        let mut phone = ui.new_child(egui::UiBuilder::new().max_rect(rect).id_salt("noble-phone-video-header"));
++        phone.spacing_mut().interact_size.y = 44.0;
++        phone.vertical(|ui| {
++            ui.horizontal(|ui| {
++                ui.label(egui::RichText::new("Noble").strong());
++                for (mode, label) in [(Mode::Import, "Import"), (Mode::Edit, "Edit"), (Mode::Export, "Export")] {
++                    if ui.selectable_label(app.ui.mode == mode, label).clicked() { app.ui.mode = mode; }
++                }
++            });
++            egui::ScrollArea::horizontal().id_salt("noble-video-menu-scroll").max_height(44.0).show(ui, |ui| {
++                crate::menus::menu_bar(app, ui);
++            });
++        });
++        return;
++    }
+     let t = app.tokens;
+     let p = ui.painter().clone();
+     p.rect_filled(rect, 0.0, t.header_bg);
 diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
-index 13a9cc6..f4279b0 100644
+index 13a9cc6..2a583f2 100644
 --- a/crates/ui-egui/src/theme.rs
 +++ b/crates/ui-egui/src/theme.rs
 @@ -150,6 +150,96 @@ pub struct Tokens {
@@ -205,3 +331,16 @@ index 13a9cc6..f4279b0 100644
      pub fn for_kind(kind: ThemeKind) -> Self {
          // Measured from Premiere 26 "Darkest" (plan/premiere/02-ui-ux.md §1).
          let dark = Tokens {
+@@ -467,9 +557,9 @@ pub fn apply_visuals(ctx: &egui::Context, t: &Tokens) {
+     v.window_fill = t.panel_bg;
+     v.extreme_bg_color = t.field_bg;
+     v.faint_bg_color = t.row_alt;
+-    v.override_text_color = Some(t.text);
+-    v.selection.bg_fill = t.accent;
+-    v.selection.stroke = Stroke::new(1.0, Color32::WHITE);
++    v.override_text_color = if cfg!(target_arch = "wasm32") { None } else { Some(t.text) };
++    v.selection.bg_fill = if cfg!(target_arch = "wasm32") { Color32::from_gray(220) } else { t.accent };
++    v.selection.stroke = Stroke::new(1.0, if cfg!(target_arch = "wasm32") { Color32::BLACK } else { Color32::WHITE });
+     v.hyperlink_color = t.accent;
+     v.window_stroke = Stroke::new(1.0, t.field_border);
+     v.window_corner_radius = egui::CornerRadius::same(6);

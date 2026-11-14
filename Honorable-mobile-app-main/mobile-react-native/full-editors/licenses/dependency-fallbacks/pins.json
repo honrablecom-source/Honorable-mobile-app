@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "packages": {
+    "accesskit@0.25.2": {
+      "repository": "https://github.com/AccessKit/accesskit",
+      "revision": "f3026222559c7f5f46d8f25cb7404de68eb149f0",
+      "files": [
+        {
+          "file": "AccessKit-accesskit-f3026222559c-LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+          "source": "https://raw.githubusercontent.com/AccessKit/accesskit/f3026222559c7f5f46d8f25cb7404de68eb149f0/LICENSE-APACHE"
+        },
+        {
+          "file": "AccessKit-accesskit-f3026222559c-LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "source": "https://raw.githubusercontent.com/AccessKit/accesskit/f3026222559c7f5f46d8f25cb7404de68eb149f0/LICENSE-MIT"
+        },
+        {
+          "file": "AccessKit-accesskit-f3026222559c-LICENSE.chromium",
+          "bytes": 1559,
+          "sha256": "845022e0c1db1abb41a6ba4cd3c4b674ec290f3359d9d3c78ae558d4c0ed9308",
+          "source": "https://raw.githubusercontent.com/AccessKit/accesskit/f3026222559c7f5f46d8f25cb7404de68eb149f0/LICENSE.chromium"
+        }
+      ]
+    },
+    "profiling@1.0.18": {
+      "repository": "https://github.com/aclysma/profiling",
+      "revision": "8271551172eb6fa4cba47369aedd93790c623df9",
+      "files": [
+        {
+          "file": "aclysma-profiling-8271551172eb-LICENSE-APACHE",
+          "bytes": 10818,
+          "sha256": "10d30a673cd5e9349bdc02aeb48f14b3386d27d0da32df8f0a555d4aa16aa551",
+          "source": "https://raw.githubusercontent.com/aclysma/profiling/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-APACHE"
+        },
+        {
+          "file": "aclysma-profiling-8271551172eb-LICENSE-MIT",
+          "bytes": 1093,
+          "sha256": "c8167fdeeed46d3f244d3f85c5bf998ce889343691c32be2c61a8bc4b5c08333",
+          "source": "https://raw.githubusercontent.com/aclysma/profiling/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-MIT"
+        }
+      ]
+    },
+    "symphonia@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-bundle-flac@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-bundle-mp3@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-codec-aac@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-codec-alac@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-codec-pcm@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-codec-vorbis@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-core@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-format-isomp4@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-format-ogg@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-format-riff@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-metadata@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "symphonia-utils-xiph@0.5.5": {
+      "repository": "https://github.com/pdeljanov/Symphonia",
+      "revision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "files": [
+        {
+          "file": "pdeljanov-Symphonia-6d533f261509-LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "source": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE"
+        }
+      ]
+    },
+    "wasmi@2.0.0": {
+      "repository": "https://github.com/wasmi-labs/wasmi",
+      "revision": "2970aa871cc1001b57b267ccecdcd1e42306199e",
+      "files": [
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-APACHE",
+          "bytes": 10842,
+          "sha256": "f031c1608e4a19e8cbcc3394cdba838067e79189610227459e8ffcd669e6f52d",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-APACHE"
+        },
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-MIT",
+          "bytes": 1062,
+          "sha256": "172bc1497507c1c363496bc23b0f16de8fa8e94befa85db6c8d9fa790e0a8657",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-MIT"
+        }
+      ]
+    },
+    "wasmi_collections@2.0.0": {
+      "repository": "https://github.com/wasmi-labs/wasmi",
+      "revision": "2970aa871cc1001b57b267ccecdcd1e42306199e",
+      "files": [
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-APACHE",
+          "bytes": 10842,
+          "sha256": "f031c1608e4a19e8cbcc3394cdba838067e79189610227459e8ffcd669e6f52d",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-APACHE"
+        },
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-MIT",
+          "bytes": 1062,
+          "sha256": "172bc1497507c1c363496bc23b0f16de8fa8e94befa85db6c8d9fa790e0a8657",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-MIT"
+        }
+      ]
+    },
+    "wasmi_core@2.0.0": {
+      "repository": "https://github.com/wasmi-labs/wasmi",
+      "revision": "2970aa871cc1001b57b267ccecdcd1e42306199e",
+      "files": [
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-APACHE",
+          "bytes": 10842,
+          "sha256": "f031c1608e4a19e8cbcc3394cdba838067e79189610227459e8ffcd669e6f52d",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-APACHE"
+        },
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-MIT",
+          "bytes": 1062,
+          "sha256": "172bc1497507c1c363496bc23b0f16de8fa8e94befa85db6c8d9fa790e0a8657",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-MIT"
+        }
+      ]
+    },
+    "wasmi_ir@2.0.0": {
+      "repository": "https://github.com/wasmi-labs/wasmi",
+      "revision": "2970aa871cc1001b57b267ccecdcd1e42306199e",
+      "files": [
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-APACHE",
+          "bytes": 10842,
+          "sha256": "f031c1608e4a19e8cbcc3394cdba838067e79189610227459e8ffcd669e6f52d",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-APACHE"
+        },
+        {
+          "file": "wasmi-labs-wasmi-2970aa871cc1-LICENSE-MIT",
+          "bytes": 1062,
+          "sha256": "172bc1497507c1c363496bc23b0f16de8fa8e94befa85db6c8d9fa790e0a8657",
+          "source": "https://raw.githubusercontent.com/wasmi-labs/wasmi/2970aa871cc1001b57b267ccecdcd1e42306199e/LICENSE-MIT"
+        }
+      ]
+    },
+    "wasmparser@0.228.0": {
+      "repository": "https://github.com/bytecodealliance/wasm-tools",
+      "revision": "e66235859a6ec0502bf6f9dcc358953eda4cafcc",
+      "files": [
+        {
+          "file": "bytecodealliance-wasm-tools-e66235859a6e-LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/bytecodealliance/wasm-tools/e66235859a6ec0502bf6f9dcc358953eda4cafcc/LICENSE-APACHE"
+        },
+        {
+          "file": "bytecodealliance-wasm-tools-e66235859a6e-LICENSE-Apache-2.0_WITH_LLVM-exception",
+          "bytes": 12243,
+          "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+          "source": "https://raw.githubusercontent.com/bytecodealliance/wasm-tools/e66235859a6ec0502bf6f9dcc358953eda4cafcc/LICENSE-Apache-2.0_WITH_LLVM-exception"
+        },
+        {
+          "file": "bytecodealliance-wasm-tools-e66235859a6e-LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "source": "https://raw.githubusercontent.com/bytecodealliance/wasm-tools/e66235859a6ec0502bf6f9dcc358953eda4cafcc/LICENSE-MIT"
+        }
+      ]
+    },
+    "zune-core@0.4.12": {
+      "repository": "https://github.com/etemesi254/zune-image",
+      "revision": "f8fbb123d5ed04441e8324a555bfcda0cb1bd28f",
+      "files": [
+        {
+          "file": "etemesi254-zune-image-f8fbb123d5ed-LICENSE-ZLIB",
+          "bytes": 818,
+          "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352",
+          "source": "https://raw.githubusercontent.com/etemesi254/zune-image/f8fbb123d5ed04441e8324a555bfcda0cb1bd28f/LICENSE-ZLIB"
+        },
+        {
+          "file": "etemesi254-zune-image-f8fbb123d5ed-LICENSE.md",
+          "bytes": 357,
+          "sha256": "c6dff146a9f31848ac296faa5a08a4253caf2c384c86f906dc99e7fc0a39cc8c",
+          "source": "https://raw.githubusercontent.com/etemesi254/zune-image/f8fbb123d5ed04441e8324a555bfcda0cb1bd28f/LICENSE.md"
+        }
+      ]
+    },
+    "zune-inflate@0.2.54": {
+      "repository": "https://github.com/etemesi254/zune-image",
+      "revision": "69502ce83fdfecdd0beefd677e2abb3781b29d98",
+      "files": [
+        {
+          "file": "etemesi254-zune-image-69502ce83fdf-LICENSE-ZLIB",
+          "bytes": 818,
+          "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352",
+          "source": "https://raw.githubusercontent.com/etemesi254/zune-image/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE-ZLIB"
+        },
+        {
+          "file": "etemesi254-zune-image-69502ce83fdf-LICENSE.md",
+          "bytes": 384,
+          "sha256": "e870d7fd7819a9f0453c62798cb52ae95d148a8c91dc2de1d983f997143c72de",
+          "source": "https://raw.githubusercontent.com/etemesi254/zune-image/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE.md"
+        }
+      ]
+    },
+    "zune-jpeg@0.4.21": {
+      "repository": "https://github.com/etemesi254/zune-image",
+      "revision": "fa2c767a01d7d9373911d0bf63e0588553d67e0e",
+      "files": [
+        {
+          "file": "etemesi254-zune-image-fa2c767a01d7-LICENSE-ZLIB",
+          "bytes": 818,
+          "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352",
+          "source": "https://raw.githubusercontent.com/etemesi254/zune-image/fa2c767a01d7d9373911d0bf63e0588553d67e0e/LICENSE-ZLIB"
+        },
+        {
+          "file": "etemesi254-zune-image-fa2c767a01d7-LICENSE.md",
+          "bytes": 357,
+          "sha256": "c6dff146a9f31848ac296faa5a08a4253caf2c384c86f906dc99e7fc0a39cc8c",
+          "source": "https://raw.githubusercontent.com/etemesi254/zune-image/fa2c767a01d7d9373911d0bf63e0588553d67e0e/LICENSE.md"
+        }
+      ]
+    }
+  }
+}

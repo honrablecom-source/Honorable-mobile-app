@@ -19,11 +19,12 @@ export function AdvancedEditors({busy = false}: {busy?: boolean}) {
     return () => {current = false; mounted.current = false; pending.current = false;};
   }, [available, native]);
   useEffect(() => {
+    if (!available) return;
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active' && mounted.current) {pending.current = false; setOpening(null);}
     });
     return () => subscription.remove();
-  }, []);
+  }, [available]);
   const open = async (kind: Kind) => {
     if (!native || !mounted.current || pending.current || busy || !caps?.[kind]) return;
     pending.current = true; setOpening(kind); setError('');
@@ -36,12 +37,12 @@ export function AdvancedEditors({busy = false}: {busy?: boolean}) {
   };
   if (!available || !caps || (!caps.image && !caps.video)) return null;
   return <View style={s.section}>
-    <Text accessibilityRole="header" style={s.heading}>Advanced studios</Text>
+    <Text accessibilityRole="header" style={s.heading}>Advanced studios · preview</Text>
     <Text style={s.copy}>Layered images and multi-track video, using local files. Save your project before closing.</Text>
     {(['image', 'video'] as const).filter(kind => caps[kind]).map(kind => <Pressable key={kind}
       accessibilityRole="button" accessibilityLabel={kind === 'image' ? 'Open image studio' : 'Open video studio'}
       accessibilityState={{disabled: busy || opening !== null}} disabled={busy || opening !== null}
-      style={[s.button, (busy || opening !== null) && s.disabled]} onPress={() => {void open(kind);}}>
+      style={[s.button, (busy || opening !== null) && s.disabled]} onPress={() => {open(kind);}}>
       <Text style={s.label}>{opening === kind ? 'Opening…' : kind === 'image' ? 'Image studio' : 'Video studio'}</Text>
       <Text style={s.copy}>{kind === 'image' ? 'Layers, masks, painting and image projects' : 'Timeline, grading, sound and video projects'}</Text>
     </Pressable>)}

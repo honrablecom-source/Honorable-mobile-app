@@ -6,7 +6,7 @@
   const bridge = window.NobleCreative;
   if (!bridge || !['beginSave','appendSave','finishSave','cancelSave'].every(key => typeof bridge[key] === 'function')) return;
   let active = null, nextId = Math.floor(Math.random()*900000000), lastId = 0;
-  let notice;
+  let notice, noticeTimer;
   function status(text) {
     if (!notice) {
       notice = document.createElement('div');
@@ -15,6 +15,9 @@
       document.body.appendChild(notice);
     }
     notice.textContent = text;
+    notice.style.display = 'block';
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => {if(notice)notice.style.display = 'none';}, 8000);
   }
   function stop() {
     const task=active;active=null;
@@ -42,7 +45,7 @@
       const response=await fetch(url.href);current();
       if(!response.ok)throw Error('The generated file could not be read. Your project is kept.');
       const blob=await response.blob();current();
-      if(blob.size<1||blob.size>64*1024*1024)throw Error('Choose an export up to64MB. Your project is kept.');
+      if(blob.size<1||blob.size>64*1024*1024)throw Error('Choose an export up to 64 MB. Your project is kept.');
       const name=anchor.download;
       if(!name||name.length>120||/[\x00-\x1f/\\]/.test(name))throw Error('Use a simple export filename. Your project is kept.');
       if(bridge.beginSave(task.id,blob.size,name)!==true)throw Error('Open the editor and finish the current operation before sharing.');

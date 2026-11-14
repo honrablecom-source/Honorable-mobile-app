@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "kind": "image",
+  "sourceRevision": "f143ce58498f201a8dfc9c07f5e24147c6a22bee",
+  "files": {
+    "THIRD_PARTY_NOTICES.txt": {
+      "bytes": 5169304,
+      "sha256": "4e6711cb3d997a97641420523649a39afc9b252340f2e07c5a3e1ab46a26e26b"
+    },
+    "bootstrap.js": {
+      "bytes": 555,
+      "sha256": "e4184e62c7f0b92ce98a05fb821709fa3b0c4310c180acde6f066d55899247ac"
+    },
+    "editor.js": {
+      "bytes": 179890,
+      "sha256": "a732cd27028c75e50e5ecb445ec349eb1b5ad9023299334650435008cb1a71da"
+    },
+    "editor_bg.wasm": {
+      "bytes": 78260935,
+      "sha256": "94d0b64b5acb79f74e87d1784da2e502c9e76c6360300a1e15c25142bf0c98d2"
+    },
+    "fonts/manifest.txt": {
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    "host-bridge.js": {
+      "bytes": 4008,
+      "sha256": "7165f4cfdee263ee3a34b5347738f3cbe654e5acd667cbc3590f81793ddce93d"
+    },
+    "index.html": {
+      "bytes": 2762,
+      "sha256": "93b479a23c5126a2e7c9fe85153988c272c9eb3824289e6ae1f8597342c324b2"
+    },
+    "provenance.json": {
+      "bytes": 861,
+      "sha256": "59b2853ead48ea6002d17d20dc07d150e73fa32d1c626c19825a97e800f39e3a"
+    },
+    "snippets/eframe-d31a8450ea12dfc1/inline0.js": {
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    }
+  }
+}

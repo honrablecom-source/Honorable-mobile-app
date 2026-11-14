@@ -10,7 +10,7 @@ function host({bytes=Buffer.alloc(70000,42),defer=false}={}){
  const bridge={beginSave:(...a)=>(calls.push(['begin',...a]),true),appendSave:(...a)=>(calls.push(['append',...a]),true),finishSave:(...a)=>(calls.push(['finish',...a]),true),cancelSave:(...a)=>calls.push(['cancel',...a])};
  const window={NobleCreative:bridge,addEventListener:(n,f)=>winEvents[n]=f};
  const fetch=async()=>{if(defer)await new Promise(r=>release=r);return {ok:true,blob:async()=>new Blob([bytes])}};
- vm.runInNewContext(source,{window,document,Element,location:{href:'https://noble-editors.local/image/index.html',origin:'https://noble-editors.local'},URL,fetch,Uint8Array,Blob,btoa:s=>Buffer.from(s,'binary').toString('base64'),Math});
+ vm.runInNewContext(source,{window,document,Element,location:{href:'https://noble-editors.local/image/index.html',origin:'https://noble-editors.local'},URL,fetch,Uint8Array,Blob,setTimeout:()=>0,clearTimeout:()=>{},btoa:s=>Buffer.from(s,'binary').toString('base64'),Math});
  return {calls,notices,document,events,window,release:()=>release(),click:(url='blob:https://noble-editors.local/copy',name='Edited.png')=>{let prevented=false;const promise=events.click({target:new Element(url,name),preventDefault(){prevented=true}});return {promise,prevented}}};
 }
 test('explicit local blob export streams exact bounded chunks and requests share once',async()=>{

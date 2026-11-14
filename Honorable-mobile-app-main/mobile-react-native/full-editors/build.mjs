@@ -12,11 +12,11 @@ function run(command,args,options={}){const r=spawnSync(command,args,{stdio:'inh
 function version(command,args){const r=spawnSync(command,args,{encoding:'utf8'});if(r.error||r.status!==0)throw Error(`${command} unavailable`);return r.stdout.trim();}
 if(!version('rustc',['--version']).startsWith('rustc 1.95.0 '))throw Error('Use pinned Rust1.95.0.');
 if(version('wasm-bindgen',['--version'])!==`wasm-bindgen ${pin.bindgen}`)throw Error(`Use wasm-bindgen ${pin.bindgen}.`);
-if(existsSync(source))throw Error('Choose a fresh build directory; existing source is never overwritten.');
-mkdirSync(work,{recursive:true});run('git',['init',source]);
+if([source,target,output].some(path=>existsSync(path)))throw Error('Choose a fresh build directory; existing checkouts and outputs are kept.');
+mkdirSync(work,{recursive:true});run('git',['init',source]);run('git',['-C',source,'config','core.autocrlf','false']);
 run('git',['-C',source,'remote','add','origin',pin.repository]);run('git',['-C',source,'fetch','--depth','1','origin',pin.revision]);run('git',['-C',source,'checkout','--detach',pin.revision]);
 run('git',['-C',source,'apply','--check',join(root,'patches',pin.patch)]);run('git',['-C',source,'apply',join(root,'patches',pin.patch)]);
-const args=['build','-p',pin.crate,'--target','wasm32-unknown-unknown','--profile',pin.profile,'--locked','-j','2'];for(const setting of pin.config)args.push('--config',setting);
+const args=['build','-p',pin.crate,'--target','wasm32-unknown-unknown','--profile',pin.profile,'--locked','-j','1'];for(const setting of pin.config)args.push('--config',setting);
 run('cargo',args,{cwd:source,env:{...process.env,CARGO_TARGET_DIR:target}});
 mkdirSync(output,{recursive:true});run('wasm-bindgen',[join(target,'wasm32-unknown-unknown',pin.profile,pin.wasm),'--target','web','--out-dir',output,'--out-name','editor','--no-typescript']);
 console.log(`Compiled ${kind} engine to ${output}. This is an engine build, not mobile UI/import/export acceptance or an app package.`);

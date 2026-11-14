@@ -7,6 +7,7 @@ import org.json.JSONObject
 /** Only immutable bundled editors are executable. No hosted editor or uploaded media. */
 internal object CreativeEditorPolicy {
     const val HOST = "noble-editors.local"
+    const val MAX_ASSET = 96L * 1024 * 1024
     const val MAX_IMPORT = 128L * 1024 * 1024
     const val MAX_EXPORT = 64 * 1024 * 1024
     private val kinds = setOf("image", "video")
@@ -44,7 +45,7 @@ internal object CreativeEditorPolicy {
         for (name in files.keys()) {
             require(relativePath(name))
             val pin = files.getJSONObject(name); val length = pin.getLong("bytes")
-            require(length in 1..(64L * 1024 * 1024))
+            require(length in 1..MAX_ASSET)
             val expected = pin.getString("sha256"); require(Regex("[0-9a-f]{64}").matches(expected))
             val digest = MessageDigest.getInstance("SHA-256"); var actual = 0L
             open(root + name).use { input ->

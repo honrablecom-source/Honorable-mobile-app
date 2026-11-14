@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "kind": "image",
+  "repository": "https://github.com/storytold/photocraft.git",
+  "sourceRevision": "f143ce58498f201a8dfc9c07f5e24147c6a22bee",
+  "patchSha256": "1d48b9270d471d3df9353f6b0950cd60859b9a40214f7253c4ace031c91df8f7",
+  "lockSha256": "1b84fe92fa01b30c672382368d7e2c202dee1060105b68eec1322976d9645571",
+  "bindgen": "0.2.130",
+  "profile": "wasm-release",
+  "config": [
+    "profile.wasm-release.package.photocraft-engine.opt-level=1",
+    "profile.wasm-release.package.photocraft-engine.codegen-units=8",
+    "profile.wasm-release.package.photocraft-ui-egui.opt-level=0",
+    "profile.wasm-release.package.photocraft-ui-egui.codegen-units=256",
+    "profile.wasm-release.lto=false",
+    "profile.wasm-release.codegen-units=16"
+  ],
+  "wasmOpt": null,
+  "experimental": true,
+  "deviceTested": false,
+  "dependencyPackages": 292
+}
