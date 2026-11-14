@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT.parent / 'android/app/src/main/assets/creative-editors'
 DESCRIPTORS = b'\0'.join(
     f'Lcom/honorablemobile/{name};'.encode()
-    for name in ('NobleCreativeModule', 'NobleCreativePackage', 'NobleCreativeEditorActivity')
+    for name in ('NobleCreativeModule', 'NobleCreativeEditorActivity')
 )
 
 
@@ -45,7 +45,7 @@ class ApkGateTest(unittest.TestCase):
         result = self.check_package()
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(report['nativeDescriptors'], 3)
+        self.assertEqual(report['nativeDescriptors'], 2)
         self.assertFalse(report['deviceTested'])
         self.assertFalse(report['signatureVerified'])
         self.assertEqual(set(report['editors']), {'image', 'video'})

@@ -1,3 +1,6 @@
+## November14 — APK gate accepts optimized registration factories
+
+The existing real b8aa8be internal APK independently contains NobleCreativeModule and NobleCreativeEditorActivity descriptors, but R8 removes/renames NobleCreativePackage. The package factory's source name is not a runtime contract. The APK gate now requires the two callable retained components; native registration/lifecycle tests remain separate. Its multidex fixture deliberately omits the factory name and still requires both runtime components. No app behavior or optimization rule changes. The preceding source repair remains unverified on-device.
 ## November14 — Full-editor APK filename defect reproduced and repaired in source
 
 **0new user-facing features;1packaging compatibility fix.** Android run43563878266/source b8aa8be completed successfully, but its follow-up43567125592 failed. Independently downloaded the actual internal APK and reproduced the exact error: Android packaging expanded/renamed editor_bg.wasm.gz to editor_bg.wasm, while bundle receipts and native integrity checks still required the compressed name. Thus build success did not establish usable studios.

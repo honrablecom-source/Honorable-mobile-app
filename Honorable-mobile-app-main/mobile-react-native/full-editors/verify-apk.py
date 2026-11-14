@@ -69,7 +69,9 @@ with zipfile.ZipFile(apk) as archive:
         if count != compiler['bytes'] or digest.hexdigest() != compiler['sha256']:
             raise SystemExit(f'{kind}: decoded runtime differs from original compiler output.')
         report['editors'][kind]['runtimeSha256'] = digest.hexdigest()
-    wanted = {f'Lcom/honorablemobile/{name};'.encode() for name in ('NobleCreativeModule', 'NobleCreativePackage', 'NobleCreativeEditorActivity')}
+    # R8 may inline/rename the registration factory. Its source name is not a
+    # runtime contract. The callable RN module and manifest activity are retained.
+    wanted = {f'Lcom/honorablemobile/{name};'.encode() for name in ('NobleCreativeModule', 'NobleCreativeEditorActivity')}
     found = set()
     overlap = max(map(len, wanted)) - 1
     for name in members:
