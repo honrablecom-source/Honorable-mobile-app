@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "pnpm run build && node --test test/*.test.mjs",
     "build": "wrangler deploy --dry-run --outdir .wrangler/build",
     "dev": "wrangler dev --local",
     "deploy": "wrangler deploy"

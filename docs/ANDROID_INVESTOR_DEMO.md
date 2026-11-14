@@ -4,7 +4,7 @@ Android first; iOS follows (owner clarification November14). This is a repeatabl
 
 ## Candidate and materials
 
-Combined studio candidate: source `c4bc0ec19811eb1c0f7527b938fd0ca74dada422`, Android1.0.4/build5, canonical [build43627674085](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/43627674085). Do not demonstrate later source using the older published3f3b506 APK. Confirm exact successful source, signature, version, model/editor receipts and SHA256 before replacing executable artifacts.
+Published Android tester: source `36e5ca58ffb8d6e64ad3881034943cac0b38caad`, Android1.0.4/build5, successful [build43630705712](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/43630705712) and exact-source five-APK gate43634836827. The unchanged universal tester in executable/ is440449713bytes, SHA25653593a819cf64b0f85c9d650f698882c110522934b42422f2d22bc61977c37b2. It includes the four studio models, current-document input and keyboard-focus correction. Later backend/configuration work does not update this APK: its packaged signInConfigured:false identity remains accurate. Check executable/release.json and receipts before demonstrations.
 
 Use owner-approved or public licensed still photos and a short generated video. Include a foreground object, low-light/noisy image, color portrait/landscape and a transparent image. Never use the Seran holdout or private account media for demonstrations. Save the layered source project externally before closing a studio. A share sheet opening is not proof that a destination received the file.
 
@@ -25,16 +25,16 @@ If a tool fails, retain the source, display its error and demonstrate retry/Stop
 - Save/reopen layered image and video projects after edits. Verify exported copies and source hashes. Test app termination/recovery, low memory, denied media access and storage failures on actual hardware when available.
 - Check narrow-phone touch targets, screen-reader labels, focus, back navigation and keyboard behavior. Host browser width alone does not establish touch/accessibility acceptance.
 
-## Search/account sequence — pending production setup
+## Search/account sequence — live service, completion still blocked
 
-Guest creation is useful independently, but does not establish production search readiness. Before presenting account search, verify the approved HTTPS account service and Google Web OAuth project through authorized configuration access. The Chrome connection currently blocks Google Cloud; do not bypass its saved policy or invent an endpoint.
+Guest creation is useful independently, but does not establish production search readiness. The existing Web audience and live HTTPS service are now configured privately; deployed health200/UP is verified. Readiness503 identifies the missing trusted completion provider. The Android search flow does not yet submit a trusted proof. Neither configured strings nor a function stub resolves that boundary. Consent/client registration and real Android sign-in remain unverified; respect saved Chrome origin permissions.
 
 Then test sign-in, authorized gallery/indexing, search, cancellation, account isolation/sign-out/refresh and genuine completion receipts against the deployed service. Preserve V1/V2 costs1/3,15monthly free credits, free-first deduction, no rollover, nonexpiring purchases, V3 locked and failed/cancelled searches uncharged. No expensive holdout benchmark is needed for this acceptance.
 
 ## Evidence at this source milestone
 
 - All four actual full-studio graphs pass production-bundle Chromium tests. Color/source/alpha, strength review, separate documents, mask/Undo, original preservation, actual-inference Stop, background invalidation, late snapshot suppression, corrupt-model rejection and byte-exact PNG transport pass; no external requests/page exceptions.
--14processing/bridge cases,4APK gate regressions and75core server/project/tooling/configuration tests pass locally. Earlier three-tool source0f0cc5a passed full Android43621271622 and all-five-APK43625813335; the combined candidate needs its own completed build.
+- Retained publication evidence includes14processing/bridge cases,4APK gate regressions and successful corrected whole-app/five-APK runs listed above. Current backend work separately passes54original backend cases and11focused Worker/storage/sign-in-helper cases. Synthetic fixtures and browser check tooling are separate from an owner-completed live Google login.
 - Physical Android WebView/GPU/thermal/performance, actual storage/share providers, deployed sign-in/search and store signing remain unverified. iOS is a follow-up shell/native-parity milestone.
 
 Record each actual execution with source/APK hash, device/OS or host-runtime identity, fixture license, expected/observed output and retained evidence. Leave unchecked gates pending. The overall readiness ledger is [INVESTOR_READINESS.md](INVESTOR_READINESS.md).

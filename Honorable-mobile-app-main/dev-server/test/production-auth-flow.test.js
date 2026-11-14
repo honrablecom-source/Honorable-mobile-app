@@ -20,7 +20,7 @@ function idToken({sub=subjectA,email='first@example.test',name='First Person',au
   return `${input}.${crypto.sign('RSA-SHA256',Buffer.from(input),privateKey).toString('base64url')}`;
 }
 
-async function fixture(){
+async function fixture({searchCompletionVerifier}={}){
   const directory=fs.mkdtempSync(path.join(os.tmpdir(),'honorable-production-auth-'));
   const file=path.join(directory,'ledger.json');
   let keyDownloads=0;
@@ -35,7 +35,7 @@ async function fixture(){
     },
   });
   const server=createServer({file,mode:'production',releaseChannel:'PRODUCTION',betaRequired:false,
-    adminConfig:null,adminUsers:null,webOrigins:[],googleVerifier});
+    adminConfig:null,adminUsers:null,webOrigins:[],googleVerifier,searchCompletionVerifier});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}`;
   async function call(route,body,accessToken,extraHeaders={}){
@@ -52,7 +52,7 @@ async function fixture(){
 }
 
 test('production HTTP sign-in uses signed Google identity and isolates opaque accounts',async()=>{
-  const app=await fixture();
+  const app=await fixture({searchCompletionVerifier:async()=>false});
   try{
     const initial=await app.call('/v1/auth/google',{idToken:idToken(),installationId:'synthetic_installation_A_0001'});
     assert.equal(initial.status,200);
@@ -108,7 +108,7 @@ test('production HTTP rejects bad credentials, replay, development routes and un
     assert.equal((await app.call('/dev/purchases',{passId:'memory_pass_040'},original.body.accessToken)).status,404);
 
     const requestId=crypto.randomUUID();
-    assert.equal((await app.call('/v1/search/start',{model:'SERAN_V1',requestId},original.body.accessToken)).status,200);
+    assert.equal((await app.call('/v1/search/start',{model:'SERAN_V1',requestId},original.body.accessToken)).status,503);
     const clientSuccess=await app.call('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'synthetic-client-claim'},original.body.accessToken);
     assert.equal(clientSuccess.status,503);
     assert.equal(clientSuccess.body.error,'SEARCH_COMPLETION_VERIFICATION_REQUIRED');
