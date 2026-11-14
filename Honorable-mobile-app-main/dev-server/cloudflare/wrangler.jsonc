@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "noble-account",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-07-30",
+  "compatibility_flags": ["nodejs_compat", "enable_nodejs_http_server_modules"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "durable_objects": {
+    "bindings": [{ "name": "ACCOUNT", "class_name": "NobleAccount" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NobleAccount"] }]
+}

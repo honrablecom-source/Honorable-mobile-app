@@ -2,8 +2,8 @@
 const fs=require('node:fs'),path=require('node:path');
 const{AdminAuth}=require('./auth'),{AuditLog}=require('./audit'),{buildMetrics,accountRows,safeUser}=require('./metrics');
 const bad=(message,status=400)=>Object.assign(Error(message),{status});
-const publicDir=path.resolve(__dirname,'../../admin-public');
 function createAdminRouter({ledger,analytics,sessions,environment,configFile,users,clock=Date.now,healthProbe,beta}){
+ const publicDir=path.resolve(__dirname,'../../admin-public');
  const auth=new AdminAuth({file:configFile,users,clock,environment}),audit=new AuditLog(ledger.file+'.admin-audit.jsonl',{clock});
  function writeOrigin(req){if(req.headers['x-honorable-admin']!=='1')throw bad('ADMIN_CSRF_REJECTED',403);let origin;try{origin=new URL(req.headers.origin)}catch{throw bad('ADMIN_CSRF_REJECTED',403)}if(origin.host!==req.headers.host||(environment==='production'&&origin.protocol!=='https:'))throw bad('ADMIN_CSRF_REJECTED',403);}
  function allowed(actor,roles){if(!roles.includes(actor.role))throw bad('ADMIN_ROLE_REQUIRED',403)}

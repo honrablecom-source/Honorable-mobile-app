@@ -4,13 +4,13 @@ const {Attachments}=require('./beta/attachments');
 const {Ledger,passes,costs,available,catalog}=require('./ledger');
 const {GoogleIdTokenVerifier}=require('./auth'),{PersistentSessions}=require('./sessions');
 const {AnalyticsStore}=require('./admin/analytics-store'),{CLIENT_EVENTS,safeMetadata}=require('./admin/events'),{createAdminRouter}=require('./admin/router');
-function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirname,'../data/ledger.json'),mode=process.env.HONORABLE_SERVER_MODE||'production',googleClientId=process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID,googleVerifier,clock=Date.now,searchCompletionVerifier,webOrigins=(process.env.HONORABLE_WEB_ORIGINS||'').split(',').filter(Boolean),analyticsStore,adminConfig=process.env.HONORABLE_ADMIN_CONFIG,adminUsers,healthProbe,releaseChannel=process.env.HONORABLE_RELEASE_CHANNEL||(mode==='development'?'DEV':'PRODUCTION'),betaRequired=process.env.HONORABLE_BETA_REQUIRED==='1'||releaseChannel==='BETA'}={}){
- const dev=mode==='development',ledger=new Ledger(file,{clock,environment:mode}),sessions=new PersistentSessions(file+'.sessions',clock);
- const analytics=analyticsStore||new AnalyticsStore(file+'.analytics.json',{clock,rawDays:bounded(process.env.HONORABLE_ANALYTICS_RAW_DAYS,30,1,90),aggregateDays:bounded(process.env.HONORABLE_ANALYTICS_AGGREGATE_DAYS,400,30,730)});
+function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirname,'../data/ledger.json'),mode=process.env.HONORABLE_SERVER_MODE||'production',googleClientId=process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID,googleVerifier,clock=Date.now,searchCompletionVerifier,webOrigins=(process.env.HONORABLE_WEB_ORIGINS||'').split(',').filter(Boolean),analyticsStore,adminConfig=process.env.HONORABLE_ADMIN_CONFIG,adminUsers,healthProbe,releaseChannel=process.env.HONORABLE_RELEASE_CHANNEL||(mode==='development'?'DEV':'PRODUCTION'),betaRequired=process.env.HONORABLE_BETA_REQUIRED==='1'||releaseChannel==='BETA',storage}={}){
+ const dev=mode==='development',ledger=new Ledger(file,{clock,environment:mode,storage}),sessions=new PersistentSessions(file+'.sessions',clock,storage);
+ const analytics=analyticsStore||new AnalyticsStore(file+'.analytics.json',{storage,clock,rawDays:bounded(process.env.HONORABLE_ANALYTICS_RAW_DAYS,30,1,90),aggregateDays:bounded(process.env.HONORABLE_ANALYTICS_AGGREGATE_DAYS,400,30,730)});
  if(ledger.data.releaseChannel&&ledger.data.releaseChannel!==releaseChannel)throw Error('LEDGER_RELEASE_CHANNEL_MISMATCH');
  ledger.data.releaseChannel=releaseChannel;ledger.save();
- const beta=new BetaStore(file+'.beta.json',{clock,environment:mode,channel:releaseChannel,required:betaRequired});
- beta.attachments=new Attachments(file,clock);
+ const beta=new BetaStore(file+'.beta.json',{storage,clock,environment:mode,channel:releaseChannel,required:betaRequired});
+ beta.attachments=new Attachments(file,clock,storage);
  const google=googleVerifier||(googleClientId?new GoogleIdTokenVerifier({audience:googleClientId}):null);
  const origins=new Set(webOrigins);if(dev){origins.add('http://localhost:4174');origins.add('http://127.0.0.1:4174')}
  const cookieName='__Host-honorable',ingestionLimits=new Map();

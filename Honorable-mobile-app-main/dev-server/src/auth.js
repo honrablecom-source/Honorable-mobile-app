@@ -21,7 +21,7 @@ function jwtObject(part){
   throw googleCredentialError();
 }
 class GoogleIdTokenVerifier{
-  constructor({audience,fetchImpl=global.fetch,clock=()=>Date.now(),jwksUri='https://www.googleapis.com/oauth2/v3/certs',fetchTimeoutMs=5000}){
+  constructor({audience,fetchImpl=(...args)=>global.fetch(...args),clock=()=>Date.now(),jwksUri='https://www.googleapis.com/oauth2/v3/certs',fetchTimeoutMs=5000}){
     if(typeof audience!=='string'||!audience)throw new Error('GOOGLE_CLIENT_ID_REQUIRED');
     if(typeof fetchImpl!=='function'||!Number.isInteger(fetchTimeoutMs)||fetchTimeoutMs<10||fetchTimeoutMs>10000)throw new Error('INVALID_GOOGLE_VERIFIER_CONFIG');
     this.audience=audience;this.fetch=fetchImpl;this.clock=clock;this.jwksUri=jwksUri;this.fetchTimeoutMs=fetchTimeoutMs;

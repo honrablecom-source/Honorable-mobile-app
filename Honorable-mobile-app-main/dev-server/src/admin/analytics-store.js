@@ -3,10 +3,10 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {CLIENT_EVENTS,SERVER_EVENTS,safeMetadata}=require('./events');
 const ACTIVE=new Set(['session_started','session_active','search_started','result_opened','editor_opened','edit_saved','edit_tool_used','workspace_opened']);
 class AnalyticsStore {
- constructor(file,{clock=Date.now,rawDays=30,aggregateDays=400,maxEvents=50000}={}) {
-  this.file=file;this.clock=clock;this.rawDays=rawDays;this.aggregateDays=aggregateDays;this.maxEvents=maxEvents;this.available=true;this.dropped=0;this.writing=null;this.scheduled=null;
+ constructor(file,{clock=Date.now,rawDays=30,aggregateDays=400,maxEvents=50000,storage=fs}={}) {
+  this.storage=storage;this.file=file;this.clock=clock;this.rawDays=rawDays;this.aggregateDays=aggregateDays;this.maxEvents=maxEvents;this.available=true;this.dropped=0;this.writing=null;this.scheduled=null;
   this.state={startedAt:new Date(clock()).toISOString(),events:[],days:{},seen:{}};
-  try{const saved=JSON.parse(fs.readFileSync(file,'utf8'));if(!saved.events||!saved.days||!saved.seen)throw Error('Invalid analytics store');this.state=saved;}catch(e){if(e.code!=='ENOENT')this.available=false;}
+  try{const saved=JSON.parse(this.storage.readFileSync(file,'utf8'));if(!saved.events||!saved.days||!saved.seen)throw Error('Invalid analytics store');this.state=saved;}catch(e){if(e.code!=='ENOENT')this.available=false;}
  }
  record({id,type,accountId=null,environment,metadata={},authority='server'}) {
   try {
@@ -34,7 +34,7 @@ class AnalyticsStore {
   for(const[k,b]of Object.entries(this.state.days))if(b.date<aggregateCutoff)delete this.state.days[k];
   for(const[k,t]of Object.entries(this.state.seen))if(t<now-90*86400000)delete this.state.seen[k];
   const data=JSON.stringify(this.state),temp=this.file+'.tmp';
-  this.writing=(async()=>{try{await fs.promises.mkdir(path.dirname(this.file),{recursive:true});await fs.promises.writeFile(temp,data,{mode:0o600});await fs.promises.rename(temp,this.file);}catch{this.available=false;this.dropped++;}finally{this.writing=null;}})();
+  this.writing=(async()=>{try{await this.storage.promises.mkdir(path.dirname(this.file),{recursive:true});await this.storage.promises.writeFile(temp,data,{mode:0o600});await this.storage.promises.rename(temp,this.file);}catch{this.available=false;this.dropped++;}finally{this.writing=null;}})();
   return this.writing;
  }
  close(){if(this.scheduled)clearTimeout(this.scheduled);this.scheduled=null;return this.flush();}

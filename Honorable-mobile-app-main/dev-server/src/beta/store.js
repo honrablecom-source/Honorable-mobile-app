@@ -2,14 +2,14 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {COHORTS,FLAGS,CATEGORIES,OUTCOMES,CHECKS,BLOCKERS,fail,choice,text,keys,context}=require('./schema');
 class BetaStore {
- constructor(file,{clock=Date.now,environment='development',channel='DEV',required=channel==='BETA'}={}){
-  this.file=file;this.clock=clock;this.environment=environment;this.channel=choice(channel,['DEV','INTERNAL','BETA','PRODUCTION']);this.required=required;
+ constructor(file,{clock=Date.now,environment='development',channel='DEV',required=channel==='BETA',storage=fs}={}){
+  this.storage=storage;this.file=file;this.clock=clock;this.environment=environment;this.channel=choice(channel,['DEV','INTERNAL','BETA','PRODUCTION']);this.required=required;
   this.data={environment,channel,testers:[],feedback:[],releases:[],flags:[],issues:[],requests:[],sequence:0};
-  try{const saved=JSON.parse(fs.readFileSync(file,'utf8'));if(saved.environment!==environment||saved.channel!==channel||!Array.isArray(saved.testers)||!Array.isArray(saved.releases))throw Error('BETA_STORE_ENVIRONMENT_MISMATCH');this.data=saved}catch(e){if(e.code!=='ENOENT')throw e}
+  try{const saved=JSON.parse(this.storage.readFileSync(file,'utf8'));if(saved.environment!==environment||saved.channel!==channel||!Array.isArray(saved.testers)||!Array.isArray(saved.releases))throw Error('BETA_STORE_ENVIRONMENT_MISMATCH');this.data=saved}catch(e){if(e.code!=='ENOENT')throw e}
   this.data.devices??=[];this.data.targets??={};
  }
  now(){return new Date(this.clock()).toISOString()}
- save(){fs.mkdirSync(path.dirname(this.file),{recursive:true});const tmp=this.file+'.tmp';fs.writeFileSync(tmp,JSON.stringify(this.data),{mode:0o600});fs.renameSync(tmp,this.file)}
+ save(){this.storage.mkdirSync(path.dirname(this.file),{recursive:true});const tmp=this.file+'.tmp';this.storage.writeFileSync(tmp,JSON.stringify(this.data),{mode:0o600});this.storage.renameSync(tmp,this.file)}
  mutate(fn){const before=structuredClone(this.data);try{const value=fn();this.save();return value}catch(e){this.data=before;throw e}}
  tester(id){return this.data.testers.find(t=>t.accountId===id)}
  invite(body){if(this.data.testers.length>=10000)throw fail('BETA_CAPACITY_REACHED',409);keys(body,['email','cohort']);const email=text(body.email,254,true).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw fail('INVALID_EMAIL');if(this.data.testers.some(t=>t.email===email))throw fail('TESTER_ALREADY_INVITED',409);return this.mutate(()=>{const t={id:crypto.randomUUID(),email,cohort:choice(body.cohort,COHORTS),status:'INVITED',invitedAt:this.now(),acceptedAt:null,accountId:null,analyticsOptOut:false};this.data.testers.push(t);return t})}
