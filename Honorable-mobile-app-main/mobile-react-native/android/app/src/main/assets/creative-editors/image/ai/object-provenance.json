@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "model": "U2NETP salient-object segmentation",
+  "sourceRepository": "https://github.com/xuebinqin/U-2-Net",
+  "sourceRevision": "ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29",
+  "license": "Apache-2.0",
+  "onnxDistributor": "https://github.com/danielgatis/rembg",
+  "adapterRevision": "991927b77667946dab59c50df31f7d4640e80457",
+  "adapterLicense": "MIT",
+  "releaseAssetId": 85857953,
+  "download": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
+  "bytes": 4574861,
+  "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
+  "upstreamMd5": "8e83ca70e441ab06c318d82300c84806",
+  "input": "RGB image stretched to320x320, divided by maximum RGB value, ImageNet mean/std, float32 NCHW [1,3,320,320]",
+  "output": "First [1,1,320,320] saliency output, finite range normalized, bilinearly fitted to working image and multiplied by existing alpha",
+  "limits": "At most1024px working image. A salient foreground estimate, not an editable semantic label set or guaranteed hair/transparent-object matting.",
+  "deviceTested": false
+}

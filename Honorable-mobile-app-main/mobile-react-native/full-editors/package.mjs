@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {gzipSync} from 'node:zlib';
 import {execFileSync} from 'node:child_process';
+import {packageAi} from './package-ai.mjs';
 const root=dirname(fileURLToPath(import.meta.url));
 const [kind,sourceArg,webArg,noticesArg,outArg]=process.argv.slice(2);
 if(!['image','video'].includes(kind)||![sourceArg,webArg,noticesArg,outArg].every(Boolean))throw Error('Usage: node full-editors/package.mjs image|video SOURCE WEB NOTICES FRESH_OUTPUT. Runtime acceptance is separate.');
@@ -25,7 +26,7 @@ let legal='Noble modified '+pin.repository+' at '+revision+'\nUpstream code: MIT
 legal+='Rust1.95.0 standard-library original copyright/license notice\n'+readFileSync(join(root,'licenses/rust-1.95.0/COPYRIGHT-library.html'),'utf8')+'\n\n';
 for(const pkg of inventory.packages){legal+=`${pkg.name} ${pkg.version}\nLicense: ${pkg.license}\nSource: ${pkg.source}\n`;for(const file of pkg.notices){const noticePath=resolve(notices,file.file);if(!noticePath.startsWith(notices+sep))throw Error('Invalid notice path.');const data=readFileSync(noticePath);if(data.length!==file.bytes||hash(data)!==file.sha256)throw Error('Changed dependency notice.');legal+='\n--- '+file.file+' ---\n'+data.toString('utf8')+'\n';}legal+='\n';}
 mkdirSync(out,{recursive:true});
-function copy(from,name){const target=join(out,name);mkdirSync(dirname(target),{recursive:true});copyFileSync(from,target);}
+function copy(from,name){const target=join(out,name);mkdirSync(dirname(target),{recursive:true});if(from.startsWith(join(root,'pages')+sep)||from===join(root,'host-bridge.js'))writeFileSync(target,readFileSync(from,'utf8').replace(/\r\n/g,'\n'));else copyFileSync(from,target);}
 copy(join(web,'editor.js'),'editor.js');
 writeFileSync(join(out,'editor_bg.wasm.gzip'),gzipSync(wasm,{level:9}));
 function copyTree(from,prefix){for(const item of readdirSync(from,{withFileTypes:true})){const path=join(from,item.name),name=prefix+item.name;if(item.isDirectory())copyTree(path,name+'/');else if(item.isFile())copy(path,name);}}
@@ -35,6 +36,7 @@ copy(join(root,'host-bridge.js'),'host-bridge.js');
 if(kind==='video')copy(join(source,'apps/filmcraft-web/web/audio-worklet.js'),'audio-worklet.js');
 writeFileSync(join(out,'THIRD_PARTY_NOTICES.txt'),legal);
 writeFileSync(join(out,'provenance.json'),JSON.stringify({version:1,kind,repository:pin.repository,sourceRevision:revision,patchSha256:hash(patch),lockSha256:hash(readFileSync(join(source,'Cargo.lock'))),bindgen:pin.bindgen,profile:pin.profile,config:pin.config,wasm:{compression:"gzip",bytes:wasm.length,sha256:hash(wasm)},experimental:true,deviceTested:false,dependencyPackages:inventory.packages.length},null,2)+'\n');
+if(kind==='image')await packageAi(out);
 const files={};function pinTree(dir){for(const item of readdirSync(dir,{withFileTypes:true})){const path=join(dir,item.name);if(item.isDirectory())pinTree(path);else{const name=relative(out,path).split('\\').join('/'),bytes=readFileSync(path);if(bytes.length<1||bytes.length>96*1024*1024)throw Error('Invalid asset size.');files[name]={bytes:bytes.length,sha256:hash(bytes)};}}}pinTree(out);
 writeFileSync(join(out,'bundle.json'),JSON.stringify({version:1,kind,sourceRevision:revision,files},null,2)+'\n');
 console.log(JSON.stringify({kind,files:Object.keys(files).length,bytes:Object.values(files).reduce((n,f)=>n+f.bytes,0),experimental:true,deviceTested:false}));

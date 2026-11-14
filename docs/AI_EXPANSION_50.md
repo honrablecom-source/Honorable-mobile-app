@@ -1,3 +1,7 @@
+## November14 latest direction
+
+The owner now prioritizes a fully functional investor-ready app over reaching a number. Historical IDs below remain an inventory. A03 adds general-object cutout with a new local U2NETP model; the full image studio also gains access to the existing A01/A02 models. This is1new AI capability/model and2existing-tool integrations, not3new models. Source/production-browser tests pass; fresh native build acceptance is pending. See AI_STUDIO_INTEGRATION.md and INVESTOR_READINESS.md.
+
 # AI expansion requested November 14
 
 The owner requested **50 additional AI capabilities**, followed by source publication and fresh Android/iOS formats. This is a new request; it does not restore the historical 500-feature target. Existing tools, style choices, parameters, ordinary filters, platform copies and packaging fixes are not new AI capabilities.

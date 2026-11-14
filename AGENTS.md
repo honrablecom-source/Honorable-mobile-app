@@ -34,3 +34,7 @@ The owner explicitly scraps the500-feature target and the~238 build boundary. Fi
 ## Owner instruction November14 — testing without an Android device
 
 The owner has no Android phone available and requests open-source testing solutions without Android VMs or emulators. Use Robolectric host tests, actual editor-engine browser tests through Playwright, and package/static verification. Do not present these as physical-device, real Android WebView, GPU/thermal or store acceptance. Do not start an Android virtual device or app VM.
+
+## Owner instruction November14 — continue toward investor readiness
+
+Keep developing a fully functional investor-ready app with more genuine AI. Prioritize coherent tools, core correctness and production/platform gaps over feature counts. User authorized inspecting/creating missing account configuration through Chrome; its saved Google Cloud origin policy currently blocks access, so do not circumvent. Continue independent offline work and retain explicit source/build/device/production readiness evidence. The active acceptance ledger is docs/INVESTOR_READINESS.md.

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "inputs": {
+    "ai-inputs.mjs": {
+      "bytes": 1467,
+      "sha256": "373e0faa698dc434a5d8a5b35695f2f2cbd059e6ba1a8646ca97ff9ea976aff9"
+    },
+    "ai-object.mjs": {
+      "bytes": 2551,
+      "sha256": "b4b8fbe712ed4aacef609f7dd61da533acfa7e400c7b77883ea48cc50d1d9a42"
+    },
+    "ai-mask.mjs": {
+      "bytes": 1405,
+      "sha256": "260f0dde45ceb50ff7f291a924e195755e4256515cba3ea79c8144991880d790"
+    },
+    "ai-worker.mjs": {
+      "bytes": 3710,
+      "sha256": "ec05bcf6c8b4d887288fb99acd3146c185b36a1a161f6bc0fe1bb73f4128dc78"
+    },
+    "ai-client.mjs": {
+      "bytes": 1895,
+      "sha256": "69e1f08dde3aa090faaf314c351a69f1999a0c6777a71a11d0fa1de8f6d350c9"
+    },
+    "ai-tools.mjs": {
+      "bytes": 13546,
+      "sha256": "4fef3eab5067ab3bb5ce7045dafd260de04488bc2195476def41229b6a76ea47"
+    },
+    "package-ai.mjs": {
+      "bytes": 3935,
+      "sha256": "ef8b8a1cb98188151c017311b9229f1f1aef5454942cca7e5a9a6839fb1aa274"
+    },
+    "build-ai.mjs": {
+      "bytes": 2192,
+      "sha256": "d97f44a1e7a383117dccfbfbb73f5e5fd42094401cfd0d2cf8dead115001b6c2"
+    },
+    "pages/image/index.html": {
+      "bytes": 2803,
+      "sha256": "38ba43be61a065da4f320967dd99c29264ff31f87d28c86351519bc85fbb17f8"
+    },
+    "pages/image/bootstrap.js": {
+      "bytes": 611,
+      "sha256": "15a281ce95ff0bc7c44a9161785168d72337463180d744fd147bda2648e46cde"
+    },
+    "ai-assets/provenance.json": {
+      "bytes": 1096,
+      "sha256": "3daa3b9f6e3639fe88519afb84265f742d719083d41a86f32985a6a4e849d48d"
+    },
+    "ai-assets/U2NET-LICENSE.txt": {
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    "ai-assets/REMBG-LICENSE.txt": {
+      "bytes": 1069,
+      "sha256": "90a3215072968fd304669c5389f04f1274a587abdd0507d99dead0f5511f8999"
+    },
+    "../creation-web/neural-style.mjs": {
+      "bytes": 2934,
+      "sha256": "dcb53e7793fd0e5161a19b7831b0d8b11c5183b998c1908893f946df540df135"
+    },
+    "../creation-web/neural-denoise.mjs": {
+      "bytes": 2852,
+      "sha256": "ef0f1e64dd711b8487efde48213164373b23aa7c0b194965b434ecdaf62ccdfd"
+    },
+    "../creation-web/image-assets.mjs": {
+      "bytes": 7001,
+      "sha256": "6844a2ebe4c1b4ff326bc2b40309400aacc3dbfa8b677de1245eba5e9a7be2fe"
+    },
+    "../creation-web/ai-assets/provenance.json": {
+      "bytes": 978,
+      "sha256": "1c9115b710bca1610cf47870d3c316641f18aff68117a3a9320c4358ccc4ec4e"
+    },
+    "../creation-web/ai-assets/dncnn-provenance.json": {
+      "bytes": 1257,
+      "sha256": "41d50f8608125cf24b89d89718b892f8ddff12b78caa5db62a779a79d1b2a982"
+    },
+    "../creation-web/THIRD_PARTY/NEURAL-STYLE-BSD.txt": {
+      "bytes": 1520,
+      "sha256": "7e5dc9b5cf276166c4a0678d33e53b14e3d7ef47eee9356ab786c4ba45414efd"
+    },
+    "../creation-web/THIRD_PARTY/DNCNN-MIT.txt": {
+      "bytes": 1066,
+      "sha256": "448e69b705d64f21bf8cb86562301e0edd99ac79026064ddd75af8242b067be5"
+    },
+    "../creation-web/THIRD_PARTY/ORT-WEB-MIT.txt": {
+      "bytes": 339663,
+      "sha256": "a12bb022fa93060001ce823c5d24debe250181dc5a37fd0c1cc9656a6b77923b"
+    }
+  },
+  "deviceTested": false
+}

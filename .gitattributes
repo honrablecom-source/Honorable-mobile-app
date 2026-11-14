@@ -6,3 +6,8 @@ executable/*.ipa filter=lfs diff=lfs merge=lfs -text
 
 # Immutable upstream JNI source bytes are verified before the compatibility backport.
 Honorable-mobile-app-main/third_party/onnxruntime-jni-1.20.0/** -text
+
+# Immutable runtime receipts hash exact packaged bytes on every platform.
+Honorable-mobile-app-main/mobile-react-native/android/app/src/main/assets/creative-editors/** -text
+# Preserve the exact pinned Emscripten runtime, including upstream whitespace.
+Honorable-mobile-app-main/mobile-react-native/android/app/src/main/assets/creative-editors/image/ai/ort-wasm-simd-threaded.js -whitespace
