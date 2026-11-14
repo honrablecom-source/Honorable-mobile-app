@@ -162,8 +162,16 @@ jobs:
           for variant in debug internal; do
             apk="app/build/outputs/apk/$variant/app-$variant.apk"
             "$tools/zipalign" -c -P 16 -v 4 "$apk" > "$RUNNER_TEMP/honorable-$variant-zipalign.log"
-            "$tools/apksigner" verify --print-certs "$apk" \
-              | sed -n "s/^Signer #1 certificate SHA-1 digest: /$variant APK signing SHA-1: /p"
+            certificates="$("$tools/apksigner" verify --print-certs "$apk")"
+            # Build Tools 37 labels this "V2 Signer:"; older tools use "Signer #1".
+            fingerprints="$(sed -nE 's/^.*certificate SHA-1 digest: ([[:xdigit:]]{40})$/\1/p' <<< "$certificates" | sort -u)"
+            if [[ -z "$fingerprints" ]]; then
+              echo "::error::Verified APK certificate SHA-1 was not reported."
+              exit 1
+            fi
+            while IFS= read -r fingerprint; do
+              printf '%s APK signing SHA-1: %s\n' "$variant" "$fingerprint"
+            done <<< "$fingerprints"
             badging="$("$tools/aapt" dump badging "$apk")"
             grep -q "package: name='com.honorablemobile'" <<< "$badging"
             if [[ "$variant" == internal ]] && grep -q '^application-debuggable' <<< "$badging"; then
