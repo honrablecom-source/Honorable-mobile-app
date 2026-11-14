@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build:photocraft": "node build-photocraft.mjs",
     "build": "node build.mjs",
     "test": "node --test test/*.test.mjs",
     "preview": "node preview.mjs",

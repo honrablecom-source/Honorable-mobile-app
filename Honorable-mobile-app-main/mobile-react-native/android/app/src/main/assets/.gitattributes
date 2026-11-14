@@ -1,0 +1,2 @@
+# Preserve the source-verified PhotoCraft loader and WASM bytes on Windows.
+drawing/photocraft/** -text

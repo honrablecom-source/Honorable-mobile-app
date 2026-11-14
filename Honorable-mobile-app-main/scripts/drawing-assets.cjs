@@ -28,14 +28,15 @@ function walk(root, prefix = '') {
 function collectDrawingInputs(source) {
   const files = {};
   for (const name of fs.readdirSync(source).sort()) {
-    if (name.startsWith('.') || !/\.(?:[cm]?[jt]sx?|css|json|py)$/.test(name)) continue;
+    if (name !== '.gitattributes' && (name.startsWith('.') || !/\.(?:[cm]?[jt]sx?|css|json|py)$/.test(name))) continue;
     files[name] = describe(path.join(source,name));
   }
   for (const name of requiredSources) if (!files[name]?.bytes) throw Error(`Missing drawing source: ${name}`);
   const notices = walk(path.join(source,'THIRD_PARTY'),'THIRD_PARTY');
   if (!Object.keys(notices).length) throw Error('Drawing source notices are missing.');
   const ai = fs.existsSync(path.join(source,'ai-assets')) ? walk(path.join(source,'ai-assets'),'ai-assets') : {};
-  return {files: {...files,...notices,...ai}, toolingSha256: digest(fs.readFileSync(__filename))};
+  const core = fs.existsSync(path.join(source,'photocraft-core')) ? walk(path.join(source,'photocraft-core'),'photocraft-core') : {};
+  return {files: {...files,...notices,...ai,...core}, toolingSha256: digest(fs.readFileSync(__filename))};
 }
 function outputFiles(assets) {
   const files = walk(assets);

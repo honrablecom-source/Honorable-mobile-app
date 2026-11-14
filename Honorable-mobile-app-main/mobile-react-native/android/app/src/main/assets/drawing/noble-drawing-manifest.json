@@ -2,6 +2,10 @@
   "version": 1,
   "source": {
     "files": {
+      ".gitattributes": {
+        "bytes": 105,
+        "sha256": "d563e1210d2f9fd58a7c6cac13c0109f8787b5647925fbe1e81d890fe044ec7f"
+      },
       "BoxNetTool.jsx": {
         "bytes": 3406,
         "sha256": "1327f1b4eeadf2a10cc29c3915d1b2161bc2ddab74fb535e3391f9582febfbc2"
@@ -19,12 +23,12 @@
         "sha256": "1f1d64d71037dc34e71e7be61916b2637dea64ba860040a09d5caef7c74c1323"
       },
       "ModelStudio.jsx": {
-        "bytes": 28495,
-        "sha256": "ae7626e7bbde512c9d6b15aa3c8a0d021aac57be9e0bc32e535eae738efcf657"
+        "bytes": 29453,
+        "sha256": "eae61b7e739ce6c24b95e4ca55fab2258c8319e97c474afd2c39831a3812fcf4"
       },
       "NeuralTextureStudio.jsx": {
-        "bytes": 9149,
-        "sha256": "048836c2b9439c0cdbb0904fedbb34150c45334cc2574a70c44a099e9013e0f7"
+        "bytes": 9444,
+        "sha256": "2f94119cf7f601cc69f2f32d38d9bbbc9afadf1794998f8ee2ebd627b3e4fda0"
       },
       "PersonalizeTool.jsx": {
         "bytes": 5330,
@@ -77,6 +81,10 @@
       "PhotoContoursTool.jsx": {
         "bytes": 6040,
         "sha256": "55c2f8f701e62ea4d17798d588dde325758c2f8ef3cf6c744e6bb56c391bafe1"
+      },
+      "PhotoCraftStudio.jsx": {
+        "bytes": 14832,
+        "sha256": "b6867c47db080d72cde152e464f6441c1e335a6001b530b9b6479448d2a0b47a"
       },
       "PhotoCubeFacesTool.jsx": {
         "bytes": 5442,
@@ -242,9 +250,13 @@
         "bytes": 4684,
         "sha256": "0c16c326b536ebaec446a3bf003a7e9097de4fb8236a000d65ff014f13609f93"
       },
+      "build-photocraft.mjs": {
+        "bytes": 2542,
+        "sha256": "99af4621c77c680b9ff2e9f75b399a25946ef98306ee11dadf83bda1ba2767ff"
+      },
       "build.mjs": {
-        "bytes": 8160,
-        "sha256": "07c55d44828ac35257e0f22ad255e598bf0b8b50149c2f433d4707f5209a37b2"
+        "bytes": 8521,
+        "sha256": "54e06f1c8432848ed4bf00eb741c1d8e8541bb7adba901129d5770dac1938a08"
       },
       "clone-strokes.mjs": {
         "bytes": 1171,
@@ -367,8 +379,8 @@
         "sha256": "a618bdc354152e4ea050066631dad1fed4d8c986fd037d2470846958b3e2fc27"
       },
       "package.json": {
-        "bytes": 1060,
-        "sha256": "ed2beb062823b92ca8da422c789266564a0d0f05e5b65d4343b4b584b7afb92b"
+        "bytes": 1113,
+        "sha256": "ab4907ab4a6e8a43b4431358133217214cb7a3d0c944f53f1d6afa43c596e4f3"
       },
       "palette.mjs": {
         "bytes": 2441,
@@ -874,6 +886,18 @@
         "bytes": 3393,
         "sha256": "161c1ae6d7c9b125a0b31546795808112c4e90c9906972b42eed2e6d686a0009"
       },
+      "photocraft-client.mjs": {
+        "bytes": 2301,
+        "sha256": "144950facfe709ee0bcc429a6081061f10b5135a4f88af0667f69c2d4affb576"
+      },
+      "photocraft-studio.mjs": {
+        "bytes": 4383,
+        "sha256": "6c05e241333162949de92708b31f1aed38636ad883f6d0347e91dec48cd7c294"
+      },
+      "photocraft-worker.mjs": {
+        "bytes": 2477,
+        "sha256": "515abbf783be36402b561d3cdd028b2fc6bea023142af031d846f7161465f7f6"
+      },
       "preview.mjs": {
         "bytes": 3253,
         "sha256": "6d6e3a87939c923099050ad89be1c53165fb113ba49712fabbf2ffdef619ba0f"
@@ -1030,6 +1054,10 @@
         "bytes": 2367,
         "sha256": "eaae51cf0e594e4991fc71171a183733b12301d6e6161ca3082844337b4d2be5"
       },
+      "THIRD_PARTY/PHOTOCRAFT-NOTICES.txt": {
+        "bytes": 13253,
+        "sha256": "279be4ee8c5775c056eba587dfcd88ed648b33f5b1179631e6b7be3c1fe09cd4"
+      },
       "THIRD_PARTY/POINTS-ON-CURVE-LICENSE.txt": {
         "bytes": 1068,
         "sha256": "e9754a00aebde654e80f40bcf41dab667d6a41dfbbd2912bcf14fb07d468bf71"
@@ -1085,9 +1113,977 @@
       "ai-assets/provenance.json": {
         "bytes": 978,
         "sha256": "1c9115b710bca1610cf47870d3c316641f18aff68117a3a9320c4358ccc4ec4e"
+      },
+      "photocraft-core/Cargo.lock": {
+        "bytes": 14552,
+        "sha256": "6870e88807942bcc9c32e2b632aeef784ac255a3fdd1e0c1139ebb302986e062"
+      },
+      "photocraft-core/Cargo.toml": {
+        "bytes": 537,
+        "sha256": "25a616beeb85c8cf51b9fa6b19279db275ff1b57de88289b0b8eefc00e091ea2"
+      },
+      "photocraft-core/LICENSE-APACHE": {
+        "bytes": 10174,
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      "photocraft-core/LICENSE-MIT": {
+        "bytes": 1102,
+        "sha256": "1a8f66d8a86b146f5336fa0d4b1186576c8aa98e60823080c85c7811cfd810af"
+      },
+      "photocraft-core/NOTICE": {
+        "bytes": 10048,
+        "sha256": "9225763160f7908a97bb4e67e38494e4932cf8bafec18fac6345506825d713ee"
+      },
+      "photocraft-core/README.md": {
+        "bytes": 2563,
+        "sha256": "820e3982e1be9d700853726acba779f878c228b6c41b42cf96a2288043efcaf4"
+      },
+      "photocraft-core/UPSTREAM.json": {
+        "bytes": 40165,
+        "sha256": "ba4f4fa51c47d8b7c026a2e30e4eab056cf4e1b99fbb7e2706d0f9b6b31feedc"
+      },
+      "photocraft-core/adapter/Cargo.toml": {
+        "bytes": 326,
+        "sha256": "8cbba912d33cfffd323fa24e966eb4f83758674352e740e9e98b72f3d623c92f"
+      },
+      "photocraft-core/adapter/src/lib.rs": {
+        "bytes": 7416,
+        "sha256": "531299c96f078041849b71fc392d317b933896b67ef12364c8c557628f1dd1ee"
+      },
+      "photocraft-core/pin.mjs": {
+        "bytes": 294,
+        "sha256": "2b43848ddaa8ac8ee3909f357e91751ab4f5ec85d5ce5fe8f6d13632b915ba65"
+      },
+      "photocraft-core/pkg/noble_photocraft_core.d.ts": {
+        "bytes": 1971,
+        "sha256": "1e631b661d3f914712305a6c0283494704a5730a2aa6d5e1f09837868c4ae411"
+      },
+      "photocraft-core/pkg/noble_photocraft_core.js": {
+        "bytes": 10118,
+        "sha256": "6988bb6593f3f5132920804f2536d72ae599b52f947b581f0e31936901214d02"
+      },
+      "photocraft-core/pkg/noble_photocraft_core_bg.wasm": {
+        "bytes": 1184773,
+        "sha256": "8c2cf96dbc1bce96d63e70e86edbea87f196c6da052d3980444c2815d814a625"
+      },
+      "photocraft-core/pkg/noble_photocraft_core_bg.wasm.d.ts": {
+        "bytes": 704,
+        "sha256": "834f01039828de6027cf40723f535ca30014c669caf7b74df89a60e606ff85cb"
+      },
+      "photocraft-core/provenance.json": {
+        "bytes": 36540,
+        "sha256": "7949e0a9dad4be836404a07ae993ad859a1dc8a289d2efe1f8294449616f1d1c"
+      },
+      "photocraft-core/upstream-manifests/algo.toml": {
+        "bytes": 770,
+        "sha256": "7434d12b61cacd1897bc7c49f25069ce989f74e0408e92bd49855e77d72226bf"
+      },
+      "photocraft-core/upstream-manifests/cms.toml": {
+        "bytes": 443,
+        "sha256": "1782f4d09bf26ddb392b831ca15893026601548a4f06c9de668ac7bc05ed2c9b"
+      },
+      "photocraft-core/upstream-manifests/color.toml": {
+        "bytes": 220,
+        "sha256": "868c88bacb3b6731f2787a77ab45ed0f26e2eb045fa74fd4c83dfb193a1c427d"
+      },
+      "photocraft-core/upstream-manifests/geom.toml": {
+        "bytes": 181,
+        "sha256": "3203df8cbee6a687bd4fa8c1f97161c4c85eaa359e391174d13d9aac759869b3"
+      },
+      "photocraft-core/upstream-manifests/raster.toml": {
+        "bytes": 1392,
+        "sha256": "f8afd59c2ddcec8e115ca97912f65d3fc3d87ecc944c4de10ede7b90127055bd"
+      },
+      "photocraft-core/vendor/algo/Cargo.toml": {
+        "bytes": 600,
+        "sha256": "bd3d3d6780cb67d96fb10a346ee6d68b5d089fc70c02a9a419d1c6097c3a3e02"
+      },
+      "photocraft-core/vendor/algo/data/LICENSE-libfacedetection.txt": {
+        "bytes": 1803,
+        "sha256": "95b286c39b1444594e18672e6092321e39cc11f2f1daf994cadfd95af7c91dcc"
+      },
+      "photocraft-core/vendor/algo/data/libfacedetection.bin": {
+        "bytes": 106643,
+        "sha256": "d38c0465c86090868a9029a097e8257d71af2f6f4d47242e35c5e5229884b2c7"
+      },
+      "photocraft-core/vendor/algo/src/art_history/tests.rs": {
+        "bytes": 18548,
+        "sha256": "79f74124151277660784986dbafc00a2f688323321dd08329d6b5b6379ad2747"
+      },
+      "photocraft-core/vendor/algo/src/art_history.rs": {
+        "bytes": 23812,
+        "sha256": "8f8eb8472ad5620bd874d1fd95b3c1a01be2614c877c6711759d4303f369ab13"
+      },
+      "photocraft-core/vendor/algo/src/artistic.rs": {
+        "bytes": 16418,
+        "sha256": "1940a6259073fc4bd1964e0595f3dcb9007da0ad43a7335169353dc800bcd014"
+      },
+      "photocraft-core/vendor/algo/src/artistic_fx.rs": {
+        "bytes": 77796,
+        "sha256": "86d12b9173b866158e615eeb23dddccc0254f41f4d371beb469be37a2982a41c"
+      },
+      "photocraft-core/vendor/algo/src/average/tests.rs": {
+        "bytes": 5713,
+        "sha256": "eb1bf0278492c55ce181b3e7cd627db53b3436b6acc5e50f101a89311e5ebf0d"
+      },
+      "photocraft-core/vendor/algo/src/average.rs": {
+        "bytes": 22250,
+        "sha256": "c3393880bb03c1c3f503d676af65267c66afefd729c94b90869c88f728015ec8"
+      },
+      "photocraft-core/vendor/algo/src/blur/motion_apply.rs": {
+        "bytes": 12433,
+        "sha256": "54260a468833fb0dde21edcd6c88e050e2000d33b0a227bbc40137380bfcd9b7"
+      },
+      "photocraft-core/vendor/algo/src/blur/motion_bench.rs": {
+        "bytes": 11549,
+        "sha256": "5a27bcdb17c3ae470150873a3df0b26914269a7a75b9fc4ae2d544edb66f161b"
+      },
+      "photocraft-core/vendor/algo/src/blur/motion_fft.rs": {
+        "bytes": 24521,
+        "sha256": "239d71eca93d452d604d164d5830ec91d9e528678c6aa4b80ce29a512f4321b2"
+      },
+      "photocraft-core/vendor/algo/src/blur/motion_fft_tests.rs": {
+        "bytes": 27231,
+        "sha256": "05953a2b931268d3f5eeb88450e68b99ac9ce4e381e38488aba60bdc57673573"
+      },
+      "photocraft-core/vendor/algo/src/blur/motion_tests.rs": {
+        "bytes": 6028,
+        "sha256": "5cccd8c1e60d98c84b3f299d5bce55d0fbda430f3450098e1e95a1c1e023e1a9"
+      },
+      "photocraft-core/vendor/algo/src/blur/radial/tests.rs": {
+        "bytes": 13964,
+        "sha256": "6bb085aebaabc87eced8c269d1080ff3881d3af17e1a22b596a71bf99ad73eba"
+      },
+      "photocraft-core/vendor/algo/src/blur/radial.rs": {
+        "bytes": 14377,
+        "sha256": "d8002f6d122ea728dea1e6c3c08c4d6438ea78177e603b255d8fa75793ccf77c"
+      },
+      "photocraft-core/vendor/algo/src/blur/tests.rs": {
+        "bytes": 24320,
+        "sha256": "74bc763fca0d7ddef4fde987bdf6e12e44ebd719e73336f9480f61833a40d065"
+      },
+      "photocraft-core/vendor/algo/src/blur.rs": {
+        "bytes": 35111,
+        "sha256": "c12f48272005e134859c104802bd5f26b3c74e1475c59157c4dd101ab94d55b7"
+      },
+      "photocraft-core/vendor/algo/src/blur2/shape_tests.rs": {
+        "bytes": 20334,
+        "sha256": "a5dffa02031e0be229289c65b33a28c89209123f59306a0f5eb49cfe5a2892c1"
+      },
+      "photocraft-core/vendor/algo/src/blur2/smart_tests.rs": {
+        "bytes": 7379,
+        "sha256": "47dee1ff61126cea5bb562c16da732641f149d166a8d9d369a2961b31ae18e76"
+      },
+      "photocraft-core/vendor/algo/src/blur2.rs": {
+        "bytes": 19662,
+        "sha256": "d7ed12738d83a6e9df75b49f7963763bc120b7921c569b00ad921b8a7d909802"
+      },
+      "photocraft-core/vendor/algo/src/camera_raw/local_tone.rs": {
+        "bytes": 28376,
+        "sha256": "2d30687a99f99bf0a5166ecd13703df1e4aeb81a286b440b545b01b5f3f5edfe"
+      },
+      "photocraft-core/vendor/algo/src/camera_raw/per_pixel.rs": {
+        "bytes": 12395,
+        "sha256": "149cb8f45faace992d3d8ed349260dc6d3cd44faae1012f9e49cba49a826d253"
+      },
+      "photocraft-core/vendor/algo/src/camera_raw/spatial.rs": {
+        "bytes": 7982,
+        "sha256": "454ee10a5e086e554b18bf0bd95525c234eeb6b9fa3084e3757ea567c7f668a5"
+      },
+      "photocraft-core/vendor/algo/src/camera_raw/whites_blacks.rs": {
+        "bytes": 29157,
+        "sha256": "ca1b1d4c6b982df0367ead2e974b59b63a123caa7bec3b253b334b2ae7bfcf91"
+      },
+      "photocraft-core/vendor/algo/src/camera_raw.rs": {
+        "bytes": 66285,
+        "sha256": "80b44321f102578e8de93bfc3bcca325744bd6f847ea52e0dfaed96fa0427b37"
+      },
+      "photocraft-core/vendor/algo/src/channel_noise.rs": {
+        "bytes": 15462,
+        "sha256": "6f03a1801a8dad4be1a04bc49fffb35fa26290688e45d7e20dd63c6f66af1e55"
+      },
+      "photocraft-core/vendor/algo/src/color_to_alpha.rs": {
+        "bytes": 10284,
+        "sha256": "61b217f1e95d28679725191d0facc1ce054e72bf99c6a3aacbbd531f8e1be2bc"
+      },
+      "photocraft-core/vendor/algo/src/content_aware/tests.rs": {
+        "bytes": 23048,
+        "sha256": "ac1999f37907e65f50f30d6a311f3c298ae99ee03087fbcd5562e22936815f27"
+      },
+      "photocraft-core/vendor/algo/src/content_aware.rs": {
+        "bytes": 31369,
+        "sha256": "5b5e62e65e060cdb8b7f935889f8d8339f720393f1b359656fc28b5df964f0da"
+      },
+      "photocraft-core/vendor/algo/src/convolution.rs": {
+        "bytes": 23356,
+        "sha256": "2639e39bedb6207bae0bb16f7a1c712d19fba82e63ea721ea6d0e1ecc151b27a"
+      },
+      "photocraft-core/vendor/algo/src/coverage.rs": {
+        "bytes": 46086,
+        "sha256": "b00e54031efcde7f09850b7fb472b6421ad633b4519f55eb011f70691ebf8a32"
+      },
+      "photocraft-core/vendor/algo/src/cutout/curves.rs": {
+        "bytes": 12550,
+        "sha256": "344d14e810f9034e67a290642bf9b8c8e3ca87193d87f8137cb6250344574e4f"
+      },
+      "photocraft-core/vendor/algo/src/cutout/edges.rs": {
+        "bytes": 9541,
+        "sha256": "afe2a33764c388414c843f8e47d8a79211697f44947d69198b6af10e7e4ce13d"
+      },
+      "photocraft-core/vendor/algo/src/cutout/fill.rs": {
+        "bytes": 4274,
+        "sha256": "e32275b0e0437e236053b4a1e0c40104b55f5e6a190317debe7f7aaf86c4a2b4"
+      },
+      "photocraft-core/vendor/algo/src/cutout/mod.rs": {
+        "bytes": 16462,
+        "sha256": "fbee0c5b8686ff18671d04d93fadb73031d911917929c9debba298b4c41cf21d"
+      },
+      "photocraft-core/vendor/algo/src/cutout/regions.rs": {
+        "bytes": 7361,
+        "sha256": "6a7513bb1eb4eb268adea614fc53c41ce042acbeef4110cd787dcb72bfb4f0b2"
+      },
+      "photocraft-core/vendor/algo/src/cutout/util.rs": {
+        "bytes": 1191,
+        "sha256": "d5c2412d40248ec098e960348ead9d27830477b3ab0241fae1ba9c35a3c5bfc1"
+      },
+      "photocraft-core/vendor/algo/src/denoise.rs": {
+        "bytes": 12879,
+        "sha256": "a65e9ad778be47a0244000d41f82c8d767516771f4fc1eece4608911cb95a426"
+      },
+      "photocraft-core/vendor/algo/src/dff.rs": {
+        "bytes": 39349,
+        "sha256": "716d97b4343783b379f1dd82e83711b87a770705439cb664222cf64576675213"
+      },
+      "photocraft-core/vendor/algo/src/direct.rs": {
+        "bytes": 28363,
+        "sha256": "240277116e3758635d59df06437793e2dcbdd85af231d7274175d0699ad5ac53"
+      },
+      "photocraft-core/vendor/algo/src/distort.rs": {
+        "bytes": 8541,
+        "sha256": "98973e1999af3c8246f01e139b567887a58a93dad2ee04c5d8b4cdf93a826227"
+      },
+      "photocraft-core/vendor/algo/src/distort2.rs": {
+        "bytes": 6051,
+        "sha256": "8042bfe774ee61b0cc7fd8748dcdabb1d613193a2033293c71251718399b1964"
+      },
+      "photocraft-core/vendor/algo/src/erase.rs": {
+        "bytes": 8323,
+        "sha256": "7cfc1056375e3862999be67d52b5cb11ca78442eb68571719e9bbb056a9119d7"
+      },
+      "photocraft-core/vendor/algo/src/exif.rs": {
+        "bytes": 16068,
+        "sha256": "38660d0d5c9f1365f478a6567aeb7bb8a051c7ef6d3eff2bb0ef2817ab0bff43"
+      },
+      "photocraft-core/vendor/algo/src/faces/cnn.rs": {
+        "bytes": 12418,
+        "sha256": "6b235b204f726b15e7e9cf8168110a565f160592d61517ce343d2e7687b7e65c"
+      },
+      "photocraft-core/vendor/algo/src/faces.rs": {
+        "bytes": 4033,
+        "sha256": "5fc392da71bd0b2d8c198ab9394b33745cf90305798d96866459851e213485e8"
+      },
+      "photocraft-core/vendor/algo/src/features.rs": {
+        "bytes": 31816,
+        "sha256": "f6bca3214f850c79c6c02d0678a099755e789cb0c2a30fa88a98a6b6b8b1ba51"
+      },
+      "photocraft-core/vendor/algo/src/fxutil.rs": {
+        "bytes": 19314,
+        "sha256": "69bcad45bb95340809e5a1a92cfcb6aeed15efda3eb8896b2ed07380bb283d68"
+      },
+      "photocraft-core/vendor/algo/src/gallery/prepared_spin_tests.rs": {
+        "bytes": 2434,
+        "sha256": "bed119dbb875ab666fc48833731c503582f4453ab93d43a25042b4f1a5c0e740"
+      },
+      "photocraft-core/vendor/algo/src/gallery/spin_plan.rs": {
+        "bytes": 3008,
+        "sha256": "17d25d627d4170d7d3ef8b2bdf4b9cbf69a357b98a571c2de1425c81f9ef9828"
+      },
+      "photocraft-core/vendor/algo/src/gallery/tests/reference.rs": {
+        "bytes": 4085,
+        "sha256": "47baa22c9053c6436c0b61345564fb2fd5ffd8b0fd2fc0d6fc1197a1bbe1b8ac"
+      },
+      "photocraft-core/vendor/algo/src/gallery/tests.rs": {
+        "bytes": 10057,
+        "sha256": "abd550ea0d01eaf5b190137693ac57381e005ba79741077156df4108acce12e7"
+      },
+      "photocraft-core/vendor/algo/src/gallery/tilt_shift_tests/reference.rs": {
+        "bytes": 5596,
+        "sha256": "cfa15fa9c7f8cca48cc0b0a817f22e0c1ce7dab4c69bf9b501e09602904174f5"
+      },
+      "photocraft-core/vendor/algo/src/gallery/tilt_shift_tests.rs": {
+        "bytes": 10513,
+        "sha256": "d0eb2f79abd43911d269bc87bd4416752b084672c66f550884e0c72ed06b3596"
+      },
+      "photocraft-core/vendor/algo/src/gallery.rs": {
+        "bytes": 16867,
+        "sha256": "594c17d1127a895332f8514d53f8e1c6c36c86922661b797ca409fbe679c0f1a"
+      },
+      "photocraft-core/vendor/algo/src/hdr.rs": {
+        "bytes": 22864,
+        "sha256": "50d4c3b0b361cde13ca057aabbff2b46b09c9af76190c4a925706c424264d2be"
+      },
+      "photocraft-core/vendor/algo/src/histogram.rs": {
+        "bytes": 10266,
+        "sha256": "2b8f1cea410e06f71d629c974498b6fb56cf21788d4d4c6e2f615fdd48c0371c"
+      },
+      "photocraft-core/vendor/algo/src/image.rs": {
+        "bytes": 6566,
+        "sha256": "beec4a55a246b3e5596e49e9c2ff5b874650815a2a3f8ed7586b640db41e216c"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/common.rs": {
+        "bytes": 3794,
+        "sha256": "fbe7da9afcf69f64e61e3eb709c68059a98300730e6ce3606b9941d318f689ac"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/proximity_integral/tests.rs": {
+        "bytes": 10090,
+        "sha256": "6c4e4e6f51969b39cc40c9bcd3ee65ecceeb51b5890c1f847c98effbab072bcb"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/proximity_integral.rs": {
+        "bytes": 1574,
+        "sha256": "202833f6f7b4b2b40ba888f28a4d429de81e8bc68ada64e564374dfc7419df52"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/solver.rs": {
+        "bytes": 36816,
+        "sha256": "aea529c6f1e52cd849405d0dda638f56c67553ddccdd15fd692e05f82745a24a"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/sources.rs": {
+        "bytes": 13065,
+        "sha256": "a6af953b38fcfc72be098546b6248e48fce240dcf7ee8ac1ed8991d3e19fc333"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/synthesis.rs": {
+        "bytes": 18819,
+        "sha256": "2ac1d7281982ab6b7d8777acda1d53476d0948e4988fdde5e98008050ef5d811"
+      },
+      "photocraft-core/vendor/algo/src/inpaint/tests.rs": {
+        "bytes": 20966,
+        "sha256": "b2f7c39f841ba00634514c50fadb9de719aa366dab459e21bd13960e81bef29c"
+      },
+      "photocraft-core/vendor/algo/src/inpaint.rs": {
+        "bytes": 18906,
+        "sha256": "8bd74d696809c727ad5b820f9ccfa6d6c1e4a99101729c2459148f7d19e138e2"
+      },
+      "photocraft-core/vendor/algo/src/lens/shared_sample_tests.rs": {
+        "bytes": 2542,
+        "sha256": "4e23db9adfb6dec29376c5ba15ebd333625f1454493e49f3eb5dae53b4d648a9"
+      },
+      "photocraft-core/vendor/algo/src/lens.rs": {
+        "bytes": 25483,
+        "sha256": "72ffdd4e9c5d6e3ee30e989cb961af489f34c44410ae8004f5dd1abc9b2776e7"
+      },
+      "photocraft-core/vendor/algo/src/lens_flare.rs": {
+        "bytes": 11416,
+        "sha256": "8433a7ddc660ea4cb01729c703bfacb2a8c152c7cc0b558d07bd9174524ed736"
+      },
+      "photocraft-core/vendor/algo/src/lens_flare_data.rs": {
+        "bytes": 705185,
+        "sha256": "69cc87ab32fa74a6dc578010a0fb3efdb80c6ffe988caaca526a90043db98ea7"
+      },
+      "photocraft-core/vendor/algo/src/lib.rs": {
+        "bytes": 75788,
+        "sha256": "f7286dcb1c81dd05c5d0f71f4efa8de6b0282b88853cd536d815540ab15bbf27"
+      },
+      "photocraft-core/vendor/algo/src/liquify/tests.rs": {
+        "bytes": 38960,
+        "sha256": "c55bb748487d20e4b7c377126ea5832c88440355ae96477c97eb8a8363c3f1ec"
+      },
+      "photocraft-core/vendor/algo/src/liquify.rs": {
+        "bytes": 57554,
+        "sha256": "63151fbfbfa0095db03e620d26dba7e01e0254e41c5e6c5a738cb1acb60a191c"
+      },
+      "photocraft-core/vendor/algo/src/magnetic/tests.rs": {
+        "bytes": 10627,
+        "sha256": "36f9da43c17fc10474e21d6bd3a898efc5d1640a5c85832e497aa9f0f1887f51"
+      },
+      "photocraft-core/vendor/algo/src/magnetic.rs": {
+        "bytes": 26015,
+        "sha256": "e3714ac4668c8b1f8e7f54fa41213f2cf85ed8254a6026ef53f02e35e2f207db"
+      },
+      "photocraft-core/vendor/algo/src/matting/brush.rs": {
+        "bytes": 26574,
+        "sha256": "1bbd9b01147458d500c94c3bdb4a49613ad818cfe53a2ff93c252403052c4454"
+      },
+      "photocraft-core/vendor/algo/src/matting/morphology/tests.rs": {
+        "bytes": 11006,
+        "sha256": "ec01cc78937dd84a271f1b688a8fd4b34f50f2a21f6358ad0cfcee02f1eb0f8f"
+      },
+      "photocraft-core/vendor/algo/src/matting/morphology.rs": {
+        "bytes": 7667,
+        "sha256": "8972932fbe396792a3cb7b77664c1eb87e7d87dc95d86dd6e1bed9add43a87dc"
+      },
+      "photocraft-core/vendor/algo/src/matting.rs": {
+        "bytes": 68668,
+        "sha256": "c64d8524bcf196dfc5a0e426174f50ad8028507770eca2d7d49dc6649043f16b"
+      },
+      "photocraft-core/vendor/algo/src/noise.rs": {
+        "bytes": 11817,
+        "sha256": "4d1419e6d18b5c973aca9f55e18147c7a7ae8f5ccb23581ad2c17b80d9e398e2"
+      },
+      "photocraft-core/vendor/algo/src/nonlocal.rs": {
+        "bytes": 48347,
+        "sha256": "95a51da6f850b061dde3f5a3040a836b0e0adc1afe92961739324e147d0c4ff4"
+      },
+      "photocraft-core/vendor/algo/src/oil.rs": {
+        "bytes": 11864,
+        "sha256": "2777dc89c0932ef73f3aa3451c58dc40940147255f99db4805a728d54792b1fa"
+      },
+      "photocraft-core/vendor/algo/src/other.rs": {
+        "bytes": 10607,
+        "sha256": "001e21a05c48a02fa9b5589478c59bcf237f68fb493484235024ab7cc99290ed"
+      },
+      "photocraft-core/vendor/algo/src/other2.rs": {
+        "bytes": 12150,
+        "sha256": "e08585d082046ca31d8d225da4beafaf1dd11d1bf7b46f2555f65f0705488180"
+      },
+      "photocraft-core/vendor/algo/src/paint.rs": {
+        "bytes": 29436,
+        "sha256": "7ecf26b305b5a94bd82b269d7f6c3a309a550cc851a89bd007ef6b789351e93f"
+      },
+      "photocraft-core/vendor/algo/src/paint_bucket_transparent_seed_tests.rs": {
+        "bytes": 8109,
+        "sha256": "52b31404ae3272ab2fc2ac81e987dd98b609227c530c90cd0f6b99ff1e9b0610"
+      },
+      "photocraft-core/vendor/algo/src/paint_gradient_sample_tests.rs": {
+        "bytes": 3223,
+        "sha256": "2abb46fe17c6cabb275dc22a182efe935799fb3d08c302a54fdef96db4499f2b"
+      },
+      "photocraft-core/vendor/algo/src/panorama/blend.rs": {
+        "bytes": 32210,
+        "sha256": "ed1c1a24bd9cc4c6f0bbc50651d288e6d0a29c78e3d47c57000e84871667a941"
+      },
+      "photocraft-core/vendor/algo/src/panorama/parallel_tests.rs": {
+        "bytes": 18449,
+        "sha256": "16667acd4148fc7d069e576620a7efd1e4c69fc80503958d98bc2baab59f778a"
+      },
+      "photocraft-core/vendor/algo/src/panorama.rs": {
+        "bytes": 44717,
+        "sha256": "2d4f03b67f2004f489db734df397cd640c17949eb154c483e072233bacd1f9ad"
+      },
+      "photocraft-core/vendor/algo/src/par.rs": {
+        "bytes": 2588,
+        "sha256": "be06ef1b4ec13f46c58ddcff7879a8b8c4f248a70b6374b156b4d6ab7902fffb"
+      },
+      "photocraft-core/vendor/algo/src/params_ext.rs": {
+        "bytes": 7250,
+        "sha256": "513b160b2ab3fee18cee5a00e383eca078dd84b1c952128582cd3cbf49ac6a4c"
+      },
+      "photocraft-core/vendor/algo/src/perspective.rs": {
+        "bytes": 13005,
+        "sha256": "ef29f35565237b6870a8aaec2b0b59c0d593fefd5b315cd05e4c6f25a0c4df9f"
+      },
+      "photocraft-core/vendor/algo/src/photo_util.rs": {
+        "bytes": 16831,
+        "sha256": "5db508ae4e522054f29a1b11a75864197e959590bc02fbb281ecfefe608b5362"
+      },
+      "photocraft-core/vendor/algo/src/pixelate/cells.rs": {
+        "bytes": 26882,
+        "sha256": "b1155efea12517857b4e8455c8fe057c348d9f3718a07f8bd9fa4b688b876f87"
+      },
+      "photocraft-core/vendor/algo/src/pixelate/facet.rs": {
+        "bytes": 3769,
+        "sha256": "0271754b9645d938c61cdcb619e441cdbe0eeda38c354820e14cbb50defc96c0"
+      },
+      "photocraft-core/vendor/algo/src/pixelate/reference.rs": {
+        "bytes": 5026,
+        "sha256": "832c7d1280ed7ac9e990f68ddbcb79e07844544bd88ea2f021ddbfd48fcbbfa0"
+      },
+      "photocraft-core/vendor/algo/src/pixelate/screen.rs": {
+        "bytes": 2878,
+        "sha256": "1b49e41919bd2bac5f952a5fe2869ef470427c0df38c4a8e19d9a665c003620f"
+      },
+      "photocraft-core/vendor/algo/src/pixelate/tests.rs": {
+        "bytes": 12754,
+        "sha256": "35114c8017272ed173e8cd25096e3f4dab3de4765a7eb14a304c6374876109a5"
+      },
+      "photocraft-core/vendor/algo/src/pixelate.rs": {
+        "bytes": 16629,
+        "sha256": "bbefab2928ffdd7bb2bcd9b69effd0817f0ae72be649bb19b456f96c2ce765d2"
+      },
+      "photocraft-core/vendor/algo/src/poisson.rs": {
+        "bytes": 13725,
+        "sha256": "8ce2c3df38eb272ddef90365015b033be24931a274260f50c80e0b8a9b89d12a"
+      },
+      "photocraft-core/vendor/algo/src/puppet.rs": {
+        "bytes": 65632,
+        "sha256": "f0ee7aa99f17ac3a6f951d9694f85c83d6d37e1f9e922925e50cbf4887f3b343"
+      },
+      "photocraft-core/vendor/algo/src/pyramid.rs": {
+        "bytes": 39150,
+        "sha256": "36fabd9a4cc1bdea9f5d8d50039c2e00c7209c9bb00c76b0cf24c85cad7dce89"
+      },
+      "photocraft-core/vendor/algo/src/quantize/nearest.rs": {
+        "bytes": 5354,
+        "sha256": "01f78fd19e6e49a510b3f90dadaee8f6c2002deee31f8ba7dd9d76290cdb68e0"
+      },
+      "photocraft-core/vendor/algo/src/quantize/tests.rs": {
+        "bytes": 22964,
+        "sha256": "7178d21bb91ce104474ef56937646c4dabd4b722b235a55931276e4d9ad2de1c"
+      },
+      "photocraft-core/vendor/algo/src/quantize.rs": {
+        "bytes": 33395,
+        "sha256": "c4e5e81af276cb6cadf635c52b7b84dcfbe9376bfb9637f9c75d2c3cc14d43ac"
+      },
+      "photocraft-core/vendor/algo/src/rank.rs": {
+        "bytes": 31286,
+        "sha256": "64c0868bf390f1a4192151262fb403bf44d42f40f1687c46776e09f0f4fec609"
+      },
+      "photocraft-core/vendor/algo/src/redeye.rs": {
+        "bytes": 17109,
+        "sha256": "b27789a13a3c33af82ebdc87e14594b1cc1f692bd50d2a7ca8d01eee2491fd1a"
+      },
+      "photocraft-core/vendor/algo/src/relight.rs": {
+        "bytes": 22393,
+        "sha256": "7285ad7144424db704cb748b6ffdf902285dd2b9ec1fed7c9a18d100cc2eac00"
+      },
+      "photocraft-core/vendor/algo/src/remove.rs": {
+        "bytes": 12278,
+        "sha256": "834773514ce67ccf7b1dddd93cb5b09005ff7426901da9c326342e412725988f"
+      },
+      "photocraft-core/vendor/algo/src/render.rs": {
+        "bytes": 16037,
+        "sha256": "f6ac5b59d796171b15227840f151efecee62f3e677a3a685b5c0446e50b6b59f"
+      },
+      "photocraft-core/vendor/algo/src/render2.rs": {
+        "bytes": 68121,
+        "sha256": "29588b9bfc0d6fee2ce9b7db15ef792a634edefcde4824443097b141a4629734"
+      },
+      "photocraft-core/vendor/algo/src/resample/tests.rs": {
+        "bytes": 29916,
+        "sha256": "619bec135bfebfb7d44b01efce0b49088042d53fcc5e1982484f44d02b275f4f"
+      },
+      "photocraft-core/vendor/algo/src/resample.rs": {
+        "bytes": 31755,
+        "sha256": "6bbeff4004b11514f829c514fed6012f2a8ff9ca2c749c31178f73baae214823"
+      },
+      "photocraft-core/vendor/algo/src/retouch.rs": {
+        "bytes": 15070,
+        "sha256": "16ab0613d82bc477c8660923ba1a0d2498884bb6865ceb72a9f68de7faff9f60"
+      },
+      "photocraft-core/vendor/algo/src/retouch_sharpen_protect_detail_tests.rs": {
+        "bytes": 6004,
+        "sha256": "3f8f146de61ea04d3fe8700243446770fee03d6858ecab44fb8e533ee360b652"
+      },
+      "photocraft-core/vendor/algo/src/scancrop.rs": {
+        "bytes": 12093,
+        "sha256": "105270f6bca892a4f8a585c906813e5c6fcf9e06f5416bed0b60562c56f1c112"
+      },
+      "photocraft-core/vendor/algo/src/seam/tests.rs": {
+        "bytes": 24922,
+        "sha256": "cde7f18338bbaea79db8b7968922fe0dd3e4c3bd188372eca0f1c8aede3fed88"
+      },
+      "photocraft-core/vendor/algo/src/seam.rs": {
+        "bytes": 32390,
+        "sha256": "502372a84c0d71071c64bc023e436b1e88a072f0ebc00921024d0a726d8d1897"
+      },
+      "photocraft-core/vendor/algo/src/segment/edge_starts/tests.rs": {
+        "bytes": 4381,
+        "sha256": "02f8350bef079524d660f9ec4722fa56065169b848af73d4cf944d0d5ab9e70f"
+      },
+      "photocraft-core/vendor/algo/src/segment/edge_starts.rs": {
+        "bytes": 1583,
+        "sha256": "c45b4f23a652ae22de472ba1afe4fe1c9c73774415c087ce0f7b4ec3e9ee9027"
+      },
+      "photocraft-core/vendor/algo/src/segment/focus.rs": {
+        "bytes": 4094,
+        "sha256": "7952106933301261cf0ab1f6d9c6cf1a613367a9522222badcc07fb6fb32d39a"
+      },
+      "photocraft-core/vendor/algo/src/segment/gmm.rs": {
+        "bytes": 9022,
+        "sha256": "8a95c53a1f9704cc5c92f1e9bb4b90e1f413323468d293e9432ac7ffcbce6306"
+      },
+      "photocraft-core/vendor/algo/src/segment/grabcut.rs": {
+        "bytes": 14064,
+        "sha256": "4b48c66f6167ccc06dd0d8a546d85f057107f116c73bede5825c738acf45f872"
+      },
+      "photocraft-core/vendor/algo/src/segment/maxflow/push_relabel/tests.rs": {
+        "bytes": 8533,
+        "sha256": "e32414fe80b2d72634f640c55f05bf8ffb8d5360ea20274dd17e662dba060d9a"
+      },
+      "photocraft-core/vendor/algo/src/segment/maxflow/push_relabel.rs": {
+        "bytes": 7694,
+        "sha256": "8c1251bd4e5cd92b7ad34ceff3f0b2b989fa9583e8e5c10602b934f32641fca1"
+      },
+      "photocraft-core/vendor/algo/src/segment/maxflow.rs": {
+        "bytes": 16452,
+        "sha256": "6c8a08b64c903e1d62c7841003fe476d2609bd7266cefc8b517506b46475d668"
+      },
+      "photocraft-core/vendor/algo/src/segment/quick.rs": {
+        "bytes": 16491,
+        "sha256": "c04c7939c50f412ac9c2366137f5a0bb53a714d64dd86caf8a355cdee97b9cc5"
+      },
+      "photocraft-core/vendor/algo/src/segment/sky.rs": {
+        "bytes": 20716,
+        "sha256": "fc64bfec7714c16c8937b5a72547086eb86e609e985297ec9de11f0674596dce"
+      },
+      "photocraft-core/vendor/algo/src/segment/slic.rs": {
+        "bytes": 6815,
+        "sha256": "51eb52ba78feed7370944e2fa96dfe7650b445a3a2b5566b5ff6a6d7aefa1a63"
+      },
+      "photocraft-core/vendor/algo/src/segment/subject.rs": {
+        "bytes": 31317,
+        "sha256": "c98ba812fe121c6f0ae2b61ece014fc5f1a78879a435ad02110d2e011befd8a8"
+      },
+      "photocraft-core/vendor/algo/src/segment/tests.rs": {
+        "bytes": 58489,
+        "sha256": "b5c0440200ab31759af22e6bf698eba7761908337fe26b24dd1296d1cc5aac97"
+      },
+      "photocraft-core/vendor/algo/src/segment/workflow_tests.rs": {
+        "bytes": 9620,
+        "sha256": "416f37cd6d23f1f587b5c75641fb4235303fa6dd705cf3bf9290e7e53fbb8f0f"
+      },
+      "photocraft-core/vendor/algo/src/segment.rs": {
+        "bytes": 33565,
+        "sha256": "3b65ead58ad4d4c009cf738296f38b30cc8300ef7d0db28869949d2caa646a65"
+      },
+      "photocraft-core/vendor/algo/src/selection/combine_mask/tests.rs": {
+        "bytes": 8939,
+        "sha256": "8c31253e4334e95202b65610b447308077472adaf617e6bdc7ae6a7bf3ed29da"
+      },
+      "photocraft-core/vendor/algo/src/selection/combine_mask.rs": {
+        "bytes": 5589,
+        "sha256": "8dd31811ae0c19549813f38e865577c58761651cf1b2cf1e5cf1e01279d1ca94"
+      },
+      "photocraft-core/vendor/algo/src/selection/distance/tests.rs": {
+        "bytes": 9647,
+        "sha256": "693d6cd6bd7a8a7030a40fb7be2d225715567bec97b29f1c844675c39960e385"
+      },
+      "photocraft-core/vendor/algo/src/selection/distance.rs": {
+        "bytes": 7930,
+        "sha256": "63a9f6c9fa175f388ce4054f69cea309bf0a6cdbf8c3438d2072e6a51d209b21"
+      },
+      "photocraft-core/vendor/algo/src/selection/ellipse_aa_edge_tests.rs": {
+        "bytes": 4439,
+        "sha256": "8fee29692474062d21f4df7e359205382eb13c3ef4731cb9244bc2aa1289b0e6"
+      },
+      "photocraft-core/vendor/algo/src/selection/inverse/tests.rs": {
+        "bytes": 4377,
+        "sha256": "8d63497054ac126c11ef379e6053c4336bbf4d6f12da6e3178cf4c65ae8ab4e5"
+      },
+      "photocraft-core/vendor/algo/src/selection/inverse.rs": {
+        "bytes": 4552,
+        "sha256": "c26bc03f81eaecdfba99e5e00fdce769052d786be1f19fe3d9d553678581c70a"
+      },
+      "photocraft-core/vendor/algo/src/selection/lasso.rs": {
+        "bytes": 13410,
+        "sha256": "71fe8d225f6c2ebe6e90f21fa2da2a04d2631d5e9302243fcd9d8fef34eed84d"
+      },
+      "photocraft-core/vendor/algo/src/selection/marquee.rs": {
+        "bytes": 21061,
+        "sha256": "4e93de26cf8b3fd07969c06350f45f23d2e8af34d1a6d14b75c956400f3c2152"
+      },
+      "photocraft-core/vendor/algo/src/selection/morphology/tests.rs": {
+        "bytes": 6474,
+        "sha256": "01051fbb4a534ccf3f7e9a5623462dd9ace63cdcb6944d5e8c1ca1b49fecc797"
+      },
+      "photocraft-core/vendor/algo/src/selection/morphology.rs": {
+        "bytes": 4426,
+        "sha256": "da46e5ced6e766d47de0cb37a468b3803c14f6e6869dc0490e1b1b967beb0e2b"
+      },
+      "photocraft-core/vendor/algo/src/selection/tests.rs": {
+        "bytes": 38212,
+        "sha256": "b34afc565dc60f96856d22e5cb9a43000fceaa96e96986997adc016f909bada2"
+      },
+      "photocraft-core/vendor/algo/src/selection/wand_antialias_tests.rs": {
+        "bytes": 5383,
+        "sha256": "1dd00c746ea6c35f5130c9c8207f58cabf7a9862ea3eee547adc48e32e4ab4ff"
+      },
+      "photocraft-core/vendor/algo/src/selection.rs": {
+        "bytes": 52744,
+        "sha256": "2779aa0fa0a482b84042f75247dc16757ec122f6d7d784fc89747574584f72a6"
+      },
+      "photocraft-core/vendor/algo/src/selection_blur.rs": {
+        "bytes": 36216,
+        "sha256": "8d771b1dd1072bbe1b0096a67a10f92fa661c12b07effcf19f9b3eff82d4974d"
+      },
+      "photocraft-core/vendor/algo/src/separable.rs": {
+        "bytes": 9328,
+        "sha256": "70523cd16785e2c4b3e554331587a5349db5e8f7c92136b1905b64bb715f6985"
+      },
+      "photocraft-core/vendor/algo/src/shape_blur.rs": {
+        "bytes": 9743,
+        "sha256": "34e1cced162f5b1c47143e5447d71f0413145b435feb78c0a33c5c30f79e14a6"
+      },
+      "photocraft-core/vendor/algo/src/sharpen/exact.rs": {
+        "bytes": 7163,
+        "sha256": "fdca8edfdfc8b854f0e8e9b64f69ab57333db5f3f324b4efbf1462cf17063b66"
+      },
+      "photocraft-core/vendor/algo/src/sharpen/fft/tests.rs": {
+        "bytes": 6757,
+        "sha256": "4ac5714bb2939ce04f6a0c8bf1d752a7568efb1e2b6c78889630c0e76b0c2c66"
+      },
+      "photocraft-core/vendor/algo/src/sharpen/fft.rs": {
+        "bytes": 16545,
+        "sha256": "f79675f7e9004d7bd161f55fb9ece51ce90ea080cdd1c18624a2e78509e0e6b3"
+      },
+      "photocraft-core/vendor/algo/src/sharpen/fft_bench.rs": {
+        "bytes": 5540,
+        "sha256": "c9739884fad7505b2d7f7a614268e0c1fc5f513e612b8b9ea1ec45930afb6e2b"
+      },
+      "photocraft-core/vendor/algo/src/sharpen/reference.rs": {
+        "bytes": 4209,
+        "sha256": "1c011074e76e249c80f5a08e767d4942906069bad1996284b0bd9ece74ccc30d"
+      },
+      "photocraft-core/vendor/algo/src/sharpen/tests.rs": {
+        "bytes": 20703,
+        "sha256": "36610381dd01b194eb7205f43415a373091cb79fda7e3362065116714663a73f"
+      },
+      "photocraft-core/vendor/algo/src/sharpen.rs": {
+        "bytes": 1668,
+        "sha256": "aa742bdf2b3cb4db18f677d5aa9e258f4c7ec67e1a2044d76c14b5c7dd91160d"
+      },
+      "photocraft-core/vendor/algo/src/square_dilate.rs": {
+        "bytes": 14012,
+        "sha256": "94abec2efc64ecc3b9dd0f5e83d64dd960a49dc182e1e9cee0596630e5c3e512"
+      },
+      "photocraft-core/vendor/algo/src/stack/tests.rs": {
+        "bytes": 19694,
+        "sha256": "8a261318d0089d0c6be25f186dae422fcd7445909d1ed6282d873774c50cf50f"
+      },
+      "photocraft-core/vendor/algo/src/stack.rs": {
+        "bytes": 11492,
+        "sha256": "444e068766c322dfcf6ee5ca7f7a176db0ffefc9eab621b36e8a9bfe6aa4c67c"
+      },
+      "photocraft-core/vendor/algo/src/stylize.rs": {
+        "bytes": 7823,
+        "sha256": "5761d38f3b859f8510ffdc539b48bfa3ce9c54625876c58d35c8069f0ea4028e"
+      },
+      "photocraft-core/vendor/algo/src/stylize2/extrude.rs": {
+        "bytes": 8722,
+        "sha256": "bcf3e60a249accda7f1728cab50229663d7642417566e71e3359ce90e93b23ed"
+      },
+      "photocraft-core/vendor/algo/src/stylize2/tests.rs": {
+        "bytes": 9884,
+        "sha256": "b7571fa82d689e152d8aba72f44cdaae636bbe3192537b5b8a1e68cf9aea4936"
+      },
+      "photocraft-core/vendor/algo/src/stylize2/wind.rs": {
+        "bytes": 2962,
+        "sha256": "70cfa9a5d56af06af0bda2c9f3e877ea744f0b6c1b3ed5139ebed19304c34ec9"
+      },
+      "photocraft-core/vendor/algo/src/stylize2.rs": {
+        "bytes": 18566,
+        "sha256": "99d625fee681b488943ebce369c938af92cdadbe9f421e6faded777f95c7a9ce"
+      },
+      "photocraft-core/vendor/algo/src/tests/adversarial_native.rs": {
+        "bytes": 13726,
+        "sha256": "de3d5058a8916151f31808198d12655f6b8c14aa3dd3496fcc6e72b419f00e6d"
+      },
+      "photocraft-core/vendor/algo/src/tests/ext.rs": {
+        "bytes": 37751,
+        "sha256": "5df62db43b6f8ea9be13069088bb407f538807c46b2e5143800287b1353c2658"
+      },
+      "photocraft-core/vendor/algo/src/tests/mosaic.rs": {
+        "bytes": 8007,
+        "sha256": "f3c4b956ba31705dad10f84004b34b2a0746a9af7a24b017900a8720b24dafdc"
+      },
+      "photocraft-core/vendor/algo/src/tests/selection_mix.rs": {
+        "bytes": 9726,
+        "sha256": "882be470fa4ed8ed31263b33645885cc09fb24bc7e6531f5acf732c624e56b15"
+      },
+      "photocraft-core/vendor/algo/src/tests.rs": {
+        "bytes": 34442,
+        "sha256": "fb6fb8ec4e36f35f69b03a676b2fb948cfc1a04a3cbe104bfb23ec9606e28cb6"
+      },
+      "photocraft-core/vendor/algo/src/tone/auto_levels.rs": {
+        "bytes": 8523,
+        "sha256": "417e9894a38ddeabedd2690a3dd055af5c359d9ddc65f92a96f0bdd9a7bde846"
+      },
+      "photocraft-core/vendor/algo/src/tone/checked_hdr.rs": {
+        "bytes": 26355,
+        "sha256": "ce064133fd29c56874f8130bd2dff77979f218631e46e901b623fd96fb1f41ac"
+      },
+      "photocraft-core/vendor/algo/src/tone/shadows_highlights.rs": {
+        "bytes": 16747,
+        "sha256": "7674189377ebcbcc73f66b13c68603e7725056873e87ab0d9b1f82cefe5ca9ec"
+      },
+      "photocraft-core/vendor/algo/src/tone.rs": {
+        "bytes": 16332,
+        "sha256": "a53d8b2e65b1c10ec8b53143288bee3d1ee19317fb0ac4c1e1b54efa2745a412"
+      },
+      "photocraft-core/vendor/algo/src/transform/tests.rs": {
+        "bytes": 18159,
+        "sha256": "4ff4064f1171105d466bee80cdf41f51b7ccfde476d6da1c3be2f37739890f13"
+      },
+      "photocraft-core/vendor/algo/src/transform.rs": {
+        "bytes": 31480,
+        "sha256": "533e0df7e66e0208810c8cf0ea2313e255e6e5d010be510fa93424711fdf36e1"
+      },
+      "photocraft-core/vendor/algo/src/trap.rs": {
+        "bytes": 10203,
+        "sha256": "8fba9a99a54d10ec51ee431a2541b22ca2765d2c1a96e2c875a0194ef65dcd4c"
+      },
+      "photocraft-core/vendor/algo/src/vanishing.rs": {
+        "bytes": 32990,
+        "sha256": "78be7443ee7373ea6a49eb0fa2e87c67909e99d772aa68f2aec9b0e24c7303fe"
+      },
+      "photocraft-core/vendor/algo/src/vectorscope.rs": {
+        "bytes": 2525,
+        "sha256": "ceed768df85ec307447db0c4db5d401c38799c4d5ee6d281e725e48290a0f73b"
+      },
+      "photocraft-core/vendor/algo/src/video.rs": {
+        "bytes": 10999,
+        "sha256": "cabf411ea7b5e2a95b99ea07bc5c13fec3dd11ae1ce103ac01e9ffd9615ce4b2"
+      },
+      "photocraft-core/vendor/algo/src/warp.rs": {
+        "bytes": 67392,
+        "sha256": "efea5dee88f097d0b9b636a4ce1b0286db1befd6fdb12291667ec937a8ac54d0"
+      },
+      "photocraft-core/vendor/algo/src/wideangle.rs": {
+        "bytes": 33375,
+        "sha256": "b14bffd581131cb3e53a1bd9b951ecb5adf85fd36998c8c46641ea3ebd7873aa"
+      },
+      "photocraft-core/vendor/cms/Cargo.toml": {
+        "bytes": 408,
+        "sha256": "7ec01ac40d77215cfddbf74268bf4dfd2a0792fe7ad6eae07aa1c267b27ba74b"
+      },
+      "photocraft-core/vendor/cms/profiles/photocraft-coated-cmyk.icc": {
+        "bytes": 236844,
+        "sha256": "db3bfeb57e1fc06d6a003a6facf4b9cd4daf251eced3b431dd96534f551c6ba2"
+      },
+      "photocraft-core/vendor/cms/src/builtin.rs": {
+        "bytes": 16014,
+        "sha256": "b9bc6e78cf91272d06cc6fcb8de7ec8483a462d0790f49b9e1f92e0ca8900c76"
+      },
+      "photocraft-core/vendor/cms/src/clut.rs": {
+        "bytes": 10512,
+        "sha256": "ac375fc05f90747713caee807c77eaa319c1723766b90130bba93290c18d117b"
+      },
+      "photocraft-core/vendor/cms/src/curve.rs": {
+        "bytes": 13339,
+        "sha256": "9cc197dd8665baf5060534f16cbfdf5d566db09a87d04255c6b234b557fc2483"
+      },
+      "photocraft-core/vendor/cms/src/gamut.rs": {
+        "bytes": 7001,
+        "sha256": "e31392b254d0e2db2fe6eceeceeb8efc9607969d6c1fb5c3fc346e112f3a9a24"
+      },
+      "photocraft-core/vendor/cms/src/gpu_matrix_shaper.rs": {
+        "bytes": 5966,
+        "sha256": "e84f942ad5d932b1dce08d55e947220e5645b8ff5f6c47c3d853cc946dc810e2"
+      },
+      "photocraft-core/vendor/cms/src/lib.rs": {
+        "bytes": 4164,
+        "sha256": "a8cab2d33736d3febb2a370b973ffc1bf46659647d6d0008e349586e74dbea90"
+      },
+      "photocraft-core/vendor/cms/src/lut3d.rs": {
+        "bytes": 4987,
+        "sha256": "6318763e4be7fd954b49830ba4c38d3418068d9abf25b65b7789c0cfaeeb732b"
+      },
+      "photocraft-core/vendor/cms/src/lutfile.rs": {
+        "bytes": 53520,
+        "sha256": "35e911523e36fda707fb3c7fefba7d5b81c58b22776f67edaf484066be2fed76"
+      },
+      "photocraft-core/vendor/cms/src/math.rs": {
+        "bytes": 6991,
+        "sha256": "feee24a630a41c6fd14f1885fd87ad5b7fecfc83769dd3fc5b053cc2624bb3a9"
+      },
+      "photocraft-core/vendor/cms/src/pipeline.rs": {
+        "bytes": 8729,
+        "sha256": "6c438bae159059e0f0e8f0b8774ce7672d8eacb2f6c97aefc5741d560038ff9e"
+      },
+      "photocraft-core/vendor/cms/src/profile.rs": {
+        "bytes": 43530,
+        "sha256": "2f9f6065f674c97da5bf8fce04eef8df042bf1620c2e27a69738c2b5d380d5c5"
+      },
+      "photocraft-core/vendor/cms/src/synth.rs": {
+        "bytes": 18648,
+        "sha256": "43182bdcbc5a97b5ed3548ca60fa66ced52e8186761b9acad4ee3a4a915bc771"
+      },
+      "photocraft-core/vendor/cms/src/transform.rs": {
+        "bytes": 38045,
+        "sha256": "7250967024006146024f4f618c649e7c4b3a89abed0a71c935b7206e62f18001"
+      },
+      "photocraft-core/vendor/cms/src/write.rs": {
+        "bytes": 11870,
+        "sha256": "9e6795c38017fbe8d74b330cabb69d8497ebc8d5464d73c7f574a0249f87d03b"
+      },
+      "photocraft-core/vendor/color/Cargo.toml": {
+        "bytes": 220,
+        "sha256": "868c88bacb3b6731f2787a77ab45ed0f26e2eb045fa74fd4c83dfb193a1c427d"
+      },
+      "photocraft-core/vendor/color/src/blend/tests.rs": {
+        "bytes": 26137,
+        "sha256": "00a8cc3ed2668e71175a593663ad25957e75fcf4b75479557ecd63e3c3334e5f"
+      },
+      "photocraft-core/vendor/color/src/blend.rs": {
+        "bytes": 22410,
+        "sha256": "7630a17258583b3eaf85e726ccbce5fcad8f00537eb69ae76cb0c6332d891968"
+      },
+      "photocraft-core/vendor/color/src/convert.rs": {
+        "bytes": 15280,
+        "sha256": "0aa985c1950677366c4ce162438fd754b8fd6623303a6cfffef8cb90382b48e6"
+      },
+      "photocraft-core/vendor/color/src/lib.rs": {
+        "bytes": 11426,
+        "sha256": "a772687497fbb971e8028266c9ecd073c1cac35239718bb83b85bfd57efbfaec"
+      },
+      "photocraft-core/vendor/geom/Cargo.toml": {
+        "bytes": 181,
+        "sha256": "3203df8cbee6a687bd4fa8c1f97161c4c85eaa359e391174d13d9aac759869b3"
+      },
+      "photocraft-core/vendor/geom/src/lib.rs": {
+        "bytes": 12792,
+        "sha256": "a246fa0a3d09ca63b4d84e20e4688afaef059ac0c38bb39a94514e89d15bffe3"
+      },
+      "photocraft-core/vendor/geom/src/warp/tests.rs": {
+        "bytes": 21660,
+        "sha256": "4ce0b99877c463effdea0b37f6f3e0e7de532d36f129792448fa9abf144c2f0c"
+      },
+      "photocraft-core/vendor/geom/src/warp.rs": {
+        "bytes": 53211,
+        "sha256": "1e8eeca36374c05f59c9166e547d4fec807f5e957f3e2c8d9067aa034982a94e"
+      },
+      "photocraft-core/vendor/raster/Cargo.toml": {
+        "bytes": 1340,
+        "sha256": "ff7d75bae1d0aa64a4ccd10847992f801216e0710e1fadf28af5297263e53fc7"
+      },
+      "photocraft-core/vendor/raster/src/headroom.rs": {
+        "bytes": 6196,
+        "sha256": "51286d1e27eb59e6af39794c3110dd313b486027ac7d3dacd9efe2b4a5ad6e15"
+      },
+      "photocraft-core/vendor/raster/src/interrupt.rs": {
+        "bytes": 3578,
+        "sha256": "84bc058e1c1d9ad6a093e317ea7f1ca0c136112f4e0315f26fef0f9cac1efdbc"
+      },
+      "photocraft-core/vendor/raster/src/lib.rs": {
+        "bytes": 72283,
+        "sha256": "04a2e030cfc03cca245b7f283a1174b8f0abbfd414c255e9da83466c4ba7bc6c"
+      },
+      "photocraft-core/vendor/raster/src/memory/system.rs": {
+        "bytes": 71859,
+        "sha256": "d6df64c9480fce5c5083fe43ec4b619230f939b0b29cd1b15c29d51f656a82bb"
+      },
+      "photocraft-core/vendor/raster/src/memory.rs": {
+        "bytes": 11309,
+        "sha256": "c752b2838e88c592a3d60f7b961aeeea7185ddbafc1be3b3b4334c8eb8658523"
+      },
+      "photocraft-core/vendor/raster/src/scratch.rs": {
+        "bytes": 14147,
+        "sha256": "9bdd9c65156668d12ac0d60b5abef03d69cd1a3750065a12127006a80973854e"
+      },
+      "photocraft-core/vendor/raster/src/scratch_file.rs": {
+        "bytes": 20866,
+        "sha256": "64dde5c97a62eca36016d7ced568e7462b7ffed2ee4da2800c6408fbc497583b"
+      },
+      "photocraft-core/vendor/raster/src/shift.rs": {
+        "bytes": 14201,
+        "sha256": "2e041d4bffb696487ebaa448709eaac7fffc1ed381d698ca12b23a951894524c"
+      },
+      "photocraft-core/vendor/raster/src/spill.rs": {
+        "bytes": 58887,
+        "sha256": "e255face66013a9eaeeffda7fba6ad13f6f8b77702d91310700b0b69df48ac52"
+      },
+      "photocraft-core/vendor/raster/src/stage_file.rs": {
+        "bytes": 7695,
+        "sha256": "1ed93043187a63637ab7176e3d98201185725a92413ff0648c621a5e28b2ab03"
+      },
+      "photocraft-core/vendor/raster/src/tests.rs": {
+        "bytes": 63814,
+        "sha256": "6830f6a3794698bad4f30ec9513418135dfbbd0af71379e967f2195e6ad4d8a5"
+      },
+      "photocraft-core/verify.mjs": {
+        "bytes": 2394,
+        "sha256": "de2753a985ecefe03fe9240d3167523461312e6cab320788f68d33a6913d9dc2"
       }
     },
-    "toolingSha256": "1f60c1f65bb276ccd27701aae803843d1493ff276b2d363d3b0384b1745e26f4"
+    "toolingSha256": "caaeaa7cd21a58907f793fcff101cc032c4a8cd992cdfcf1e1d931ff8cdef7c5"
   },
   "assets": {
     "Assistant-Bold-ZDZZ6JHA.woff2": {
@@ -1161,6 +2157,10 @@
     "THIRD_PARTY/PERSPECTIVE-TRANSFORM-LICENSE.txt": {
       "bytes": 2367,
       "sha256": "eaae51cf0e594e4991fc71171a183733b12301d6e6161ca3082844337b4d2be5"
+    },
+    "THIRD_PARTY/PHOTOCRAFT-NOTICES.txt": {
+      "bytes": 13253,
+      "sha256": "279be4ee8c5775c056eba587dfcd88ed648b33f5b1179631e6b7be3c1fe09cd4"
     },
     "THIRD_PARTY/POINTS-ON-CURVE-LICENSE.txt": {
       "bytes": 1068,
@@ -1251,8 +2251,8 @@
       "sha256": "576633441c283504a3e549be1d285a6915f27f93b1c324bf81a94a8f5b0cefee"
     },
     "editor.js": {
-      "bytes": 10380943,
-      "sha256": "8beef7b66f25e608e83322712dedaec50b60e56dcb81689925e01e8f380f5103"
+      "bytes": 10402322,
+      "sha256": "895f6b47ebb97a677598746be522b97ed9aac2ffdb3c239f2266242b53ba581f"
     },
     "editor.js.LEGAL.txt": {
       "bytes": 8585,
@@ -2201,6 +3201,14 @@
     "index.js": {
       "bytes": 502077,
       "sha256": "7f651063487849c79a8cdedc3aa6bd04c6b0c717ee63959116f1f12dbc0a51b8"
+    },
+    "photocraft/noble_photocraft_core.js": {
+      "bytes": 10118,
+      "sha256": "6988bb6593f3f5132920804f2536d72ae599b52f947b581f0e31936901214d02"
+    },
+    "photocraft/noble_photocraft_core_bg.wasm": {
+      "bytes": 1184773,
+      "sha256": "8c2cf96dbc1bce96d63e70e86edbea87f196c6da052d3980444c2815d814a625"
     },
     "subset-shared.chunk.js": {
       "bytes": 174,

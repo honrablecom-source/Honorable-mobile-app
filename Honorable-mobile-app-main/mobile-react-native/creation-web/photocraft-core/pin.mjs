@@ -1,0 +1,1 @@
+export const PHOTOCRAFT_CORE = Object.freeze({"noble_photocraft_core.js":{"bytes":10118,"sha256":"6988bb6593f3f5132920804f2536d72ae599b52f947b581f0e31936901214d02"},"noble_photocraft_core_bg.wasm":{"bytes":1184773,"sha256":"8c2cf96dbc1bce96d63e70e86edbea87f196c6da052d3980444c2815d814a625"}});

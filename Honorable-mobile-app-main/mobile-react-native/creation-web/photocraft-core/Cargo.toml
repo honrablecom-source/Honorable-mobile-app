@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["adapter", "vendor/*"]
+[workspace.package]
+version = "0.23.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.95"
+[workspace.dependencies]
+photocraft-geom = {path="vendor/geom"}
+photocraft-cms = {path="vendor/cms"}
+photocraft-color = {path="vendor/color"}
+photocraft-raster = {path="vendor/raster"}
+serde = {version="1", features=["derive", "rc"]}
+rayon = "1"
+[workspace.lints.rust]
+unsafe_code = "forbid"
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

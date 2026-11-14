@@ -1,0 +1,2 @@
+# The compiled core and its provenance verify exact source bytes on every host.
+photocraft-core/** -text

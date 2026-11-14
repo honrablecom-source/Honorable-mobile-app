@@ -37,6 +37,11 @@ test('an AI input directory symlink is refused instead of traversing another tre
  try{fs.symlinkSync(outside,path.join(source,'ai-assets'),'dir');}catch(error){if(['EPERM','EACCES'].includes(error.code)){t.skip('Symlink creation unavailable');return;}throw error;}
  assert.throws(()=>collectDrawingInputs(source),/not links/);
 });
+test('PhotoCraft Rust/lock/runtime sources and public checkout attributes are bound',t=>{
+ const {source,assets}=fixture(t);put(source,'photocraft-core/adapter/src/lib.rs','synthetic Rust');put(source,'photocraft-core/Cargo.lock','synthetic lock');put(source,'.gitattributes','photocraft-core/** -text');
+ const before=collectDrawingInputs(source);assert(before.files['photocraft-core/adapter/src/lib.rs']);assert(before.files['.gitattributes']);recordDrawingAssets(source,assets,before);
+ put(source,'photocraft-core/adapter/src/lib.rs','modified Rust');assert.throws(()=>verifyDrawingAssets(source,assets),/sources changed/);
+});
 test('source additions/changes/removal and changes during generation are refused',t=>{
  for(const mode of ['change','add','remove']){const {source,assets}=fixture(t);if(mode==='change')put(source,'helper.mjs','X'+fs.readFileSync(path.join(source,'helper.mjs'),'utf8').slice(1));if(mode==='add')put(source,'new-helper.jsx','new');if(mode==='remove')fs.unlinkSync(path.join(source,'helper.mjs'));assert.throws(()=>verifyDrawingAssets(source,assets),/sources changed/);}
  const {source,assets,before}=fixture(t);put(source,'editor.jsx','changed during compilation');assert.throws(()=>recordDrawingAssets(source,assets,before),/during generation/);

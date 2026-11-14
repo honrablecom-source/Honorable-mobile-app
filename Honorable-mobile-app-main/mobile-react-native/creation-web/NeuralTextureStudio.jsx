@@ -33,7 +33,7 @@ async function prepare(url, maximum) {
 }
 
 /** Actual BSD Mosaic model inference, separate from ordinary Three materials. */
-export function NeuralTextureStudio({texture, kind = 'style', onApply, onArtwork, onClose}) {
+export function NeuralTextureStudio({texture, kind = 'style', target = 'model', onApply, onArtwork, onClose}) {
   const denoise = kind === 'denoise', title = denoise ? 'Neural noise cleanup' : 'Neural painted texture';
   const resultAlt = denoise ? 'Reviewed neural noise cleanup' : 'Reviewed neural painted texture';
   const [input, setInput] = useState(null), [output, setOutput] = useState(null),
@@ -98,10 +98,10 @@ export function NeuralTextureStudio({texture, kind = 'style', onApply, onArtwork
           throw Error('The reviewed neural copy was stopped before applying.');
       };
       current();
-      const accepted = await (artwork ? onArtwork(painted, current) : onApply(painted));
+      const accepted = await (artwork ? onArtwork(painted, current) : onApply(painted, current));
       if (!life.current.mounted || generation !== life.current.generation || document.hidden) return;
       if (accepted === false) throw Error('The reviewed copy could not be added. Your original is unchanged.');
-      setApproved(false); setMessage(artwork ? 'A separate painted image was added to the drawing. Drawing Undo removes it.' : 'Reviewed texture applied. Model Undo restores the previous texture; Save model keeps the change.');
+      setApproved(false); setMessage(artwork ? 'A separate painted image was added to the drawing. Drawing Undo removes it.' : target === 'layer' ? 'Reviewed layer pixels applied. Raster Undo restores the previous layer.' : 'Reviewed texture applied. Model Undo restores the previous texture; Save model keeps the change.');
       onClose();
     } catch (error) {if (life.current.mounted && generation === life.current.generation) setMessage(error.message);}
     finally {if (life.current.mounted && generation === life.current.generation) {life.current.busy = false; setBusy(false);}}
@@ -118,10 +118,10 @@ export function NeuralTextureStudio({texture, kind = 'style', onApply, onArtwork
     {painted && <>
       <label>{denoise ? 'Noise cleanup strength' : 'Neural paint strength'}<input aria-label={denoise ? 'Noise cleanup strength' : 'Neural paint strength'} type="range" min="0" max="1" step="0.05" value={strength} disabled={busy} onChange={event => {setStrength(Number(event.target.value)); setApproved(false);}} /><output>{Math.round(strength * 100)}%</output></label>
       <label className="check-label"><input type="checkbox" disabled={busy} checked={approved} onChange={event => setApproved(event.target.checked)} />I reviewed this new copy and want to use it.</label>
-      <div className="tool-grid"><button disabled={busy || !approved} onClick={() => commit(false)}>Apply reviewed model texture</button><button disabled={busy || !approved} onClick={() => commit(true)}>{denoise ? 'Add cleaned image to drawing' : 'Add painted image to drawing'}</button></div>
+      <div className="tool-grid"><button disabled={busy || !approved} onClick={() => commit(false)}>{target === 'layer' ? 'Apply reviewed layer pixels' : 'Apply reviewed model texture'}</button><button disabled={busy || !approved} onClick={() => commit(true)}>{denoise ? 'Add cleaned image to drawing' : 'Add painted image to drawing'}</button></div>
     </>}
     <p role="status" aria-live="polite">{message}</p>
     <button onClick={() => {stop(); onClose();}}>{denoise ? 'Close neural cleanup' : 'Close neural texture'}</button>
-    <p>Original media stays unchanged. Saved models and drawing copies remain in shared local storage after logout; they are not protected by an account. Applying a texture resets its material tint to white so you can see the painted colors.</p>
+    <p>Original media stays unchanged. Saved models and drawing copies remain in shared local storage after logout; they are not protected by an account. {target === 'layer' ? 'The layer remains in the raster lab for review before you keep the full composition.' : 'Applying a texture resets its material tint to white so you can see the painted colors.'}</p>
   </section>;
 }

@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {STYLE_MODEL} from './neural-style.mjs';
 import {DENOISE_MODEL} from './neural-denoise.mjs';
+import {verifyCore} from './photocraft-core/verify.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const modules = process.env.HONORABLE_DRAWING_NODE_MODULES || path.join(root, 'node_modules');
 const require = createRequire(path.join(modules, '../package.json'));
@@ -17,12 +18,12 @@ const sourceSnapshot = collectDrawingInputs(root);
 await fs.mkdir(out, { recursive: true });
 // Inline geometry workers for offline WebView: no worker network requests.
 const workerSources = new Map();
-for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours','model-gif','neural-style']) {
+for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours','model-gif','neural-style','photocraft']) {
   const worker = await build({ entryPoints: [path.join(root, name + '-worker.mjs')], bundle: true, minify: true, write: false, format: 'iife', platform: 'browser', target: ['chrome90'], nodePaths: [modules], legalComments: 'inline', banner: { js: 'var process={env:{POLYGON_CLIPPING_MAX_QUEUE_SIZE:20000,POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS:20000}};' } });
   workerSources.set('noble:' + name + '-worker', worker.outputFiles[0].text);
 }
 const inlineGeometryWorker = { name: 'noble-local-workers', setup(builder) {
-  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours|model-gif|neural-style)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
+  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours|model-gif|neural-style|photocraft)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
   builder.onLoad({ filter: /.*/, namespace: 'noble-local-worker' }, args => ({ contents: 'export default ' + JSON.stringify(workerSources.get(args.path)) + ';', loader: 'js' }));
 } };
 
@@ -85,6 +86,9 @@ for (const [name, pin] of Object.entries(neuralFiles.runtimeFiles)) {
     throw Error('The pinned neural web runtime bytes changed.');
   await fs.writeFile(path.join(neuralOutput, name), bytes);
 }
+const coreRoot=path.join(root,'photocraft-core'),coreReceipt=verifyCore(coreRoot);
+await fs.mkdir(path.join(out,'photocraft'),{recursive:true});
+for(const name of Object.keys(coreReceipt.runtime))await fs.copyFile(path.join(coreRoot,'pkg',name),path.join(out,'photocraft',name));
 for (const name of await fs.readdir(upstream)) if (name.endsWith('.js')) await fs.copyFile(path.join(upstream, name), path.join(out, name));
 await fs.writeFile(path.join(out, 'config.js'), 'window.EXCALIDRAW_ASSET_PATH="https://honorable-drawing.local/drawing/";');
 await fs.writeFile(path.join(out, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Noble drawing</title><link rel="stylesheet" href="editor.css"></head><body><div id="root"></div><script src="config.js"></script><script src="editor.js"></script></body></html>');

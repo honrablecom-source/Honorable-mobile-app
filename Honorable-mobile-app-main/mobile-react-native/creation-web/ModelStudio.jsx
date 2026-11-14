@@ -2,6 +2,7 @@ import gifWorkerSource from 'noble:model-gif-worker';
 import { checkedGifOptions, sendGif } from './model-gif.mjs';
 import { startGifWorker } from './model-gif-worker-client.mjs';
 import { NeuralTextureStudio } from './NeuralTextureStudio.jsx';
+import { PhotoCraftStudio } from './PhotoCraftStudio.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { loadDepthModel, disposeImportedModel } from './model-import.mjs';
 import * as THREE from 'three';
@@ -49,6 +50,12 @@ export function ModelStudio({
   const [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [playing, setPlaying] = useState(false);
+  const toolHost = useRef(null);
+  useEffect(() => {
+    if (neuralTexture === null) return;
+    const frame = requestAnimationFrame(() => toolHost.current?.scrollIntoView({block:'start'}));
+    return () => cancelAnimationFrame(frame);
+  }, [neuralTexture]);
   const host = useRef(null),
     live = useRef(null),
     life = useRef({ mounted: true, revision: 0, busy: false, operation: 0 }),
@@ -679,7 +686,7 @@ export function ModelStudio({
             Remove texture
           </button>
         )}
-        {[['style','Neural painted texture'],['denoise','Neural noise cleanup']].map(([kind,label]) => <button key={kind} disabled={!ready} onClick={() => {
+        {[['style','Neural painted texture'],['denoise','Neural noise cleanup'],['core','Raster lab (PhotoCraft core)']].map(([kind,label]) => <button key={kind} disabled={!ready} onClick={() => {
           try {
             let image;
             live.current?.model.root.traverse(object => {
@@ -781,7 +788,14 @@ export function ModelStudio({
           </button>
         </div>
       </fieldset>
-      {neuralTexture !== null && <NeuralTextureStudio texture={neuralTexture.value} kind={neuralTexture.kind}
+      <div ref={toolHost}>
+      {neuralTexture?.kind === 'core' && <PhotoCraftStudio texture={neuralTexture.value} textureSources={textureSources} captureTexture={captureTexture}
+        onClose={() => setNeuralTexture(null)} onApply={value => change({texture: value, color: '#ffffff'})}
+        onArtwork={async(value,current) => {
+          current(); const decoded=atob(value.slice(value.indexOf(',')+1));
+          return onImage(new File([Uint8Array.from(decoded,c=>c.charCodeAt(0))],'Noble-raster.png',{type:'image/png'}),current);
+        }}/>}
+      {neuralTexture !== null && neuralTexture.kind !== 'core' && <NeuralTextureStudio texture={neuralTexture.value} kind={neuralTexture.kind}
         onClose={() => setNeuralTexture(null)}
         onApply={value => change({texture: value, color: '#ffffff'})}
         onArtwork={async (value, current) => {
@@ -790,6 +804,7 @@ export function ModelStudio({
           const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0));
           return onImage(new File([bytes], 'Noble-neural-painted.png', {type: 'image/png'}), current);
         }} />}
+      </div>
       {busy && (gifJob.current || pendingKind.current === 'gif') && (
         <button onClick={stopGif}>Stop GIF export</button>
       )}
