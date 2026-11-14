@@ -103,8 +103,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        versionCode 5
-        versionName "1.0.4"
+        versionCode 6
+        versionName "1.0.5"
         buildConfigField "String", "HONORABLE_GOOGLE_WEB_CLIENT_ID", JsonOutput.toJson(googleWebClientId)
         buildConfigField "String", "HONORABLE_ACCOUNT_API_URL", JsonOutput.toJson(accountApiUrl)
     }

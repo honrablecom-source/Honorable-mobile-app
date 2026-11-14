@@ -1,5 +1,7 @@
 # Android investor demo acceptance
 
+**Current device blocker:** the owner-uploaded Noble tester failed startup on physical Pixel5/API30 in Firebase matrix matrix-1e1fvv7v7jwei. WorkManager could not construct WorkDatabase_Impl. The local published1.0.4 APK independently fails the new executable-constructor inspection.1.0.5/build6 is the repair candidate; require its successful whole-app build, actual DEX gate and repeat physical run before using it for the investor demo. The uploaded cloud APK has not yet been independently byte-compared to the local baseline. No successful device/editor inference is established by this failed run.
+
 Android first; iOS follows (owner clarification November14). This is a repeatable acceptance sequence, not a claim that the app has passed a phone demo. The owner has no Android device and prohibits Android VMs/emulators. Browser, Robolectric and package evidence remain explicitly separate.
 
 ## Candidate and materials

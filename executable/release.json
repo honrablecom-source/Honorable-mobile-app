@@ -1,5 +1,5 @@
 {
-  "status": "fresh-current-source-internal-tester-with-known-product-gaps",
+  "status": "known-android-startup-failure-repair-pending",
   "oldArtifactsRemoved": true,
   "android": {
     "file": "Noble-core-ai-internal.apk",
@@ -77,7 +77,15 @@
     },
     "manifest": "Noble-core-ai-internal.manifest.json",
     "accountSearchConfigurationComplete": false,
-    "note": "Full-editor Android package verified; phone hardware/WebView behavior and production account services remain unverified. All four local image-studio AI tools are packaged; iOS host remains absent. The verified visible-control keyboard focus correction is included."
+    "note": "Full-editor Android package verified; phone hardware/WebView behavior and production account services remain unverified. All four local image-studio AI tools are packaged; iOS host remains absent. The verified visible-control keyboard focus correction is included.",
+    "deviceStartupStatus": "FAILED",
+    "knownDeviceFailure": {
+      "device": "Physical Pixel5/API30",
+      "matrixId": "8785757009255450364",
+      "cause": "Missing WorkDatabase_Impl default constructor during WorkManager startup",
+      "repairCandidate": "1.0.5/build6",
+      "repairDeviceVerified": false
+    }
   },
   "ios": {
     "file": "Noble-iOS-simulator.zip",

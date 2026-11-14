@@ -9,6 +9,13 @@
 
 # Add any project specific keep options here:
 
+# Room constructs generated databases by name and a no-argument constructor.
+# R8 full mode can otherwise retain WorkDatabase_Impl but remove its constructor,
+# crashing WorkManager's startup provider before React Native can launch.
+-keep class * extends androidx.room.RoomDatabase {
+    <init>();
+}
+
 # React Native and ONNX ship consumer rules. Preserve only the JNI/native entry
 # points and the explicitly registered bridge surface; the search implementation
 # remains eligible for R8 optimization and identifier obfuscation.

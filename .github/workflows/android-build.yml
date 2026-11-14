@@ -56,6 +56,7 @@ jobs:
           node full-editors/verify-ai-bundle.mjs
           node --test ../scripts/android-sdk-config.test.cjs ../scripts/release-manifest.test.cjs ../scripts/check-account-config.test.cjs ../scripts/drawing-assets.test.cjs
           python3 ../scripts/test_verify_ai_apk.py
+          python3 ../scripts/test_check_room_startup_apk.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -179,6 +180,10 @@ jobs:
               exit 1
             fi
           done
+      - name: Verify actual Room startup constructors before artifact publication
+        run: |
+          python3 ../scripts/check_room_startup_apk.py android/app/build/outputs/apk/internal/app-internal.apk
+          python3 ../scripts/check_room_startup_apk.py android/app/build/outputs/apk/debug/app-debug.apk
       - name: Record internal artifact identity and SHA-256
         run: node ../scripts/release-manifest.cjs internal
       - name: Upload internal release identity
@@ -215,6 +220,12 @@ jobs:
           python3 ../scripts/verify-ai-apk.py --scan android/app/build/outputs/apk
       - name: Inspect and stage Noble APKs
         run: python3 ../scripts/verify-noble-apks.py
+      - name: Verify Room constructors in every ABI and release APK
+        shell: bash
+        run: |
+          while IFS= read -r -d '' apk; do
+            python3 ../scripts/check_room_startup_apk.py "$apk"
+          done < <(find android/app/build/outputs/apk -name '*.apk' -type f -print0)
       - name: Preserve Noble APKs when inspection fails
         if: failure()
         uses: actions/upload-artifact@v4

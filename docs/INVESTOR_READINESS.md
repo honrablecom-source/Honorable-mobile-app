@@ -4,7 +4,7 @@ Owner instruction November14: keep developing a fully functional, investor-ready
 
 | Area | Evidence now | Gate still open |
 |---|---|---|
-| Android core/editor package | Corrected source36e5ca5 Android43630705712 and five-APK43634836827 passed; exact1.0.4/build5 tester verified and current | Real Android WebView/device acceptance |
+| Android core/editor package | Corrected source36e5ca5 Android43630705712 and five-APK43634836827 passed; exact1.0.4/build5 tester verified and current | Physical Pixel5 startup FAILED;1.0.5 repair build and repeat acceptance pending |
 | Full image/video studios | Real project/export, damaged-project preservation, active Stop, stereo WAV and AAC-in-H264 browser checks; native host/package checks | Broader media/recovery acceptance, phone WebView and performance |
 | Useful local AI | Four real image-studio graphs/current-document workflow browser verified and packaged;1new learned-color outcome | Broader photographic quality and phone resource/performance acceptance |
 | Search/account integrity | Existing Web client and live HTTPS API configured privately for future CI; health200 verified; native engine/ledger/ranking/privacy retained | Trusted completion, consent/client registration checks and actual sign-in/credit-backed search |
@@ -15,6 +15,14 @@ Owner instruction November14: keep developing a fully functional, investor-ready
 The owner authorized inspecting and, if needed, creating Google account/backend configuration through Chrome. The extension repeatedly rejected `console.cloud.google.com`, most recently due to a saved permission/managed policy. Do not circumvent that browser block. Continue independent offline work; account setup requires access to be enabled through the normal connection before inspection/creation can proceed. Never print or commit tokens/secrets or invent a production endpoint.
 
 The owner has no Android phone and prohibits Android VMs/emulators. Use Robolectric host tests, real engine browser tests and package/static checks. Those do not establish physical-device behavior or justify claiming zero bugs. Investor readiness must explicitly state platform, AI-quality, production-account and hardware gaps until they are resolved.
+
+## November14 — first physical Android run failed; startup repair candidate
+
+**0new user-facing features;1Android startup compatibility fix in source.** Owner uploaded the published tester and started Firebase Robo matrix matrix-1e1fvv7v7jwei (matrix ID8785757009255450364). The actual Firebase catalog with Device type=Physical confirms Pixel5/API30 is physical; no emulator/VM was used. Spark/no-cost plan remains visible. The run failed after1m9s: Unable to get provider androidx.startup.InitializationProvider, caused by NoSuchMethodException androidx.work.impl.WorkDatabase_Impl.<init> []. Robo could not crawl the app. This overrides any earlier suggestion that build/package/browser checks establish working device startup.
+
+Independent DEX inspection of the exact local1.0.4 APK reproduces the absent public executable default constructor. Added targeted Room-subclass constructor retention in both Android shrinker configurations, preserving R8 elsewhere. New actual-DEX gate parses class definitions/direct methods/prototypes/code, requires the unique public executable no-argument WorkDatabase_Impl constructor and rejects class-name/reference-only false positives. Six regression cases pass, including multidex, missing/private/no-code/argument constructors, duplicate classes and corrupt bytes. Android workflow checks internal/debug before publication and every ABI/release APK before verified matrix upload.
+
+Distinct repair candidate is1.0.5/build6 with required release notes. Corrected whole-app build and repeat physical startup validation are pending. Existing1.0.4 APK remains an explicitly marked failing baseline in executable/; its bytes/hash are unchanged. Do not present it as a working investor demo or relabel it as repaired. No AI/search-ranking/credit policy changes. Account configuration remains present but trusted completion, successful live Noble Google login, editor/inference/export/storage hardware acceptance and store readiness remain unfinished. Screenshots/crash text and physical-filter evidence are ignored under .context/account-recovery/firebase-physical-*. The prepared strict guest smoke was not attached to the owner's generic Robo run and is not claimed executed.
 
 ## November14 — Firebase Spark access confirmed; manual APK selection needed
 

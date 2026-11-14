@@ -6,3 +6,8 @@
 
 # These model-facing types are instantiated directly (never by reflection).
 -keepclassmembers enum app.honorable.search.MediaKind { *; }
+
+# Room/WorkManager instantiate generated databases reflectively at app startup.
+-keep class * extends androidx.room.RoomDatabase {
+    <init>();
+}
