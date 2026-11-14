@@ -24,7 +24,7 @@ For manual local review, put the existing public audience in ignored .dev.vars a
 
 ## Deployment
 
-Verify Workers Free first. Standard Wrangler login requests account:read, user:read and workers:write, plus required background access. The owner must approve this new access at action time; no token needs to be copied into chat. Inspect existing services before deploying noble-account so no existing deployment is overwritten blindly. Use pnpm deploy, then Wrangler's secret input to supply only the existing public audience without displaying it. Record the returned exact HTTPS address and probe JSON health/readiness. Readiness remains503 until trusted completion exists. Do not enable billing, paid Workers, domain purchases or paid services.
+Verify Workers Free first. Standard Wrangler login needs account:read, user:read and workers_scripts:write, plus required background access. The older workers:write scope was accepted by consent but rejected by the deployment API in the November14 rollout; use the specific script scope. The owner must approve new access at action time; no token needs to be copied into chat. Inspect existing services before deploying noble-account so no existing deployment is overwritten blindly. Use pnpm deploy, then Wrangler's secret input to supply only the existing public audience without displaying it. Record the returned exact HTTPS address and probe JSON health/readiness. Readiness remains503 until trusted completion exists. Do not enable billing, paid Workers, domain purchases or paid services.
 
 ## Limits
 
