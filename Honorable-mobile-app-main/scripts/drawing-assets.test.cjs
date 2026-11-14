@@ -26,6 +26,17 @@ function checkApk(assets,apk) { return spawnSync(python,[verifier,'--assets',ass
 test('generated manifest binds current source,helper modules,notices and exact output bytes',t=>{
  const {source,assets}=fixture(t),manifest=verifyDrawingAssets(source,assets);assert.equal(manifest.version,1);assert(manifest.source.files['helper.mjs']);assert(manifest.assets['fonts/font.woff2']);assert(!manifest.assets[MANIFEST]);assert(Object.keys(manifest.source.files).every(name=>!path.isAbsolute(name)));assert.equal(JSON.stringify(manifest).includes(source),false);
 });
+test('bundled AI model/provenance source bytes are bound and late changes refuse generation',t=>{
+ const {source,assets}=fixture(t);put(source,'ai-assets/model.onnx',Buffer.from([1,2,3]));put(source,'ai-assets/provenance.json','{"synthetic":true}');
+ const snapshot=collectDrawingInputs(source);assert(snapshot.files['ai-assets/model.onnx']);assert(snapshot.files['ai-assets/provenance.json']);
+ recordDrawingAssets(source,assets,snapshot);assert.doesNotThrow(()=>verifyDrawingAssets(source,assets));
+ put(source,'ai-assets/model.onnx',Buffer.from([1,2,4]));assert.throws(()=>verifyDrawingAssets(source,assets),/sources changed/);assert.throws(()=>recordDrawingAssets(source,assets,snapshot),/during generation/);
+});
+test('an AI input directory symlink is refused instead of traversing another tree',t=>{
+ const {root,source}=fixture(t);const outside=path.join(root,'outside-ai');put(outside,'model.onnx','synthetic model');
+ try{fs.symlinkSync(outside,path.join(source,'ai-assets'),'dir');}catch(error){if(['EPERM','EACCES'].includes(error.code)){t.skip('Symlink creation unavailable');return;}throw error;}
+ assert.throws(()=>collectDrawingInputs(source),/not links/);
+});
 test('source additions/changes/removal and changes during generation are refused',t=>{
  for(const mode of ['change','add','remove']){const {source,assets}=fixture(t);if(mode==='change')put(source,'helper.mjs','X'+fs.readFileSync(path.join(source,'helper.mjs'),'utf8').slice(1));if(mode==='add')put(source,'new-helper.jsx','new');if(mode==='remove')fs.unlinkSync(path.join(source,'helper.mjs'));assert.throws(()=>verifyDrawingAssets(source,assets),/sources changed/);}
  const {source,assets,before}=fixture(t);put(source,'editor.jsx','changed during compilation');assert.throws(()=>recordDrawingAssets(source,assets,before),/during generation/);

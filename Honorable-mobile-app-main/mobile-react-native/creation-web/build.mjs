@@ -3,6 +3,9 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {STYLE_MODEL} from './neural-style.mjs';
+import {DENOISE_MODEL} from './neural-denoise.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const modules = process.env.HONORABLE_DRAWING_NODE_MODULES || path.join(root, 'node_modules');
 const require = createRequire(path.join(modules, '../package.json'));
@@ -14,12 +17,12 @@ const sourceSnapshot = collectDrawingInputs(root);
 await fs.mkdir(out, { recursive: true });
 // Inline geometry workers for offline WebView: no worker network requests.
 const workerSources = new Map();
-for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours','model-gif']) {
+for (const name of ['shape-boolean', 'svg-import', 'photo-clone', 'photo-distance','photo-channel-pack','photo-anaglyph','photo-cube-lut','photo-reference-tone','photo-panorama','photo-atlas','photo-annulus','nonogram','photo-islands','photo-contours','model-gif','neural-style']) {
   const worker = await build({ entryPoints: [path.join(root, name + '-worker.mjs')], bundle: true, minify: true, write: false, format: 'iife', platform: 'browser', target: ['chrome90'], nodePaths: [modules], legalComments: 'inline', banner: { js: 'var process={env:{POLYGON_CLIPPING_MAX_QUEUE_SIZE:20000,POLYGON_CLIPPING_MAX_SWEEPLINE_SEGMENTS:20000}};' } });
   workerSources.set('noble:' + name + '-worker', worker.outputFiles[0].text);
 }
 const inlineGeometryWorker = { name: 'noble-local-workers', setup(builder) {
-  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours|model-gif)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
+  builder.onResolve({ filter: /^noble:(?:shape-boolean|svg-import|photo-clone|photo-distance|photo-channel-pack|photo-anaglyph|photo-cube-lut|photo-reference-tone|photo-panorama|photo-atlas|photo-annulus|nonogram|photo-islands|photo-contours|model-gif|neural-style)-worker$/ }, args => ({ path: args.path, namespace: 'noble-local-worker' }));
   builder.onLoad({ filter: /.*/, namespace: 'noble-local-worker' }, args => ({ contents: 'export default ' + JSON.stringify(workerSources.get(args.path)) + ';', loader: 'js' }));
 } };
 
@@ -59,6 +62,29 @@ const upstream = path.join(modules, '@excalidraw/excalidraw/dist/prod');
 await fs.cp(path.join(upstream, 'fonts'), path.join(out, 'fonts'), { recursive: true });
 await fs.cp(path.join(upstream, 'data'), path.join(out, 'data'), { recursive: true });
 await fs.cp(path.join(root, 'THIRD_PARTY'), path.join(out, 'THIRD_PARTY'), { recursive: true });
+const neuralFiles = JSON.parse(await fs.readFile(path.join(root, 'ai-assets/provenance.json'), 'utf8'));
+if (Object.keys(neuralFiles.runtimeFiles || {}).sort().join(',') !== 'ort-wasm-simd-threaded.js,ort-wasm-simd-threaded.wasm')
+  throw Error('The complete pinned neural web runtime is required.');
+const neuralOutput = path.join(out, 'ai');
+await fs.mkdir(neuralOutput, {recursive: true});
+for (const model of [STYLE_MODEL,DENOISE_MODEL]) {
+  const modelBytes = await fs.readFile(path.join(root, 'ai-assets', model.file));
+  if (modelBytes.length !== model.bytes || createHash('sha256').update(modelBytes).digest('hex') !== model.sha256)
+    throw Error('The pinned neural image model bytes changed.');
+  await fs.writeFile(path.join(neuralOutput, model.file), modelBytes);
+}
+const denoiseProvenance = JSON.parse(await fs.readFile(path.join(root, 'ai-assets/dncnn-provenance.json'), 'utf8'));
+if (createHash('sha256').update(await fs.readFile(path.join(root, 'export-dncnn.py'))).digest('hex') !== denoiseProvenance.converterSha256)
+  throw Error('The documented DnCNN converter changed; reproduce and review its provenance.');
+for (const [name, pin] of Object.entries(neuralFiles.runtimeFiles)) {
+  if (!['ort-wasm-simd-threaded.js', 'ort-wasm-simd-threaded.wasm'].includes(name) ||
+      !['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm'].includes(pin.source))
+    throw Error('Unexpected local neural runtime asset.');
+  const bytes = await fs.readFile(path.join(modules, 'onnxruntime-web/dist', pin.source));
+  if (bytes.length !== pin.bytes || createHash('sha256').update(bytes).digest('hex') !== pin.sha256)
+    throw Error('The pinned neural web runtime bytes changed.');
+  await fs.writeFile(path.join(neuralOutput, name), bytes);
+}
 for (const name of await fs.readdir(upstream)) if (name.endsWith('.js')) await fs.copyFile(path.join(upstream, name), path.join(out, name));
 await fs.writeFile(path.join(out, 'config.js'), 'window.EXCALIDRAW_ASSET_PATH="https://honorable-drawing.local/drawing/";');
 await fs.writeFile(path.join(out, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Noble drawing</title><link rel="stylesheet" href="editor.css"></head><body><div id="root"></div><script src="config.js"></script><script src="editor.js"></script></body></html>');

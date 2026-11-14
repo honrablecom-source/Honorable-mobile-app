@@ -1,6 +1,7 @@
 import gifWorkerSource from 'noble:model-gif-worker';
 import { checkedGifOptions, sendGif } from './model-gif.mjs';
 import { startGifWorker } from './model-gif-worker-client.mjs';
+import { NeuralTextureStudio } from './NeuralTextureStudio.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { loadDepthModel, disposeImportedModel } from './model-import.mjs';
 import * as THREE from 'three';
@@ -44,6 +45,7 @@ export function ModelStudio({
         'Drag to orbit; pinch to zoom. Everything stays on this device.',
     );
   const [textureSource, setTextureSource] = useState('');
+  const [neuralTexture, setNeuralTexture] = useState(null);
   const [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [playing, setPlaying] = useState(false);
@@ -260,8 +262,10 @@ export function ModelStudio({
       life.current.revision++;
       setSpec(next);
       status('Model changed. Save model to keep it after closing.');
+      return true;
     } catch (error) {
       status(error.message);
+      return false;
     }
   };
   const run = async action => {
@@ -526,7 +530,7 @@ export function ModelStudio({
       </p>
       {initialAsset && (
         <button
-          disabled={busy}
+          disabled={busy || neuralTexture !== null}
           onClick={() =>
             change({
               ...defaultModel(),
@@ -559,7 +563,7 @@ export function ModelStudio({
           border: '1px solid #ccc',
         }}
       />
-      <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>
+      <fieldset disabled={busy || neuralTexture !== null} style={{ border: 0, padding: 0 }}>
         <label>
           Shape
           <select
@@ -675,6 +679,28 @@ export function ModelStudio({
             Remove texture
           </button>
         )}
+        {[['style','Neural painted texture'],['denoise','Neural noise cleanup']].map(([kind,label]) => <button key={kind} disabled={!ready} onClick={() => {
+          try {
+            let image;
+            live.current?.model.root.traverse(object => {
+              if (image || !object.isMesh) return;
+              for (const material of Array.isArray(object.material) ? object.material : [object.material])
+                if (material?.map?.image) {image = material.map.image; break;}
+            });
+            if (!image) throw Error('Add a local photo texture or open an AI depth relief first.');
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width; canvas.height = image.height;
+            if (!canvas.width || !canvas.height || canvas.width > 1024 || canvas.height > 1024)
+              throw Error('Use a prepared photo texture up to 1024 pixels per side.');
+            const context = canvas.getContext('2d');
+            if (!context) throw Error('Local texture preparation is unavailable.');
+            context.drawImage(image, 0, 0);
+            const value = canvas.toDataURL('image/png');
+            if (value.length > 2 * 1024 * 1024) throw Error('The texture is too large. Choose a smaller local photo.');
+            setPlaying(false); playingRef.current = false;
+            setNeuralTexture({value,kind});
+          } catch (error) {status(error.message);}
+        }}>{label}</button>)}
         <label className="check-label">
           <input
             type="checkbox"
@@ -755,6 +781,15 @@ export function ModelStudio({
           </button>
         </div>
       </fieldset>
+      {neuralTexture !== null && <NeuralTextureStudio texture={neuralTexture.value} kind={neuralTexture.kind}
+        onClose={() => setNeuralTexture(null)}
+        onApply={value => change({texture: value, color: '#ffffff'})}
+        onArtwork={async (value, current) => {
+          current();
+          const data = value.slice(value.indexOf(',') + 1), decoded = atob(data);
+          const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0));
+          return onImage(new File([bytes], 'Noble-neural-painted.png', {type: 'image/png'}), current);
+        }} />}
       {busy && (gifJob.current || pendingKind.current === 'gif') && (
         <button onClick={stopGif}>Stop GIF export</button>
       )}

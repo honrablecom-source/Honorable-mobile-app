@@ -13,6 +13,8 @@ function describe(file) {
   return {bytes: bytes.length, sha256: digest(bytes)};
 }
 function walk(root, prefix = '') {
+  const rootInfo = fs.lstatSync(root);
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) throw Error('Drawing input and asset trees must be regular directories, not links.');
   const files = {};
   for (const name of fs.readdirSync(root).sort()) {
     if (name.startsWith('.')) throw Error('Hidden files are not allowed in drawing asset or notice trees.');
@@ -26,13 +28,14 @@ function walk(root, prefix = '') {
 function collectDrawingInputs(source) {
   const files = {};
   for (const name of fs.readdirSync(source).sort()) {
-    if (name.startsWith('.') || !/\.(?:[cm]?[jt]sx?|css|json)$/.test(name)) continue;
+    if (name.startsWith('.') || !/\.(?:[cm]?[jt]sx?|css|json|py)$/.test(name)) continue;
     files[name] = describe(path.join(source,name));
   }
   for (const name of requiredSources) if (!files[name]?.bytes) throw Error(`Missing drawing source: ${name}`);
   const notices = walk(path.join(source,'THIRD_PARTY'),'THIRD_PARTY');
   if (!Object.keys(notices).length) throw Error('Drawing source notices are missing.');
-  return {files: {...files,...notices}, toolingSha256: digest(fs.readFileSync(__filename))};
+  const ai = fs.existsSync(path.join(source,'ai-assets')) ? walk(path.join(source,'ai-assets'),'ai-assets') : {};
+  return {files: {...files,...notices,...ai}, toolingSha256: digest(fs.readFileSync(__filename))};
 }
 function outputFiles(assets) {
   const files = walk(assets);

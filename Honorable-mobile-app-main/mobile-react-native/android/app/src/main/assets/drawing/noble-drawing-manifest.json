@@ -19,8 +19,12 @@
         "sha256": "1f1d64d71037dc34e71e7be61916b2637dea64ba860040a09d5caef7c74c1323"
       },
       "ModelStudio.jsx": {
-        "bytes": 26249,
-        "sha256": "130dd387b9b8bdec1673a712b84993fb6eb07bb779bb8f4f729c038cea03d7f3"
+        "bytes": 28495,
+        "sha256": "ae7626e7bbde512c9d6b15aa3c8a0d021aac57be9e0bc32e535eae738efcf657"
+      },
+      "NeuralTextureStudio.jsx": {
+        "bytes": 9149,
+        "sha256": "048836c2b9439c0cdbb0904fedbb34150c45334cc2574a70c44a099e9013e0f7"
       },
       "PersonalizeTool.jsx": {
         "bytes": 5330,
@@ -239,8 +243,8 @@
         "sha256": "0c16c326b536ebaec446a3bf003a7e9097de4fb8236a000d65ff014f13609f93"
       },
       "build.mjs": {
-        "bytes": 6236,
-        "sha256": "b748caaff692937e4c31ad87f0d5e8286c558b7144bb7edbc05908f76a139176"
+        "bytes": 8160,
+        "sha256": "07c55d44828ac35257e0f22ad255e598bf0b8b50149c2f433d4707f5209a37b2"
       },
       "clone-strokes.mjs": {
         "bytes": 1171,
@@ -263,8 +267,12 @@
         "sha256": "49e5c6f1262f5a96f12d36c1f8f6e1759dc36b077d36223c753bbc0f075acf32"
       },
       "editor.jsx": {
-        "bytes": 246640,
-        "sha256": "1a27b71da9cd3af171403225365938b933d41ea1e7f8ceb3ae44c18f0174ba7f"
+        "bytes": 246761,
+        "sha256": "aeb0772176a04bc9db195a9011566bc9e1b5adfe4968c4b09c23e70de44ecba9"
+      },
+      "export-dncnn.py": {
+        "bytes": 4005,
+        "sha256": "eee47d39460b064c3ad05227c75b31dab8fced0c6b0b1330b1919db540675f7c"
       },
       "font-export-patch.mjs": {
         "bytes": 562,
@@ -318,6 +326,22 @@
         "bytes": 7626,
         "sha256": "7f208ab5f87dc4528842db22cb01c8d26e06522ef7736c0b98ad45031e8814f5"
       },
+      "neural-denoise.mjs": {
+        "bytes": 2852,
+        "sha256": "ef0f1e64dd711b8487efde48213164373b23aa7c0b194965b434ecdaf62ccdfd"
+      },
+      "neural-style-client.mjs": {
+        "bytes": 2567,
+        "sha256": "ae6b8eef463f30bf3f7893cfeb839506b1cf8cc85883be6752933f731835d8f7"
+      },
+      "neural-style-worker.mjs": {
+        "bytes": 3972,
+        "sha256": "55ceceea3aeaee3e6214f030383af2bf2bd169988c2fb158cd23e8cd92985b7f"
+      },
+      "neural-style.mjs": {
+        "bytes": 2934,
+        "sha256": "dcb53e7793fd0e5161a19b7831b0d8b11c5183b998c1908893f946df540df135"
+      },
       "nonogram-task.mjs": {
         "bytes": 2598,
         "sha256": "40b423e7bdbf5b54db2e3280679330edd8334cb45773e7c1c0cfb8b2e9e051e6"
@@ -339,12 +363,12 @@
         "sha256": "b3edc342efca6062e30d74ec8a0c371f4e00363b59ebc89e7016dae15a4dc0cf"
       },
       "package-lock.json": {
-        "bytes": 134769,
-        "sha256": "65753aac8cc4b084e06a05803bd0f4487d52e1e4939a194b6e34c249ad73054e"
+        "bytes": 141199,
+        "sha256": "a618bdc354152e4ea050066631dad1fed4d8c986fd037d2470846958b3e2fc27"
       },
       "package.json": {
-        "bytes": 1027,
-        "sha256": "2bd62d62a7a2e921d78001db7e3394d2604d1e381636cb145b7ff179d76995a6"
+        "bytes": 1060,
+        "sha256": "ed2beb062823b92ca8da422c789266564a0d0f05e5b65d4343b4b584b7afb92b"
       },
       "palette.mjs": {
         "bytes": 2441,
@@ -962,6 +986,10 @@
         "bytes": 738,
         "sha256": "0b348fff56384b43dbb37593906904e56d0f9deb51eae590d4dc6d427fbf1808"
       },
+      "THIRD_PARTY/DNCNN-MIT.txt": {
+        "bytes": 1066,
+        "sha256": "448e69b705d64f21bf8cb86562301e0edd99ac79026064ddd75af8242b067be5"
+      },
       "THIRD_PARTY/EARCUT-LICENSE.txt": {
         "bytes": 738,
         "sha256": "324139c19d87af03fda38afea1590e00ca354c4159bdb2ae9e9cec070cfa46a8"
@@ -982,9 +1010,17 @@
         "bytes": 1178,
         "sha256": "05e6ca514e3d4e2086ec4914d524e3f9a190027f6463236f2d4548e4028b9d27"
       },
+      "THIRD_PARTY/NEURAL-STYLE-BSD.txt": {
+        "bytes": 1520,
+        "sha256": "7e5dc9b5cf276166c4a0678d33e53b14e3d7ef47eee9356ab786c4ba45414efd"
+      },
       "THIRD_PARTY/NOBLE-HASHES-LICENSE.txt": {
         "bytes": 1109,
         "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec"
+      },
+      "THIRD_PARTY/ORT-WEB-MIT.txt": {
+        "bytes": 339663,
+        "sha256": "a12bb022fa93060001ce823c5d24debe250181dc5a37fd0c1cc9656a6b77923b"
       },
       "THIRD_PARTY/PATH-DATA-PARSER-LICENSE.txt": {
         "bytes": 1068,
@@ -1029,9 +1065,29 @@
       "THIRD_PARTY/jsbarcode-MIT-LICENSE.txt": {
         "bytes": 1076,
         "sha256": "636e31528d9409e080917cc4b0c6bc8d6f6f46c07c75c52808709cd81747365c"
+      },
+      "ai-assets/UPSTREAM-README.md": {
+        "bytes": 3556,
+        "sha256": "b970cfd66cd0326aa28b97a7f66171b7ddf39aec74d31235b7f17c9c943f1ffb"
+      },
+      "ai-assets/dncnn-provenance.json": {
+        "bytes": 1257,
+        "sha256": "41d50f8608125cf24b89d89718b892f8ddff12b78caa5db62a779a79d1b2a982"
+      },
+      "ai-assets/dncnn25-128.onnx": {
+        "bytes": 2226850,
+        "sha256": "5dc5803550a81466bb3edc011cfb1b37ba082ea6fa396d466a9055aec298be37"
+      },
+      "ai-assets/mosaic-9.onnx": {
+        "bytes": 6728029,
+        "sha256": "fa646dedade881243f8d5a2ceb7de2b93675b21fc24f7482894ac4851a9a0a47"
+      },
+      "ai-assets/provenance.json": {
+        "bytes": 978,
+        "sha256": "1c9115b710bca1610cf47870d3c316641f18aff68117a3a9320c4358ccc4ec4e"
       }
     },
-    "toolingSha256": "7f4971995b36897106ee37e5254b12f99e65dcb5c8c510f613ab193eb9e1f1a3"
+    "toolingSha256": "1f60c1f65bb276ccd27701aae803843d1493ff276b2d363d3b0384b1745e26f4"
   },
   "assets": {
     "Assistant-Bold-ZDZZ6JHA.woff2": {
@@ -1062,6 +1118,10 @@
       "bytes": 738,
       "sha256": "0b348fff56384b43dbb37593906904e56d0f9deb51eae590d4dc6d427fbf1808"
     },
+    "THIRD_PARTY/DNCNN-MIT.txt": {
+      "bytes": 1066,
+      "sha256": "448e69b705d64f21bf8cb86562301e0edd99ac79026064ddd75af8242b067be5"
+    },
     "THIRD_PARTY/EARCUT-LICENSE.txt": {
       "bytes": 738,
       "sha256": "324139c19d87af03fda38afea1590e00ca354c4159bdb2ae9e9cec070cfa46a8"
@@ -1082,9 +1142,17 @@
       "bytes": 1178,
       "sha256": "05e6ca514e3d4e2086ec4914d524e3f9a190027f6463236f2d4548e4028b9d27"
     },
+    "THIRD_PARTY/NEURAL-STYLE-BSD.txt": {
+      "bytes": 1520,
+      "sha256": "7e5dc9b5cf276166c4a0678d33e53b14e3d7ef47eee9356ab786c4ba45414efd"
+    },
     "THIRD_PARTY/NOBLE-HASHES-LICENSE.txt": {
       "bytes": 1109,
       "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec"
+    },
+    "THIRD_PARTY/ORT-WEB-MIT.txt": {
+      "bytes": 339663,
+      "sha256": "a12bb022fa93060001ce823c5d24debe250181dc5a37fd0c1cc9656a6b77923b"
     },
     "THIRD_PARTY/PATH-DATA-PARSER-LICENSE.txt": {
       "bytes": 1068,
@@ -1130,6 +1198,22 @@
       "bytes": 1076,
       "sha256": "636e31528d9409e080917cc4b0c6bc8d6f6f46c07c75c52808709cd81747365c"
     },
+    "ai/dncnn25-128.onnx": {
+      "bytes": 2226850,
+      "sha256": "5dc5803550a81466bb3edc011cfb1b37ba082ea6fa396d466a9055aec298be37"
+    },
+    "ai/mosaic-9.onnx": {
+      "bytes": 6728029,
+      "sha256": "fa646dedade881243f8d5a2ceb7de2b93675b21fc24f7482894ac4851a9a0a47"
+    },
+    "ai/ort-wasm-simd-threaded.js": {
+      "bytes": 24618,
+      "sha256": "745eb7c0ce6f18a6aa521971b2877babc7ffb27eecb58ab3bc6e5ef4692672e8"
+    },
+    "ai/ort-wasm-simd-threaded.wasm": {
+      "bytes": 11246032,
+      "sha256": "207d02be4591c156b0a98f024f3d58005b5b04c92274d759fb390338c63559ea"
+    },
     "chunk-6U3AYISY.js": {
       "bytes": 22458,
       "sha256": "1c4b2bfaa35552f6bf0bbe22af9ca7b3477f466d6ac29af7febbfbd2a0b387fb"
@@ -1167,8 +1251,8 @@
       "sha256": "576633441c283504a3e549be1d285a6915f27f93b1c324bf81a94a8f5b0cefee"
     },
     "editor.js": {
-      "bytes": 10315339,
-      "sha256": "aa31b20af21b70d72e9242603786bd219d37996ff17c067319cbec833e9bcba8"
+      "bytes": 10380943,
+      "sha256": "8beef7b66f25e608e83322712dedaec50b60e56dcb81689925e01e8f380f5103"
     },
     "editor.js.LEGAL.txt": {
       "bytes": 8585,

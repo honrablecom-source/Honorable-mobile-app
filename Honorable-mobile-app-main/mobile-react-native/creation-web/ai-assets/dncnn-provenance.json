@@ -1,0 +1,32 @@
+{
+  "sourceRepository": "https://github.com/cszn/KAIR",
+  "sourceCommit": "fc1732f4a4514e42ce15e5b3a1e18c828af47a1e",
+  "license": "MIT",
+  "weightsSha256": "0451a70de9b672ae037270498fbb1c17a1c1c4403785df586ff65df5b858e5b0",
+  "onnxSha256": "5dc5803550a81466bb3edc011cfb1b37ba082ea6fa396d466a9055aec298be37",
+  "onnxBytes": 2226850,
+  "torch": "2.6.0+cpu",
+  "onnx": "1.17.0",
+  "onnxruntime": "1.20.1",
+  "numpy": "2.2.6",
+  "opset": 17,
+  "shape": [
+    1,
+    1,
+    128,
+    128
+  ],
+  "maxAbsoluteTorchOrtDifference": 1.6689300537109375e-06,
+  "generatedSigma25MseBefore": 0.009444045834243298,
+  "generatedSigma25MseAfter": 0.00016257613606285304,
+  "note": "Generated grayscale fixture only; no general accuracy/device quality claim",
+  "weightDownload": {
+    "revision": "fc1732f4a4514e42ce15e5b3a1e18c828af47a1e",
+    "url": "https://raw.githubusercontent.com/cszn/KAIR/fc1732f4a4514e42ce15e5b3a1e18c828af47a1e/model_zoo/dncnn_25.pth",
+    "bytes": 2224903,
+    "sha256": "0451a70de9b672ae037270498fbb1c17a1c1c4403785df586ff65df5b858e5b0",
+    "weightIntroductionCommit": "f9888a094a01fd2fdb47155d6f60ab498484beff"
+  },
+  "converter": "../export-dncnn.py",
+  "converterSha256": "eee47d39460b064c3ad05227c75b31dab8fced0c6b0b1330b1919db540675f7c"
+}
