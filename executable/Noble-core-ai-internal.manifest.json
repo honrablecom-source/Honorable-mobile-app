@@ -1,17 +1,17 @@
 {
   "file": "Noble-core-ai-internal.apk",
   "buildMethod": "Unmodified self-contained internal APK from a successful full GitHub Actions Android build",
-  "sourceCommit": "3f3b506c7d41d5f79a15afeabdadf7996e56d139",
-  "runId": 43614544689,
-  "buildUrl": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/43614544689",
+  "sourceCommit": "36e5ca58ffb8d6e64ad3881034943cac0b38caad",
+  "runId": 43630705712,
+  "buildUrl": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/43630705712",
   "freshBuildVerified": true,
   "derivedApk": false,
   "requiresMetro": false,
   "applicationId": "com.honorablemobile",
-  "version": "1.0.3",
-  "versionCode": 4,
-  "sizeBytes": 422660503,
-  "sha256": "95c7e080f165f3aa5c45f95bddc9b0e68876c35bafac32130e1d4f7f8dde07f2",
+  "version": "1.0.4",
+  "versionCode": 5,
+  "sizeBytes": 440449713,
+  "sha256": "53593a819cf64b0f85c9d650f698882c110522934b42422f2d22bc61977c37b2",
   "abis": [
     "arm64-v8a",
     "armeabi-v7a",
@@ -29,10 +29,10 @@
     "version": 1,
     "editors": {
       "image": {
-        "files": 9,
-        "bytes": 28437784,
+        "files": 23,
+        "bytes": 56070935,
         "sourceRevision": "f143ce58498f201a8dfc9c07f5e24147c6a22bee",
-        "receiptSha256": "0e191fe617d0c93624e57859d0faea0905beada16977ae3abef70518c7663145",
+        "receiptSha256": "10cdbd563bb02f25ffefdc3e9a353416cf7c98ddd5603c6dbedef9946dd6c8cb",
         "runtimeSha256": "94d0b64b5acb79f74e87d1784da2e502c9e76c6360300a1e15c25142bf0c98d2"
       },
       "video": {
@@ -47,7 +47,29 @@
     "signatureVerified": false,
     "nativeDescriptors": 2
   },
+  "fullEditorFollowup": {
+    "runId": 43634836827,
+    "parentRunId": 43630705712,
+    "jobId": 132569253804,
+    "conclusion": "success",
+    "sourceCheckoutSeen": true,
+    "parentRunSeen": true,
+    "fiveApksVerified": true,
+    "deviceVerified": false
+  },
   "browserTesting": "Both real pinned engines passed generated-fixture image/video project/edit/export tests in Playwright headless Chromium; no Android emulator or device",
   "nativeTesting": "CI Robolectric host tests and Android compilation; not real Android WebView/device acceptance",
-  "iosEditorHostAvailable": false
+  "iosEditorHostAvailable": false,
+  "studioAI": {
+    "tools": [
+      "object-cutout",
+      "learned-adaptive-color",
+      "DnCNN-noise-cleanup",
+      "Mosaic-painting"
+    ],
+    "currentDocumentSnapshot": true,
+    "inferenceLocal": true,
+    "browserVerified": true,
+    "deviceVerified": false
+  }
 }

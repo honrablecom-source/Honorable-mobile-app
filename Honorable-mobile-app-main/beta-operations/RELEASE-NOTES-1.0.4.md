@@ -1,6 +1,6 @@
 # Noble 1.0.4 / build 5 — Android studio AI internal candidate
 
-Android is the first investor-demo target; iOS follows. This source candidate needs its own complete Android build and exact package verification before publication. Internal APKs use the public debug certificate and are not store releases.
+Android is the first investor-demo target; iOS follows. Corrected source36e5ca5 passed complete Android43630705712 and exact-source five-APK43634836827. Its unchanged1.0.4/build5 tester is verified in executable/ with exact source/hash receipts. Internal APKs use the public debug certificate and are not store releases.
 
 The full image studio includes reviewed local object cutout/mask correction, DnCNN noise cleanup, Mosaic painting and learned image-adaptive color. Apache-2.0 Image-Adaptive-3DLUT predicts signed weights for three learned33-cubed color tables. Adjustable strength defaults to70%; generated colors can oversaturate and require review. Working copies are bounded to1024pixels for color/cutout,256for denoise and224for painting.
 

@@ -1,10 +1,10 @@
 ## Current Android-first color milestone
 
-Source c4bc0ec adds one new learned image-adaptive color capability in the full image studio, plus a current-document input improvement. All four real studio graphs and failure/cancellation/source-preservation browser cases pass; combined Android43627674085 is running. Previous three-tool source0f0cc5a passed full Android43621271622 and five-APK43625813335. Generic cutout/denoise/painting are not counted again. Historical targets below are inventory, not the current objective. Android is first; iOS follows. See AI_STUDIO_INTEGRATION.md and ANDROID_INVESTOR_DEMO.md.
+Corrected source36e5ca5 adds one new learned adaptive-color capability, plus a current-document input improvement. All four real studio graphs and failure/cancellation/source-preservation browser cases pass. Full Android43630705712 and exact-source five-APK43634836827 passed; the unchanged1.0.4/build5 tester and exact records are current in executable/. Generic cutout/denoise/painting are not counted again. Historical targets below are inventory, not the current objective. Android is first; iOS follows. See AI_STUDIO_INTEGRATION.md and ANDROID_INVESTOR_DEMO.md.
 
 ## November14 latest direction
 
-The owner now prioritizes a fully functional investor-ready app over reaching a number. Historical IDs below remain an inventory. The full image studio adds a self-contained U2NETP object-cutout path and access to the existing A01/A02 models. Native C170 already handles non-person cutouts, so this is0net-new generic AI outcomes,1newly bundled model and3studio integrations. It is not accepted as A03 toward the historical feature inventory. Source/production-browser tests pass; fresh native build acceptance is pending. See AI_STUDIO_INTEGRATION.md and INVESTOR_READINESS.md.
+The owner now prioritizes a fully functional investor-ready app over reaching a number. Historical IDs below remain an inventory. The self-contained U2NETP path and access to existing A01/A02 models do not create new generic outcomes: native C170 already supports non-person cutouts. A03 below is the separately added learned color transform. Source/browser/package evidence is accepted; phone acceptance and production accounts remain pending. See AI_STUDIO_INTEGRATION.md and INVESTOR_READINESS.md.
 
 # AI expansion requested November 14
 
@@ -18,10 +18,11 @@ Count a capability only after a reachable user workflow uses an actual licensed 
 
 | ID | Distinct outcome | Status |
 |---|---|---|
-| A01 | Repaint a local photo/3D texture with a genuine neural style model, review before applying, retain model Undo and export the resulting artwork | Experimental source/browser verified: real bundled WASM + complete React editor workflow; native build/device acceptance pending |
-| A02 | Remove luminance noise using learned DnCNN inference, retain transparency/color differences, review before applying or adding a separate copy | Experimental source/browser verified: real bundled tiled WASM, generated-noise improvement, approval/Undo/actual-inference Stop; native build/device acceptance pending |
+| A01 | Repaint a local photo/3D texture with a genuine neural style model, review before applying, retain model Undo and export the resulting artwork | Real bundled WASM and editor workflow browser verified; exact native package verified; device acceptance pending |
+| A02 | Remove luminance noise using learned DnCNN inference, retain transparency/color differences, review before applying or adding a separate copy | Real tiled WASM, generated-noise improvement and approval/Undo/Stop browser verified; exact native package verified; device acceptance pending |
+| A03 | Predict a learned adaptive color/tone transform from a local photo/current document, adjust strength and review before opening/exporting a separate copy | Real classifier/learned LUTs, source/browser and native1.0.4 package verified; device acceptance pending |
 
-**New source/browser-verified capabilities: 2/50.** The remaining 48 are unimplemented, not placeholder buttons. Select subsequent outcomes after checking the existing source inventory and their model/runtime/license feasibility. Prioritize photo restoration/colorization, editable semantic masks, depth-aware compositing, video motion/rotoscoping, animation rigs and material creation. Treat multiple outputs of one integration conservatively rather than counting presets toward 50.
+**Historical request inventory:3source/browser-verified capabilities.** Other requested outcomes remain unimplemented, not placeholder buttons. Current work prioritizes Android investor readiness rather than a numerical target. Select future outcomes after auditing existing functionality and model/runtime/licenses. Do not count presets, repeated integrations or ordinary controls as new neural capabilities.
 
 A01 reuses ONNX Model Zoo fast-neural-style Mosaic, immutable source `4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177`, 6,728,029 bytes, SHA256 `fa646dedade881243f8d5a2ceb7de2b93675b21fc24f7482894ac4851a9a0a47`, BSD-3-Clause, with MIT ONNX Runtime Web 1.20.1. The actual model requires `[1,3,224,224]` RGB floats in 0–255, despite the upstream README's general dynamic-size description. Prototype first attempted 192 and was rejected; production must respect the actual graph. Expected output is artistic reinterpretation, not restoration or arbitrary prompt generation. No search runtime, ranking or billing change is needed.
 
