@@ -1,5 +1,5 @@
 {
-  "sourceSha": "1c8397b190e3bcf72d3d1a118ef40e1464c4c7b8",
+  "sourceSha": "99421da76bb7225d164a48f02a7ae76ab2356eae",
   "kind": "simulator",
   "bundleIdentifier": "com.honorablemobile",
   "version": "1.0.3",
@@ -20,8 +20,8 @@
   ],
   "executableBytes": 16222496,
   "executableSha256": "c78f57e8468102a01d5a7973e68e2c0f5f7aa7b14d9cb7909fc1fb183d79e53a",
-  "jsBundleBytes": 5147544,
-  "jsBundleSha256": "62969ff5dbd91af26e6d505e807cbfa5d9800661ba906a61611cdb3ee8ae4f4e",
+  "jsBundleBytes": 5152746,
+  "jsBundleSha256": "0b38378c3a9254b51d21fe7fdb726724e8ff45cc70af879e6c0a1719e433e3ce",
   "signing": "Workflow disables signing; distribution identity and installation are not verified",
   "validationScope": "React Native shell compilation and artifact structure only",
   "nativeFeatureParityVerified": false,

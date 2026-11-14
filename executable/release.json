@@ -1,47 +1,61 @@
 {
-  "status": "verified-internal-test-artifacts-with-known-product-gaps",
+  "status": "fresh-current-source-internal-tester-with-known-product-gaps",
   "oldArtifactsRemoved": true,
   "android": {
-    "file": "Noble-core-ai-arm64-internal.apk",
-    "freshBuildVerified": false,
+    "file": "Noble-core-ai-internal.apk",
+    "buildMethod": "Unmodified self-contained internal APK from a successful full GitHub Actions Android build",
+    "sourceCommit": "3f3b506c7d41d5f79a15afeabdadf7996e56d139",
+    "runId": 43614544689,
+    "buildUrl": "https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/43614544689",
+    "freshBuildVerified": true,
+    "derivedApk": false,
+    "requiresMetro": false,
+    "applicationId": "com.honorablemobile",
+    "version": "1.0.3",
+    "versionCode": 4,
+    "sizeBytes": 422660503,
+    "sha256": "95c7e080f165f3aa5c45f95bddc9b0e68876c35bafac32130e1d4f7f8dde07f2",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "signing": "PUBLIC_DEBUG_KEY",
+    "signatureVerifiedByCI": true,
+    "signInConfigured": false,
+    "configurationPresenceIsNotProductionAcceptance": true,
     "deviceTested": false,
     "storeReady": false,
-    "manifest": "Noble-core-ai-arm64-internal.manifest.json",
-    "sizeBytes": 172107540,
-    "sha256": "7d20687aebbde7eb139b739dbc7d388e5632c6b72d2e34d270f66060bc11a4b6",
-    "abis": [
-      "arm64-v8a"
-    ],
-    "derivedArtifactVerified": true,
-    "baseFullBuildPassed": true,
-    "baseFullBuildSource": "85a48506ee28db7840b2aa5b4652fcdbe0942e6a",
-    "jniRepairSource": "3c6727e125da7429d438745db8e60c0f5b3efc2c",
-    "wholeAppRebuiltAfterJniBackport": false,
-    "canonicalRebuild": {
-      "runId": 43538092573,
-      "sourceCommit": "3c6727e125da7429d438745db8e60c0f5b3efc2c",
-      "status": "in-progress"
+    "androidVmOrEmulatorUsedForAcceptance": false,
+    "fullEditors": {
+      "version": 1,
+      "editors": {
+        "image": {
+          "files": 9,
+          "bytes": 28437784,
+          "sourceRevision": "f143ce58498f201a8dfc9c07f5e24147c6a22bee",
+          "receiptSha256": "0e191fe617d0c93624e57859d0faea0905beada16977ae3abef70518c7663145",
+          "runtimeSha256": "94d0b64b5acb79f74e87d1784da2e502c9e76c6360300a1e15c25142bf0c98d2"
+        },
+        "video": {
+          "files": 9,
+          "bytes": 23504898,
+          "sourceRevision": "d1e64ecfcc5e6f21e30f571e6fe3edbe86fdcafa",
+          "receiptSha256": "bcd0ee17dd6d9c07b02ff59b2d77a14be17ddb3c6501fb0b08fd1bca9244e19f",
+          "runtimeSha256": "03738c82c579a5a83074826ff6c2594cbc97a4210746b8203554f70763cda1c7"
+        }
+      },
+      "deviceTested": false,
+      "signatureVerified": false,
+      "nativeDescriptors": 2
     },
-    "buildMethod": "CI full app plus exact-version JNI-only alignment backport",
-    "signing": "PUBLIC_DEBUG_KEY",
-    "requiresMetro": false,
-    "nativeElf16KBAlignmentVerified": true,
-    "zipAlignment16KBVerified": true,
-    "signInConfigured": false,
+    "browserTesting": "Both real pinned engines passed generated-fixture image/video project/edit/export tests in Playwright headless Chromium; no Android emulator or device",
+    "nativeTesting": "CI Robolectric host tests and Android compilation; not real Android WebView/device acceptance",
+    "iosEditorHostAvailable": false,
+    "manifest": "Noble-core-ai-internal.manifest.json",
     "accountSearchConfigurationComplete": false,
-    "universal": {
-      "file": "Noble-core-ai-internal.apk",
-      "manifest": "Noble-core-ai-internal.manifest.json",
-      "sizeBytes": 369191461,
-      "sha256": "b03bd02a3f572d1f8d87c8e7d1fd434d75b1a2ce631f5aa3321d9fb89ae3ca78",
-      "abis": [
-        "arm64-v8a",
-        "armeabi-v7a",
-        "x86",
-        "x86_64"
-      ]
-    },
-    "note": "Explicitly derived from the full successful85app build plus exact-version3c JNI backport. Existing code/model/resource/core bytes retained. Current whole-build rerun and physical-device acceptance are separate; account configuration incomplete."
+    "note": "Full-editor Android package verified; phone hardware/WebView behavior and production account services remain unverified. iOS host and AI connections inside the full studios remain unfinished."
   },
   "ios": {
     "file": "Noble-iOS-simulator.zip",
@@ -49,9 +63,9 @@
     "nativeEditorParity": false,
     "status": "Verified simulator ZIP and unsigned arm64 device XCArchive. Native iOS search/editing/AI modules are absent. Archive requires private Apple signing before iPhone installation; no IPA/device/store acceptance.",
     "kind": "simulator",
-    "sourceCommit": "1c8397b190e3bcf72d3d1a118ef40e1464c4c7b8",
-    "sizeBytes": 20259845,
-    "sha256": "c8837e1077235c9aa08fc78fa29b6be122d9e095e982416aa2932a9e98e03691",
+    "sourceCommit": "99421da76bb7225d164a48f02a7ae76ab2356eae",
+    "sizeBytes": 20262300,
+    "sha256": "d32c40b9c7b5ff2f66e1582c4809273720fc820fe5eac02c0196426a8ef1c326",
     "receipt": "Noble-iOS-simulator.receipt.json",
     "freshBuildVerified": true,
     "signing": "UNSIGNED",
@@ -61,20 +75,28 @@
     "deviceArchiveVerified": true,
     "deviceArchive": {
       "file": "Noble-iOS-device-xcarchive-unsigned.zip",
-      "kind": "device-xcarchive",
       "receipt": "Noble-iOS-device.receipt.json",
-      "sourceCommit": "1c8397b190e3bcf72d3d1a118ef40e1464c4c7b8",
-      "sizeBytes": 38103155,
-      "sha256": "d2c4e07605d3be2703f0eaa0cc34144d01fb3d663bb1c653b7651bbbbff31c22",
+      "sourceCommit": "99421da76bb7225d164a48f02a7ae76ab2356eae",
+      "sizeBytes": 38105641,
+      "sha256": "ba9672be92ee54dec2158ce5c8e5a4a0de49c06c168fc22c4cde71dd8e25fbb9",
       "architectures": [
         "arm64"
       ],
-      "signing": "UNSIGNED",
-      "requiresAppleSigning": true,
+      "runId": 43559775184,
       "deviceTested": false,
       "storeReady": false,
-      "nativeFeatureParityVerified": false
-    }
+      "nativeFeatureParityVerified": false,
+      "signing": "UNSIGNED",
+      "kind": "device-xcarchive",
+      "requiresAppleSigning": true
+    },
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ],
+    "runId": 43559775184,
+    "nativeFeatureParityVerified": false,
+    "artifactVerification": "ZIP integrity and independent Mach-O/plist/JS checks reproduce both Mac receipts exactly; no simulator/device execution"
   },
   "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here.",
   "artifactReport": "apk-report.json"

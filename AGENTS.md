@@ -30,3 +30,7 @@
 ## Owner instruction November13 — supersedes feature-count work
 
 The owner explicitly scraps the500-feature target and the~238 build boundary. Finish the coherent core app and deliver fresh Android/iOS artifacts: reliable on-device photo search; photo/video creation/editing; clean white/black mobile UI; bug/error fixes; substantially MORE actual AI, especially animation/color/texture/modeling, by integrating suitable existing open-source projects/models. Do not mistake ordinary3D controls or AI entry-point promotion for new neural capabilities. Do not add isolated workflows for counting. Current full native/Gradle/APK builds are authorized; obsolete APKs were explicitly ordered removed. Continue recording source/API/host/browser/device/build evidence separately, preserve all privacy/ranking/holdout/ledger/solo/one-publisher rules, and follow docs/RELEASE_FINISH_PLAN.md plus the latest handoff. Do not resume the cancelled500goal from historical notes.
+
+## Owner instruction November14 — testing without an Android device
+
+The owner has no Android phone available and requests open-source testing solutions without Android VMs or emulators. Use Robolectric host tests, actual editor-engine browser tests through Playwright, and package/static verification. Do not present these as physical-device, real Android WebView, GPU/thermal or store acceptance. Do not start an Android virtual device or app VM.
