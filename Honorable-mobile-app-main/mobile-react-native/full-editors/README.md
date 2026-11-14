@@ -47,3 +47,9 @@ NOBLE_AI_OBJECT_FIXTURE=/licensed/local/photo.png node full-editors/browser-ai.t
 ```
 
 Browser tests use the ../ui-previews Playwright dependency (or a test-only dependency adapter), production CSP and generated/licensed fixtures. The AI test accepts explicit fixture and output paths through NOBLE_AI_OBJECT_FIXTURE/NOBLE_AI_EVIDENCE; NOBLE_IMAGE_ASSETS can target staging. Use only licensed test photos, never private/holdout data. Android policy/share tests hash real bundles and decode original compiler outputs. Robolectric/browser/package checks run without an Android app VM/emulator and never count as physical-device acceptance.
+
+## Review without a phone or Android VM
+
+From mobile-react-native, run `node full-editors/preview.mjs --port 4181`, then open http://127.0.0.1:4181/. The loopback-only Node server verifies every studio asset against its receipt before serving either real engine. It accepts GET/HEAD only, exposes a fixed asset whitelist, rejects other hosts and accepts no media uploads. Local-file selection and downloads happen in the browser; browser recovery/imported copies can persist. Stop with Ctrl+C in its terminal.
+
+This reviews the checkout's actual image/video engines and local image AI, without a mocked account or native bridge. It is not the Android app and does not validate native sharing, account search, Android lifecycle, phone performance or iOS parity. The published APK can use an earlier source. Save exported/project copies and verify them in your chosen destination.
