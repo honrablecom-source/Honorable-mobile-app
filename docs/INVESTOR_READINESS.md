@@ -4,7 +4,7 @@ Owner instruction November14: keep developing a fully functional, investor-ready
 
 | Area | Evidence now | Gate still open |
 |---|---|---|
-| Android core/editor package | Source0f0cc5a full build43621271622 and5-APK gate43625813335 passed; published tester remains3f3b506 | Combined four-tool1.0.4 candidate needs complete build/package proof |
+| Android core/editor package | Four-tool sourcec4bc0ec Android43627674085 passed; exact APK independently verified; published tester remains3f3b506 | Final corrected source36e5ca5 build43630705712 and publication pending |
 | Full image/video studios | Real browser edit/project/export pipelines; native host and package checks | Broad media/error/recovery acceptance, phone WebView and performance |
 | Useful local AI | Existing search, photo/video/creation AI; new general-object model and full-studio AI workflow source/browser verified | Model quality, resource limits, discoverability and combined native release |
 | Search/account integrity | Native engine preserved; ledger/ranking/privacy guards retained | Approved live account API, OAuth production identity, actual sign-in/credit-backed search |
