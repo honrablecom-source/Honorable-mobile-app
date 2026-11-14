@@ -1,0 +1,12 @@
+{
+  "git.autofetch": true,
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.profiles.windows": {
+    "Codex — Noble": {
+      "path": "${env:windir}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": ["-NoExit", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\scripts\\start-codex.ps1"],
+      "icon": "terminal"
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "Codex — Noble"
+}
