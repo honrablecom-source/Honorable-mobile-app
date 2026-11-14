@@ -1,11 +1,47 @@
 {
-  "status": "current-source-release-in-progress",
+  "status": "verified-internal-test-artifacts-with-known-product-gaps",
   "oldArtifactsRemoved": true,
   "android": {
-    "file": null,
+    "file": "Noble-core-ai-arm64-internal.apk",
     "freshBuildVerified": false,
     "deviceTested": false,
-    "storeReady": false
+    "storeReady": false,
+    "manifest": "Noble-core-ai-arm64-internal.manifest.json",
+    "sizeBytes": 172107540,
+    "sha256": "7d20687aebbde7eb139b739dbc7d388e5632c6b72d2e34d270f66060bc11a4b6",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "derivedArtifactVerified": true,
+    "baseFullBuildPassed": true,
+    "baseFullBuildSource": "85a48506ee28db7840b2aa5b4652fcdbe0942e6a",
+    "jniRepairSource": "3c6727e125da7429d438745db8e60c0f5b3efc2c",
+    "wholeAppRebuiltAfterJniBackport": false,
+    "canonicalRebuild": {
+      "runId": 43538092573,
+      "sourceCommit": "3c6727e125da7429d438745db8e60c0f5b3efc2c",
+      "status": "in-progress"
+    },
+    "buildMethod": "CI full app plus exact-version JNI-only alignment backport",
+    "signing": "PUBLIC_DEBUG_KEY",
+    "requiresMetro": false,
+    "nativeElf16KBAlignmentVerified": true,
+    "zipAlignment16KBVerified": true,
+    "signInConfigured": false,
+    "accountSearchConfigurationComplete": false,
+    "universal": {
+      "file": "Noble-core-ai-internal.apk",
+      "manifest": "Noble-core-ai-internal.manifest.json",
+      "sizeBytes": 369191461,
+      "sha256": "b03bd02a3f572d1f8d87c8e7d1fd434d75b1a2ce631f5aa3321d9fb89ae3ca78",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ]
+    },
+    "note": "Explicitly derived from the full successful85app build plus exact-version3c JNI backport. Existing code/model/resource/core bytes retained. Current whole-build rerun and physical-device acceptance are separate; account configuration incomplete."
   },
   "ios": {
     "file": "Noble-iOS-simulator.zip",
@@ -40,6 +76,6 @@
       "nativeFeatureParityVerified": false
     }
   },
-  "historicalReport": "apk-report.json",
-  "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here."
+  "note": "Owner replaced the500-feature target with finishing core app, fixing UI/bugs and building fresh Android/iOS artifacts. Only verified current-source artifacts will be listed here.",
+  "artifactReport": "apk-report.json"
 }

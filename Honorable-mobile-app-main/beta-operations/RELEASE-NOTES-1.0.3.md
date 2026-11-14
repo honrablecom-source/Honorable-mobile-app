@@ -1,6 +1,6 @@
 # Noble 1.0.3 / build 4 — core AI internal candidate
 
-Status: source candidate, awaiting the final combined Android build and package checks. The previous APKs have been retired and removed. Source compilation, host inference and browser/native unit checks are separate from an APK, phone acceptance and store readiness. Current artifact identities and availability are recorded in [executable/release.json](../../executable/release.json).
+Status: verified self-contained internal testers are available in executable/. Their exact receipts identify the successful full base-app build85a4850 and JNI-only16KB repair3c6727e. They are explicitly derived packages; a canonical whole-app rebuild after the repair is still running. Previous APKs are retired. Physical-device/model-quality/export/store acceptance remains unverified. Account configuration is incomplete and iOS native search/editing/AI is absent. [Current artifact identities and scope](../../executable/release.json).
 
 ## New creative capabilities
 

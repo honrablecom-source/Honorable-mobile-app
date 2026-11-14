@@ -1,0 +1,37 @@
+{
+  "buildMethod": "CI full app plus exact-version JNI-only alignment backport",
+  "baseFullBuildSource": "85a48506ee28db7840b2aa5b4652fcdbe0942e6a",
+  "jniFixSource": "3c6727e125da7429d438745db8e60c0f5b3efc2c",
+  "baseApkSha256": "7960674463f2e8febcd89ea891e96d7d269638a5dcef3ed0d1ce4a0b9a74afad",
+  "baseFullBuildPassed": true,
+  "derivedApk": true,
+  "requiresMetro": false,
+  "signing": "PUBLIC_DEBUG_KEY",
+  "signerSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "minimumSdk": 24,
+  "signInConfigured": false,
+  "deviceTested": false,
+  "storeReady": false,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
+  ],
+  "sizeBytes": 369191461,
+  "sha256": "b03bd02a3f572d1f8d87c8e7d1fd434d75b1a2ce631f5aa3321d9fb89ae3ca78",
+  "nativeElf16KBAlignmentVerified": true,
+  "zipAlignment16KBVerified": true,
+  "allOtherRetainedEntryBytesIdentical": true,
+  "jniEntriesRebuilt": [
+    "lib/arm64-v8a/libonnxruntime4j_jni.so",
+    "lib/x86_64/libonnxruntime4j_jni.so"
+  ],
+  "abiEntriesRemoved": 0,
+  "noticesAdded": {
+    "assets/ort-jni16kb/LICENSE.txt": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+    "assets/ort-jni16kb/NOTICE.txt": "a8982a910df9a775cf7a6faf6e45e19160334ad618d960b9f6d55c2e410b7d7f"
+  },
+  "baseAndroidGradleStrippingExactlyReproduced": true,
+  "accountSearchConfigurationComplete": false
+}
