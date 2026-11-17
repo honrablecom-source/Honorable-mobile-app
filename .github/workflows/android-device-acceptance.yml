@@ -1,0 +1,104 @@
+name: Package physical Android acceptance tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: Honorable-mobile-app-main/mobile-react-native
+    env:
+      HONORABLE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.HONORABLE_GOOGLE_WEB_CLIENT_ID }}
+      HONORABLE_ACCOUNT_API_URL: ${{ secrets.HONORABLE_ACCOUNT_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require unchanged application runtime for the pinned target
+        shell: bash
+        run: |
+          source=10ce6970e916f6c4ef113c4eff28392d79520427
+          git fetch --no-tags --depth=1 origin "$source"
+          changed="$(git diff --name-only "$source" HEAD -- . ../../Honorable-mobile-app-main/android-app ../../Honorable-mobile-app-main/third_party)"
+          unexpected="$(printf '%s\n' "$changed" | grep -v '^Honorable-mobile-app-main/mobile-react-native/android/app/src/androidTest/' | grep -v '^$' || true)"
+          if [[ -n "$unexpected" ]]; then
+            echo '::error::Runtime differs from the pinned debug APK. Produce a new paired target instead of mixing builds.'
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Honorable-mobile-app-main/mobile-react-native/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install the declared SDK and NDK
+        shell: bash
+        run: |
+          sdk_output="$(node ../scripts/android-sdk-config.cjs --packages)"
+          mapfile -t packages <<< "$sdk_output"
+          if command -v android >/dev/null 2>&1; then
+            converted=(); for package in "${packages[@]}"; do converted+=("${package//;/\/}"); done
+            android --no-metrics --sdk "$ANDROID_HOME" sdk install "${converted[@]}"
+          else
+            sdkmanager "${packages[@]}"
+          fi
+          for package in "${packages[@]}"; do [[ -d "$ANDROID_HOME/${package//;/\/}" ]] || exit 1; done
+          build_tools="$(node ../scripts/android-sdk-config.cjs --build-tools)"
+          [[ -x "$ANDROID_HOME/build-tools/$build_tools/aapt" && -x "$ANDROID_HOME/build-tools/$build_tools/apksigner" ]] || exit 1
+          echo "HONORABLE_ANDROID_BUILD_TOOLS=$build_tools" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install exact locked dependencies
+        run: npm ci
+      - name: Package instrumentation only; never start an emulator
+        working-directory: Honorable-mobile-app-main/mobile-react-native/android
+        run: bash gradlew --no-daemon --max-workers=2 --stacktrace :app:assembleDebugAndroidTest
+      - name: Recover exact successful target and verify archive digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p device-acceptance
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/43650751564" > device-acceptance/parent-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/43650751564/artifacts" > device-acceptance/parent-artifacts.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14137202668/zip" > device-acceptance/target.zip
+          python3 - <<'PY'
+          import hashlib,json,pathlib,shutil,zipfile
+          root=pathlib.Path('device-acceptance')
+          metadata=next(a for a in json.loads((root/'parent-artifacts.json').read_text())['artifacts'] if a['id']==14137202668)
+          assert metadata['name']=='honorable-android-debug' and not metadata['expired']
+          assert hashlib.sha256((root/'target.zip').read_bytes()).hexdigest()==metadata['digest'].removeprefix('sha256:')
+          with zipfile.ZipFile(root/'target.zip') as z:
+              names=[n for n in z.namelist() if n.split('/')[-1]=='app-debug.apk'];assert len(names)==1
+              with z.open(names[0]) as src,(root/'app-debug.apk').open('wb') as dst:shutil.copyfileobj(src,dst)
+          shutil.copyfile('android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',root/'app-debug-androidTest.apk')
+          (root/'target.zip').unlink()
+          PY
+      - name: Verify pair, actual Room constructor and full studio payload
+        shell: bash
+        run: |
+          tools="$ANDROID_HOME/build-tools/$HONORABLE_ANDROID_BUILD_TOOLS"
+          python3 ../scripts/check-device-acceptance-pair.py --target device-acceptance/app-debug.apk --test device-acceptance/app-debug-androidTest.apk --parent-run device-acceptance/parent-run.json --aapt "$tools/aapt" --apksigner "$tools/apksigner" --output device-acceptance/pair.json
+          python3 ../scripts/check_room_startup_apk.py device-acceptance/app-debug.apk
+          python3 full-editors/verify-apk.py device-acceptance/app-debug.apk > device-acceptance/editors.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Noble-physical-device-acceptance-pair
+          path: |
+            Honorable-mobile-app-main/mobile-react-native/device-acceptance/*.apk
+            Honorable-mobile-app-main/mobile-react-native/device-acceptance/pair.json
+            Honorable-mobile-app-main/mobile-react-native/device-acceptance/editors.json
+          if-no-files-found: error
+          retention-days: 14
