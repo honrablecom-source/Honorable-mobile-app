@@ -1,5 +1,9 @@
 # Noble readiness criteria
 
+## November 17 — AI texture comparison
+
+One new Studio feature lets users drag a divider across aligned original and processed textures during DnCNN cleanup or Mosaic painting. Preview movement reuses the encoded images. Eleven model tests and the generated-media Chrome integration passed with both bundled models, explicit approval, Undo and zero external requests. Browser build only; the published Android 1.0.5 tester predates this change. Physical review, native sign-in and trusted search completion remain open.
+
 ## November17 — production verifier failure boundary hardened
 
 **0new user-facing features;1backend hardening fix.** Trusted-completion callbacks now have a default10second deadline (bounded configuration), receive an AbortSignal, and must return the literal boolean true before any charge can occur. Thrown provider/metadata errors and deadlines return a fixed503 SEARCH_COMPLETION_VERIFICATION_UNAVAILABLE without exposing transport details. If another request settles/cancels during verification, the authoritative no-additional-charge outcome is preserved even when the provider subsequently throws. Malformed truthy verdicts remain rejected. This is failure-path hardening, not an installed trusted provider or a native attestation implementation; production readiness must remain false.

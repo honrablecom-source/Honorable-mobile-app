@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import source from 'noble:neural-style-worker';
 import {blendStyle, STYLE_SIDE} from './neural-style.mjs';
 import {startNeuralStyle} from './neural-style-client.mjs';
@@ -39,6 +39,7 @@ export function NeuralTextureStudio({texture, kind = 'style', target = 'model', 
   const [input, setInput] = useState(null), [output, setOutput] = useState(null),
     [strength, setStrength] = useState(1), [approved, setApproved] = useState(false),
     [busy, setBusy] = useState(false), [message, setMessage] = useState('Preparing your local texture…');
+  const [split, setSplit] = useState(50);
   const life = useRef({mounted: true, generation: 0, busy: false}), task = useRef(null);
   useEffect(() => {
     life.current.mounted = true;
@@ -75,7 +76,7 @@ export function NeuralTextureStudio({texture, kind = 'style', target = 'model', 
       task.current = job;
       const pixels = await job.promise;
       if (!current()) return;
-      setOutput(pixels); setStrength(1);
+      setOutput(pixels); setStrength(1); setSplit(50);
       setMessage('Review the real neural result below. Nothing is applied or saved yet.');
     } catch (error) {if (current()) setMessage(error.message);}
     finally {
@@ -83,11 +84,13 @@ export function NeuralTextureStudio({texture, kind = 'style', target = 'model', 
       if (current()) {life.current.busy = false; setBusy(false);}
     }
   };
-  let original, painted;
-  try {
-    if (input) original = png(input);
-    if (input && output) painted = png(input, blendStyle(input, output, strength));
-  } catch { /* A failed canvas cannot enable either apply button. */ }
+  const original = useMemo(() => {
+    try { return input && png(input); } catch { return null; }
+  }, [input]);
+  const painted = useMemo(() => {
+    try { return input && output && png(input, blendStyle(input, output, strength)); }
+    catch { return null; }
+  }, [input, output, strength]);
   const commit = async artwork => {
     if (!painted || !approved || life.current.busy || document.hidden || !life.current.mounted) return;
     life.current.busy = true; setBusy(true);
@@ -111,10 +114,22 @@ export function NeuralTextureStudio({texture, kind = 'style', target = 'model', 
     <p>{denoise ? 'A real local DnCNN model reduces luminance noise while retaining the original color differences and transparency. It was trained for Gaussian noise, not every camera artifact or lost detail. Output is at most 256 pixels per side. Overlapped tiles protect seams; processing stays on this device.' : 'A real local Mosaic neural model reinterprets your texture. It does not generate arbitrary prompts or restore detail. Output is at most 224 pixels per side; no upload. Transparent pixels stay transparent.'}</p>
     <button disabled={!input || busy} onClick={paint}>{denoise ? 'Clean noise with local AI' : 'Paint with local AI'}</button>
     {busy && <button onClick={stop}>{denoise ? 'Stop neural cleanup' : 'Stop neural painting'}</button>}
-    <div className="tool-grid">
-      {original && <figure><img src={original} alt={denoise ? 'Original texture before neural cleanup' : 'Original texture before neural painting'} style={{maxWidth: '100%', imageRendering: 'auto'}} /><figcaption>Original working copy</figcaption></figure>}
-      {painted && <figure><img src={painted} alt={resultAlt} style={{maxWidth: '100%'}} /><figcaption>New reviewed copy · {input.width} × {input.height}</figcaption></figure>}
-    </div>
+    {original && <figure style={{margin: '12px 0'}}>
+      <div style={{position: 'relative', width: '100%', maxWidth: 480}}>
+        <img src={original} alt={denoise ? 'Original texture before neural cleanup' : 'Original texture before neural painting'}
+          style={{display: 'block', width: '100%', clipPath: painted ? `inset(0 ${100 - split}% 0 0)` : undefined}} />
+        {painted && <>
+          <img src={painted} alt={resultAlt} style={{position: 'absolute', inset: 0, width: '100%', clipPath: `inset(0 0 0 ${split}%)`}} />
+          {split > 0 && split < 100 && <span aria-hidden="true" style={{position: 'absolute', top: 0, bottom: 0, left: `${split}%`, borderLeft: '1px solid white', boxShadow: '-1px 0 black'}} />}
+        </>}
+      </div>
+      <figcaption>{painted ? `Original on the left · AI result on the right · ${input.width} × ${input.height}` : 'Original working copy'}</figcaption>
+      {painted && <label>Compare original and AI result
+        <input type="range" min="0" max="100" value={split}
+          aria-label="Compare original and AI result" aria-valuetext={`${split}% original, ${100 - split}% AI result`}
+          onChange={event => setSplit(Number(event.target.value))} style={{width: '100%'}} />
+      </label>}
+    </figure>}
     {painted && <>
       <label>{denoise ? 'Noise cleanup strength' : 'Neural paint strength'}<input aria-label={denoise ? 'Noise cleanup strength' : 'Neural paint strength'} type="range" min="0" max="1" step="0.05" value={strength} disabled={busy} onChange={event => {setStrength(Number(event.target.value)); setApproved(false);}} /><output>{Math.round(strength * 100)}%</output></label>
       <label className="check-label"><input type="checkbox" disabled={busy} checked={approved} onChange={event => setApproved(event.target.checked)} />I reviewed this new copy and want to use it.</label>

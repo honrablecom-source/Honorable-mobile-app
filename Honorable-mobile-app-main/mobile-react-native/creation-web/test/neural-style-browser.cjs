@@ -5,8 +5,9 @@ const {createServer}=require('node:http');
 const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../../../..');
 const output=process.env.NOBLE_STYLE_OUTPUT||path.join(root,'.context/noble-fast-ai50/drawing');
-const evidence=path.join(root,'.context/noble-fast-ai50');
+const evidence=process.env.NOBLE_STYLE_EVIDENCE || path.join(root,'.context/noble-fast-ai50');
 (async()=>{
+  await fs.mkdir(evidence,{recursive:true});
   let hold=false,release=null,held=0,corrupt=false;
   const requests=[],external=[],errors=[];
   const server=createServer(async(req,res)=>{
@@ -28,7 +29,7 @@ const evidence=path.join(root,'.context/noble-fast-ai50');
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   let browser;
   try {
-    browser=await chromium.launch({headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader']});
+    browser=await chromium.launch({headless:true,executablePath:process.env.NOBLE_CHROMIUM_EXECUTABLE,args:['--no-sandbox','--enable-unsafe-swiftshader']});
     const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
     page.setDefaultTimeout(30000);
     page.on('pageerror',e=>errors.push(e.message));
@@ -61,6 +62,14 @@ const evidence=path.join(root,'.context/noble-fast-ai50');
     assert.equal(await page.evaluate(()=>localStorage.getItem('noble-model-studio-v1')),baseline);
     const original=await tool.getByAltText('Original texture before neural painting').getAttribute('src');
     const styled=await result().getAttribute('src');assert.notEqual(styled,original);
+    const compare = tool.getByRole('slider', {name: 'Compare original and AI result'});
+    for (const split of [0, 100, 35]) {
+      await compare.fill(String(split));
+      assert.equal(await compare.getAttribute('aria-valuetext'), `${split}% original, ${100-split}% AI result`);
+      assert.equal(await result().getAttribute('src'), styled);
+      assert.equal(await result().evaluate(img => img.style.clipPath), `inset(0px 0px 0px ${split}%)`);
+    }
+    assert.equal(await tool.getByRole('button',{name:'Apply reviewed model texture',exact:true}).isDisabled(),true);
     const pixels=await page.evaluate(async({original,styled})=>{
       const decode=url=>new Promise(resolve=>{const image=new Image();image.onload=()=>{const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const ctx=c.getContext('2d');ctx.drawImage(image,0,0);resolve({width:c.width,height:c.height,data:[...ctx.getImageData(0,0,c.width,c.height).data]});};image.src=url;});
       const a=await decode(original),b=await decode(styled);let changed=0;for(let i=0;i<a.data.length;i++){if(i%4===3&&a.data[i]!==b.data[i])throw Error('Alpha changed');if(i%4!==3&&a.data[i]!==b.data[i])changed++;}return{width:b.width,height:b.height,changed};
