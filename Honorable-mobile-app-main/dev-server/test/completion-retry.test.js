@@ -6,12 +6,12 @@ const path = require('node:path');
 const {createServer} = require('../src/server');
 const {LocalSearchCompletions} = require('../src/search-completion');
 
-async function fixture(verifier, clock = Date.now) {
+async function fixture(verifier, clock = Date.now, timeoutMs = 10000) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'noble-completion-retry-'));
   const server = createServer({file:path.join(directory,'ledger.json'), mode:'production',
     betaRequired:false, releaseChannel:'PRODUCTION', adminConfig:null, adminUsers:null,
     googleVerifier:{verify:async sub=>({sub,email:`${sub}@example.test`,emailVerified:true})},
-    searchCompletionVerifier:verifier, clock});
+    searchCompletionVerifier:verifier, searchCompletionTimeoutMs:timeoutMs, clock});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const post = async (route, body, token) => {
@@ -108,6 +108,87 @@ test('untrusted pending completion still fails closed and preserves all credits'
     await f.post('/v1/search/start',{requestId,model:'SERAN_V2'},user.accessToken);
     const response=await f.post('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'invented'},user.accessToken);
     assert.equal(response.status,503);assert.equal(response.body.error,'SEARCH_COMPLETION_VERIFICATION_REQUIRED');
+    assert.equal(f.server.ledger.data.searches[requestId].state,'PENDING');
+    assert.equal(f.server.ledger.view(user.account.accountId).freeMonthlyRemaining,15);
+  } finally {await f.close();}
+});
+
+test('provider failures return a fixed unavailable error without private details or a debit',async()=>{
+  const f=await fixture(()=>{throw Error('synthetic-provider-detail: private transport response');});
+  try {
+    const user=await f.login('provider-error');const requestId='provider-outage';
+    await f.post('/v1/search/start',{requestId,model:'SERAN_V2'},user.accessToken);
+    const response=await f.post('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'fixture'},user.accessToken);
+    assert.equal(response.status,503);
+    assert.deepEqual(response.body,{error:'SEARCH_COMPLETION_VERIFICATION_UNAVAILABLE'});
+    assert.equal(JSON.stringify(response.body).includes('synthetic-provider-detail'),false);
+    assert.equal(f.server.ledger.data.searches[requestId].state,'PENDING');
+    assert.equal(f.server.ledger.view(user.account.accountId).freeMonthlyRemaining,15);
+    assert.equal((await f.post('/v1/search/complete',{requestId,outcome:'FAILED'},user.accessToken)).status,200);
+    assert.equal(f.server.ledger.data.searches[requestId].state,'FAILED');
+  } finally {await f.close();}
+});
+
+test('provider outage after concurrent cancellation retains the settled no-charge outcome',async()=>{
+  let entered,reject;
+  const started=new Promise(resolve=>{entered=resolve;});
+  const waiting=new Promise((_,failure)=>{reject=failure;});
+  const f=await fixture(async()=>{entered();return waiting;});
+  try {
+    const user=await f.login('provider-race');const requestId='outage-cancel-race';
+    await f.post('/v1/search/start',{requestId,model:'SERAN_V1'},user.accessToken);
+    const completion=f.post('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'pending'},user.accessToken);
+    await started;
+    assert.equal((await f.post('/v1/search/complete',{requestId,outcome:'CANCELLED'},user.accessToken)).status,200);
+    reject(Error('synthetic-private-provider-error'));
+    const response=await completion;
+    assert.equal(response.status,200);assert.equal(response.body.freeMonthlyRemaining,15);
+    assert.equal(response.body.usage.allTime.searchesCompleted,0);
+    assert.equal(f.server.ledger.data.searches[requestId].state,'CANCELLED');
+  } finally {await f.close();}
+});
+
+test('provider metadata exceptions are private and cannot partially settle a charge',async()=>{
+  const verifier=()=>true;
+  verifier.metadata=()=>{throw Error('synthetic-private-metadata-failure');};
+  const f=await fixture(verifier);
+  try {
+    const user=await f.login('metadata-error');const requestId='metadata-outage';
+    await f.post('/v1/search/start',{requestId,model:'SERAN_V1'},user.accessToken);
+    const response=await f.post('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'fixture'},user.accessToken);
+    assert.equal(response.status,503);
+    assert.deepEqual(response.body,{error:'SEARCH_COMPLETION_VERIFICATION_UNAVAILABLE'});
+    assert.equal(f.server.ledger.data.searches[requestId].state,'PENDING');
+    assert.equal(f.server.ledger.view(user.account.accountId).freeMonthlyRemaining,15);
+  } finally {await f.close();}
+});
+
+test('a provider that ignores cancellation still reaches a bounded no-charge unavailable response',async()=>{
+  let signal;
+  const f=await fixture(fields=>{signal=fields.signal;return new Promise(()=>{});},Date.now,15);
+  try {
+    const user=await f.login('timeout');const requestId='bounded-timeout';
+    await f.post('/v1/search/start',{requestId,model:'SERAN_V1'},user.accessToken);
+    const response=await f.post('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'fixture'},user.accessToken);
+    assert.equal(response.status,503);
+    assert.deepEqual(response.body,{error:'SEARCH_COMPLETION_VERIFICATION_UNAVAILABLE'});
+    assert.equal(signal.aborted,true);
+    assert.equal(f.server.ledger.data.searches[requestId].state,'PENDING');
+    assert.equal(f.server.ledger.view(user.account.accountId).freeMonthlyRemaining,15);
+  } finally {await f.close();}
+});
+
+test('truthy malformed provider results are never accepted as successful verification',async()=>{
+  const answers=[{valid:false},[],'false',1];let next=0;
+  const f=await fixture(()=>answers[next++]);
+  try {
+    const user=await f.login('malformed');const requestId='strict-verdict';
+    await f.post('/v1/search/start',{requestId,model:'SERAN_V2'},user.accessToken);
+    for(let i=0;i<answers.length;i++){
+      const response=await f.post('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'fixture'},user.accessToken);
+      assert.equal(response.status,503);
+      assert.deepEqual(response.body,{error:'SEARCH_COMPLETION_VERIFICATION_REQUIRED'});
+    }
     assert.equal(f.server.ledger.data.searches[requestId].state,'PENDING');
     assert.equal(f.server.ledger.view(user.account.accountId).freeMonthlyRemaining,15);
   } finally {await f.close();}

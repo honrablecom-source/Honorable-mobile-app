@@ -1,5 +1,13 @@
 # Noble readiness criteria
 
+## November17 — production verifier failure boundary hardened
+
+**0new user-facing features;1backend hardening fix.** Trusted-completion callbacks now have a default10second deadline (bounded configuration), receive an AbortSignal, and must return the literal boolean true before any charge can occur. Thrown provider/metadata errors and deadlines return a fixed503 SEARCH_COMPLETION_VERIFICATION_UNAVAILABLE without exposing transport details. If another request settles/cancels during verification, the authoritative no-additional-charge outcome is preserved even when the provider subsequently throws. Malformed truthy verdicts remain rejected. This is failure-path hardening, not an installed trusted provider or a native attestation implementation; production readiness must remain false.
+
+All64backend tests and11SQLite/workerd/sign-in-helper tests pass after rebuilding the actual Worker bundle. Five new cases cover private provider errors, metadata exceptions, ignored abort/deadline, cancellation during provider outage and truthy malformed results; all existing ownership/retry/auth/credit rules remain green. Deployment is pending at this source checkpoint. No Android runtime, current APK, ranking, model, holdout, credit price, signing key, permission or billing change occurred.
+
+Fresh Firebase inspection still shows both Instrumentation upload fields empty. The verified pair remains ready under .context/account-recovery/device-acceptance/; actual physical image/video/AI/export methods have not run. Owner selection remains required while Chrome's saved local-file restriction persists. Earlier physical startup and real browser Google login passes do not establish those controlled device outcomes or production search readiness.
+
 ## November17 — controlled physical-test pair built and independently verified
 
 **0new user-facing features;1built verification tool, not a device-test pass.** Corrected [packaging44196137385](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/44196137385) passed on test/tool sourced44b0386d15bc3a4f1f091d1511e1baa7b534dcc. Frozen application runtime remains10ce; source guard,8strict/native asset regressions, Kotlin/native instrumentation build, exact parent artifact download, package IDs/public signer/runner/test class, actual Room constructor and full studio/model/decoded-WASM checks passed. Earlier44193754509 built successfully but its strict distributable check rejected the Metro debug target; it is superseded by explicit native-test-target scope, without weakening the normal release gate.

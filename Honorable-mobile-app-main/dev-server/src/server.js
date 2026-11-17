@@ -4,7 +4,7 @@ const {Attachments}=require('./beta/attachments');
 const {Ledger,passes,costs,available,catalog}=require('./ledger');
 const {GoogleIdTokenVerifier}=require('./auth'),{PersistentSessions}=require('./sessions');
 const {AnalyticsStore}=require('./admin/analytics-store'),{CLIENT_EVENTS,safeMetadata}=require('./admin/events'),{createAdminRouter}=require('./admin/router');
-function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirname,'../data/ledger.json'),mode=process.env.HONORABLE_SERVER_MODE||'production',googleClientId=process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID,googleVerifier,clock=Date.now,searchCompletionVerifier,webOrigins=(process.env.HONORABLE_WEB_ORIGINS||'').split(',').filter(Boolean),analyticsStore,adminConfig=process.env.HONORABLE_ADMIN_CONFIG,adminUsers,healthProbe,releaseChannel=process.env.HONORABLE_RELEASE_CHANNEL||(mode==='development'?'DEV':'PRODUCTION'),betaRequired=process.env.HONORABLE_BETA_REQUIRED==='1'||releaseChannel==='BETA',storage}={}){
+function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirname,'../data/ledger.json'),mode=process.env.HONORABLE_SERVER_MODE||'production',googleClientId=process.env.HONORABLE_GOOGLE_WEB_CLIENT_ID,googleVerifier,clock=Date.now,searchCompletionVerifier,searchCompletionTimeoutMs=10000,webOrigins=(process.env.HONORABLE_WEB_ORIGINS||'').split(',').filter(Boolean),analyticsStore,adminConfig=process.env.HONORABLE_ADMIN_CONFIG,adminUsers,healthProbe,releaseChannel=process.env.HONORABLE_RELEASE_CHANNEL||(mode==='development'?'DEV':'PRODUCTION'),betaRequired=process.env.HONORABLE_BETA_REQUIRED==='1'||releaseChannel==='BETA',storage}={}){
  const dev=mode==='development',ledger=new Ledger(file,{clock,environment:mode,storage}),sessions=new PersistentSessions(file+'.sessions',clock,storage);
  const analytics=analyticsStore||new AnalyticsStore(file+'.analytics.json',{storage,clock,rawDays:bounded(process.env.HONORABLE_ANALYTICS_RAW_DAYS,30,1,90),aggregateDays:bounded(process.env.HONORABLE_ANALYTICS_AGGREGATE_DAYS,400,30,730)});
  if(ledger.data.releaseChannel&&ledger.data.releaseChannel!==releaseChannel)throw Error('LEDGER_RELEASE_CHANNEL_MISMATCH');
@@ -79,11 +79,25 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
     if(!['SUCCESS','FAILED','CANCELLED'].includes(body.outcome))throw status('INVALID_OUTCOME',400);
     if(job.state!=='PENDING')return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome));
     if(body.outcome==='SUCCESS'&&(!dev||searchCompletionVerifier)){
-     const verified=searchCompletionVerifier&&await searchCompletionVerifier({accountId:id,requestId:body.requestId,model:job.model,proof:body.proof});
+     let verified,timer;const controller=new AbortController();
+     try{
+      const deadline=new Promise((_,reject)=>{
+       timer=setTimeout(()=>{controller.abort();reject(Error('COMPLETION_DEADLINE'))},bounded(searchCompletionTimeoutMs,10000,1,30000));
+       timer.unref?.();
+      });
+      verified=await Promise.race([Promise.resolve().then(()=>searchCompletionVerifier&&searchCompletionVerifier({accountId:id,requestId:body.requestId,model:job.model,proof:body.proof,signal:controller.signal})),deadline]);
+      if(verified===true&&job.state==='PENDING')trusted=searchCompletionVerifier.metadata?.(body.proof)||{};
+     }
+     catch{
+      // Provider transports may include credentials or internal URLs in errors.
+      // Keep those private and preserve any concurrently settled ledger result.
+      if(job.state!=='PENDING')return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome));
+      throw status('SEARCH_COMPLETION_VERIFICATION_UNAVAILABLE',503);
+     }
+     finally{clearTimeout(timer)}
      // Another request may settle/cancel while the verifier is awaiting I/O.
      if(job.state!=='PENDING')return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome));
-     if(!verified)throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);
-     trusted=searchCompletionVerifier.metadata?.(body.proof)||{};
+     if(verified!==true)throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);
     }
     const before=job?.state,result=ledger.finishSearch(id,body.requestId,body.outcome,trusted);
     if(before==='PENDING')record({SUCCESS:'search_completed',FAILED:'search_failed',CANCELLED:'search_cancelled'}[job.state],id,{...metadata,model:job.model,...(job.durationMs!=null?{durationMs:job.durationMs}:{}),...(job.mediaType?{mediaType:job.mediaType,videoMoment:!!job.videoMoment}:{})},'search-end:'+body.requestId);
