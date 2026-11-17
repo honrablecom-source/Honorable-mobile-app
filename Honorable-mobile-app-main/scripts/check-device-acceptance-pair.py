@@ -47,7 +47,8 @@ def main():
         assert set(re.findall(r'certificate SHA-256 digest: ([0-9a-fA-F]{64})', certificates)) == {CERT}
         records[name] = {'file': path.name, 'package': package, 'sha256': sha(path), 'sizeBytes': path.stat().st_size, 'signing': 'PUBLIC_DEBUG_KEY'}
     manifest = subprocess.check_output([args.aapt, 'dump', 'xmltree', str(args.test), 'AndroidManifest.xml'], text=True)
-    assert 'androidx.test.runner.AndroidJUnitRunner' in manifest and 'com.honorablemobile' in manifest
+    assert re.search(r'android:targetPackage\([^)]*\)="com\.honorablemobile"', manifest)
+    assert re.search(r'android:name\([^)]*\)="androidx\.test\.runner\.AndroidJUnitRunner"', manifest)
     records.update(parentSource=SOURCE, parentRunId=PARENT_RUN, physicalExecutionVerified=False, storeReady=False,
         note='Native-activity instrumentation target, not the distributable internal APK. React Native debug home needs Metro; tests launch existing private studios directly. No VM or emulator is launched by this workflow.')
     args.output.write_text(json.dumps(records, indent=2)+'\n')

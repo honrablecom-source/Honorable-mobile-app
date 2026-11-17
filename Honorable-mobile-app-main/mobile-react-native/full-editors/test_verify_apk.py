@@ -16,11 +16,12 @@ DESCRIPTORS = b'\0'.join(
 
 
 class ApkGateTest(unittest.TestCase):
-    def check_package(self, *, rename=False, corrupt=False, missing_host=False):
+    def check_package(self, *, rename=False, corrupt=False, missing_host=False, bundle=True, native_target=False):
         with tempfile.TemporaryDirectory() as directory:
             apk = Path(directory) / 'fixture.apk'
             with zipfile.ZipFile(apk, 'w', compression=zipfile.ZIP_STORED) as package:
-                package.writestr('assets/index.android.bundle', b'test fixture, not executable')
+                if bundle:
+                    package.writestr('assets/index.android.bundle', b'test fixture, not executable')
                 # Multidex matters: no desired descriptors in classes.dex.
                 package.writestr('classes.dex', b'other classes')
                 package.writestr('classes2.dex', b'absent' if missing_host else DESCRIPTORS)
@@ -37,7 +38,7 @@ class ApkGateTest(unittest.TestCase):
                     else:
                         package.write(path, name)
             return subprocess.run(
-                [sys.executable, str(ROOT / 'verify-apk.py'), str(apk)],
+                [sys.executable, str(ROOT / 'verify-apk.py'), str(apk)] + (['--native-test-target'] if native_target else []),
                 capture_output=True, text=True,
             )
 
@@ -62,6 +63,31 @@ class ApkGateTest(unittest.TestCase):
 
     def test_missing_native_host_is_rejected(self):
         result = self.check_package(missing_host=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('missing full-editor native', result.stderr)
+
+    def test_default_distribution_gate_still_rejects_missing_rn_bundle(self):
+        result = self.check_package(bundle=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Expected the full React Native application', result.stderr)
+
+    def test_explicit_native_target_retains_metro_and_device_limits(self):
+        result = self.check_package(bundle=False, native_target=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['scope'], 'NATIVE_ACTIVITY_INSTRUMENTATION_TARGET')
+        self.assertTrue(report['requiresMetroForReactNativeHome'])
+        self.assertFalse(report['reactNativeBundlePresent'])
+        self.assertFalse(report['deviceTested'])
+        self.assertEqual(report['nativeDescriptors'], 2)
+
+    def test_native_target_still_rejects_corrupt_editor_bytes(self):
+        result = self.check_package(bundle=False, native_target=True, corrupt=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('wrong packaged bytes', result.stderr)
+
+    def test_native_target_still_requires_real_native_host(self):
+        result = self.check_package(bundle=False, native_target=True, missing_host=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('missing full-editor native', result.stderr)
 

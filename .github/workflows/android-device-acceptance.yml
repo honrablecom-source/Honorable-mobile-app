@@ -25,7 +25,8 @@ jobs:
           source=10ce6970e916f6c4ef113c4eff28392d79520427
           git fetch --no-tags --depth=1 origin "$source"
           changed="$(git diff --name-only "$source" HEAD -- . ../../Honorable-mobile-app-main/android-app ../../Honorable-mobile-app-main/third_party)"
-          unexpected="$(printf '%s\n' "$changed" | grep -v '^Honorable-mobile-app-main/mobile-react-native/android/app/src/androidTest/' | grep -v '^$' || true)"
+          # The checker and its tests are tooling, never packaged application bytes.
+          unexpected="$(printf '%s\n' "$changed" | grep -v '^Honorable-mobile-app-main/mobile-react-native/android/app/src/androidTest/' | grep -vE '^Honorable-mobile-app-main/mobile-react-native/full-editors/(verify-apk|test_verify_apk)\.py$' | grep -v '^$' || true)"
           if [[ -n "$unexpected" ]]; then
             echo '::error::Runtime differs from the pinned debug APK. Produce a new paired target instead of mixing builds.'
             printf '%s\n' "$unexpected"
@@ -62,6 +63,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Install exact locked dependencies
         run: npm ci
+      - name: Test strict distribution and explicit native-target asset gates
+        run: python3 full-editors/test_verify_apk.py
       - name: Package instrumentation only; never start an emulator
         working-directory: Honorable-mobile-app-main/mobile-react-native/android
         run: bash gradlew --no-daemon --max-workers=2 --stacktrace :app:assembleDebugAndroidTest
@@ -92,7 +95,7 @@ jobs:
           tools="$ANDROID_HOME/build-tools/$HONORABLE_ANDROID_BUILD_TOOLS"
           python3 ../scripts/check-device-acceptance-pair.py --target device-acceptance/app-debug.apk --test device-acceptance/app-debug-androidTest.apk --parent-run device-acceptance/parent-run.json --aapt "$tools/aapt" --apksigner "$tools/apksigner" --output device-acceptance/pair.json
           python3 ../scripts/check_room_startup_apk.py device-acceptance/app-debug.apk
-          python3 full-editors/verify-apk.py device-acceptance/app-debug.apk > device-acceptance/editors.json
+          python3 full-editors/verify-apk.py device-acceptance/app-debug.apk --native-test-target > device-acceptance/editors.json
       - uses: actions/upload-artifact@v4
         with:
           name: Noble-physical-device-acceptance-pair
@@ -102,3 +105,14 @@ jobs:
             Honorable-mobile-app-main/mobile-react-native/device-acceptance/editors.json
           if-no-files-found: error
           retention-days: 14
+      - name: Retain failed-package diagnostics without an acceptance claim
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noble-device-test-diagnostics-UNVERIFIED
+          path: |
+            Honorable-mobile-app-main/mobile-react-native/device-acceptance/*.json
+            Honorable-mobile-app-main/mobile-react-native/device-acceptance/*.apk
+            Honorable-mobile-app-main/mobile-react-native/android/app/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 7

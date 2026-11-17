@@ -15,6 +15,7 @@ import zipfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('apk', type=Path)
 parser.add_argument('--assets-root', type=Path, default=Path(__file__).resolve().parent.parent / 'android/app/src/main/assets/creative-editors', help='Exact source-commit editor asset directory when newer development is in progress.')
+parser.add_argument('--native-test-target', action='store_true', help='Explicit debug instrumentation target: verify identical studios, but do not claim a standalone React Native application or distribution acceptance.')
 args = parser.parse_args()
 apk = args.apk
 assets = args.assets_root
@@ -23,7 +24,10 @@ with zipfile.ZipFile(apk) as archive:
     members = archive.namelist()
     if len(members) != len(set(members)):
         raise SystemExit('APK contains ambiguous duplicate entries.')
-    if 'assets/index.android.bundle' not in members:
+    report['scope'] = 'NATIVE_ACTIVITY_INSTRUMENTATION_TARGET' if args.native_test_target else 'FULL_REACT_NATIVE_PACKAGE'
+    report['reactNativeBundlePresent'] = 'assets/index.android.bundle' in members
+    report['requiresMetroForReactNativeHome'] = not report['reactNativeBundlePresent']
+    if not report['reactNativeBundlePresent'] and not args.native_test_target:
         raise SystemExit('Expected the full React Native application, not a standalone shell.')
     for kind in ('image', 'video'):
         source_receipt = (assets / kind / 'bundle.json').read_bytes()
