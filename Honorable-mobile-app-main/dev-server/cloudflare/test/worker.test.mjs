@@ -54,7 +54,7 @@ test('real Worker runtime: durable identity, credit grants, session rotation and
     assert.equal(account.totalAvailable, 15);
     assert.equal((await call('/v1/search/start', { model: 'SERAN_V3', requestId: 'locked-v3' }, accessToken)).status, 409);
     assert.equal((await call('/v1/search/start', { model: 'SERAN_V1', requestId: 'search-one' }, accessToken)).status, 503);
-    assert.equal((await call('/v1/search/complete', { requestId: 'search-one', outcome: 'SUCCESS' }, accessToken)).status, 503);
+    assert.equal((await call('/v1/search/complete', { requestId: 'search-one', outcome: 'SUCCESS' }, accessToken)).status, 404);
     assert.equal((await call('/v1/account', undefined, accessToken)).data.totalAvailable, 15);
 
     await mf.dispose();

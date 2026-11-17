@@ -110,8 +110,10 @@ test('production HTTP rejects bad credentials, replay, development routes and un
     const requestId=crypto.randomUUID();
     assert.equal((await app.call('/v1/search/start',{model:'SERAN_V1',requestId},original.body.accessToken)).status,503);
     const clientSuccess=await app.call('/v1/search/complete',{requestId,outcome:'SUCCESS',proof:'synthetic-client-claim'},original.body.accessToken);
-    assert.equal(clientSuccess.status,503);
-    assert.equal(clientSuccess.body.error,'SEARCH_COMPLETION_VERIFICATION_REQUIRED');
+    // The rejected start created no job. Completion must validate ownership/existence
+    // before attempting any external trusted-provider operation.
+    assert.equal(clientSuccess.status,404);
+    assert.equal(clientSuccess.body.error,'SEARCH_NOT_FOUND');
     assert.equal((await app.call('/v1/credits/deduct',{model:'SERAN_V1',requestId:crypto.randomUUID()},original.body.accessToken)).status,503);
     const unchanged=await app.call('/v1/account',undefined,original.body.accessToken);
     assert.equal(unchanged.body.freeMonthlyRemaining,15);

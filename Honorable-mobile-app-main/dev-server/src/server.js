@@ -73,8 +73,16 @@ function createServer({file=process.env.HONORABLE_LEDGER_PATH||path.join(__dirna
    if(req.method==='POST'&&req.url==='/v1/search/start'){if(body.model==='SERAN_V2')beta.requireFlag('video_search_enabled',id);if(!available.has(body.model))throw status('MODEL_UNAVAILABLE',409);if(!dev&&typeof searchCompletionVerifier!=='function')throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);const previous=ledger.data.searches[body.requestId],job=ledger.startSearch(id,body.model,body.requestId);if(!previous){job.channel=releaseChannel;ledger.save()}if(!previous)record('search_started',id,{...metadata,model:job.model},'search-start:'+body.requestId);return send(res,200,job)}
    if(req.method==='POST'&&req.url==='/v1/search/complete'){
     const job=ledger.data.searches[body.requestId];let trusted={};
+    // Ownership and settled ledger state precede external verification. A network
+    // retry must not need a fresh/unused receipt after this job was finalized.
+    if(!job||job.accountId!==id)throw status('SEARCH_NOT_FOUND',404);
+    if(!['SUCCESS','FAILED','CANCELLED'].includes(body.outcome))throw status('INVALID_OUTCOME',400);
+    if(job.state!=='PENDING')return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome));
     if(body.outcome==='SUCCESS'&&(!dev||searchCompletionVerifier)){
-     if(!(searchCompletionVerifier&&await searchCompletionVerifier({accountId:id,requestId:body.requestId,model:job?.model,proof:body.proof})))throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);
+     const verified=searchCompletionVerifier&&await searchCompletionVerifier({accountId:id,requestId:body.requestId,model:job.model,proof:body.proof});
+     // Another request may settle/cancel while the verifier is awaiting I/O.
+     if(job.state!=='PENDING')return send(res,200,ledger.finishSearch(id,body.requestId,body.outcome));
+     if(!verified)throw status('SEARCH_COMPLETION_VERIFICATION_REQUIRED',503);
      trusted=searchCompletionVerifier.metadata?.(body.proof)||{};
     }
     const before=job?.state,result=ledger.finishSearch(id,body.requestId,body.outcome,trusted);
