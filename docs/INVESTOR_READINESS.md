@@ -1,5 +1,9 @@
 # Noble readiness criteria
 
+## November 18 — physical image workflow passed; video startup failed
+
+Physical Pixel 8 / Android API 36 / WebView 134 passed the generated-image Studio test on candidate 425be50. Installed APK hash matched 4031ea35c454d3ceb4c9409b34546778773455a6874fc017d3ddb181be5f0471. Editing, exact Undo, layered project save/reopen, local neural color review and native PNG copy passed. Destination delivery remains untested. Video startup timed out before H.264 export. Matrix 4870674476977603182 had one pass and one failure. Pixel 5 WebView 83 rejected both bootstrap scripts with a SyntaxError in retry matrix 7073758640661005716. The test-launch fix let both hosts open. Source 81ff3ef adds a specific WebView update explanation; its on-device display still needs verification. No VM or billing. Hardware XML, logs and image hash receipt are in .context/ai-compare/device-acceptance. Android account sign-in, production trusted search completion and video export remain open.
+
 ## November 18 — Android candidate with AI comparison
 
 Android build [44204096068](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/44204096068) and editor check [44209495844](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/44209495844) succeeded at 425be5022c9dbfe62be988c239bfb86828c0bf44. Downloaded internal artifact 14383988767 and matched the archive to GitHub's digest. APK size 440482749 bytes, SHA256 0ef55873d83963d826bcbc1bf37efb8ce74f1a1600d44aee719be4903a84aa54. Verified internal signing certificate, executable Room constructor, full editor package, embedded React Native bundle and comparison control inside the shipped drawing engine. Local candidate is at .context/ai-compare/android/files/app-internal.apk. The previous physical startup result and instrumentation pair belong to the earlier source. This candidate still needs physical acceptance.

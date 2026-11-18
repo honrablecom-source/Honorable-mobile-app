@@ -1,5 +1,9 @@
 # Noble work queue
 
+## November 18 — physical image workflow passed; video startup failed
+
+Physical Pixel 8 / Android API 36 / WebView 134 passed the generated-image Studio test on candidate 425be50. Installed APK hash matched 4031ea35c454d3ceb4c9409b34546778773455a6874fc017d3ddb181be5f0471. Editing, exact Undo, layered project save/reopen, local neural color review and native PNG copy passed. Destination delivery remains untested. Video startup timed out before H.264 export. Matrix 4870674476977603182 had one pass and one failure. Pixel 5 WebView 83 rejected both bootstrap scripts with a SyntaxError in retry matrix 7073758640661005716. The test-launch fix let both hosts open. Source 81ff3ef adds a specific WebView update explanation; its on-device display still needs verification. No VM or billing. Hardware XML, logs and image hash receipt are in .context/ai-compare/device-acceptance. Android account sign-in, production trusted search completion and video export remain open.
+
 ## November 18 — controlled hardware run
 
 Google CLI authenticated through the owner and confirmed billing disabled and the redfin physical API 30 device. Submitted both controlled Studio cases. Matrix 7070273737237721070 ran both and failed at startActivitySync before image/video assertions. Debug target SHA256 4031ea35c454d3ceb4c9409b34546778773455a6874fc017d3ddb181be5f0471. Test-only change f28f20a installs the export chooser monitor after host startup. Pinned test build 44414018169 on c580f56 keeps candidate 425be50 unchanged. Repair run log and original device XML/logcat are under .context/ai-compare/device-acceptance. Separately fixed the CI test cleanup race in 66daae4; all 70 backend/project tests pass locally. Live health 200, readiness 503 missing trustedSearchCompletion.
