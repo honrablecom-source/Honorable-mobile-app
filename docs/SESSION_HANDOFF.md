@@ -1,5 +1,9 @@
 # Noble session handoff
 
+## November 18 — controlled hardware run
+
+Google CLI authenticated through the owner and confirmed billing disabled and the redfin physical API 30 device. Submitted both controlled Studio cases. Matrix 7070273737237721070 ran both and failed at startActivitySync before image/video assertions. Debug target SHA256 4031ea35c454d3ceb4c9409b34546778773455a6874fc017d3ddb181be5f0471. Test-only change f28f20a installs the export chooser monitor after host startup. Pinned test build 44414018169 on c580f56 keeps candidate 425be50 unchanged. Repair run log and original device XML/logcat are under .context/ai-compare/device-acceptance. Separately fixed the CI test cleanup race in 66daae4; all 70 backend/project tests pass locally. Live health 200, readiness 503 missing trustedSearchCompletion.
+
 ## November 18 — Studio foreground recovery
 
 Studio now recovers its input after an interrupted or background-only opening. The Chrome regression and both actual local models passed with generated fixtures, plus 11 model tests. Recovery source 84375ed needs separate Android acceptance. Candidate 425be50 has its own debug target and compatible previously verified test APK in .context/ai-compare/device-acceptance. Both signatures and the new target archive, constructor, full editors and comparison control were checked. CI packaging run 44410160996 targets 425be50. Physical execution remains pending. No Firebase CLI session available. The live readiness probe timed out on this workstation; last successful observation was ready false.
