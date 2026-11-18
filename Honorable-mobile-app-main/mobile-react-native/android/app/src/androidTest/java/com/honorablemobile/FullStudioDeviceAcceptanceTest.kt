@@ -78,9 +78,9 @@ class FullStudioDeviceAcceptanceTest {
     }
     private fun withHost(kind: String, body: (WebView) -> Unit) {
         val before = exports()
-        val monitor = instrumentation.addMonitor(IntentFilter(Intent.ACTION_CHOOSER), Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
         val activity = instrumentation.startActivitySync(Intent(context, NobleCreativeEditorActivity::class.java)
             .putExtra(NobleCreativeEditorActivity.EXTRA_KIND, kind).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val monitor = instrumentation.addMonitor(IntentFilter(Intent.ACTION_CHOOSER), Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
         try {
             var web: WebView? = null
             until("Actual private studio WebView did not open") {
