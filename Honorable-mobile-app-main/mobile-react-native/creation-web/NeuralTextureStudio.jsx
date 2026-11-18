@@ -43,20 +43,39 @@ export function NeuralTextureStudio({texture, kind = 'style', target = 'model', 
   const life = useRef({mounted: true, generation: 0, busy: false}), task = useRef(null);
   useEffect(() => {
     life.current.mounted = true;
-    const hidden = () => {
-      if (!document.hidden) return;
+    let prepared = false;
+    life.current.busy = false;
+    setInput(null); setOutput(null); setApproved(false); setBusy(false);
+    const prepareInput = async () => {
+      const generation = ++life.current.generation;
+      setMessage('Preparing your local texture…');
+      try {
+        const value = await prepare(texture, denoise ? DENOISE_MAX : STYLE_SIDE);
+        if (generation !== life.current.generation || document.hidden) return;
+        prepared = true;
+        setInput(value);
+        setMessage(denoise ? 'Ready for local noise cleanup.' : 'Ready to paint locally.');
+      } catch (error) {
+        if (generation === life.current.generation) setMessage(error.message);
+      }
+    };
+    const visibilityChanged = () => {
+      if (!document.hidden) {
+        if (!prepared) void prepareInput();
+        return;
+      }
       life.current.generation++; life.current.busy = false;
       task.current?.stop(); task.current = null;
       setBusy(false); setApproved(false); setOutput(null);
-      setMessage('Neural painting stopped when the app left the foreground. Your texture is unchanged.');
+      setMessage('Processing paused. Your original texture is unchanged.');
     };
-    document.addEventListener('visibilitychange', hidden);
-    const generation = life.current.generation;
-    prepare(texture, denoise ? DENOISE_MAX : STYLE_SIDE).then(value => {
-      if (!life.current.mounted || generation !== life.current.generation) return;
-      setInput(value); setMessage('Ready to paint locally. Your original texture is kept.');
-    }).catch(error => {if (life.current.mounted && generation === life.current.generation) setMessage(error.message);});
-    return () => {life.current.mounted = false; life.current.generation++; task.current?.stop(); task.current = null; document.removeEventListener('visibilitychange', hidden);};
+    document.addEventListener('visibilitychange', visibilityChanged);
+    if (!document.hidden) void prepareInput();
+    return () => {
+      life.current.mounted = false; life.current.generation++;
+      task.current?.stop(); task.current = null;
+      document.removeEventListener('visibilitychange', visibilityChanged);
+    };
   }, [texture, kind]);
   const stop = () => {
     life.current.generation++; life.current.busy = false;

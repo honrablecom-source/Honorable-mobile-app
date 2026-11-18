@@ -57,7 +57,16 @@ const evidence=process.env.NOBLE_STYLE_EVIDENCE || path.join(root,'.context/nobl
     const tool=page.getByRole('region',{name:'Neural painted texture',exact:true});
     const paint=()=>tool.getByRole('button',{name:'Paint with local AI',exact:true}).click();
     const result=()=>tool.getByAltText('Reviewed neural painted texture',{exact:true});
-    await open();await paint();const start=Date.now();await result().waitFor({timeout:120000});const firstInferenceMs=Date.now()-start;
+    // Foregrounding a studio opened while hidden must recover its input without running inference.
+    await page.evaluate(() => Object.defineProperty(document, 'hidden', {configurable:true, value:true}));
+    await open();
+    assert(await tool.getByRole('button',{name:'Paint with local AI',exact:true}).isDisabled());
+    await page.evaluate(() => {
+      delete document.hidden;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    assert.equal(await page.evaluate(()=>window.__neuralWorkers.length),0);
+    await paint();const start=Date.now();await result().waitFor({timeout:120000});const firstInferenceMs=Date.now()-start;
     assert.equal(await tool.getByRole('button',{name:'Apply reviewed model texture',exact:true}).isDisabled(),true);
     assert.equal(await page.evaluate(()=>localStorage.getItem('noble-model-studio-v1')),baseline);
     const original=await tool.getByAltText('Original texture before neural painting').getAttribute('src');
