@@ -22,7 +22,7 @@ jobs:
       - name: Require unchanged application runtime for the pinned target
         shell: bash
         run: |
-          source=10ce6970e916f6c4ef113c4eff28392d79520427
+          source=425be5022c9dbfe62be988c239bfb86828c0bf44
           git fetch --no-tags --depth=1 origin "$source"
           changed="$(git diff --name-only "$source" HEAD -- . ../../Honorable-mobile-app-main/android-app ../../Honorable-mobile-app-main/third_party)"
           # The checker and its tests are tooling, never packaged application bytes.
@@ -74,13 +74,13 @@ jobs:
         shell: bash
         run: |
           mkdir -p device-acceptance
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/43650751564" > device-acceptance/parent-run.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/43650751564/artifacts" > device-acceptance/parent-artifacts.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14137202668/zip" > device-acceptance/target.zip
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/44204096068" > device-acceptance/parent-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/44204096068/artifacts" > device-acceptance/parent-artifacts.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14384676993/zip" > device-acceptance/target.zip
           python3 - <<'PY'
           import hashlib,json,pathlib,shutil,zipfile
           root=pathlib.Path('device-acceptance')
-          metadata=next(a for a in json.loads((root/'parent-artifacts.json').read_text())['artifacts'] if a['id']==14137202668)
+          metadata=next(a for a in json.loads((root/'parent-artifacts.json').read_text())['artifacts'] if a['id']==14384676993)
           assert metadata['name']=='honorable-android-debug' and not metadata['expired']
           assert hashlib.sha256((root/'target.zip').read_bytes()).hexdigest()==metadata['digest'].removeprefix('sha256:')
           with zipfile.ZipFile(root/'target.zip') as z:
