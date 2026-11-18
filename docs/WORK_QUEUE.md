@@ -1,5 +1,9 @@
 # Noble work queue
 
+## November 18 — video startup recovery
+
+Video Studio now offers an explicit retry after a startup error or a 20-second wait. Compatibility mode reloads the same local entry, skips optional WebCodecs probing and permits renderer selection; it keeps project recovery enabled. Verified using the actual packaged FilmCraft WASM in Chrome: a forced module-load failure displayed its stage, the retry initialized the engine and preserved a storage sentinel, and standard launch passed. This does not identify the Pixel 8 failure cause or establish phone H.264 acceptance. Physical retest required.
+
 ## November 18 — physical image workflow passed; video startup failed
 
 Physical Pixel 8 / Android API 36 / WebView 134 passed the generated-image Studio test on candidate 425be50. Installed APK hash matched 4031ea35c454d3ceb4c9409b34546778773455a6874fc017d3ddb181be5f0471. Editing, exact Undo, layered project save/reopen, local neural color review and native PNG copy passed. Destination delivery remains untested. Video startup timed out before H.264 export. Matrix 4870674476977603182 had one pass and one failure. Pixel 5 WebView 83 rejected both bootstrap scripts with a SyntaxError in retry matrix 7073758640661005716. The test-launch fix let both hosts open. Source 81ff3ef adds a specific WebView update explanation; its on-device display still needs verification. No VM or billing. Hardware XML, logs and image hash receipt are in .context/ai-compare/device-acceptance. Android account sign-in, production trusted search completion and video export remain open.
