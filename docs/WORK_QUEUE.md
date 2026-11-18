@@ -1,5 +1,9 @@
 # Noble work queue
 
+## November 18 — Studio foreground recovery
+
+Studio now recovers its input after an interrupted or background-only opening. The Chrome regression and both actual local models passed with generated fixtures, plus 11 model tests. Recovery source 84375ed needs separate Android acceptance. Candidate 425be50 has its own debug target and compatible previously verified test APK in .context/ai-compare/device-acceptance. Both signatures and the new target archive, constructor, full editors and comparison control were checked. CI packaging run 44410160996 targets 425be50. Physical execution remains pending. No Firebase CLI session available. The live readiness probe timed out on this workstation; last successful observation was ready false.
+
 ## November 18 — Android candidate with AI comparison
 
 Android build [44204096068](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/44204096068) and editor check [44209495844](https://github.com/honrablecom-source/Honorable-mobile-app/actions/runs/44209495844) succeeded at 425be5022c9dbfe62be988c239bfb86828c0bf44. Downloaded internal artifact 14383988767 and matched the archive to GitHub's digest. APK size 440482749 bytes, SHA256 0ef55873d83963d826bcbc1bf37efb8ce74f1a1600d44aee719be4903a84aa54. Verified internal signing certificate, executable Room constructor, full editor package, embedded React Native bundle and comparison control inside the shipped drawing engine. Local candidate is at .context/ai-compare/android/files/app-internal.apk. The previous physical startup result and instrumentation pair belong to the earlier source. This candidate still needs physical acceptance.
