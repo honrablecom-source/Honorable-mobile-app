@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -72,6 +73,7 @@ class NobleCreativeEditorActivity : Activity() {
             cacheMode = WebSettings.LOAD_NO_CACHE
         }
         view.addJavascriptInterface(Bridge(), "NobleCreative")
+        var bootstrapFailed = false
         view.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri=request.url
@@ -91,13 +93,23 @@ class NobleCreativeEditorActivity : Activity() {
                 }.getOrElse { blocked() }
             }
             override fun onPageFinished(view: WebView, url: String) {
-                if(active()) message.text = "Local editor · save your project before closing. Local recovery and imported copies can remain after sign-out."
+                if(active() && !bootstrapFailed) message.text = "Local editor · save your project before closing. Local recovery and imported copies can remain after sign-out."
             }
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
                 if(request.isForMainFrame && !closed) message.text = "The editor could not load. Your existing files are kept. Reopen with an updated Android System WebView."
             }
         }
         view.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(event: ConsoleMessage): Boolean {
+                if (!closed && event.messageLevel() == ConsoleMessage.MessageLevel.ERROR &&
+                    event.sourceId() == "https://${CreativeEditorPolicy.HOST}/$kind/bootstrap.js" &&
+                    event.message().startsWith("Uncaught SyntaxError")) {
+                    bootstrapFailed = true
+                    message.text = "This editor could not start. Update Android System WebView in Google Play, then close and reopen the editor. Your saved projects are kept."
+                    return true
+                }
+                return super.onConsoleMessage(event)
+            }
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                 if(!active()||picker!=null||synchronized(lock){upload!=null}||closeDialog!=null){ callback.onReceiveValue(null); return true }
                 val value=Picker(callback); picker=value
