@@ -25,6 +25,7 @@ async function fixture(verifier, clock = Date.now, timeoutMs = 10000) {
   };
   return {server,post,login,async close(){
     await new Promise(resolve=>server.close(resolve));
+    await server.analytics.close();
     assert.equal(path.dirname(path.resolve(directory)),path.resolve(os.tmpdir()));
     fs.rmSync(directory,{recursive:true,force:true});
   }};
