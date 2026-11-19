@@ -1,5 +1,9 @@
 # Noble session handoff
 
+## November 19 — first-time creator experience
+
+First-time creators can now reach the existing guide from the main Studio as well as guest editing. The photo, clip and three-photo story instructions give concrete editing choices and open the guarded local workflows. TypeScript passed and all 105 focused Studio/guide/guest tests passed together. First-run usability with a new editor and physical end-to-end video export remain unverified. Owner direction: finish and validate approachable mobile creation before producing a cinematic ad and marketing Noble; use released, demonstrated workflows for the ad.
+
 ## November 18 — video startup recovery
 
 Video Studio now offers an explicit retry after a startup error or a 20-second wait. Compatibility mode reloads the same local entry, skips optional WebCodecs probing and permits renderer selection; it keeps project recovery enabled. Verified using the actual packaged FilmCraft WASM in Chrome: a forced module-load failure displayed its stage, the retry initialized the engine and preserved a storage sentinel, and standard launch passed. This does not identify the Pixel 8 failure cause or establish phone H.264 acceptance. Physical retest required.

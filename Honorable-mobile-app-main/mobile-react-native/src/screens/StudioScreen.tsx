@@ -43,6 +43,7 @@ import { useLibrary } from '../library/LibraryContext';
 import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
 import type { LibraryItem } from '../native/HonorableNative';
+import { StudioStartGuide } from '../components/StudioStartGuide';
 import { CanvasCreationScreen } from './GuestEditingScreen';
 
 const sameSource = (a: LibraryItem, b: LibraryItem) =>
@@ -391,6 +392,14 @@ export function StudioScreen({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={s.content}
       >
+        <StudioStartGuide
+          busy={busy}
+          onPhoto={() => importMedia('IMAGE')}
+          onVideo={() => importMedia('VIDEO')}
+          onStory={() => launchWorkspace(photoVideo)}
+          onDrawing={() => launchWorkspace(draw)}
+          onCanvas={chooseCanvas}
+        />
         <View style={s.sourceActions}>
           <Pressable
             accessibilityRole="button"

@@ -751,3 +751,15 @@ test('a pending AI import blocks competing AI and creation launches and stale ca
   await act(async () => { await photo(); await video(); });
   expect(mockOpen).toHaveBeenCalledTimes(1);
 });
+
+test('the beginner guide opens the photo-story creator and the photo and video editors', async () => {
+  await act(async () => button('Help me get started').props.onPress());
+  await act(async () => button('Choose my photo').props.onPress());
+  expect(mockOpen).toHaveBeenCalledWith('IMAGE');
+  await act(async () => button('Edit a video').props.onPress());
+  await act(async () => button('Choose my video').props.onPress());
+  expect(mockOpen).toHaveBeenCalledWith('VIDEO');
+  await act(async () => button('Turn photos into a video').props.onPress());
+  await act(async () => button('Choose my story photos').props.onPress());
+  expect(mockPhotoVideo).toHaveBeenCalledTimes(1);
+});

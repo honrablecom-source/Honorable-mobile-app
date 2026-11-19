@@ -8,8 +8,8 @@ const paths = {
     title: 'Polish a photo',
     action: 'Choose my photo',
     steps: [
-      'Choose one photo from your device.',
-      'Adjust light and color. Use Undo to try another look.',
+      'Choose a photo with one clear subject.',
+      'Crop out one distracting edge. If the subject looks dark, raise brightness a little. Use Undo to compare.',
       'Export a new copy when you are happy with it.',
     ],
   },
@@ -17,8 +17,8 @@ const paths = {
     title: 'Edit a video',
     action: 'Choose my video',
     steps: [
-      'Choose one video from your device.',
-      'Trim your clip, then add captions or adjust the sound.',
+      'Choose a short clip with one moment you want to keep.',
+      'Trim the beginning to just before the action starts and the end to just after it finishes.',
       'Preview your changes and export a new video copy.',
     ],
   },
@@ -26,9 +26,9 @@ const paths = {
     title: 'Turn photos into a video',
     action: 'Choose my story photos',
     steps: [
-      'Choose 1–20 photos in the order you want.',
-      'Choose a format and timing, then prepare your clips.',
-      'Refine the timeline and export your video.',
+      'Try three photos from one event. Start with the setting, show a detail, then finish with your favorite moment.',
+      'Set the default to 3 seconds per photo for a 9-second story. Review the order, then tap Create editable video project.',
+      'Play the story through once. Adjust any photo that goes by too quickly, then export a video copy.',
     ],
   },
   canvas: {
