@@ -15,7 +15,7 @@ class VideoCompositionExporterTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
 
-    private fun fixture(): File = File.createTempFile("composition-source-", ".mp4", context.cacheDir).also { file ->
+    private fun fixture(directory: File = context.cacheDir): File = File.createTempFile("composition-source-", ".mp4", directory).also { file ->
         instrumentation.context.assets.open("portrait-audio.mp4").use { input ->
             file.outputStream().use { input.copyTo(it) }
         }
@@ -123,19 +123,19 @@ class VideoCompositionExporterTest {
     }
 
     @Test fun destinationAliasOfAnyImportedOriginalIsRejectedBeforeTruncation() {
-        val first = fixture(); val second = fixture()
+        val first = fixture(); val second = fixture(File(context.cacheDir, "created-images").apply { mkdirs() })
         val original = digest(second)
-        val alias = File(second.parentFile, second.name+"-alias")
+        val alias = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".creation", second)
         try {
-            android.system.Os.link(second.absolutePath, alias.absolutePath)
+            assertNotEquals(Uri.fromFile(second), alias)
             try {
                 VideoCompositionExporter.copyRenderedToDocument(context,
                     mapOf("primary" to Uri.fromFile(first), "second" to Uri.fromFile(second)),
-                    Uri.fromFile(alias), first, listOf(VideoSegment(0,3000)), AtomicBoolean(false))
+                    alias, first, listOf(VideoSegment(0,3000)), AtomicBoolean(false))
                 fail("An imported original alias must be rejected")
             } catch(failure: VideoExportFailure) { assertFalse(failure.partialDocumentMayRemain) }
-            assertEquals(original, digest(second)); assertEquals(original, digest(alias))
-        } finally { alias.delete(); second.delete(); first.delete() }
+            assertEquals(original, digest(second))
+        } finally { second.delete(); first.delete() }
     }
 
     @Test fun trimmedCreativeClipKeepsFullSourceDurationAndBothEffectTypes() {
@@ -173,18 +173,18 @@ class VideoCompositionExporterTest {
     }
 
     @Test fun soundtrackOriginalAliasCannotBeOverwritten() {
-        val video=fixture();val audio=fixture();val before=digest(audio)
-        val alias=File(audio.parentFile,audio.name+"-audio-alias")
+        val video=fixture();val audio=fixture(File(context.cacheDir, "created-images").apply { mkdirs() });val before=digest(audio)
+        val alias=androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".creation", audio)
         try {
-            android.system.Os.link(audio.absolutePath,alias.absolutePath)
+            assertNotEquals(Uri.fromFile(audio), alias)
             try {
                 VideoCompositionExporter.copyRenderedToDocument(context,
                     mapOf("primary" to Uri.fromFile(video),"__soundtrack__" to Uri.fromFile(audio)),
-                    Uri.fromFile(alias),video,listOf(VideoSegment(0,3000)),AtomicBoolean(false))
+                    alias,video,listOf(VideoSegment(0,3000)),AtomicBoolean(false))
                 fail("Soundtrack aliases must be protected")
             } catch(failure: VideoExportFailure) { assertFalse(failure.partialDocumentMayRemain) }
             assertEquals(before,digest(audio))
-        } finally { alias.delete();audio.delete();video.delete() }
+        } finally { audio.delete();video.delete() }
     }
 
 }

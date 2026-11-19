@@ -44,7 +44,17 @@ class VideoTrimEngineTest {
             val result = VideoTrimEngine.trim(context, Uri.fromFile(source), Uri.fromFile(output), 1500, 2600, CancellationSignal())
             assertTrue("A preceding keyframe should be reported", result.alignedStartMs in 900..1500)
             assertTrue("The end must be within the requested range", result.actualEndMs in result.alignedStartMs..2600)
-            assertEquals(90, result.rotationDegrees)
+            fun rotation(file: File): Int {
+                val reader = android.media.MediaMetadataRetriever()
+                try {
+                    reader.setDataSource(file.absolutePath)
+                    return requireNotNull(reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)).toInt()
+                } finally { reader.release() }
+            }
+            val sourceRotation = rotation(source)
+            assertTrue("Fixture must have quarter-turn rotation", sourceRotation == 90 || sourceRotation == 270)
+            assertEquals(sourceRotation, result.rotationDegrees)
+            assertEquals(sourceRotation, rotation(output))
             assertTrue("Synthetic audio should survive", result.audioIncluded)
             assertTrue("Output should contain media", output.length() > 1000)
             assertEquals("Source bytes changed", before, digest(source))
