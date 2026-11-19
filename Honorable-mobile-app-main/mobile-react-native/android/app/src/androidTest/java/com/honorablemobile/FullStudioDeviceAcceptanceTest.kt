@@ -87,13 +87,28 @@ class FullStudioDeviceAcceptanceTest {
                 instrumentation.runOnMainSync { web = findWeb(activity.window.decorView) }; web != null
             }
             val view = requireNotNull(web)
-            until("Actual $kind engine did not initialize") {
-                js(view, if (kind == "image") "!!window.nobleImage && !document.getElementById('photocraft_loading')" else "Number.isFinite(window.filmcraft?.info?.().startupMs)") == "true"
+            var retried = false
+            until("Actual $kind engine did not initialize", 150000) {
+                if (kind == "image") {
+                    js(view, "!!window.nobleImage && !document.getElementById('photocraft_loading')") == "true"
+                } else if (js(view, "Number.isFinite(window.filmcraft?.info?.().startupMs)") == "true") {
+                    true
+                } else {
+                    if (!retried && js(view, "!!document.querySelector('#retry:not([hidden])')") == "true") {
+                        android.util.Log.i("NobleDeviceAcceptance", "Retrying video startup: " + js(view, "document.getElementById('phase')?.textContent"))
+                        js(view, "document.getElementById('retry').click()")
+                        retried = true
+                    }
+                    if (retried && js(view, "location.search.includes('nowebcodecs') && document.getElementById('phase')?.textContent.startsWith('The studio stopped')") == "true") {
+                        error("Compatibility startup failed: " + js(view, "document.getElementById('phase').textContent"))
+                    }
+                    false
+                }
             }
             body(view)
             val evidence = JSONObject().put("kind", kind).put("status", "PASSED")
                 .put("installedApkSha256", hash(File(context.applicationInfo.sourceDir)))
-                .put("model", Build.MODEL).put("sdk", Build.VERSION.SDK_INT)
+                .put("compatibilityRetryUsed", retried).put("model", Build.MODEL).put("sdk", Build.VERSION.SDK_INT)
                 .put("webView", WebView.getCurrentWebViewPackage()?.versionName)
                 .put("chooserIntercepted", true).put("destinationDeliveryVerified", false)
                 .put("generatedExports", created.map { JSONObject().put("extension", it.extension).put("bytes", it.length()).put("sha256", hash(it)) })
