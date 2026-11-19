@@ -33,7 +33,8 @@ class PhotoVideoCreatorActivity:Activity(){
     private val photos:List<Uri> get()=selection.items.map{Uri.parse(it)}
     private lateinit var review:LinearLayout
     private val photoNames=mutableMapOf<String,String>()
-    private var nameRequest=0
+    private val previews = mutableMapOf<String, Bitmap>()
+    @Volatile private var nameRequest=0
     private val planGate=PhotoVideoPlanGate()
     private lateinit var savePlan:Button;private lateinit var openPlans:Button
     private var planDialog:android.app.AlertDialog?=null
@@ -78,7 +79,7 @@ class PhotoVideoCreatorActivity:Activity(){
         note.text=if(photos.isEmpty())"No photos selected."else"${photos.size} photos selected. Start again when ready."
         if(recovered.isFailure)note.text="The previous selection could not be restored. Choose your photos again; originals were kept."
         setContentView(ScrollView(this).apply{setBackgroundColor(Color.WHITE);addView(body)})
-        renderSelection();loadPhotoNames()
+        renderSelection();loadPhotoDetails()
         duration.onItemSelectedListener=object:android.widget.AdapterView.OnItemSelectedListener{
             override fun onItemSelected(parent:android.widget.AdapterView<*>?,view:android.view.View?,position:Int,id:Long){if(!editingLocked())renderSelection()}
             override fun onNothingSelected(parent:android.widget.AdapterView<*>?){}
@@ -92,7 +93,7 @@ class PhotoVideoCreatorActivity:Activity(){
         val checked=runCatching{if(request==402)selection.append(selected.map{it.toString()})else PhotoVideoSelection.of(selected.map{it.toString()},selection.holds.filterKeys{key->selected.any{it.toString()==key}})}
         if(checked.isFailure){note.text="Keep up to 20 local photos in total. Existing selection and holds were kept.";return}
         val previousCount=selection.items.size
-        selection=checked.getOrThrow();photoNames.clear();renderSelection();loadPhotoNames()
+        selection=checked.getOrThrow();photoNames.clear();renderSelection();loadPhotoDetails()
         val added=selection.items.size-previousCount
         note.text=when{
             request!=402->"${photos.size} photos selected. Review their order below before creating clips."
@@ -114,10 +115,27 @@ class PhotoVideoCreatorActivity:Activity(){
         val expected=selection
         val plan=expected.durations(defaultHold())
         review.addView(TextView(this).apply{text=if(expected.items.isEmpty())"No photos in this selection."else "Photo order · ${expected.items.size} selected · about ${String.format(java.util.Locale.ROOT,"%.1f",plan.sum()/1000.0)} seconds. Set holds, move or remove before preparation; original photos are kept.";setTextColor(Color.DKGRAY)})
+        var startMs = 0L
         expected.items.forEachIndexed{index,uri->
             val label=photoNames[uri]?:"Selected photo ${index+1}"
             val row=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
-            row.addView(TextView(this).apply{text="${index+1}. $label";setTextColor(Color.BLACK);setPadding(0,12,0,0)})
+            val header = LinearLayout(this).apply { gravity = android.view.Gravity.CENTER_VERTICAL }
+            previews[uri]?.let { bitmap ->
+                val side = (64 * resources.displayMetrics.density).toInt()
+                header.addView(ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    setImageBitmap(bitmap)
+                }, LinearLayout.LayoutParams(side, side))
+            }
+            val startsAt = java.math.BigDecimal.valueOf(startMs, 3).stripTrailingZeros().toPlainString()
+            header.addView(TextView(this).apply {
+                text = "${index + 1}. $label\nStarts at $startsAt s"
+                setTextColor(Color.BLACK)
+                setPadding(8, 12, 0, 0)
+            })
+            row.addView(header)
+            startMs += plan[index]
             row.addView(Button(this).apply{
                 text="Hold ${String.format(java.util.Locale.ROOT,"%.3f",plan[index]/1000.0)} s · ${if(uri in expected.holds)"custom"else "default"}"
                 contentDescription="Set photo ${index+1} hold: $label";app.honorable.editor.EditorChrome.style(this);isEnabled=!editingLocked()
@@ -166,7 +184,7 @@ class PhotoVideoCreatorActivity:Activity(){
         if(!alive||isFinishing||isDestroyed||editingLocked())return
         val changed=if(redo)selectionHistory.redo()else selectionHistory.undo()
         if(!changed)return
-        renderSelection();loadPhotoNames()
+        renderSelection();loadPhotoDetails()
         note.text="${if(redo)"Redid"else "Undid"} photo selection edit. ${selection.items.size} photos selected; originals are unchanged."
     }
     private fun defaultHold():Long=listOf(3L,5L,8L,10L)[duration.selectedItemPosition]*1000
@@ -182,16 +200,33 @@ class PhotoVideoCreatorActivity:Activity(){
                 .onFailure{field.error="Choose 1–10 seconds with up to three decimal places."}
         }};dialog.show()
     }
-    private fun loadPhotoNames(){
+    private fun loadPhotoDetails(){
         val request=++nameRequest;val references=selection.items.toList()
-        references.forEachIndexed{index,uri->photoNames.putIfAbsent(uri,"Selected photo ${index+1}")}
-        worker.execute{
-            val found=references.associateWith{value->runCatching{
-                contentResolver.query(Uri.parse(value),arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),null,null,null)?.use{cursor->
-                    if(cursor.moveToFirst())PhotoVideoSelection.displayName(cursor.getString(0))else null
+        previews.keys.retainAll(references.toSet())
+        val missingPreviews = references.filterNot(previews::containsKey)
+        worker.execute {
+            val labels = mutableMapOf<String, String>()
+            val thumbnails = mutableMapOf<String, Bitmap>()
+            for (value in references) {
+                if (!alive || request != nameRequest) return@execute
+                val uri = Uri.parse(value)
+                runCatching {
+                    contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                        if (it.moveToFirst()) PhotoVideoSelection.displayName(it.getString(0)) else null
+                    }
+                }.getOrNull()?.let { labels[value] = it }
+                if (android.os.Build.VERSION.SDK_INT >= 29 && value in missingPreviews) {
+                    runCatching {
+                        contentResolver.loadThumbnail(uri, android.util.Size(160, 160), null)
+                    }.getOrNull()?.let { thumbnails[value] = it }
                 }
-            }.getOrNull()}
-            runOnUiThread{if(alive&&request==nameRequest){found.forEach{(uri,label)->if(label!=null&&uri in selection.items)photoNames[uri]=label};renderSelection()}}
+            }
+            runOnUiThread {
+                if (!alive || request != nameRequest) return@runOnUiThread
+                photoNames.putAll(labels.filterKeys { it in selection.items })
+                previews.putAll(thumbnails.filterKeys { it in selection.items })
+                renderSelection()
+            }
         }
     }
     private fun <T> planWork(action:(()->Unit)->T,success:(T)->Unit){
@@ -284,7 +319,7 @@ class PhotoVideoCreatorActivity:Activity(){
         showPlanReview("Open preparation plan?","${plan.name}\n${plan.selection.items.size} photos · about $total seconds\n${plan.format.title} · default ${plan.defaultMs/1000} seconds\n\nReplaces the current chosen photos, order, holds, name and format, and clears selection Undo/Redo. No encoding starts. Original photos are not copied; access can expire. Review everything before Create.",
             "Open plan" to {
                 selectionHistory.reset(plan.selection);name.setText(plan.name);format.setSelection(plan.format.ordinal)
-                duration.setSelection(PhotoVideoPlan.DEFAULT_HOLDS.indexOf(plan.defaultMs));photoNames.clear();renderSelection();loadPhotoNames()
+                duration.setSelection(PhotoVideoPlan.DEFAULT_HOLDS.indexOf(plan.defaultMs));photoNames.clear();renderSelection();loadPhotoDetails()
                 note.text="Preparation plan opened for review. No clips were encoded; current selection Undo/Redo was reset."
             },
             "Delete plan" to {confirmPlanDelete(PhotoVideoPlanStore.Summary(plan.id,plan.name,true,record.token))})
