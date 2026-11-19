@@ -1,5 +1,9 @@
 # Noble work queue
 
+## November 19 — native video on a physical phone
+
+On physical Pixel 8 / API 36, all 14 native trim and composition tests passed in [Firebase matrix 7296324570986545450](https://console.firebase.google.com/project/honrable/testlab/histories/bh.d184d3de2c56f9db/matrices/7296324570986545450). The app bytes were unchanged between the 11/14 baseline and this rerun (debug target 945d046, SHA256 2626cf9a67c6f0aca2a30a16d04bbb42cc2a3663f82590529b323206431ba9dc). Test source 0d8a9f7 uses actual content-provider aliases and checks source, output and reported portrait rotation. Verified trim timing/audio, reopened fixture copy, cancellation and original-byte protections. Controlled native calls do not establish an unassisted user session, system share delivery, joined three-photo export or advanced FilmCraft acceptance.
+
 ## November 19 — photo story timing and video device diagnosis
 
 The photo-story creator now shows local thumbnails (when supplied by Android 10+ document providers) and cumulative start times that follow order and hold changes. All 537 React Native tests and typecheck passed; these host tests do not exercise the new Android widgets. Physical Pixel 8/API 36 video test 8535430172371800547 against 945d046 reached the real compatibility button after standard workspace startup failed. Retry crashed in Chrome_InProcGpu with a Mali shader compiler SIGSEGV. Commit 3ea18ec keeps WebGL and requests CPU composition during retry. The packaged recovery flow now passes a forced-load-failure browser regression including project save/reopen, actual H.264/AAC export and playback. Physical video acceptance remains open. Integrated build 44633913608 includes the photo story and retry changes. Marketing follows verified mobile creation and first-time-user acceptance.

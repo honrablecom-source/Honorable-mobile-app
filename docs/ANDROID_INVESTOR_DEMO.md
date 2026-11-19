@@ -1,5 +1,9 @@
 # Android investor demo acceptance
 
+## November 19 — native video on a physical phone
+
+On physical Pixel 8 / API 36, all 14 native trim and composition tests passed in [Firebase matrix 7296324570986545450](https://console.firebase.google.com/project/honrable/testlab/histories/bh.d184d3de2c56f9db/matrices/7296324570986545450). The app bytes were unchanged between the 11/14 baseline and this rerun (debug target 945d046, SHA256 2626cf9a67c6f0aca2a30a16d04bbb42cc2a3663f82590529b323206431ba9dc). Test source 0d8a9f7 uses actual content-provider aliases and checks source, output and reported portrait rotation. Verified trim timing/audio, reopened fixture copy, cancellation and original-byte protections. Controlled native calls do not establish an unassisted user session, system share delivery, joined three-photo export or advanced FilmCraft acceptance.
+
 **Physical startup milestone:** the owner-uploaded replacement passed Pixel5/API30 Robo matrix5492285374052445028 on November17:102actions,34screens,5m10s. Actual screenshots show launch and Studio UI. This supersedes the older1.0.4 WorkManager startup failure. The strict guest script was not attached; exact cloud-uploaded bytes, controlled image/video/AI/export/recovery and Google sign-in remain unverified. A generic Robo pass is not a completed investor demo.
 
 Android first; iOS follows (owner clarification November14). This is a repeatable acceptance sequence, not a claim that the app has passed a phone demo. The owner has no Android device and prohibits Android VMs/emulators. Browser, Robolectric and package evidence remain explicitly separate.
