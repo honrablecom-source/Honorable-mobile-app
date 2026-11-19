@@ -1,5 +1,9 @@
 # Noble work queue
 
+## November 19 — photo story timing and video device diagnosis
+
+The photo-story creator now shows local thumbnails (when supplied by Android 10+ document providers) and cumulative start times that follow order and hold changes. All 537 React Native tests and typecheck passed; these host tests do not exercise the new Android widgets. Physical Pixel 8/API 36 video test 8535430172371800547 against 945d046 reached the real compatibility button after standard workspace startup failed. Retry crashed in Chrome_InProcGpu with a Mali shader compiler SIGSEGV. Commit 3ea18ec keeps WebGL and requests CPU composition during retry. The packaged recovery flow now passes a forced-load-failure browser regression including project save/reopen, actual H.264/AAC export and playback. Physical video acceptance remains open. Integrated build 44633913608 includes the photo story and retry changes. Marketing follows verified mobile creation and first-time-user acceptance.
+
 ## November 19 — first-time creator experience
 
 First-time creators can now reach the existing guide from the main Studio as well as guest editing. The photo, clip and three-photo story instructions give concrete editing choices and open the guarded local workflows. TypeScript passed and all 105 focused Studio/guide/guest tests passed together. First-run usability with a new editor and physical end-to-end video export remain unverified. Owner direction: finish and validate approachable mobile creation before producing a cinematic ad and marketing Noble; use released, demonstrated workflows for the ad.
