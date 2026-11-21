@@ -12,13 +12,18 @@ import re
 import sys
 import zipfile
 
+editor_root = Path(__file__).resolve().parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('apk', type=Path)
-parser.add_argument('--assets-root', type=Path, default=Path(__file__).resolve().parent.parent / 'android/app/src/main/assets/creative-editors', help='Exact source-commit editor asset directory when newer development is in progress.')
+parser.add_argument('--assets-root', type=Path, help='Exact archived editor assets when verifying an APK from another source revision.')
 parser.add_argument('--native-test-target', action='store_true', help='Explicit debug instrumentation target: verify identical studios, but do not claim a standalone React Native application or distribution acceptance.')
 args = parser.parse_args()
 apk = args.apk
-assets = args.assets_root
+source_assets = editor_root.parent / 'android/app/src/main/assets/creative-editors'
+assets = args.assets_root or source_assets
+upstreams = None
+if assets.resolve() == source_assets.resolve():
+    upstreams = json.loads((editor_root / 'upstreams.json').read_text(encoding='utf8'))
 report = {'version': 1, 'editors': {}, 'deviceTested': False, 'signatureVerified': False}
 with zipfile.ZipFile(apk) as archive:
     members = archive.namelist()
@@ -63,7 +68,13 @@ with zipfile.ZipFile(apk) as archive:
         report['editors'][kind] = {'files': len(receipt['files']), 'bytes': total, 'sourceRevision': receipt['sourceRevision'], 'receiptSha256': hashlib.sha256(source_receipt).hexdigest()}
         # Verify the decoded stream too; a correctly pinned but invalid compressed
         # executable must never pass a publication gate.
-        compiler = json.loads(archive.read(prefix + 'provenance.json'))['wasm']
+        provenance = json.loads(archive.read(prefix + 'provenance.json'))
+        if upstreams:
+            source = upstreams[kind]
+            expected_patch = hashlib.sha256((editor_root / 'patches' / source['patch']).read_bytes()).hexdigest()
+            if receipt['sourceRevision'] != source['revision'] or provenance.get('patchSha256') != expected_patch:
+                raise SystemExit(f'{kind}: packaged engine predates the reviewed source or patch. Rebuild the editor bundle.')
+        compiler = provenance['wasm']
         if compiler['compression'] != 'gzip' or not 1 <= compiler['bytes'] <= 96 * 1024 * 1024:
             raise SystemExit(f'{kind}: invalid compiler provenance.')
         digest, count = hashlib.sha256(), 0

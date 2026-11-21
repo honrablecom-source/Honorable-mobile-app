@@ -33,6 +33,17 @@ class NobleCreativeModule(context: ReactApplicationContext) : ReactContextBaseJa
     @ReactMethod fun openEditor(value: String, promise: Promise) {
         val kind=CreativeEditorPolicy.kind(value)
         if(kind==null||closed){promise.reject("EDITOR_UNAVAILABLE","Choose an available creative editor.");return}
+        launch(kind, null, promise)
+    }
+    @ReactMethod fun openImageAi(value: String, promise: Promise) {
+        val tool = CreativeEditorPolicy.imageAiTool(value)
+        if (tool == null || closed) {
+            promise.reject("EDITOR_UNAVAILABLE", "Choose an available AI photo tool.")
+            return
+        }
+        launch("image", tool, promise)
+    }
+    private fun launch(kind: String, tool: String?, promise: Promise) {
         submit(promise) {
             if(closed)return@submit
             if(capabilities()[kind]!=true){promise.reject("EDITOR_UNAVAILABLE","The editor bundle is unavailable in this build.");return@submit}
@@ -40,7 +51,13 @@ class NobleCreativeModule(context: ReactApplicationContext) : ReactContextBaseJa
             if(activity==null){promise.reject("EDITOR_INACTIVE","Open Noble before using this editor.");return@submit}
             activity.runOnUiThread {
                 if(closed||activity.isDestroyed||activity.isFinishing||reactApplicationContext.currentActivity!==activity){promise.reject("EDITOR_INACTIVE","The workspace changed before opening.");return@runOnUiThread}
-                runCatching{activity.startActivity(Intent(activity,NobleCreativeEditorActivity::class.java).putExtra(NobleCreativeEditorActivity.EXTRA_KIND,kind));promise.resolve(true)}
+                runCatching {
+                    val intent = Intent(activity, NobleCreativeEditorActivity::class.java)
+                        .putExtra(NobleCreativeEditorActivity.EXTRA_KIND, kind)
+                        .putExtra(NobleCreativeEditorActivity.EXTRA_IMAGE_AI, tool)
+                    activity.startActivity(intent)
+                    promise.resolve(true)
+                }
                     .onFailure{promise.reject("EDITOR_OPEN_FAILED","The creative editor could not open. Existing projects are kept.")}
             }
         }

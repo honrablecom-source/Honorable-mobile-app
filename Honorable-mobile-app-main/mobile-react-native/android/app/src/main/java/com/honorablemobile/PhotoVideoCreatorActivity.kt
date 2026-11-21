@@ -129,16 +129,19 @@ class PhotoVideoCreatorActivity:Activity(){
                 }, LinearLayout.LayoutParams(side, side))
             }
             val startsAt = java.math.BigDecimal.valueOf(startMs, 3).stripTrailingZeros().toPlainString()
+            val holdSeconds = java.math.BigDecimal.valueOf(plan[index], 3).stripTrailingZeros().toPlainString()
             header.addView(TextView(this).apply {
                 text = "${index + 1}. $label\nStarts at $startsAt s"
                 setTextColor(Color.BLACK)
                 setPadding(8, 12, 0, 0)
-            })
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             row.addView(header)
             startMs += plan[index]
             row.addView(Button(this).apply{
                 text="Hold ${String.format(java.util.Locale.ROOT,"%.3f",plan[index]/1000.0)} s · ${if(uri in expected.holds)"custom"else "default"}"
-                contentDescription="Set photo ${index+1} hold: $label";app.honorable.editor.EditorChrome.style(this);isEnabled=!editingLocked()
+                contentDescription = "Set photo ${index + 1} hold: $label. Current hold: $holdSeconds seconds."
+                app.honorable.editor.EditorChrome.style(this)
+                isEnabled = !editingLocked()
                 setOnClickListener{if(alive&&!editingLocked()&&selection===expected)editHold(index,expected,label)}
             })
             val controls=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}

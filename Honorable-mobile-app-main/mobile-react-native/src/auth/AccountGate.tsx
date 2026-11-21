@@ -5,6 +5,7 @@ import { BetaUpdateNotice } from '../screens/BetaUpdateNotice';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -15,10 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemoryPass } from '../passes/MemoryPassContext';
 import { GuestEditingScreen } from '../screens/GuestEditingScreen';
+import { PreviewPrivacyNotice } from '../screens/LegalScreens';
 export function AccountGate({ children }: { children: React.ReactNode }) {
   const auth = useMemoryPass();
   const localEditingAvailable = Platform.OS === 'android';
   const [guestEditing, setGuestEditing] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
   if (auth.signedIn)
     return (
       <>
@@ -87,10 +90,15 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
             ? 'Local photo and video editing, including on-device AI tools. Search, credits and account features require sign-in.'
             : 'Photo and video editing is available on Android. iOS editing is not implemented yet.'}
         </Text>
-        <View style={styles.privacyRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Privacy notice"
+          style={styles.privacyRow}
+          onPress={() => setPrivacyVisible(true)}
+        >
           <ShieldCheck size={17} color={colors.textSecondary} />
-          <Text style={styles.small}>Your memories stay yours.</Text>
-        </View>
+          <Text style={styles.privacy}>Privacy notice</Text>
+        </Pressable>
         <Text style={styles.small}>
           Signing in keeps your Memory Passes, credits and account access
           connected across sessions and devices.
@@ -101,6 +109,12 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
           </Pressable>
         )}
       </ScrollView>
+      <Modal
+        visible={privacyVisible}
+        onRequestClose={() => setPrivacyVisible(false)}
+      >
+        <PreviewPrivacyNotice onBack={() => setPrivacyVisible(false)} />
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -60,7 +60,8 @@ export function BetaFeedbackScreen() {
     [attachmentConsent, setAttachmentConsent] = useState(false),
     [diagnostic, setDiagnostic] = useState(false),
     [busy, setBusy] = useState(false),
-    [message, setMessage] = useState('');
+    [message, setMessage] = useState(''),
+    [deletionMessage, setDeletionMessage] = useState('');
   const eventId = useRef('');
   useEffect(() => {
     request('config')
@@ -126,24 +127,38 @@ export function BetaFeedbackScreen() {
       setBusy(false);
     }
   }
-  function privacy(type: string) {
+  function privacy(
+    type: 'ACCOUNT_DELETION' | 'BETA_REMOVAL' | 'ANALYTICS_OPT_OUT',
+  ) {
+    const deletion = type === 'ACCOUNT_DELETION';
+    const showStatus = deletion ? setDeletionMessage : setMessage;
     Alert.alert(
-      'Send account request',
-      type === 'ANALYTICS_OPT_OUT'
-        ? 'Stop optional analytics collection?'
-        : 'Submit this request for review? Beta removal ends beta access.',
+      deletion ? 'Request account deletion?' : 'Send account request',
+      {
+        ACCOUNT_DELETION:
+          'Send a request for Noble to delete your account and associated data.',
+        BETA_REMOVAL: 'Leave the beta? This ends your beta access.',
+        ANALYTICS_OPT_OUT: 'Stop optional analytics collection?',
+      }[type],
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Submit',
-          onPress: () =>
-            request('request', { type })
-              .then(() =>
-                setMessage(
-                  'Request recorded. Purchase records are handled separately.',
-                ),
-              )
-              .catch(() => setMessage('Request could not be sent.')),
+          onPress: async () => {
+            showStatus('Sending request…');
+            try {
+              await request('request', { type });
+              showStatus(
+                deletion
+                  ? 'Account deletion request received for review.'
+                  : 'Request recorded.',
+              );
+            } catch {
+              showStatus(
+                'Request could not be sent. Sign in and check your connection.',
+              );
+            }
+          },
         },
       ],
     );
@@ -156,6 +171,16 @@ export function BetaFeedbackScreen() {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.page}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Request account deletion"
+          onPress={() => privacy('ACCOUNT_DELETION')}
+        >
+          <Text style={styles.choice}>Request account deletion</Text>
+        </Pressable>
+        <Text accessibilityLiveRegion="polite" style={styles.text}>
+          {deletionMessage}
+        </Text>
         <Text style={styles.text}>
           Share a short report. No media, search text, project files or
           credentials are attached automatically. Only include information you
@@ -301,9 +326,15 @@ export function BetaFeedbackScreen() {
         <Text accessibilityLiveRegion="polite" style={styles.text}>
           {message}
         </Text>
-        {['ACCOUNT_DELETION', 'BETA_REMOVAL', 'ANALYTICS_OPT_OUT'].map(type => (
-          <Pressable key={type} onPress={() => privacy(type)}>
-            <Text style={styles.choice}>{type.replaceAll('_', ' ')}</Text>
+        {(['BETA_REMOVAL', 'ANALYTICS_OPT_OUT'] as const).map(type => (
+          <Pressable
+            accessibilityRole="button"
+            key={type}
+            onPress={() => privacy(type)}
+          >
+            <Text style={styles.choice}>
+              {type === 'BETA_REMOVAL' ? 'Leave beta' : 'Stop optional analytics'}
+            </Text>
           </Pressable>
         ))}
       </ScrollView>

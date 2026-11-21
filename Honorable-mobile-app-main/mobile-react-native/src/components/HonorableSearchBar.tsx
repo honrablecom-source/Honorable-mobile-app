@@ -19,12 +19,12 @@ export function HonorableSearchBar({
 }: {
   value: string;
   onChangeText: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit?: () => void;
   compact?: boolean;
   footer?: React.ReactNode;
   busy?: boolean;
 }) {
-  const canSubmit = !!value.trim() && !busy;
+  const canSubmit = !!onSubmit && !!value.trim() && !busy;
   return (
     <View style={[styles.shell, compact && styles.compact]}>
       <View style={styles.inputRow}>
@@ -37,9 +37,11 @@ export function HonorableSearchBar({
           }
           editable={!busy}
           accessibilityState={{ disabled: busy }}
-          returnKeyType="search"
-          blurOnSubmit={false}
-          onSubmitEditing={() => canSubmit && onSubmit()}
+          returnKeyType={compact ? 'done' : 'search'}
+          blurOnSubmit={compact}
+          onSubmitEditing={compact ? undefined : () => {
+            if (canSubmit) onSubmit?.();
+          }}
           placeholder={compact ? 'Search filenames…' : 'Describe a moment…'}
           placeholderTextColor={colors.textTertiary}
           value={value}

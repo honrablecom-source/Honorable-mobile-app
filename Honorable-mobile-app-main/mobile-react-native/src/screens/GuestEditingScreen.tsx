@@ -163,13 +163,11 @@ export function GuestEditingScreen({ onSignIn, onCanvasClose }: CreationRoute) {
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <Text style={s.wordmark}>Noble</Text>
         {!choosingCanvas && <><Text accessibilityRole="header" style={s.title}>
-          {'Your ideas.\nYour studio.'}
+          Studio
         </Text>
-        <Text style={s.copy}>
-          Make something from a moment you already have.
-        </Text>
+        <AdvancedEditors featured busy={busy} />
+        <Text accessibilityRole="header" style={s.sectionHeading}>Create and edit</Text>
         </>}
-        {!choosingCanvas && <StudioStartGuide busy={busy} onPhoto={() => open('IMAGE')} onVideo={() => open('VIDEO')} onStory={photoVideo} onDrawing={draw} onCanvas={chooseCanvas} />}
         {!choosingCanvas && <View style={s.actions}>
           <Pressable
             accessibilityRole="button"
@@ -200,7 +198,7 @@ export function GuestEditingScreen({ onSignIn, onCanvasClose }: CreationRoute) {
               <ArrowUpRight size={16} color={colors.textSecondary} />
             </View>
             <Text style={s.buttonText}>Create an image</Text>
-            <Text style={s.cardDetail}>Choose a canvas. Make it yours.</Text>
+            <Text style={s.cardDetail}>Start with a blank canvas</Text>
           </Pressable>
           {(['IMAGE', 'VIDEO'] as const).map(kind => {
             const label = kind === 'IMAGE' ? 'Edit a photo' : 'Edit a video';
@@ -233,17 +231,32 @@ export function GuestEditingScreen({ onSignIn, onCanvasClose }: CreationRoute) {
                 <Text style={s.buttonText}>{label}</Text>
                 <Text style={s.cardDetail}>
                   {kind === 'IMAGE'
-                    ? 'Light, color & a fresh look'
+                    ? 'Crop, adjust and retouch'
                     : 'Clips, captions & sound'}
                 </Text>
               </Pressable>
             );
           })}
         </View>}
-        {!choosingCanvas && <Pressable accessibilityRole="button" accessibilityLabel="Create a video" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={photoVideo}><Text style={s.buttonText}>Create a video</Text><Text style={s.cardDetail}>Photos into an editable local timeline</Text></Pressable>}
-        {!choosingCanvas && <Pressable accessibilityRole="button" accessibilityLabel="Saved photo videos" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={videoProjects}><Text style={s.buttonText}>Saved photo videos</Text><Text style={s.cardDetail}>Reopen prepared clips and your saved timeline</Text></Pressable>}
-        {!choosingCanvas && <Pressable accessibilityRole="button" accessibilityLabel="Saved image projects" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={projects}><Text style={s.buttonText}>Saved image projects</Text><Text style={s.cardDetail}>Reopen editable canvases kept on this device</Text></Pressable>}
+        {!choosingCanvas && (
+          <View style={s.projectActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Turn photos into a video" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={photoVideo}>
+              <Text style={s.buttonText}>Turn photos into a video</Text>
+              <Text style={s.cardDetail}>Arrange photos on an editable timeline</Text>
+            </Pressable>
+            <Text accessibilityRole="header" style={s.sectionHeading}>Saved projects</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Saved photo videos" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={videoProjects}>
+              <Text style={s.buttonText}>Saved photo videos</Text>
+              <Text style={s.cardDetail}>Reopen prepared clips and your saved timeline</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Saved image projects" accessibilityState={{ disabled: busy }} disabled={busy} style={[s.canvasChoice, busy && s.disabled]} onPress={projects}>
+              <Text style={s.buttonText}>Saved image projects</Text>
+              <Text style={s.cardDetail}>Reopen editable canvases kept on this device</Text>
+            </Pressable>
+          </View>
+        )}
         {!choosingCanvas && <AdvancedEditors busy={busy} />}
+        {!choosingCanvas && <StudioStartGuide busy={busy} onPhoto={() => open('IMAGE')} onVideo={() => open('VIDEO')} onStory={photoVideo} onDrawing={draw} onCanvas={chooseCanvas} />}
         {choosingCanvas && (
           <View style={s.canvasChoices}>
             <Pressable
@@ -387,23 +400,26 @@ const s = StyleSheet.create({
   canvasTab: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 10, justifyContent: 'center' },
   canvasTabSelected: { borderColor: colors.textPrimary, borderWidth: 2 },
   canvasChoices: { gap: 8, marginBottom: 24 },
+  projectActions: { gap: 8 },
   canvasChoice: { minHeight: 56, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 12 },
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { flexGrow: 1, padding: 24, paddingBottom: 40 },
+  content: { flexGrow: 1, padding: 18, paddingBottom: 40 },
   wordmark: {
     color: colors.textPrimary,
-    fontSize: 23,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.6,
   },
   title: {
     color: colors.textPrimary,
-    fontSize: 36,
+    fontSize: 37,
     lineHeight: 42,
-    fontWeight: '500',
-    letterSpacing: -1.2,
-    marginTop: 28,
+    fontWeight: '700',
+    letterSpacing: -1.6,
+    marginTop: 5,
+    marginBottom: 16,
   },
+  sectionHeading: {fontSize: 19, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 6},
   copy: {
     color: colors.textSecondary,
     fontSize: 14,
@@ -412,16 +428,16 @@ const s = StyleSheet.create({
   },
   actions: {
     gap: 12,
-    marginVertical: 26,
+    marginBottom: 12,
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   button: {
-    minHeight: 148,
+    minHeight: 102,
     width: '47%',
     flexGrow: 1,
     backgroundColor: colors.canvas,
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 15,
@@ -432,11 +448,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   cardDetail: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.textSecondary,
     marginTop: 5,
   },

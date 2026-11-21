@@ -45,17 +45,15 @@ export const workspaceStyles = StyleSheet.create({
 });
 const s = StyleSheet.create({
   header: {
-    minHeight: 84,
+    minHeight: 68,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 10,
     gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 0,
-    borderBottomColor: colors.border,
     backgroundColor: colors.canvas,
   },
-  copy: { flex: 1, gap: 4 },
+  copy: { flex: 1, minWidth: 0, gap: 4 },
   section: {
     fontSize: 12,
     lineHeight: 16,
@@ -65,7 +63,7 @@ const s = StyleSheet.create({
   title: {
     fontSize: 32,
     lineHeight: 38,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.7,
     color: colors.textPrimary,
   },
@@ -74,7 +72,7 @@ const s = StyleSheet.create({
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: -12,
+    marginLeft: -8,
   },
   action: { flexShrink: 1 },
 });

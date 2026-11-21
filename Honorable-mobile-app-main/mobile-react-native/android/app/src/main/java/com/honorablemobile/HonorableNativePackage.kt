@@ -2,6 +2,7 @@ package com.honorablemobile
 
 import app.honorable.auth.SafeBetaTelemetry
 import app.honorable.auth.AccountSession
+import app.honorable.auth.AccountHttpError
 import app.honorable.auth.GoogleAccountSignIn
 import app.honorable.editor.EditorAccessMode
 import org.json.JSONObject
@@ -276,7 +277,19 @@ class HonorableSearchModule(private val context: ReactApplicationContext) : Reac
     private fun accountArray(value:JSONArray):WritableArray {val array=Arguments.createArray();for(i in 0 until value.length()){when(val item=value.get(i)){JSONObject.NULL->array.pushNull();is JSONObject->array.pushMap(accountMap(item));is Boolean->array.pushBoolean(item);is Number->array.pushDouble(item.toDouble());else->array.pushString(item.toString())}};return array}
     @ReactMethod fun restoreAccountSession(promise:Promise)=work.execute{guarded(promise){val snapshot=accountSession.restore();if(snapshot.optString("status")=="online"){SafeBetaTelemetry.start(context,snapshot.getJSONObject("account").getString("accountId"),snapshot.optJSONObject("beta")?.optJSONObject("tester")?.let{it.optString("status")!="ACTIVE"||it.optBoolean("analyticsOptOut")}?:true);/* Process startup timing is emitted by the telemetry bootstrap. */};accountMap(snapshot)}}
     @ReactMethod fun signInAccountWithGoogle(promise:Promise)=work.execute{guarded(promise){val activity=context.currentActivity?:error("An active screen is required");val token=runBlocking{GoogleAccountSignIn.token(activity,BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID)};val snapshot=accountSession.signIn(token);SafeBetaTelemetry.start(context,snapshot.getJSONObject("account").getString("accountId"),snapshot.optJSONObject("beta")?.optJSONObject("tester")?.let{it.optString("status")!="ACTIVE"||it.optBoolean("analyticsOptOut")}?:true);accountMap(snapshot)}}
-    @ReactMethod fun accountSessionAction(route:String,body:String?,promise:Promise)=work.execute{guarded(promise){accountMap(accountSession.action(route,body?.let{JSONObject(it)}))}}
+    @ReactMethod
+    fun accountSessionAction(route: String, body: String?, promise: Promise) = work.execute {
+        try {
+            promise.resolve(accountMap(accountSession.action(route, body?.let(::JSONObject))))
+        } catch (error: Throwable) {
+            val code = if (error is AccountHttpError && error.searchAdmissionRejected) {
+                "SEARCH_COMPLETION_VERIFICATION_REQUIRED"
+            } else {
+                "HONORABLE_NATIVE_ERROR"
+            }
+            promise.reject(code, error.message, error)
+        }
+    }
     @ReactMethod fun signOutAccountSession(promise:Promise)=work.execute{guarded(promise){accountSession.signOut();context.currentActivity?.let{activity->runCatching{runBlocking{GoogleAccountSignIn.clear(activity)}}};Arguments.createMap().apply{putBoolean("signedOut",true)}}}
     // Compatibility methods retain Credential Manager, but persistent account flows use the methods above.
     @ReactMethod fun signInWithGoogle(promise:Promise)=work.execute{guarded(promise){val activity=context.currentActivity?:error("An active screen is required");val token=runBlocking{GoogleAccountSignIn.token(activity,BuildConfig.HONORABLE_GOOGLE_WEB_CLIENT_ID)};Arguments.createMap().apply{putString("idToken",token)}}}

@@ -41,10 +41,18 @@ export function colorPixels(image,bases,weights,strength=.7){
   }
   return result;
 }
-export function mixColorPixels(image,enhanced,strength){
+export function mixColorPixels(image,enhanced,strength,foreground){
   checkedObjectImage(image);
   if(!(enhanced instanceof Uint8ClampedArray)||enhanced.length!==image.rgba.length||!Number.isFinite(strength)||strength<0||strength>1)throw Error('Invalid color preview strength.');
   const result=image.rgba.slice();
-  for(let i=0;i<result.length;i++)if(i%4!==3)result[i]=Math.round(enhanced[i]*strength+image.rgba[i]*(1-strength));
+  if(foreground!==undefined&&(!(foreground instanceof Uint8ClampedArray)||foreground.length!==result.length))
+    throw Error('The subject mask does not match the photo.');
+  for(let i=0;i<result.length;i+=4){
+    const weight=foreground?strength*foreground[i+3]/255:strength;
+    for(let channel=0;channel<3;channel++){
+      const offset=i+channel;
+      result[offset]=Math.round(enhanced[offset]*weight+image.rgba[offset]*(1-weight));
+    }
+  }
   return result;
 }

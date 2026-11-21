@@ -1,3 +1,23 @@
+diff --git a/apps/filmcraft-web/src/lib.rs b/apps/filmcraft-web/src/lib.rs
+index b473cd5..b238641 100644
+--- a/apps/filmcraft-web/src/lib.rs
++++ b/apps/filmcraft-web/src/lib.rs
+@@ -173,6 +173,15 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
+         && let eframe::egui_wgpu::WgpuSetup::CreateNew(c) = &mut web_options.wgpu_options.wgpu_setup
+     {
+         c.instance_descriptor.backends = eframe::wgpu::Backends::GL;
++        // Some Android WebViews expose a 4096 texture limit. eframe's default
++        // device request asks for 8192 even on those adapters.
++        let default_descriptor = Arc::clone(&c.device_descriptor);
++        c.device_descriptor = Arc::new(move |adapter| {
++            let mut descriptor = default_descriptor(adapter);
++            let maximum = &mut descriptor.required_limits.max_texture_dimension_2d;
++            *maximum = (*maximum).min(adapter.limits().max_texture_dimension_2d);
++            descriptor
++        });
+     }
+     let runner = eframe::WebRunner::new();
+     let host_for_app = host.clone();
 diff --git a/crates/h264enc/src/lib.rs b/crates/h264enc/src/lib.rs
 index c280e61..3c30aad 100644
 --- a/crates/h264enc/src/lib.rs

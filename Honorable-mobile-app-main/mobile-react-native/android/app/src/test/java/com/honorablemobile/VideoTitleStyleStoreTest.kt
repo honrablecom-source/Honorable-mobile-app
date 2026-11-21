@@ -3,10 +3,15 @@ package com.honorablemobile
 import app.honorable.editor.PhotoPresetNamespace
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.nio.file.Files
 import java.io.File
 import java.util.concurrent.Executors
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = android.app.Application::class, manifest = Config.NONE)
 class VideoTitleStyleStoreTest {
     private val owner=PhotoPresetNamespace.GUEST
     private val a=NamedVideoTitleStyle("Opening",VideoTitleStyle(0))
@@ -40,9 +45,9 @@ class VideoTitleStyleStoreTest {
     }
     @Test fun symlinkFileAndDirectoryRefused() = folder { dir ->
         val actual=File(dir,"actual").apply { mkdir() }; val alias=File(dir,"alias")
-        Files.createSymbolicLink(alias.toPath(),actual.toPath()); reject { VideoTitleStyleStore(alias,owner) }
+        createSymbolicLinkFixture(alias.toPath(), actual.toPath()); reject { VideoTitleStyleStore(alias,owner) }
         val target=File(dir,"target").apply { writeText("untouched") }
-        Files.createSymbolicLink(File(actual,"$owner.bin").toPath(),target.toPath())
+        createSymbolicLinkFixture(File(actual,"$owner.bin").toPath(), target.toPath())
         reject { VideoTitleStyleStore(actual,owner) }; assertEquals("untouched",target.readText())
     }
     @Test fun concurrentStoreInstancesKeepAllWrites() = folder { dir ->

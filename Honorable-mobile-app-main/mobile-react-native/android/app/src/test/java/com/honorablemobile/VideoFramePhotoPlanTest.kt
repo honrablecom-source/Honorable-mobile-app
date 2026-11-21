@@ -64,7 +64,7 @@ class VideoFramePhotoPlanTest {
         val root=Files.createTempDirectory("frame-link").toFile();val outside=Files.createTempDirectory("frame-outside").toFile()
         try{
             val sentinel=java.io.File(outside,"keep.png").apply{writeText("keep")}
-            Files.createSymbolicLink(java.io.File(root,"created-images").toPath(),outside.toPath())
+            createSymbolicLinkFixture(java.io.File(root, "created-images").toPath(), outside.toPath())
             assertTrue(runCatching{VideoFramePhotoFiles.write(root,{}, {it.writeText("new")})}.isFailure)
             assertEquals("keep",sentinel.readText());assertEquals(1,outside.listFiles()!!.size)
         }finally{java.io.File(root,"created-images").delete();root.deleteRecursively();outside.deleteRecursively()}

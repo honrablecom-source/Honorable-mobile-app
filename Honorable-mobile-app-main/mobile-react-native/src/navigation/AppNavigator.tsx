@@ -76,7 +76,7 @@ const StudioTab = () => (
 );
 const AccountTab = () => (
   <TabTransition>
-    <SettingsScreen />
+    <SettingsScreen tabRoot />
   </TabTransition>
 );
 function MainTabs() {
@@ -104,7 +104,7 @@ function MainTabs() {
         ),
       })}
     >
-      <Tabs.Screen name="Home" component={HomeTab} />
+      <Tabs.Screen name="Home" component={HomeTab} options={{title: 'Search'}} />
       <Tabs.Screen
         name="Memories"
         component={MemoriesTab}
@@ -148,7 +148,6 @@ export function AppNavigator() {
 }
 const styles = StyleSheet.create({
   tabBar: {
-    height: 64,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.surfaceSelected,

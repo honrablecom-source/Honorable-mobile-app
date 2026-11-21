@@ -10,18 +10,19 @@ import { colors } from '../design-system';
 import type { RootStackParamList } from '../navigation/types';
 function Shell({
   title,
+  onBack,
   children,
 }: {
   title: string;
+  onBack: () => void;
   children: React.ReactNode;
 }) {
-  const navigation = useNavigation();
   return (
     <SafeAreaView style={styles.safe}>
       <WorkspaceHeader
         title={title}
         section="Noble / privacy"
-        onBack={() => navigation.goBack()}
+        onBack={onBack}
       />
       <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
     </SafeAreaView>
@@ -39,7 +40,7 @@ export function AboutLegalScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Shell title="About & legal">
+    <Shell title="About & legal" onBack={() => navigation.goBack()}>
       <Text variant="muted" className="mb-6 mt-2">
         Noble keeps normal search and indexing on your device.
       </Text>
@@ -83,16 +84,61 @@ function DraftDisclosure() {
   );
 }
 export function TermsOfServiceScreen() {
+  const navigation = useNavigation();
   return (
-    <Shell title="Terms of Service">
+    <Shell title="Terms of Service" onBack={() => navigation.goBack()}>
       <DraftDisclosure />
     </Shell>
   );
 }
 export function PrivacyPolicyScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Shell title="Privacy Policy">
-      <DraftDisclosure />
+    <PreviewPrivacyNotice
+      onBack={() => navigation.goBack()}
+      onPrivacyData={() => navigation.navigate('PrivacyData')}
+    />
+  );
+}
+export function PreviewPrivacyNotice({
+  onBack,
+  onPrivacyData,
+}: {
+  onBack: () => void;
+  onPrivacyData?: () => void;
+}) {
+  return (
+    <Shell title="Privacy Policy" onBack={onBack}>
+      <Text style={styles.draft}>NOBLE PREVIEW</Text>
+      <Text accessibilityRole="header" className="mt-6 text-[17px] font-semibold">
+        Your library and edits
+      </Text>
+      <Text variant="muted" className="mt-3 leading-6">
+        Noble uses the photos and videos you allow it to access. Normal
+        indexing, search, and editing run on your device. If you save or share a
+        copy, you choose its destination.
+      </Text>
+      <Text accessibilityRole="header" className="mt-6 text-[17px] font-semibold">
+        Online account and support
+      </Text>
+      <Text variant="muted" className="mt-3 leading-6">
+        When you sign in with Google, Noble's account service uses your Google
+        identity, name and email to create or restore your account. The service
+        keeps account, credit and session records and receives an installation
+        identifier and app and device details. It also records service and
+        usage events. Feedback sends the details you submit. Attaching a
+        screenshot or diagnostic report requires a separate choice.
+      </Text>
+      <Text accessibilityRole="header" className="mt-6 text-[17px] font-semibold">
+        Your choices
+      </Text>
+      <Text variant="muted" className="mt-3 leading-6">
+        The optional Seran contribution program is off by default. This preview
+        has no contribution upload service. If you sign in, use Privacy & Data
+        to review your choices or send an account deletion request for review.
+      </Text>
+      {onPrivacyData && <LinkRow title="Privacy & Data" onPress={onPrivacyData} />}
     </Shell>
   );
 }

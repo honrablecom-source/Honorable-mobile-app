@@ -11,6 +11,15 @@ import java.security.MessageDigest
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = android.app.Application::class, manifest = Config.NONE)
 class CreativeEditorPolicyTest {
+    @Test fun onlyExactBundledPhotoToolNamesCanLaunch() {
+        for (tool in listOf("subject", "object", "color", "denoise", "style")) {
+            assertEquals(tool, CreativeEditorPolicy.imageAiTool(tool))
+        }
+        for (tool in listOf(null, "", "OBJECT", "object&network=1", "../color", "constructor")) {
+            assertNull(CreativeEditorPolicy.imageAiTool(tool))
+        }
+    }
+
     @Test fun onlyPrivateExpectedOriginAndSafeAssetPaths() {
         assertEquals("creative-editors/image/index.html", CreativeEditorPolicy.assetPath("image", "https", CreativeEditorPolicy.HOST, -1, "/image/index.html"))
         for (path in listOf("/video/index.html", "/image/../secret", "/image//index.html", "/image/%2e%2e/file", "/image/")) {

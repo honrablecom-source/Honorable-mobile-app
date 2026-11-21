@@ -159,7 +159,6 @@ test('guest navigation exposes only local editors and sign-in, never account/sea
   );
   expect([...labels].sort()).toEqual([
     'Back to sign in',
-    'Create a video',
     'Create an image',
     'Draw an image',
     'Edit a photo',
@@ -167,6 +166,7 @@ test('guest navigation exposes only local editors and sign-in, never account/sea
     'Help me get started',
     'Saved image projects',
     'Saved photo videos',
+    'Turn photos into a video',
   ]);
   expect(mockAccountMounted).not.toHaveBeenCalled();
   expect(native.accountSessionAction).not.toHaveBeenCalled();
@@ -445,7 +445,7 @@ test('saved image project entry shares the guard with all other guest editors', 
 
 
 it.each([
-  ['Create a video', 'createPhotoVideoGuest'],
+  ['Turn photos into a video', 'createPhotoVideoGuest'],
   ['Saved photo videos', 'openPhotoVideoProjectsGuest'],
 ] as const)('opens %s through the guest boundary with a shared busy guard', async (label, method) => {
   let complete: (value: { opened: boolean }) => void = () => {};
@@ -465,7 +465,7 @@ test('canvas modes hide unrelated routes and retain custom settings when switchi
   await enterGuest();
   await act(async () => button('Create an image').props.onPress());
   expect(button('Edit a photo')).toBeUndefined();
-  expect(button('Create a video')).toBeUndefined();
+  expect(button('Turn photos into a video')).toBeUndefined();
   expect(input('Canvas width in pixels')).toBeUndefined();
   expect(button('Canvas formats').props.accessibilityState.selected).toBe(true);
   await act(async () => button('Custom canvas and setups').props.onPress());
@@ -505,11 +505,13 @@ test('beginner guide retains its choice and shares the existing launch guard', a
   native.createPhotoVideoGuest.mockImplementation(() => new Promise(resolve => { complete = resolve; }));
   await enterGuest();
   await act(async () => button('Help me get started').props.onPress());
-  await act(async () => button('Turn photos into a video').props.onPress());
+  const choice = () => tree.root.findAll(node => node.props.accessibilityRole === 'radio' &&
+    node.props.accessibilityLabel === 'Turn photos into a video')[0];
+  await act(async () => choice().props.onPress());
   await act(async () => button('Help me get started').props.onPress());
   expect(button('Choose my story photos')).toBeUndefined();
   await act(async () => button('Help me get started').props.onPress());
-  expect(button('Turn photos into a video').props.accessibilityState.checked).toBe(true);
+  expect(choice().props.accessibilityState.checked).toBe(true);
   await act(async () => { button('Choose my story photos').props.onPress(); });
   expect(button('Choose my story photos').props.disabled).toBe(true);
   expect(button('Help me get started').props.disabled).toBe(true);

@@ -44,6 +44,7 @@ import { useOpenWorkspace, type WorkspaceKind } from '../native/openWorkspace';
 import { editMemory } from '../native/editMemory';
 import type { LibraryItem } from '../native/HonorableNative';
 import { StudioStartGuide } from '../components/StudioStartGuide';
+import { AdvancedEditors } from '../components/AdvancedEditors';
 import { CanvasCreationScreen } from './GuestEditingScreen';
 
 const sameSource = (a: LibraryItem, b: LibraryItem) =>
@@ -355,7 +356,7 @@ export function StudioScreen({
           <Text accessibilityRole="header" style={s.launchTitle}>
             Studio
           </Text>
-          <Text style={s.subtitle}>Create and edit with on-device AI</Text>
+          <Text style={s.subtitle}>Photos, video and design</Text>
         </View>
         <View style={s.headerActions}>
           {onReturnToLibrary && (
@@ -392,14 +393,7 @@ export function StudioScreen({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={s.content}
       >
-        <StudioStartGuide
-          busy={busy}
-          onPhoto={() => importMedia('IMAGE')}
-          onVideo={() => importMedia('VIDEO')}
-          onStory={() => launchWorkspace(photoVideo)}
-          onDrawing={() => launchWorkspace(draw)}
-          onCanvas={chooseCanvas}
-        />
+        <AdvancedEditors featured busy={busy} />
         <View style={s.sourceActions}>
           <Pressable
             accessibilityRole="button"
@@ -426,10 +420,7 @@ export function StudioScreen({
         </View>
         <View style={s.creationSection}>
           <Text accessibilityRole="header" style={s.creationHeading}>
-            Make more with AI
-          </Text>
-          <Text style={s.creationCopy}>
-            Start with your media. Review the result. Keep the original.
+            AI in the editors
           </Text>
           {[
             {
@@ -467,10 +458,15 @@ export function StudioScreen({
               <ArrowUpRight size={16} color={colors.textSecondary} />
             </Pressable>
           ))}
-          <Text style={s.creationCopy}>
-            Check AI results before exporting. Originals stay untouched.
-          </Text>
         </View>
+        <StudioStartGuide
+          busy={busy}
+          onPhoto={() => importMedia('IMAGE')}
+          onVideo={() => importMedia('VIDEO')}
+          onStory={() => launchWorkspace(photoVideo)}
+          onDrawing={() => launchWorkspace(draw)}
+          onCanvas={chooseCanvas}
+        />
         <View style={s.creationSection}>
           <Text accessibilityRole="header" style={s.creationHeading}>
             Start something new

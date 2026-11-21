@@ -227,7 +227,7 @@ test('library failure is distinct from no matches and retry reloads metadata', a
   ).toBeGreaterThan(0);
   expect(
     tree.root.findAll(
-      node => node.props.children === 'No loaded memories match',
+      node => node.props.children === 'No media loaded',
     ),
   ).toHaveLength(0);
   await act(async () => button('Retry loading library').props.onPress());
@@ -247,12 +247,24 @@ test('initial loading does not report that no memories exist', async () => {
   ).toBeGreaterThan(0);
   expect(
     tree.root.findAll(
-      node => node.props.children === 'No loaded memories match',
+      node => node.props.children === 'No media loaded',
     ),
   ).toHaveLength(0);
   expect(button('Load more memories').props.disabled).toBe(true);
   expect(mockLoadMore).not.toHaveBeenCalled();
 });
+test('filename shortcuts stay collapsed until requested and still filter the library', async () => {
+  await mount();
+  expect(button('Show Camera photos')).toBeUndefined();
+  await act(async () => button('Filename shortcuts').props.onPress());
+  expect(button('Filename shortcuts').props.accessibilityState.expanded).toBe(true);
+  await act(async () => button('Show Camera photos').props.onPress());
+  expect(filter().props.value).toBe('IMG_');
+  await act(async () => button('Filename shortcuts').props.onPress());
+  expect(button('Show Camera photos')).toBeUndefined();
+  expect(filter().props.value).toBe('IMG_');
+});
+
 test('same-tick paging and refresh cannot compete; explicit refresh closes the viewer', async () => {
   let finish!: () => void;
   mockLoadMore.mockImplementationOnce(

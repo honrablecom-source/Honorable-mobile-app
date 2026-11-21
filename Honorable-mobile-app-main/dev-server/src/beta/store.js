@@ -36,7 +36,22 @@ class BetaStore {
  asset(body,actor){keys(body,['releaseId','kind','reference','claim','approved']);const r=this.data.releases.find(r=>r.id===body.releaseId);if(!r)throw fail('RELEASE_NOT_FOUND',404);if(typeof body.approved!=='boolean')throw fail('INVALID_APPROVAL');return this.mutate(()=>{const value={id:crypto.randomUUID(),kind:choice(body.kind,['SCREENSHOT','DEMO_A','DEMO_B','DEMO_C','CLAIM']),reference:text(body.reference,300,true),claim:text(body.claim,500,true),approved:body.approved,actor,at:this.now()};r.assets.push(value);if(value.kind==='DEMO_B')r.demoB={passed:value.approved,evidence:value.reference};return value})}
  current(){return this.data.releases.filter(r=>r.status!=='WITHDRAWN').at(-1)}
  knownIssue(body){keys(body,['id','title','testerText','severity','platform','version','status']);if(body.id&&!this.data.issues.some(i=>i.id===body.id))throw fail('ISSUE_NOT_FOUND',404);return this.mutate(()=>{const issue={id:body.id||crypto.randomUUID(),title:text(body.title,120,true),testerText:text(body.testerText||'',1000),severity:choice(body.severity,['S1','S2','S3','S4']),platform:choice(body.platform||'ALL',['ALL','ANDROID','WEB_TEST','IOS']),version:text(body.version||'',24),status:choice(body.status||'OPEN',['OPEN','RESOLVED']),createdAt:this.now()};this.data.issues=this.data.issues.filter(i=>i.id!==issue.id);this.data.issues.push(issue);return issue})}
- request(id,body){keys(body,['type']);choice(body.type,['ACCOUNT_DELETION','BETA_REMOVAL','ANALYTICS_OPT_OUT']);return this.mutate(()=>{let row=this.data.requests.find(r=>r.accountId===id&&r.type===body.type&&r.status==='OPEN');if(!row){row={id:crypto.randomUUID(),accountId:id,type:body.type,status:'OPEN',at:this.now()};this.data.requests.push(row)}const t=this.tester(id);if(t&&body.type==='ANALYTICS_OPT_OUT')t.analyticsOptOut=true;if(t&&body.type==='BETA_REMOVAL')t.status='REMOVED';return row})}
+ request(id,body){
+  keys(body,['type']);choice(body.type,['ACCOUNT_DELETION','BETA_REMOVAL','ANALYTICS_OPT_OUT']);
+  return this.mutate(()=>{
+   let row=this.data.requests.find(request=>
+    request.accountId===id&&request.type===body.type&&['OPEN','IN_REVIEW'].includes(request.status)
+   );
+   if(!row){
+    row={id:crypto.randomUUID(),accountId:id,type:body.type,status:'OPEN',at:this.now()};
+    this.data.requests.push(row);
+   }
+   const tester=this.tester(id);
+   if(tester&&body.type==='ANALYTICS_OPT_OUT')tester.analyticsOptOut=true;
+   if(tester&&body.type==='BETA_REMOVAL')tester.status='REMOVED';
+   return {id:row.id,accountId:row.accountId,type:row.type,status:row.status,at:row.at};
+  });
+ }
  resolveRequest(body){keys(body,['id','status','note']);const row=this.data.requests.find(r=>r.id===body.id);if(!row)throw fail('REQUEST_NOT_FOUND',404);return this.mutate(()=>{row.status=choice(body.status,['IN_REVIEW','FULFILLED','DECLINED']);row.note=text(body.note,2000,true);row.updatedAt=this.now();return row})}
  config(id,metadata={}){const r=this.data.releases.filter(r=>r.status==='RELEASED'&&(!metadata.platform||metadata.platform==='UNKNOWN'||(r.platform||'ANDROID')===metadata.platform||r.platform==='ALL')).at(-1),t=this.tester(id),build=Number(metadata.buildNumber);return{channel:this.channel,betaRequired:this.required,tester:t?{status:t.status,cohort:t.cohort,analyticsOptOut:t.analyticsOptOut}:null,flags:Object.fromEntries(FLAGS.map(f=>[f,this.enabled(f,id)])),release:r?{version:r.version,buildNumber:r.buildNumber,testerNotes:r.testerNotes,updateLevel:r.updateLevel,minimumBuild:r.minimumBuild,updateNeeded:!build||build<Number(r.buildNumber)}:null,knownIssues:this.data.issues.filter(i=>i.status==='OPEN'&&i.testerText&&(!i.version||i.version===metadata.appVersion)&&(i.platform==='ALL'||i.platform===metadata.platform)).map(i=>({text:i.testerText,severity:i.severity}))}}
 }

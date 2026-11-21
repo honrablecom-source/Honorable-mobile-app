@@ -46,6 +46,7 @@ export function MemoriesScreen() {
     useLibrary();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [selected, setSelected] = useState<MediaItem>();
   const [collection, setCollection] = useState<LibraryCollection>();
   const [operation, setOperation] = useState<
@@ -106,13 +107,6 @@ export function MemoriesScreen() {
   };
   const libraryError = localError || error;
   const smartCollections = [
-    { label: 'All photos', query: '', filter: 'Photos' as Filter },
-    { label: 'All videos', query: '', filter: 'Videos' as Filter },
-    {
-      label: 'Screenshots',
-      query: 'screenshot',
-      filter: 'Screenshots' as Filter,
-    },
     { label: 'Camera photos', query: 'IMG_', filter: 'Photos' as Filter },
     { label: 'Camera videos', query: 'VID_', filter: 'Videos' as Filter },
     { label: 'Scanned files', query: 'scan', filter: 'All' as Filter },
@@ -449,6 +443,49 @@ export function MemoriesScreen() {
         section={`${total.toLocaleString()} items on your device`}
       />
 
+      <HonorableSearchBar
+        compact
+        value={query}
+        onChangeText={setQuery}
+      />
+      <View style={styles.filterArea}>
+        <FilterTabs items={filters} value={filter} onChange={setFilter} />
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Filename shortcuts"
+        accessibilityState={{expanded: shortcutsOpen}}
+        onPress={() => setShortcutsOpen(open => !open)}
+        style={styles.shortcutToggle}
+      >
+        <Text style={styles.selectionActionText}>Filename shortcuts</Text>
+        <Text importantForAccessibility="no" style={styles.selectionActionText}>
+          {shortcutsOpen ? '−' : '+'}
+        </Text>
+      </Pressable>
+      {shortcutsOpen && <ScrollView
+        horizontal
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.collections}
+      >
+        {smartCollections.map(preset => (
+          <Pressable
+            key={preset.label}
+            accessibilityRole="button"
+            accessibilityLabel={`Show ${preset.label}`}
+            onPress={() => {
+              setFilter(preset.filter);
+              setQuery(preset.query);
+            }}
+            style={styles.collectionChip}
+          >
+            <Text className="text-[11px] font-semibold">
+              {preset.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>}
       {!selecting && <VideoProjectBackupEntry disabled={loading || operation !== null} canStart={canStartLibraryOperation} />}
       {!selecting && selectionPanel}
       <LibraryCollectionsPanel
@@ -481,39 +518,7 @@ export function MemoriesScreen() {
           <Text style={styles.selectionActionText}>Show all originals</Text>
         </Pressable>
       </View>}
-      <HonorableSearchBar
-        compact
-        value={query}
-        onChangeText={setQuery}
-        onSubmit={() => undefined}
-      />
-      <View style={{ height: 8 }} />
-      <FilterTabs items={filters} value={filter} onChange={setFilter} />
-      <ScrollView
-        horizontal
-        keyboardShouldPersistTaps="handled"
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.collections}
-      >
-        {smartCollections.map(preset => (
-          <Pressable
-            key={preset.label}
-            accessibilityRole="button"
-            accessibilityLabel={`Show ${preset.label}`}
-            onPress={() => {
-              setFilter(preset.filter);
-              setQuery(preset.query);
-            }}
-            style={styles.collectionChip}
-          >
-            <Text className="text-[11px] font-semibold">
-              {preset.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      <View style={{ height: 16 }} />
-      {!loading && (
+      {!loading && items.length < total && !collection && (
         <Text style={styles.loadedNotice}>
           {items.length} of {total} library items loaded. Filename filters apply
           to loaded items.
@@ -555,10 +560,12 @@ export function MemoriesScreen() {
   ) : !libraryError ? (
     <View style={styles.empty}>
       <Text className="text-[17px] font-semibold">
-        No loaded memories match
+        {query || filter !== 'All' || collection ? 'No matching media' : 'No media loaded'}
       </Text>
       <Text variant="muted" className="mt-1 text-center">
-        Try another filter or filename. Pull down to refresh the library.
+        {query || filter !== 'All' || collection
+          ? 'Try another filter or filename.'
+          : 'Pull down to refresh the library.'}
       </Text>
     </View>
   ) : null;
@@ -674,18 +681,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   error: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 24,
+  filterArea: {marginTop: 8},
+  shortcutToggle: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceRaised,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  filters: { paddingHorizontal: 12, paddingVertical: 12, gap: 6 },
   collections: { gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   collectionChip: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 12,
     justifyContent: 'center',
     borderRadius: 8,

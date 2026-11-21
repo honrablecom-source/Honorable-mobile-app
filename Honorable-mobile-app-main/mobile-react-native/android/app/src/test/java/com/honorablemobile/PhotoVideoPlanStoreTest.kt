@@ -64,11 +64,20 @@ class PhotoVideoPlanStoreTest {
         val row=store().list().single();assertFalse(row.readable);assertNull(row.token)
         rejects { store().load(row.id) };rejects { store().delete(row.id,saved.token) };assertTrue(target.exists())
     }
-    @Test fun traversalAndSymlinksNeverReadOrDeleteOtherFiles() {
-        val outside=File(temp.root,"original-photo").apply { writeText("original untouched") }
-        rejects { store().load("../original-photo") };rejects { store().delete("../original-photo","0".repeat(64)) }
-        directory().mkdirs();val id=UUID.randomUUID().toString();java.nio.file.Files.createSymbolicLink(File(directory(),"$id.bin").toPath(),outside.toPath())
-        rejects { store().load(id) };rejects { store().delete(id,"0".repeat(64)) };assertEquals("original untouched",outside.readText())
+    @Test fun traversalNeverReadsOrDeletesOtherFiles() {
+        val outside = File(temp.root, "original-photo").apply { writeText("original untouched") }
+        rejects { store().load("../original-photo") }
+        rejects { store().delete("../original-photo", "0".repeat(64)) }
+        assertEquals("original untouched", outside.readText())
+    }
+    @Test fun symbolicLinksNeverReadOrDeleteTheirTargets() {
+        val outside = File(temp.root, "original-photo").apply { writeText("original untouched") }
+        assertTrue(directory().mkdir())
+        val id = UUID.randomUUID().toString()
+        createSymbolicLinkFixture(File(directory(), "$id.bin").toPath(), outside.toPath())
+        rejects { store().load(id) }
+        rejects { store().delete(id, "0".repeat(64)) }
+        assertEquals("original untouched", outside.readText())
     }
     @Test fun concurrentStoreInstancesAdmitExactlyOneDuplicateName() {
         val start=CountDownLatch(1);val pool=Executors.newFixedThreadPool(4)

@@ -338,79 +338,11 @@ export function HomeScreen() {
         </View>
         <View style={styles.hero}>
           <Text accessibilityRole="header" style={styles.heroTitle}>
-            {'Your library.\nYour studio.'}
+            Find a memory
           </Text>
           <Text style={styles.heroDetail}>
-            A place for your memories and what comes next.
+            Describe a scene or use words you remember from a photo.
           </Text>
-        </View>
-        {!response && Platform.OS === 'android' && (
-          <View style={styles.launchRow}>
-            {(['IMAGE', 'VIDEO'] as const).map(kind => {
-              const Icon = kind === 'IMAGE' ? Photo : Film;
-              return (
-                <Pressable
-                  key={kind}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    kind === 'IMAGE' ? 'Open photo studio' : 'Open video studio'
-                  }
-                  accessibilityState={{ disabled: openingEditor }}
-                  disabled={openingEditor}
-                  onPress={() => open(kind)}
-                  style={[
-                    styles.launchCard,
-                    openingEditor && { opacity: 0.45 },
-                  ]}
-                >
-                  <View style={styles.launchTop}>
-                    <Icon
-                      size={26}
-                      strokeWidth={1.5}
-                      color={colors.textPrimary}
-                    />
-                    <ArrowUpRight size={17} color={colors.textSecondary} />
-                  </View>
-                  <Text style={styles.launchTitle}>
-                    {kind === 'IMAGE' ? 'Photo studio' : 'Video studio'}
-                  </Text>
-                  <Text style={styles.launchDetail}>
-                    {kind === 'IMAGE'
-                      ? 'Light, color & a fresh look'
-                      : 'Clips, captions & sound'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-        <AiShotBriefPanel
-          owner={owner}
-          connected={passConnected}
-          model={productModel}
-          busy={loading || openingEditor}
-          phase={phase}
-          onSearch={search}
-          onCancel={() => runner.current?.cancel() ?? false}
-          onPreview={result => {
-            const source = library.find(
-              item => item.mediaId === result.mediaId,
-            );
-            setSelected({
-              id: `${result.mediaId}-${result.rank}`,
-              uri:
-                source?.thumbnailUri ??
-                (result.mediaType === 'IMAGE' ? result.mediaUri : undefined),
-              mediaUri: result.mediaUri,
-              type: result.mediaType,
-              displayName: result.displayName,
-              result,
-            } as MediaItem);
-          }}
-        />
-        <View style={styles.searchHeading}>
-          <Text style={styles.searchTitle}>Find a memory</Text>
-          <Text style={styles.searchTag}>SERAN</Text>
         </View>
         <HonorableSearchBar
           value={query}
@@ -438,6 +370,30 @@ export function HomeScreen() {
           <ShieldCheck size={12} color={colors.textTertiary} />
           <Text style={styles.privacyText}>Search runs on your device</Text>
         </View>
+        <AiShotBriefPanel
+          owner={owner}
+          connected={passConnected}
+          model={productModel}
+          busy={loading || openingEditor}
+          phase={phase}
+          onSearch={search}
+          onCancel={() => runner.current?.cancel() ?? false}
+          onPreview={result => {
+            const source = library.find(
+              item => item.mediaId === result.mediaId,
+            );
+            setSelected({
+              id: `${result.mediaId}-${result.rank}`,
+              uri:
+                source?.thumbnailUri ??
+                (result.mediaType === 'IMAGE' ? result.mediaUri : undefined),
+              mediaUri: result.mediaUri,
+              type: result.mediaType,
+              displayName: result.displayName,
+              result,
+            } as MediaItem);
+          }}
+        />
         {!response && !loading && (
           <View style={styles.history}>
             <Text variant="muted" className="text-[11px] font-semibold">
@@ -515,10 +471,12 @@ export function HomeScreen() {
                 borderTopRightRadius: 20,
               }}
             >
-              <Text>Select a model</Text>
+              <Text accessibilityRole="header">Search model</Text>
               {seranCreditCosts.map(m => (
                 <Pressable
                   key={m.model}
+                  accessibilityRole="radio"
+                  accessibilityState={{checked: m.model === productModel, disabled: !m.available || loading}}
                   disabled={!m.available || loading}
                   onPress={() => {
                     if (m.model !== 'SERAN_V3') setProductModel(m.model);
@@ -534,7 +492,7 @@ export function HomeScreen() {
                 >
                   <Text>
                     {m.name} · {m.credits} credits
-                    {!m.available ? ' · Coming Soon' : ''}
+                    {!m.available ? ' · Locked' : ''}
                   </Text>
                 </Pressable>
               ))}
@@ -606,7 +564,7 @@ export function HomeScreen() {
             </View>
           </View>
         )}
-        {!!error && <Text style={styles.error}>{error}</Text>}
+        {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {!loading && response && !response.confident && (
           <View style={styles.message}>
             <Text className="font-semibold">
@@ -664,9 +622,9 @@ export function HomeScreen() {
         )}
         {!response && !libraryLoading && !library.length && (
           <View style={styles.message}>
-            <Text style={styles.emptyTitle}>Your memories belong here</Text>
+            <Text style={styles.emptyTitle}>{libraryError ? 'Library unavailable' : 'No media indexed yet'}</Text>
             <Text style={styles.emptyDetail}>
-              Allow photo and video access in Account to search your library.
+              Open Account to check photo access or indexing status.
             </Text>
           </View>
         )}
@@ -674,6 +632,46 @@ export function HomeScreen() {
           <Text accessibilityRole="alert" style={styles.error}>
             {libraryError}
           </Text>
+        )}
+        {!response && Platform.OS === 'android' && (
+          <View style={styles.launchRow}>
+            {(['IMAGE', 'VIDEO'] as const).map(kind => {
+              const Icon = kind === 'IMAGE' ? Photo : Film;
+              return (
+                <Pressable
+                  key={kind}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    kind === 'IMAGE' ? 'Open photo studio' : 'Open video studio'
+                  }
+                  accessibilityState={{ disabled: openingEditor }}
+                  disabled={openingEditor}
+                  onPress={() => open(kind)}
+                  style={[
+                    styles.launchCard,
+                    openingEditor && { opacity: 0.45 },
+                  ]}
+                >
+                  <View style={styles.launchTop}>
+                    <Icon
+                      size={26}
+                      strokeWidth={1.5}
+                      color={colors.textPrimary}
+                    />
+                    <ArrowUpRight size={17} color={colors.textSecondary} />
+                  </View>
+                  <Text style={styles.launchTitle}>
+                    {kind === 'IMAGE' ? 'Photo studio' : 'Video studio'}
+                  </Text>
+                  <Text style={styles.launchDetail}>
+                    {kind === 'IMAGE'
+                      ? 'Crop, adjust and retouch'
+                      : 'Clips, captions & sound'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         )}
         {!response && (
           <Pressable
@@ -685,7 +683,7 @@ export function HomeScreen() {
             <View style={styles.studioCopy}>
               <Text style={styles.studioLabel}>Open Studio</Text>
               <Text style={styles.studioDetail}>
-                Edit a photo or start a video.
+                On-device photo AI, video and design.
               </Text>
             </View>
             <ArrowUpRight size={20} color={colors.textPrimary} />
@@ -712,21 +710,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   wordmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: {
-    width: 28,
-    height: 28,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandLetter: {
-    fontSize: 23,
-    lineHeight: 27,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
   wordmark: {
     fontSize: 23,
     lineHeight: 30,
@@ -748,13 +731,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginHorizontal: 20,
-    marginBottom: 28,
+    marginTop: 24,
+    marginBottom: 12,
   },
   launchCard: {
     flex: 1,
-    minHeight: 146,
-    padding: 16,
-    borderRadius: 18,
+    minHeight: 100,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.canvas,
@@ -763,7 +747,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 10,
   },
   launchTitle: {
     fontSize: 17,
@@ -777,33 +761,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 5,
   },
-  searchHeading: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  searchTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: -0.4,
-  },
-  searchTag: { fontSize: 9, letterSpacing: 1.6, color: colors.textTertiary },
-  eyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    marginBottom: 10,
-  },
-  statusDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
-  },
-  eyebrow: { fontSize: 10, letterSpacing: 1.5, color: colors.textTertiary },
   heroTitle: {
     fontSize: 36,
     lineHeight: 40,

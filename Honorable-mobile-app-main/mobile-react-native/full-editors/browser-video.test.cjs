@@ -1,10 +1,24 @@
 const {chromium}=require('../../ui-previews/node_modules/playwright');
 const {createServer}=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
 const assert=require('node:assert/strict');const out=process.argv.includes('--out')?path.resolve(process.argv[process.argv.indexOf('--out')+1]):require('node:fs').mkdtempSync(path.join(require('node:os').tmpdir(),'noble-video-test-'));require('node:fs').mkdirSync(out,{recursive:true});
-(async()=>{const root=path.resolve(__dirname,'../android/app/src/main/assets/creative-editors/video');const server=createServer(async(req,res)=>{try{let name=new URL(req.url,'http://localhost').pathname;if(name==='/')name='/index.html';const file=path.resolve(root,'.'+name);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('Content-Type',name.endsWith('.wasm')?'application/wasm':name.endsWith('.html')?'text/html':'text/javascript');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");res.end(await fs.readFile(file).catch(async error=>{if(error.code!=='ENOENT'||!file.endsWith('.wasm'))throw error;return require('node:zlib').gunzipSync(await fs.readFile(file+'.gzip'));}));}catch{res.writeHead(404).end();}});await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;try{browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[],logs=[],external=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>logs.push({type:m.type(),text:m.text()}));const origin='http://127.0.0.1:'+server.address().port;page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.url().startsWith(origin+'/'))external.push(r.url())});await page.addInitScript(()=>{
+(async()=>{const root=path.resolve(process.env.NOBLE_VIDEO_ASSETS || path.join(__dirname,'../android/app/src/main/assets/creative-editors/video'));const server=createServer(async(req,res)=>{try{let name=new URL(req.url,'http://localhost').pathname;if(name==='/')name='/index.html';const file=path.resolve(root,'.'+name);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('Content-Type',name.endsWith('.wasm')?'application/wasm':name.endsWith('.html')?'text/html':'text/javascript');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");res.end(await fs.readFile(file).catch(async error=>{if(error.code!=='ENOENT'||!file.endsWith('.wasm'))throw error;return require('node:zlib').gunzipSync(await fs.readFile(file+'.gzip'));}));}catch{res.writeHead(404).end();}});await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;try{browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[],logs=[],external=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>logs.push({type:m.type(),text:m.text()}));const origin='http://127.0.0.1:'+server.address().port;page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.url().startsWith(origin+'/'))external.push(r.url())});await page.addInitScript(()=>{
  window.__shareCopies=[];let task=null;
  window.NobleCreative={beginSave(id,length,title){if(task)return false;task={id,length,title,raw:''};return true;},appendSave(id,chunk){if(task?.id!==id)return false;task.raw+=atob(chunk);return true;},finishSave(id){if(task?.id!==id||task.raw.length!==task.length)return false;window.__shareCopies.push(task);task=null;return true;},cancelSave(id){if(task?.id===id)task=null;}};
 });
+const constrainedTextures = process.argv.includes('--test-4096-textures');
+if (constrainedTextures) {
+  await page.addInitScript(() => {
+    window.__nobleTextureLimitReads = 0;
+    const prototype = WebGL2RenderingContext.prototype;
+    const getParameter = prototype.getParameter;
+    prototype.getParameter = function (parameter) {
+      const value = getParameter.call(this, parameter);
+      if (parameter !== this.MAX_TEXTURE_SIZE) return value;
+      window.__nobleTextureLimitReads++;
+      return Math.min(value, 4096);
+    };
+  });
+}
 if (process.argv.includes('--test-compatibility-retry')) {
   await page.route('**/editor.js', route => route.abort(), {times:1});
   await page.goto(origin+'/');
@@ -13,7 +27,15 @@ if (process.argv.includes('--test-compatibility-retry')) {
   for (const flag of ['webgl','cpu','nowebcodecs']) assert(flags.has(flag), 'Missing recovery flag: '+flag);
 } else {
   await page.goto(origin+'/?empty&webgl');
-}await page.waitForFunction(()=>Number.isFinite(window.filmcraft?.info?.().startupMs),{timeout:120000});const info=await page.evaluate(()=>filmcraft.info());const commands=await page.evaluate(()=>filmcraft.commands());
+}
+await page.waitForFunction(() => Number.isFinite(window.filmcraft?.info?.().startupMs) ||
+  document.getElementById('phase')?.textContent.startsWith('The studio stopped'), null, {timeout:120000});
+const info=await page.evaluate(()=>window.filmcraft?.info?.());
+assert(Number.isFinite(info?.startupMs), (await page.locator('#phase').allTextContents()).join(' '));
+if (constrainedTextures) {
+  assert(await page.evaluate(() => window.__nobleTextureLimitReads > 0), 'The engine did not query the constrained texture limit');
+}
+const commands=await page.evaluate(()=>filmcraft.commands());
 const roundtrip=await page.evaluate(async()=>{
  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=96;const context=canvas.getContext('2d');context.fillStyle='#e03030';context.fillRect(0,0,80,96);context.fillStyle='#3060e0';context.fillRect(80,0,80,96);
  const png=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));

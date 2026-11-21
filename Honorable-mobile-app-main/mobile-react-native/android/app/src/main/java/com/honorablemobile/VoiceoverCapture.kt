@@ -42,12 +42,13 @@ internal class VoiceoverFiles(private val root:File,val namespace:String) {
     }.getOrNull()
     fun renameSaved(id:String,name:String,requireCurrent:()->Unit) {
         val label=checkedName(name);requireCurrent();require(savedFile(id).isFile)
-        val target=file("$id.label")
+        val labelName = "$id.label"
+        file(labelName)
         val pending=File.createTempFile(".voiceover-label-",".pending",directory())
         try{
             pending.outputStream().use{it.write(label.toByteArray(Charsets.UTF_8));it.fd.sync()}
             requireCurrent();require(savedFile(id).isFile)
-            check(pending.renameTo(target)){"Voiceover name could not be saved"}
+            replaceEditorFile(pending, file(labelName), "Voiceover name could not be saved")
         }finally{pending.delete()}
     }
     fun deleteSaved(id:String) {

@@ -1,6 +1,7 @@
 """Exercise the APK gate with actual editor assets, never a device-readiness claim."""
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -16,7 +17,7 @@ DESCRIPTORS = b'\0'.join(
 
 
 class ApkGateTest(unittest.TestCase):
-    def check_package(self, *, rename=False, corrupt=False, missing_host=False, bundle=True, native_target=False):
+    def check_package(self, *, rename=False, corrupt=False, missing_host=False, bundle=True, native_target=False, stale_patch=False, archived_assets=False):
         with tempfile.TemporaryDirectory() as directory:
             apk = Path(directory) / 'fixture.apk'
             with zipfile.ZipFile(apk, 'w', compression=zipfile.ZIP_STORED) as package:
@@ -37,10 +38,23 @@ class ApkGateTest(unittest.TestCase):
                         package.writestr(name, data)
                     else:
                         package.write(path, name)
-            return subprocess.run(
-                [sys.executable, str(ROOT / 'verify-apk.py'), str(apk)] + (['--native-test-target'] if native_target else []),
-                capture_output=True, text=True,
-            )
+            verifier = ROOT / 'verify-apk.py'
+            if stale_patch:
+                sandbox = Path(directory) / 'checkout'
+                editor = sandbox / 'full-editors'
+                shutil.copytree(ROOT / 'patches', editor / 'patches')
+                shutil.copyfile(ROOT / 'upstreams.json', editor / 'upstreams.json')
+                verifier = editor / 'verify-apk.py'
+                shutil.copyfile(ROOT / 'verify-apk.py', verifier)
+                shutil.copytree(ASSETS, sandbox / 'android/app/src/main/assets/creative-editors')
+                with (editor / 'patches/filmcraft-mobile.patch').open('ab') as patch:
+                    patch.write(b'\n# A newer reviewed source change\n')
+            command = [sys.executable, str(verifier), str(apk)]
+            if native_target:
+                command.append('--native-test-target')
+            if archived_assets:
+                command.extend(['--assets-root', str(ASSETS)])
+            return subprocess.run(command, capture_output=True, text=True)
 
     def test_real_assets_and_multidex_descriptors_pass(self):
         result = self.check_package()
@@ -60,6 +74,15 @@ class ApkGateTest(unittest.TestCase):
         result = self.check_package(corrupt=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('wrong packaged bytes', result.stderr)
+
+    def test_old_bundle_with_matching_assets_but_a_stale_source_patch_is_rejected(self):
+        result = self.check_package(stale_patch=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('video: packaged engine predates the reviewed source or patch', result.stderr)
+
+    def test_historical_apk_can_be_checked_against_explicit_archived_assets(self):
+        result = self.check_package(stale_patch=True, archived_assets=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_missing_native_host_is_rejected(self):
         result = self.check_package(missing_host=True)

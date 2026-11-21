@@ -4,7 +4,12 @@ import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = android.app.Application::class, manifest = Config.NONE)
 class VoiceoverNamesTest {
     private fun saved(files:VoiceoverFiles):File=files.createPending().also{it.writeBytes(byteArrayOf(1,2,3))}.let(files::promote)
     @Test fun renameKeepsStableAudioIdentityAndBytesAcrossReplacement(){
@@ -49,14 +54,27 @@ class VoiceoverNamesTest {
             assertTrue(other.isFile);assertEquals("Keep other",files.readName(otherId))
         }finally{root.deleteRecursively()}
     }
-    @Test fun ownerNamespacesAndSymlinkLabelCannotCrossOrModifyOutsideFiles(){
+    @Test fun anotherOwnerCannotReadOrReplaceSavedLabels() {
+        val root = Files.createTempDirectory("voice-name-owner").toFile()
+        try {
+            val guest = VoiceoverFiles(root, "guest-basic")
+            val account = VoiceoverFiles(root, "account-" + "a".repeat(64))
+            val id = saved(guest).name.removeSuffix(".m4a")
+            guest.renameSaved(id, "Guest name") {}
+            assertNull(account.readName(id))
+            assertThrows(IllegalArgumentException::class.java) { account.renameSaved(id, "Not owned") {} }
+            assertEquals("Guest name", guest.readName(id))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+    @Test fun symlinkLabelCannotReadOrReplaceOutsideFiles() {
         val root=Files.createTempDirectory("voice-name-owner").toFile();val outside=Files.createTempFile("voice-name-outside",".txt").toFile()
         try{
-            val guest=VoiceoverFiles(root,"guest-basic");val account=VoiceoverFiles(root,"account-"+"a".repeat(64))
+            val guest=VoiceoverFiles(root,"guest-basic")
             val audio=saved(guest);val id=audio.name.removeSuffix(".m4a");guest.renameSaved(id,"Guest name"){}
-            assertNull(account.readName(id));assertTrue(runCatching{account.renameSaved(id,"Not owned") {}}.isFailure)
             val label=File(audio.parentFile,"$id.label");assertTrue(label.delete());outside.writeText("outside")
-            Files.createSymbolicLink(label.toPath(),outside.toPath())
+            createSymbolicLinkFixture(label.toPath(), outside.toPath())
             assertNull(guest.readName(id));assertTrue(runCatching{guest.renameSaved(id,"Do not overwrite") {}}.isFailure)
             assertEquals("outside",outside.readText());label.delete()
         }finally{root.deleteRecursively();outside.delete()}

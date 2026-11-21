@@ -15,6 +15,8 @@ internal object CreativeEditorPolicy {
     private val kinds = setOf("image", "video")
     private val segment = Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,159}")
     fun kind(value: String?): String? = value?.takeIf { it in kinds }
+    fun imageAiTool(value: String?): String? =
+        value?.takeIf { it == "subject" || it == "object" || it == "color" || it == "denoise" || it == "style" }
     fun relativePath(value: String): Boolean = value.length in 1..240 && value.split('/').all { segment.matches(it) && it != "." && it != ".." }
     fun assetPath(kind: String, scheme: String?, host: String?, port: Int, path: String?): String? {
         if (kind !in kinds || scheme != "https" || host != HOST || port !in setOf(-1, 443) || path == null) return null

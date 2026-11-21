@@ -50,7 +50,13 @@ function LinkRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={s.row}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={detail}
+      onPress={onPress}
+      style={s.row}
+    >
       <View style={s.rowCopy}>
         <Text style={s.rowTitle}>{title}</Text>
         <Text style={s.rowDetail}>{detail}</Text>
@@ -138,8 +144,13 @@ export function PrivacyDataScreen() {
         />
         <LinkRow
           title="Privacy information"
-          detail="Consent, retention, withdrawal, and deletion"
-          onPress={() => navigation.navigate('SeranImprovement')}
+          detail="How Noble handles your information"
+          onPress={() => navigation.navigate('PrivacyPolicy')}
+        />
+        <LinkRow
+          title="Account data requests"
+          detail="Request account deletion or turn off optional analytics"
+          onPress={() => navigation.navigate('BetaFeedback')}
         />
       </View>
       {state?.enabled && (

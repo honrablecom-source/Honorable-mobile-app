@@ -27,7 +27,11 @@ import java.util.concurrent.Executors
 
 /** Private, local-only host for the actual full editor bundles. Never mounts account/search. */
 class NobleCreativeEditorActivity : Activity() {
-    companion object { const val EXTRA_KIND = "noble.creative.kind"; private const val PICK = 7601 }
+    companion object {
+        const val EXTRA_KIND = "noble.creative.kind"
+        const val EXTRA_IMAGE_AI = "noble.creative.imageAi"
+        private const val PICK = 7601
+    }
     private lateinit var kind: String
     private lateinit var message: TextView
     private var web: WebView? = null
@@ -123,7 +127,9 @@ class NobleCreativeEditorActivity : Activity() {
             override fun onPermissionRequest(request: android.webkit.PermissionRequest) { request.deny() }
         }
         root.addView(view,LinearLayout.LayoutParams(-1,0,1f))
-        view.loadUrl("https://${CreativeEditorPolicy.HOST}/$kind/index.html")
+        val tool = if (kind == "image") CreativeEditorPolicy.imageAiTool(intent.getStringExtra(EXTRA_IMAGE_AI)) else null
+        val entry = "https://${CreativeEditorPolicy.HOST}/$kind/index.html"
+        view.loadUrl(if (tool == null) entry else "$entry?ai=$tool")
     }
     private fun blocked()=WebResourceResponse("text/plain","UTF-8",403,"Blocked",mapOf("Cache-Control" to "no-store"),ByteArrayInputStream(ByteArray(0)))
     @Deprecated("Android compatibility callback")

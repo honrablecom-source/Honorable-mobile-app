@@ -3,7 +3,7 @@
   "kind": "video",
   "repository": "https://github.com/storytold/filmcraft.git",
   "sourceRevision": "d1e64ecfcc5e6f21e30f571e6fe3edbe86fdcafa",
-  "patchSha256": "b1845e29646966d3e432c1530d6e4bb53fe74e343bd36b35887dc2a7b380b6b3",
+  "patchSha256": "7d33b7fb64df76ed3788c48748db4cf9e10e573f696074ed1c6e59869f625218",
   "lockSha256": "1e9cee5f684e49c182c830ba265e184f63b01461f3b043f011a682e875d71778",
   "bindgen": "0.2.129",
   "profile": "release",
@@ -13,8 +13,8 @@
   ],
   "wasm": {
     "compression": "gzip",
-    "bytes": 55488963,
-    "sha256": "03738c82c579a5a83074826ff6c2594cbc97a4210746b8203554f70763cda1c7"
+    "bytes": 55498411,
+    "sha256": "c9c0bf3211c4b270b52e152a7ae4eba4e423267193145cb276a294bb423186c8"
   },
   "experimental": true,
   "deviceTested": false,

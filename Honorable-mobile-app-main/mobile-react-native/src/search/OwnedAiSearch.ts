@@ -166,6 +166,15 @@ export class OwnedAiSearch {
       // A completed search can become stale while the server confirms it; do not leak it to a new owner.
       return this.dependencies.isCurrent() ? response : undefined;
     } catch (error) {
+      if (
+        startAttempted &&
+        job.phase === 'STARTING' &&
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'SEARCH_COMPLETION_VERIFICATION_REQUIRED'
+      ) {
+        throw Error('Search is unavailable right now. No credits were used.');
+      }
       if (startAttempted && !finalized && !failureAttempted) {
         failureAttempted = true;
         try {

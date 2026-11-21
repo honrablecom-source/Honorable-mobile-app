@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Miniflare, createFetchMock } from 'miniflare';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -16,7 +16,7 @@ const token = (subject = 'subject-one', aud = audience) => {
   return payload + '.' + crypto.sign('RSA-SHA256', Buffer.from(payload), privateKey).toString('base64url');
 };
 
-test('real Worker runtime: durable identity, credit grants, session rotation and production gates survive restart', async () => {
+test('real Worker runtime preserves identity, credits and production gates across restart and cold restore', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'noble-account-worker-'));
   const mock = createFetchMock();
   mock.disableNetConnect();
@@ -26,7 +26,8 @@ test('real Worker runtime: durable identity, credit grants, session rotation and
     modules: true, scriptPath: new URL('../.wrangler/build/worker.js', import.meta.url).pathname.replace(/^\/([A-Za-z]:\/)/, '$1'),
     compatibilityDate: '2026-07-30', compatibilityFlags: ['nodejs_compat', 'enable_nodejs_http_server_modules'],
     durableObjects: { ACCOUNT: { className: 'NobleAccount', useSQLite: true } },
-    durableObjectsPersist: directory, bindings: { HONORABLE_GOOGLE_WEB_CLIENT_ID: audience }, fetchMock: mock,
+    durableObjectsPersist: path.join(directory, 'primary'),
+    bindings: { HONORABLE_GOOGLE_WEB_CLIENT_ID: audience }, fetchMock: mock,
   };
   let mf = new Miniflare(options);
   const call = async (route, body, access) => {
@@ -69,6 +70,36 @@ test('real Worker runtime: durable identity, credit grants, session rotation and
     mf = new Miniflare(options);
     assert.equal((await call('/v1/auth/refresh', { refreshToken })).status, 401);
     assert.equal((await call('/v1/account', undefined, rotated.data.accessToken)).status, 401);
+    assert.equal((await call('/v1/account', undefined, secondLogin.data.accessToken)).data.totalAvailable, 15);
+
+    await mf.dispose();
+    const restoredPath = path.join(directory, 'restored');
+    await cp(options.durableObjectsPersist, restoredPath, { recursive: true, errorOnExist: true, force: false });
+
+    mf = new Miniflare(options);
+    const laterLogin = await call('/v1/auth/google', {
+      idToken: token('subject-two'), installationId: 'worker-test-installation-0002'
+    });
+    assert.equal(laterLogin.status, 200);
+    await mf.dispose();
+
+    mf = new Miniflare({ ...options, durableObjectsPersist: restoredPath });
+    const restored = await call('/v1/account', undefined, secondLogin.data.accessToken);
+    assert.equal(restored.status, 200);
+    assert.equal(restored.data.accountId, account.accountId);
+    assert.equal(restored.data.totalAvailable, 15);
+    assert.equal((await call('/v1/account', undefined, laterLogin.data.accessToken)).status, 401);
+    assert.equal((await call('/v1/auth/refresh', { refreshToken })).status, 401);
+    assert.equal((await call('/v1/search/start', { model: 'SERAN_V1', requestId: 'restored-search' }, secondLogin.data.accessToken)).status, 503);
+
+    const burst = await Promise.all(Array.from({ length: 16 }, (_, index) => call('/v1/auth/google', {
+      idToken: token(`restored-burst-${index}`),
+      installationId: 'worker-test-installation-0003',
+    })));
+    assert.ok(burst.every(result => result.status === 200), 'Concurrent sign-ins should succeed');
+    assert.equal(new Set(burst.map(result => result.data.account.accountId)).size, burst.length);
+    const balances = burst.map(result => result.data.account.totalAvailable).sort((a, b) => a - b);
+    assert.deepEqual(balances, [...Array(15).fill(0), 15]);
     assert.equal((await call('/v1/account', undefined, secondLogin.data.accessToken)).data.totalAvailable, 15);
   } finally {
     await mf.dispose();

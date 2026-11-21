@@ -81,7 +81,7 @@ internal class VideoTitleStyleStore(directory: File, private val namespace: Stri
             FileOutputStream(temporary).use { output -> output.write(bytes); output.fd.sync() }
             checkPath()
             requireCurrent()
-            check(temporary.renameTo(file)) { "Unable to save title styles. Your previous shelf is preserved." }
+            replaceEditorFile(temporary, file, "Unable to save title styles. Your previous shelf is preserved.")
             check(read() == catalog) { "Saved title styles could not be verified. Reopen the shelf." }
         } finally {
             temporary.delete()

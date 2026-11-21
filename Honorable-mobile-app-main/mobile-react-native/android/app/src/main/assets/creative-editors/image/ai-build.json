@@ -14,8 +14,8 @@
       "sha256": "260f0dde45ceb50ff7f291a924e195755e4256515cba3ea79c8144991880d790"
     },
     "ai-color.mjs": {
-      "bytes": 3269,
-      "sha256": "271dabd3dd36a3d28c677ff3d4659236a8c9de9268eb0de20a4f6e6072ce4586"
+      "bytes": 3613,
+      "sha256": "0820afa2c959c3bfa58a6e8769fbe2fd194e297cf34679e30d2975df539567fb"
     },
     "ai-capture.mjs": {
       "bytes": 3826,
@@ -30,8 +30,8 @@
       "sha256": "76ba5f804b181f0026b8cdc77477b78a9bf0d3b46796bbef4cec8880e0076ba1"
     },
     "ai-tools.mjs": {
-      "bytes": 16570,
-      "sha256": "924c0e9b89a1d2e0b828e88009350037951d5cb43bf737349fe2663ca5a1aa27"
+      "bytes": 20029,
+      "sha256": "151eca0dfd416dd98d0e3bc653e4267b492853868a157764b0864371b2a18c78"
     },
     "package-ai.mjs": {
       "bytes": 4978,

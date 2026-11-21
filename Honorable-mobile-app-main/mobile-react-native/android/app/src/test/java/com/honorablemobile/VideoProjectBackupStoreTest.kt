@@ -17,6 +17,7 @@ import org.robolectric.shadows.ShadowBinder
 import org.robolectric.shadows.ShadowMediaMetadataRetriever
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.AccessDeniedException
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.nio.channels.FileChannel
@@ -30,8 +31,18 @@ class VideoProjectBackupStoreTest {
     private val zips = mutableListOf<File>()
     private val primary = "content://synthetic/original"
     // Robolectric's ShadowLinux opens paths with RandomAccessFile, which cannot open directories.
-    // Exercise real host directory fsync here; the production Android Os bridge remains device-unverified.
-    @Before fun setup() { context = RuntimeEnvironment.getApplication(); store = VideoProjectBackupStore(context) { directory -> FileChannel.open(directory.toPath(), StandardOpenOption.READ).use { it.force(true) } }; ShadowBinder.setCallingUid(Process.myUid()) }
+    // Exercise host directory fsync where supported. Windows cannot open directories as file channels.
+    @Before fun setup() {
+        context = RuntimeEnvironment.getApplication()
+        store = VideoProjectBackupStore(context) { directory ->
+            try {
+                FileChannel.open(directory.toPath(), StandardOpenOption.READ).use { it.force(true) }
+            } catch (error: AccessDeniedException) {
+                if (!System.getProperty("os.name").startsWith("Windows") || !directory.isDirectory) throw error
+            }
+        }
+        ShadowBinder.setCallingUid(Process.myUid())
+    }
     @After fun cleanup() { ShadowBinder.setCallingUid(Process.myUid()); store.list().forEach { store.delete(it.id) }; store.clearInterrupted(); zips.forEach { it.delete() }; zips.clear() }
     private fun root() = File(context.noBackupFilesDir.canonicalFile, "video-project-backups")
     private fun backup(): VideoProjectBackup.Verified {
@@ -90,9 +101,19 @@ class VideoProjectBackupStoreTest {
     }
     @Test fun symlinkedAssetsCannotEscapeThePrivateRootOrDeleteTheirExternalTarget() {
         val copy = committed(); val source = store.resolve(android.net.Uri.parse(copy.primary)).first
-        val canary = File(context.filesDir, "backup-test-canary"); canary.writeBytes(source.readBytes()); assertTrue(source.delete()); Files.createSymbolicLink(source.toPath(), canary.toPath())
-        assertFalse(store.owned(android.net.Uri.parse(copy.primary))); assertThrows(IllegalArgumentException::class.java) { store.delete(copy.id) }; assertTrue(canary.isFile)
-        Files.delete(source.toPath()); canary.delete()
+        val original = source.readBytes()
+        val canary = File(context.filesDir, "backup-test-canary").apply { writeBytes(original) }
+        try {
+            assertTrue(source.delete())
+            createSymbolicLinkFixture(source.toPath(), canary.toPath())
+            assertFalse(store.owned(android.net.Uri.parse(copy.primary)))
+            assertThrows(IllegalArgumentException::class.java) { store.delete(copy.id) }
+            assertArrayEquals(original, canary.readBytes())
+        } finally {
+            Files.deleteIfExists(source.toPath())
+            source.writeBytes(original)
+            canary.delete()
+        }
     }
     @Test fun eightCopyQuotaAndCanonicalIdsRefuseWithoutOverwritingAnyExistingData() {
         val copies = List(8) { committed() }; assertEquals(8, store.list().size)

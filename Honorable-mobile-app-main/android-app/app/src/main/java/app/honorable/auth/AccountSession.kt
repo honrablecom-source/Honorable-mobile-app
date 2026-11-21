@@ -56,7 +56,29 @@ class SecureAccountStore(context: Context, private val name:String="honorable-ac
  fun write(value:JSONObject){val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key());val data=JSONObject().put("iv",Base64.encodeToString(cipher.iv,Base64.NO_WRAP)).put("data",Base64.encodeToString(cipher.doFinal(value.toString().toByteArray(Charsets.UTF_8)),Base64.NO_WRAP));val output=file.startWrite();try{output.write(data.toString().toByteArray());file.finishWrite(output)}catch(error:Exception){file.failWrite(output);throw error}}
  fun clear(){file.delete()}
 }
-class AccountHttpError(val code:Int):Exception("Account request failed ($code)")
+class AccountHttpError(
+ val code: Int,
+ val searchAdmissionRejected: Boolean = false,
+) : Exception("Account request failed ($code)") {
+ companion object {
+  fun fromResponse(route: String, code: Int, connection: HttpURLConnection): AccountHttpError {
+   if (route != "/v1/search/start" || code != 503) return AccountHttpError(code)
+   val rejected = runCatching {
+    connection.errorStream?.bufferedReader()?.use { reader ->
+     val body = StringBuilder()
+     repeat(257) {
+      val next = reader.read()
+      if (next == -1) return@use JSONObject(body.toString()).optString("error") ==
+       "SEARCH_COMPLETION_VERIFICATION_REQUIRED"
+      body.append(next.toChar())
+     }
+     false
+    }
+   }.getOrNull() == true
+   return AccountHttpError(code, rejected)
+  }
+ }
+}
 class AccountSession(private val context:Context,private val baseUrl:String) {
  private val installationStore=SecureAccountStore(context,"honorable-installation")
  private val installationId=(installationStore.read()?.optString("id") ?: java.util.UUID.randomUUID().toString().also{installationStore.write(JSONObject().put("id",it))})
@@ -65,7 +87,7 @@ class AccountSession(private val context:Context,private val baseUrl:String) {
  private fun request(route:String,body:JSONObject?=null,token:String?=null):JSONObject {
   val url=URL(baseUrl.trimEnd('/')+route);require(url.protocol=="https"){"A secure account API URL is required"}
   val connection=url.openConnection() as HttpURLConnection
-  try{connection.connectTimeout=15000;connection.readTimeout=15000;connection.instanceFollowRedirects=false;connection.requestMethod=if(body==null)"GET" else "POST";connection.setRequestProperty("Content-Type","application/json");connection.setRequestProperty("X-Honorable-Installation",installationId);connection.setRequestProperty("X-Honorable-Platform","ANDROID");val info=context.packageManager.getPackageInfo(context.packageName,0);connection.setRequestProperty("X-Honorable-App-Version",info.versionName ?: "0");connection.setRequestProperty("X-Honorable-Build",(if(android.os.Build.VERSION.SDK_INT>=28)info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()).toString());connection.setRequestProperty("X-Honorable-OS-Version",android.os.Build.VERSION.RELEASE);connection.setRequestProperty("X-Honorable-Manufacturer",android.os.Build.MANUFACTURER.take(40));connection.setRequestProperty("X-Honorable-Model-Family",android.os.Build.MODEL.take(40));val memory=android.app.ActivityManager.MemoryInfo();(context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager).getMemoryInfo(memory);connection.setRequestProperty("X-Honorable-Vulkan",if(context.packageManager.hasSystemFeature("android.hardware.vulkan.level"))"SUPPORTED" else "UNSUPPORTED");connection.setRequestProperty("X-Honorable-Ram-Class",if(memory.totalMem<3L*1024*1024*1024)"LOW" else if(memory.totalMem<6L*1024*1024*1024)"MID" else "HIGH");token?.let{connection.setRequestProperty("Authorization","Bearer $it")};if(body!=null){connection.doOutput=true;connection.outputStream.use{it.write(body.toString().toByteArray())}};val code=connection.responseCode;if(code !in 200..299)throw AccountHttpError(code);return JSONObject(connection.inputStream.bufferedReader().use{it.readText()})}finally{connection.disconnect()}
+  try{connection.connectTimeout=15000;connection.readTimeout=15000;connection.instanceFollowRedirects=false;connection.requestMethod=if(body==null)"GET" else "POST";connection.setRequestProperty("Content-Type","application/json");connection.setRequestProperty("X-Honorable-Installation",installationId);connection.setRequestProperty("X-Honorable-Platform","ANDROID");val info=context.packageManager.getPackageInfo(context.packageName,0);connection.setRequestProperty("X-Honorable-App-Version",info.versionName ?: "0");connection.setRequestProperty("X-Honorable-Build",(if(android.os.Build.VERSION.SDK_INT>=28)info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()).toString());connection.setRequestProperty("X-Honorable-OS-Version",android.os.Build.VERSION.RELEASE);connection.setRequestProperty("X-Honorable-Manufacturer",android.os.Build.MANUFACTURER.take(40));connection.setRequestProperty("X-Honorable-Model-Family",android.os.Build.MODEL.take(40));val memory=android.app.ActivityManager.MemoryInfo();(context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager).getMemoryInfo(memory);connection.setRequestProperty("X-Honorable-Vulkan",if(context.packageManager.hasSystemFeature("android.hardware.vulkan.level"))"SUPPORTED" else "UNSUPPORTED");connection.setRequestProperty("X-Honorable-Ram-Class",if(memory.totalMem<3L*1024*1024*1024)"LOW" else if(memory.totalMem<6L*1024*1024*1024)"MID" else "HIGH");token?.let{connection.setRequestProperty("Authorization","Bearer $it")};if(body!=null){connection.doOutput=true;connection.outputStream.use{it.write(body.toString().toByteArray())}};val code=connection.responseCode;if(code !in 200..299)throw AccountHttpError.fromResponse(route,code,connection);return JSONObject(connection.inputStream.bufferedReader().use{it.readText()})}finally{connection.disconnect()}
  }
  private fun refresh(){val old=session?:throw AccountHttpError(401);val next=request("/v1/auth/refresh",JSONObject().put("refreshToken",old.getString("refreshToken")));next.put("apiUrl",baseUrl.trimEnd('/')).put("cached",old.optJSONObject("cached")).put("verifiedAt",old.optLong("verifiedAt"));session=next;store.write(next)}
  private fun authorized(route:String,body:JSONObject?=null):JSONObject {val saved=session?:throw AccountHttpError(401);return try{request(route,body,saved.getString("accessToken"))}catch(error:AccountHttpError){if(error.code!=401)throw error;refresh();request(route,body,session!!.getString("accessToken"))}}

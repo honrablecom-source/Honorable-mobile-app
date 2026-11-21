@@ -32,8 +32,11 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
       URL.createObjectURL=blob=>{if(blob.type==='image/png')window.__lastPNGBlob=blob;return create(blob);};
       window.NobleCreative={beginSave(id,length,title){window.__shareBegins++;if(task)return false;task={id,length,title,raw:''};return true;},appendSave(id,chunk){if(task?.id!==id)return false;task.raw+=atob(chunk);return true;},finishSave(id){if(task?.id!==id||task.raw.length!==task.length)return false;window.__shareCopies.push(task);task=null;return true;},cancelSave(id){if(task?.id===id)task=null;}};
     });
-    await page.goto(origin+'/image/?empty&webgl');
+    await page.goto(origin+'/image/?empty&webgl&ai=object');
     await page.waitForFunction(()=>window.nobleImage&&!document.getElementById('photocraft_loading'),null,{timeout:120000});
+    await page.getByRole('dialog',{name:'AI photo tools'}).waitFor();
+    assert.equal(await page.locator('[data-tool]').inputValue(),'object');
+    await page.getByRole('button',{name:'Close',exact:true}).click();
     await page.evaluate(async()=>{
       const c=document.createElement('canvas');c.width=32;c.height=24;c.getContext('2d').fillRect(0,0,32,24);
       const b=await new Promise(r=>c.toBlob(r));nobleImage.importFile('Keep original.png',new Uint8Array(await b.arrayBuffer()));
@@ -61,8 +64,16 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
       return {width:c.width,height:c.height,transparent,opaque,pixels:c.width*c.height};
     });
     assert.ok(objectStats.transparent>500&&objectStats.opaque>500,JSON.stringify(objectStats));
+    await page.getByRole('button',{name:'Original',exact:true}).click();
+    assert.equal(await page.locator('[data-before]').isVisible(),true);
+    assert.equal(await page.locator('[data-after]').isVisible(),false);
+    await page.screenshot({path:path.join(out,'object-original.png'),fullPage:true});
+    await page.getByRole('button',{name:'AI result',exact:true}).click();
+    assert.equal(await page.locator('[data-before]').isVisible(),false);
+    assert.equal(await page.locator('[data-after]').isVisible(),true);
     const alphaHash=()=>page.locator('[data-after]').evaluate(async canvas=>{const d=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data,a=new Uint8Array(canvas.width*canvas.height);for(let i=0;i<a.length;i++)a[i]=d[i*4+3];return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',a))).join(',');});
     const initialMask=await alphaHash();
+    await page.screenshot({path:path.join(out,'object-ai-result.png'),fullPage:true});
     await page.locator('[data-approve]').check();
     await page.locator('[data-erase]').click();
     await page.locator('[data-after]').scrollIntoViewIfNeeded();
@@ -135,6 +146,34 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
       assert.deepEqual(await page.evaluate(async()=>(await nobleImage.request('ui.inspect',{})).result.document),beforeBadModel);
       colorStats.corruptedModelRefused=true;await page.unroute('**/ai/adaptive-color.onnx');
     }
+    await page.locator('[data-tool]').selectOption('subject');
+    await page.locator('[data-file]').setInputFiles(fixture);
+    await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);
+    await page.locator('[data-run]').click();
+    await page.waitForFunction(()=>!document.querySelector('[data-approve]').disabled,null,{timeout:240000});
+    const subjectStats=await page.evaluate(async encodedMask=>{
+      const bytes=Uint8Array.from(atob(encodedMask),c=>c.charCodeAt(0));
+      const mask=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
+      const canvas=document.createElement('canvas');canvas.width=mask.width;canvas.height=mask.height;
+      const ctx=canvas.getContext('2d');ctx.drawImage(mask,0,0);mask.close();
+      const before=document.querySelector('[data-before]'),after=document.querySelector('[data-after]');
+      const x=before.getContext('2d').getImageData(0,0,before.width,before.height).data;
+      const y=after.getContext('2d').getImageData(0,0,after.width,after.height).data;
+      const m=ctx.getImageData(0,0,before.width,before.height).data;
+      let exactBackground=0,changedZeroMask=0,changedForeground=0,alphaKept=true;
+      for(let i=0;i<x.length;i+=4){
+        const changed=x[i]!==y[i]||x[i+1]!==y[i+1]||x[i+2]!==y[i+2];
+        if(m[i+3]===0){if(changed)changedZeroMask++;else exactBackground++;}
+        if(m[i+3]>224&&changed)changedForeground++;
+        if(x[i+3]!==y[i+3])alphaKept=false;
+      }
+      return {exactBackground,changedZeroMask,changedForeground,alphaKept};
+    },objectPng);
+    assert.equal(subjectStats.changedZeroMask,0,JSON.stringify(subjectStats));
+    assert.ok(subjectStats.exactBackground>500&&subjectStats.changedForeground>1000&&subjectStats.alphaKept,JSON.stringify(subjectStats));
+    await page.screenshot({path:path.join(out,'subject-color-result.png'),fullPage:true});
+    await page.getByRole('button',{name:'Original',exact:true}).click();
+    await page.screenshot({path:path.join(out,'subject-color-original.png'),fullPage:true});
     await page.locator('[data-tool]').selectOption('denoise');
     assert.equal(await page.locator('[data-approve]').isChecked(),false);
     const noisePng=await page.evaluate(()=>{
@@ -169,7 +208,7 @@ if(!fixture)throw Error('Set NOBLE_AI_OBJECT_FIXTURE to an explicitly licensed o
     assert.equal(await page.locator('[data-approve]').isChecked(),false);
     assert.equal(await page.locator('[data-apply]').isEnabled(),false);
     assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
-    const report={objectStats,colorStats,denoise,styleStats,maskBrushAndExactUndo:true,maskEditRevokesApproval:true,originalPreserved:true,separateDocument:true,exactNativeExportBytes:true,stopDuringInference:true,toolChangeRevokesApproval:true,simulatedBackgroundRevokesApproval:true,errors,external,note:'Actual local model and full-editor browser workflow; not Android WebView/physical device acceptance. Object fixture must be separately licensed.'};
+    const report={objectStats,colorStats,subjectStats,denoise,styleStats,maskBrushAndExactUndo:true,maskEditRevokesApproval:true,originalPreserved:true,separateDocument:true,exactNativeExportBytes:true,stopDuringInference:true,toolChangeRevokesApproval:true,simulatedBackgroundRevokesApproval:true,errors,external,note:'Actual local model and full-editor browser workflow; not Android WebView/physical device acceptance. Object fixture must be separately licensed.'};
     await fs.writeFile(path.join(out,'ai-studio.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
   }finally{await browser?.close();server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

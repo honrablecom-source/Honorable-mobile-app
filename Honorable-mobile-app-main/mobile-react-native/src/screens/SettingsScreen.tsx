@@ -1,5 +1,12 @@
 import React from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronRight,
@@ -8,11 +15,9 @@ import {
   ShieldCheck,
   CreditCard,
   ChartNoAxesColumn,
-  SlidersHorizontal,
   MessageSquare,
   FileText,
   LockKeyhole,
-  HeartHandshake,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,64 +26,85 @@ import { AccountPanel } from '../auth/AccountGate';
 import { colors } from '../design-system/tokens';
 import { WorkspaceHeader } from '../design-system/WorkspaceHeader';
 import type { RootStackParamList } from '../navigation/types';
-export function SettingsScreen() {
+const icons = {
+  'Photo & video access': Images,
+  'Storage & indexing': HardDrive,
+  'Privacy & Data': ShieldCheck,
+  'Memory Passes': CreditCard,
+  Usage: ChartNoAxesColumn,
+  'Beta feedback': MessageSquare,
+  'Terms of Service': FileText,
+  'Privacy Policy': LockKeyhole,
+};
+
+export function SettingsScreen({
+  tabRoot = false,
+}: { tabRoot?: boolean } = {}) {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const row = (title: string, detail: string, onPress: () => void) => (
-    <Pressable
-      key={title}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={s.row}
-    >
-      <View style={s.rowIcon}>
-        {React.createElement(
-          (
-            {
-              'Photo & video access': Images,
-              'Storage & indexing': HardDrive,
-              'Privacy & Data': ShieldCheck,
-              'Memory Passes': CreditCard,
-              Usage: ChartNoAxesColumn,
-              Studio: SlidersHorizontal,
-              'Beta feedback': MessageSquare,
-              'Terms of Service': FileText,
-              'Privacy Policy': LockKeyhole,
-              'Improvement program': HeartHandshake,
-            } as Record<string, typeof Images>
-          )[title] ?? FileText,
-          { size: 20, color: colors.textPrimary, strokeWidth: 1.6 },
-        )}
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.label}>{title}</Text>
-        <Text style={s.detail}>{detail}</Text>
-      </View>
-      <ChevronRight size={18} color={colors.textSecondary} />
-    </Pressable>
-  );
+  const row = (
+    title: keyof typeof icons,
+    detail: string,
+    onPress: () => void,
+  ) => {
+    const Icon = icons[title];
+    return (
+      <Pressable
+        key={title}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityHint={detail}
+        onPress={onPress}
+        style={s.row}
+      >
+        <View style={s.rowIcon}>
+          <Icon size={20} color={colors.textPrimary} strokeWidth={1.6} />
+        </View>
+        <View style={s.rowCopy}>
+          <Text style={s.label}>{title}</Text>
+          <Text style={s.detail}>{detail}</Text>
+        </View>
+        <ChevronRight size={18} color={colors.textSecondary} />
+      </Pressable>
+    );
+  };
   return (
     <SafeAreaView edges={['top']} style={s.safe}>
       <WorkspaceHeader
         title="Account"
-        section="Library, privacy and membership"
-        onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+        onBack={
+          !tabRoot && navigation.canGoBack()
+            ? () => navigation.goBack()
+            : undefined
+        }
       />
       <ScrollView contentContainerStyle={s.content}>
         <AccountPanel />
-        <Text style={s.section}>Your library</Text>
+        <Text accessibilityRole="header" style={s.section}>
+          Library
+        </Text>
         <View style={s.group}>
-          {row('Photo & video access', 'Choose what Noble can access', () =>
-            Linking.openSettings(),
+          {row(
+            'Photo & video access',
+            'Manage access in device settings',
+            async () => {
+              try {
+                await Linking.openSettings();
+              } catch {
+                Alert.alert(
+                  'Settings unavailable',
+                  'Open your device settings to change photo access.',
+                );
+              }
+            },
           )}
           {row('Storage & indexing', 'Manage your local library', () =>
             navigation.navigate('Activity'),
           )}
-          {row('Privacy & Data', 'Your choices and participation', () =>
-            navigation.navigate('PrivacyData'),
-          )}
         </View>
-        <Text style={s.section}>Membership & support</Text>
+        <Text accessibilityRole="header" style={s.section}>
+          Credits
+        </Text>
         <View style={s.group}>
           {row('Memory Passes', 'Purchased credits never expire', () =>
             navigation.navigate('Pass'),
@@ -86,25 +112,24 @@ export function SettingsScreen() {
           {row('Usage', 'Credits and recent searches', () =>
             navigation.navigate('Usage'),
           )}
-          {row('Studio', 'Creative workspace membership', () =>
-            navigation.navigate('Studio'),
-          )}
-          {row(
-            'Beta feedback',
-            'Report a problem or check release status',
-            () => navigation.navigate('BetaFeedback'),
-          )}
         </View>
-        <Text style={s.section}>About Noble</Text>
+        <Text accessibilityRole="header" style={s.section}>
+          Privacy and support
+        </Text>
         <View style={s.group}>
+          {row('Privacy & Data', 'Privacy choices and account requests', () =>
+            navigation.navigate('PrivacyData'),
+          )}
           {row('Terms of Service', 'Product disclosure', () =>
             navigation.navigate('TermsOfService'),
           )}
           {row('Privacy Policy', 'How your information is handled', () =>
             navigation.navigate('PrivacyPolicy'),
           )}
-          {row('Improvement program', 'Optional and off by default', () =>
-            navigation.navigate('SeranImprovement'),
+          {row(
+            'Beta feedback',
+            'Report a problem or check release status',
+            () => navigation.navigate('BetaFeedback'),
           )}
         </View>
       </ScrollView>
@@ -120,7 +145,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
     overflow: 'hidden',
   },
-  back: { minHeight: 44, width: 44, justifyContent: 'center' },
+  rowCopy: { flex: 1, minWidth: 0 },
   rowIcon: {
     width: 30,
     height: 30,

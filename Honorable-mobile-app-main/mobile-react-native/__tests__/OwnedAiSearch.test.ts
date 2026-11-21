@@ -182,6 +182,20 @@ test('owner loss before inference prevents admission; owner loss during finaliza
   expect(g.dependencies.finish).toHaveBeenCalledTimes(1);
   expect(g.dependencies.cancelNative).not.toHaveBeenCalled();
 });
+test('confirmed admission rejection never starts inference or settles a nonexistent job', async () => {
+  const f = fixture();
+  f.dependencies.start = jest.fn(async () => {
+    throw Object.assign(Error('Account request failed (503)'), {
+      code: 'SEARCH_COMPLETION_VERIFICATION_REQUIRED',
+    });
+  });
+  await expect(f.runner.run('synthetic', 'SERAN_V1')).rejects.toThrow(
+    'Search is unavailable right now. No credits were used.',
+  );
+  expect(f.dependencies.search).not.toHaveBeenCalled();
+  expect(f.dependencies.finish).not.toHaveBeenCalled();
+  expect(f.runner.busy).toBe(false);
+});
 test('unknown release status is never reported as a confirmed refund', async () => {
   const f = fixture();
   f.dependencies.start = jest.fn(async () => {

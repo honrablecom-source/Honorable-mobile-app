@@ -62,11 +62,15 @@ class VoiceoverCaptureTest {
         assertTrue(runCatching{files.savedFile("../other")}.isFailure);assertTrue(runCatching{VoiceoverFiles(root(),"../owner")}.isFailure)
         assertTrue(files.saved().all{it.readBytes().contentEquals(byteArrayOf(7))})
     }
-    @Test fun namespacesAndCanonicalPathsCannotReadOrDeleteAnotherOwnersTakes() {
+    @Test fun namespacesCannotReadOrDeleteAnotherOwnersTakes() {
         val root=root();val guest=VoiceoverFiles(root,"guest-basic");val account=VoiceoverFiles(root,"account-"+"a".repeat(64));val id=UUID.randomUUID().toString()
         guest.savedFile(id).writeBytes(byteArrayOf(9));assertTrue(account.saved().isEmpty());assertTrue(runCatching{account.deleteSaved(id)}.isFailure)
         assertArrayEquals(byteArrayOf(9),guest.savedFile(id).readBytes())
-        val isolated=root();val other=File(isolated,"other").apply{mkdirs()};Files.createSymbolicLink(File(isolated,"guest-basic").toPath(),other.toPath())
+    }
+    @Test fun symlinkOwnerDirectoryIsRejected() {
+        val isolated = root()
+        val other = File(isolated, "other").apply { mkdirs() }
+        createSymbolicLinkFixture(File(isolated, "guest-basic").toPath(), other.toPath())
         assertTrue(runCatching{VoiceoverFiles(isolated,"guest-basic").saved()}.isFailure)
     }
 }
