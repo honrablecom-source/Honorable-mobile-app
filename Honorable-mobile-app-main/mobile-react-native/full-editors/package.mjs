@@ -1,14 +1,15 @@
 // Package only an explicitly built, pinned full engine. Runtime acceptance is separate.
-import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,copyFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,copyFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {dirname,resolve,join,relative,sep} from 'node:path';
+import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {gzipSync} from 'node:zlib';
 import {execFileSync} from 'node:child_process';
 import {packageAi} from './package-ai.mjs';
 const root=dirname(fileURLToPath(import.meta.url));
-const [kind,sourceArg,webArg,noticesArg,outArg]=process.argv.slice(2);
-if(!['image','video'].includes(kind)||![sourceArg,webArg,noticesArg,outArg].every(Boolean))throw Error('Usage: node full-editors/package.mjs image|video SOURCE WEB NOTICES FRESH_OUTPUT. Runtime acceptance is separate.');
+const [kind,sourceArg,webArg,noticesArg,outArg,variant,...extra]=process.argv.slice(2);
+if(!['image','video'].includes(kind)||![sourceArg,webArg,noticesArg,outArg].every(Boolean)||extra.length||(variant && variant!=='--windows-theme'))throw Error('Usage: node full-editors/package.mjs image|video SOURCE WEB NOTICES FRESH_OUTPUT [--windows-theme]. Runtime acceptance is separate.');
 const source=resolve(sourceArg),web=resolve(webArg),notices=resolve(noticesArg),out=resolve(outArg);
 if(existsSync(out))throw Error('Choose a fresh output directory; existing assets are kept.');
 const pins=JSON.parse(readFileSync(join(root,'upstreams.json'),'utf8')),pin=pins[kind];
@@ -16,8 +17,21 @@ const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const revision=execFileSync('git',['-C',source,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
 if(revision!==pin.revision)throw Error('Unexpected upstream revision.');
 const patch=readFileSync(join(root,'patches',pin.patch));
-const actualPatch=execFileSync('git',['-C',source,'diff','--binary']);
-if(!actualPatch.equals(patch))throw Error('Built checkout differs from the reviewed mobile source patch.');
+const desktopPatch=variant?join(root,'windows',pin.patch.replace('-mobile','-desktop-theme')):null;
+if(desktopPatch){
+  const indexDir=mkdtempSync(join(tmpdir(),'noble-theme-index-'));
+  try{
+    const env={...process.env,GIT_INDEX_FILE:join(indexDir,'index')};
+    const git=(...args)=>execFileSync('git',['-C',source,'-c','core.autocrlf=false',...args],{env});
+    git('read-tree','HEAD');
+    git('apply','--cached',join(root,'patches',pin.patch));
+    git('apply','--cached',desktopPatch);
+    if(git('diff','--binary','--ignore-cr-at-eol').length||git('ls-files','--others','--exclude-standard').length)throw Error('Built checkout differs from the reviewed Windows source patches.');
+  }finally{rmSync(indexDir,{recursive:true,force:true});}
+}else{
+  const actualPatch=execFileSync('git',['-C',source,'diff','--binary']);
+  if(!actualPatch.equals(patch))throw Error('Built checkout differs from the reviewed mobile source patch.');
+}
 const inventory=JSON.parse(readFileSync(join(notices,'index.json'),'utf8'));
 if(inventory.version!==1||inventory.crate!==pin.crate||inventory.packages.length<150||existsSync(join(notices,'MISSING.json')))throw Error('A complete pinned notices collection is required.');
 const wasm=readFileSync(join(web,'editor_bg.wasm'));
@@ -35,7 +49,7 @@ copyTree(join(root,'pages',kind),'');
 copy(join(root,'host-bridge.js'),'host-bridge.js');
 if(kind==='video')copy(join(source,'apps/filmcraft-web/web/audio-worklet.js'),'audio-worklet.js');
 writeFileSync(join(out,'THIRD_PARTY_NOTICES.txt'),legal);
-writeFileSync(join(out,'provenance.json'),JSON.stringify({version:1,kind,repository:pin.repository,sourceRevision:revision,patchSha256:hash(patch),lockSha256:hash(readFileSync(join(source,'Cargo.lock'))),bindgen:pin.bindgen,profile:pin.profile,config:pin.config,wasm:{compression:"gzip",bytes:wasm.length,sha256:hash(wasm)},experimental:true,deviceTested:false,dependencyPackages:inventory.packages.length},null,2)+'\n');
+writeFileSync(join(out,'provenance.json'),JSON.stringify({version:1,kind,repository:pin.repository,sourceRevision:revision,patchSha256:hash(patch),...(desktopPatch?{variant:'windows-theme',desktopPatchSha256:hash(readFileSync(desktopPatch))}:{}),lockSha256:hash(readFileSync(join(source,'Cargo.lock'))),bindgen:pin.bindgen,profile:pin.profile,config:pin.config,wasm:{compression:"gzip",bytes:wasm.length,sha256:hash(wasm)},experimental:true,deviceTested:false,dependencyPackages:inventory.packages.length},null,2)+'\n');
 if(kind==='image')await packageAi(out);
 const files={};function pinTree(dir){for(const item of readdirSync(dir,{withFileTypes:true})){const path=join(dir,item.name);if(item.isDirectory())pinTree(path);else{const name=relative(out,path).split('\\').join('/'),bytes=readFileSync(path);if(bytes.length<1||bytes.length>96*1024*1024)throw Error('Invalid asset size.');files[name]={bytes:bytes.length,sha256:hash(bytes)};}}}pinTree(out);
 writeFileSync(join(out,'bundle.json'),JSON.stringify({version:1,kind,sourceRevision:revision,files},null,2)+'\n');

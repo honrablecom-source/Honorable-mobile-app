@@ -1,0 +1,296 @@
+diff --git a/apps/photocraft-web/src/noble_bridge.rs b/apps/photocraft-web/src/noble_bridge.rs
+index eff69b7..6f3ed35 100644
+--- a/apps/photocraft-web/src/noble_bridge.rs
++++ b/apps/photocraft-web/src/noble_bridge.rs
+@@ -27,10 +27,15 @@ pub fn noble_import(name: String, bytes: Vec<u8>) -> Result<(), JsValue> {
+ #[wasm_bindgen]
+ pub fn noble_request(method: String, params: String) -> js_sys::Promise {
+     future_to_promise(async move {
+-        if params.len() > 256 * 1024 || !matches!(method.as_str(), "engine.commands" | "engine.execute" | "ui.inspect" | "ui.menu.invoke" | "ui.key" | "ui.dialog.set" | "ui.dialog.apply" | "ui.dialog.cancel" | "app.save" | "jobs.list" | "jobs.cancel") {
++        if params.len() > 256 * 1024 || !matches!(method.as_str(), "engine.commands" | "engine.execute" | "ui.inspect" | "ui.set" | "ui.menu.invoke" | "ui.key" | "ui.dialog.set" | "ui.dialog.apply" | "ui.dialog.cancel" | "app.save" | "jobs.list" | "jobs.cancel") {
+             return Err(JsValue::from_str("Unsupported local editor request."));
+         }
+-        let params = serde_json::from_str(&params).map_err(|_| JsValue::from_str("Invalid local request data."))?;
++        let params: serde_json::Value = serde_json::from_str(&params).map_err(|_| JsValue::from_str("Invalid local request data."))?;
++        if method == "ui.set" && !params.as_object().is_some_and(|fields| {
++            fields.keys().all(|field| matches!(field.as_str(), "tool" | "panels" | "fit" | "zoom"))
++        }) {
++            return Err(JsValue::from_str("Unsupported photo workspace setting."));
++        }
+         let (request, receiver) = ControlRequest::new(method, params);
+         let dispatch = request.dispatch.clone();
+         HOST.with(|host| {
+diff --git a/apps/photocraft-web/src/web.rs b/apps/photocraft-web/src/web.rs
+index 6ee607e..f4d8b10 100644
+--- a/apps/photocraft-web/src/web.rs
++++ b/apps/photocraft-web/src/web.rs
+@@ -94,7 +94,7 @@ pub fn start() {
+                 options,
+                 Box::new(move |cc| {
+                     PhotocraftApp::install_type_reset_hooks(&cc.egui_ctx);
+-                    PhotocraftApp::setup_context(&cc.egui_ctx, ThemeKind::ProLight);
++                    PhotocraftApp::setup_context(&cc.egui_ctx, ThemeKind::Studio);
+                     let inbox: Inbox = Arc::default();
+                     let place_inbox: PlaceInbox = Arc::default();
+                     let served: Served = Arc::default();
+@@ -110,7 +110,7 @@ pub fn start() {
+                         photocraft_ui_egui::notices::post(&mut app, i18n::t("Some brush presets could not be loaded"), preset_warnings, true, None);
+                     }
+                     listen_pen(&pen_target, app.stylus.feed.clone());
+-                    app.set_theme(&cc.egui_ctx, ThemeKind::ProLight);
++                    app.set_theme(&cc.egui_ctx, ThemeKind::Studio);
+                     if let Some(rs) = cc.wgpu_render_state.clone()
+                         && !force_cpu
+                     {
+diff --git a/crates/engine/src/cmd.rs b/crates/engine/src/cmd.rs
+index f8102c1..3fec197 100644
+--- a/crates/engine/src/cmd.rs
++++ b/crates/engine/src/cmd.rs
+@@ -27,6 +27,76 @@ pub struct CommandSpec {
+     pub journal: bool,
+ }
+ 
++fn noble_photo_layers(s: &Session, p: &Value, cmd: &str) -> Result<Vec<Layer>> {
++    let current = s.active().ok_or(EngineError::NoDocument)?;
++    if p["documentId"].as_u64() != Some(current.doc.id.0) || p["revision"].as_u64() != Some(current.revision) {
++        return Err(bad(cmd, "the source photo changed; generate a new plan"));
++    }
++    let proposals = p["layers"].as_array().filter(|layers| (1..=4).contains(&layers.len()))
++        .ok_or_else(|| bad(cmd, "select one to four adjustments"))?;
++    proposals.iter().map(|row| {
++        let kind = row["kind"].as_str().filter(|kind| matches!(*kind, "brightnessContrast" | "hueSaturation" | "photoFilter" | "blackWhite"))
++            .ok_or_else(|| bad(cmd, "unsupported photo adjustment"))?;
++        let params = &row["params"];
++        let adjustment = crate::adjust_params::from_params(kind, params, None, current.doc.mode)?;
++        let name = params["name"].as_str().filter(|name| !name.is_empty() && name.len() <= 96)
++            .ok_or_else(|| bad(cmd, "provide a valid adjustment layer name"))?;
++        let opacity = match params.get("opacity") {
++            None => 1.0,
++            Some(value) => value.as_f64().filter(|amount| (0.0..=1.0).contains(amount))
++                .ok_or_else(|| bad(cmd, "opacity must be a number from 0 to 1"))? as f32,
++        };
++        let mut layer = Layer::new(name, LayerContent::Adjustment(adjustment));
++        layer.opacity = opacity;
++        Ok(layer)
++    }).collect()
++}
++
++fn noble_photo_preview(s: &mut Session, p: &Value) -> Result<Value> {
++    use base64::Engine as _;
++    use photocraft_codecs::{ChannelLayout, Format, Image};
++    const CMD: &str = "noble.photo.preview";
++    const EDGE: u32 = 960;
++    let layers = noble_photo_layers(s, p, CMD)?;
++    let source = &s.active().ok_or(EngineError::NoDocument)?.doc;
++    let mut copy = source.as_ref().clone();
++    copy.layers.extend(layers);
++    let before = photocraft_compose::thumbnail(source, EDGE);
++    let after = photocraft_compose::thumbnail(&copy, EDGE);
++    let (width, height) = (after.width, after.height);
++    let mut visible = 0;
++    let mut highlights = 0;
++    let mut shadows = 0;
++    for (old, new) in before.pixels.chunks_exact(4).zip(after.pixels.chunks_exact(4)) {
++        if old[3] < 224 || new[3] < 224 {
++            continue;
++        }
++        visible += 1;
++        if (0..3).any(|i| old[i] < 254 && new[i] >= 254) {
++            highlights += 1;
++        }
++        if old[..3].iter().any(|value| *value > 2) && new[..3].iter().all(|value| *value <= 2) {
++            shadows += 1;
++        }
++    }
++    let encode = |pixels| -> Result<String> {
++        let mut image = Image::from_u8(width, height, ChannelLayout::Rgba, pixels)
++            .map_err(|error| bad(CMD, error.to_string()))?;
++        if source.mode == ColorMode::Rgb {
++            image.icc = source.icc_profile.as_deref().cloned();
++        }
++        let bytes = photocraft_codecs::encode(&image, Format::Png, &Default::default())
++            .map_err(|error| bad(CMD, error.to_string()))?;
++        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
++    };
++    let original = if p["includeOriginal"].as_bool() == Some(true) { Some(encode(before.pixels)?) } else { None };
++    Ok(json!({
++        "width": width, "height": height, "original": original, "adjusted": encode(after.pixels)?,
++        "highlightClipping": highlights as f64 / visible.max(1) as f64,
++        "shadowClipping": shadows as f64 / visible.max(1) as f64,
++    }))
++}
++
+ /// Image › Adjustments › Desaturate: Hue/Saturation with saturation at -100.
+ pub(crate) fn desaturate_adjustment() -> Adjustment {
+     Adjustment::HueSaturation { hue: 0.0, saturation: -100.0, lightness: 0.0, colorize: false, ranges: photocraft_doc::adjust::HueRange::defaults() }
+@@ -1210,6 +1280,35 @@ fn build() -> Vec<CommandSpec> {
+         },
+     ];
+ 
++    v.push(cmd!(
++        "noble.photo.apply",
++        "AI Photo Adjustments",
++        [],
++        None,
++        r#"{"documentId":id,"revision":number,"layers":[{"kind":name,"params":object}]}"#,
++        has_doc,
++        |s, p| {
++            let layers = noble_photo_layers(s, p, "noble.photo.apply")?;
++            let ids = layers.iter().map(|layer| layer.id.0).collect::<Vec<_>>();
++            s.edit("AI Photo Adjustments", |doc, active| {
++                *active = layers.last().map(|layer| layer.id);
++                doc.layers.extend(layers);
++                Ok(())
++            })?;
++            Ok(json!({ "layers": ids }))
++        }
++    ));
++    v.push(CommandSpec {
++        id: "noble.photo.preview",
++        label: "Photo Adjustment Preview",
++        menu: &[],
++        shortcut: None,
++        params: r#"{"documentId":id,"revision":number,"layers":[{"kind":name,"params":object}],"includeOriginal":bool}"#,
++        enabled: has_doc,
++        run: noble_photo_preview,
++        journal: false,
++    });
++
+     // Adjustment layers + destructive adjustments, generated from one list.
+     // Levels/Curves channel keys follow the document: red/green/blue (RGB), gray (Grayscale),
+     // cyan/magenta/yellow/black (CMYK), lightness/a/b (Lab); see `adjust_params`.
+diff --git a/crates/engine/src/inspect.rs b/crates/engine/src/inspect.rs
+index 722e8b5..19809e0 100644
+--- a/crates/engine/src/inspect.rs
++++ b/crates/engine/src/inspect.rs
+@@ -41,6 +41,7 @@ fn document_with(d: &DocState, detail: bool) -> Value {
+     let selected = d.selected_layers();
+     let instances = smart_instances(&doc.layers);
+     json!({
++        "documentId": doc.id.0,
+         "name": doc.name,
+         "path": &d.path,
+         "width": doc.size.width,
+diff --git a/crates/ui-egui/src/app/frame.rs b/crates/ui-egui/src/app/frame.rs
+index b429c0a..780fd3f 100644
+--- a/crates/ui-egui/src/app/frame.rs
++++ b/crates/ui-egui/src/app/frame.rs
+@@ -291,9 +291,9 @@ impl PhotocraftApp {
+         // The OS title bar (and the taskbar / Alt-Tab entry) follows the active file; with the
+         // system title bar this is where the document name lives, as the in-app title is hidden.
+         panels::sync_window_title(self, &ctx);
+-        // Phone chrome starts with the canvas, exposing one task panel at a time.
+-        // This transient layout never rewrites desktop workspace preferences.
+-        let phone = cfg!(target_arch = "wasm32") && ui.max_rect().width() < 600.0;
++        // The Windows host owns the layout at every width. A narrow editor canvas is
++        // still part of a desktop workspace and must keep the desktop tool options.
++        let phone = false;
+         let phone_id = egui::Id::unique("noble-phone-panel");
+         let mut phone_panel = ctx.data_mut(|data| data.get_temp::<u8>(phone_id).unwrap_or(0));
+         if phone {
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 6836116..b18e112 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -334,28 +334,28 @@ impl Tokens {
+             },
+             ThemeKind::Studio => Tokens {
+                 kind,
+-                chrome: Color32::from_rgb(20, 20, 21),
+-                canvas: Color32::from_rgb(14, 14, 15),
+-                canvas_dot: Color32::from_rgb(46, 46, 50),
+-                dock: Color32::from_rgb(17, 17, 18),
+-                card: Color32::from_rgb(26, 26, 28),
+-                card_border: Color32::from_rgb(40, 40, 44),
+-                field: Color32::from_rgb(35, 35, 38),
+-                field_border: Color32::from_rgb(52, 52, 57),
+-                hover: Color32::from_rgb(44, 44, 48),
+-                pressed: Color32::from_rgb(56, 56, 62),
+-                text: Color32::from_rgb(236, 236, 240),
+-                text_dim: Color32::from_rgb(150, 150, 158),
+-                text_faint: Color32::from_rgb(96, 96, 104),
+-                icon: Color32::from_rgb(196, 196, 204),
+-                accent: Color32::from_rgb(139, 124, 246),
+-                accent_soft: Color32::from_rgba_unmultiplied(139, 124, 246, 46),
+-                accent_border: Color32::from_rgba_unmultiplied(160, 148, 255, 110),
+-                accent_text: Color32::from_rgb(214, 208, 255),
+-                separator: Color32::from_rgb(38, 38, 42),
++                chrome: Color32::from_rgb(22, 26, 31),
++                canvas: Color32::from_rgb(15, 19, 23),
++                canvas_dot: Color32::from_rgb(41, 49, 58),
++                dock: Color32::from_rgb(22, 26, 31),
++                card: Color32::from_rgb(27, 32, 39),
++                card_border: Color32::from_rgb(51, 61, 70),
++                field: Color32::from_rgb(21, 26, 32),
++                field_border: Color32::from_rgb(62, 74, 85),
++                hover: Color32::from_rgb(44, 53, 62),
++                pressed: Color32::from_rgb(57, 68, 79),
++                text: Color32::from_rgb(238, 242, 244),
++                text_dim: Color32::from_rgb(174, 184, 194),
++                text_faint: Color32::from_rgb(142, 154, 166),
++                icon: Color32::from_rgb(205, 216, 225),
++                accent: Color32::from_rgb(199, 235, 120),
++                accent_soft: Color32::from_rgba_unmultiplied(199, 235, 120, 42),
++                accent_border: Color32::from_rgba_unmultiplied(199, 235, 120, 110),
++                accent_text: Color32::from_rgb(220, 245, 176),
++                separator: Color32::from_rgb(51, 61, 70),
+                 shadow: Color32::from_black_alpha(140),
+-                primary_bg: Color32::from_rgb(246, 246, 248),
+-                primary_text: Color32::from_rgb(12, 12, 14),
++                primary_bg: Color32::from_rgb(199, 235, 120),
++                primary_text: Color32::from_rgb(26, 37, 17),
+                 danger: Color32::from_rgb(240, 96, 96),
+                 warning: Color32::from_rgb(240, 190, 90),
+                 radius_sm: 6.0,
+@@ -368,7 +368,7 @@ impl Tokens {
+                 round_chips: false,
+                 tab_strip: Color32::TRANSPARENT,
+                 row_selected: Color32::TRANSPARENT,
+-                histogram_bg: Color32::from_rgb(14, 14, 15),
++                histogram_bg: Color32::from_rgb(15, 19, 23),
+                 histogram_level: 225,
+                 caption_close: Color32::from_rgb(196, 43, 28),
+                 caption_close_text: Color32::WHITE,
+@@ -1020,41 +1020,7 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
+     // Keep native windows at SystemDefault so macOS continues reporting OS appearance changes,
+     // including when an integration or restored egui state pinned its own theme preference.
+     ctx.set_theme(egui::ThemePreference::System);
+-    let mut t = Tokens::for_kind(kind);
+-    if cfg!(target_arch = "wasm32") {
+-        { let c=t.chrome;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.chrome=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.canvas;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.canvas=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.canvas_dot;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.canvas_dot=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.dock;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.dock=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.card;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.card=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.card_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.card_border=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.field;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.field=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.field_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.field_border=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.hover;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.hover=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.pressed;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.pressed=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.text_dim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text_dim=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.text_faint;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.text_faint=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.icon;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.icon=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.accent;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.accent_soft;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_soft=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.accent_border;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_border=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.accent_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.accent_text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.separator;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.separator=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.shadow;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.shadow=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.primary_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.primary_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.primary_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.primary_text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.danger;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.danger=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.warning;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.warning=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.tab_strip;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.tab_strip=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.row_selected;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.row_selected=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.histogram_bg;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.histogram_bg=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.caption_close;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.caption_close=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.caption_close_text;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.caption_close_text=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        { let c=t.scrim;let y=((c.r() as u32*299+c.g() as u32*587+c.b() as u32*114)/1000) as u8;t.scrim=Color32::from_rgba_unmultiplied(y,y,y,c.a()); }
+-        t.chrome=Color32::WHITE;t.card=Color32::WHITE;t.dock=Color32::from_gray(245);t.canvas=Color32::from_gray(245);t.canvas_dot=t.canvas;
+-        t.text=Color32::BLACK;t.icon=Color32::BLACK;t.accent=Color32::from_gray(220);t.accent_text=Color32::BLACK;t.accent_border=Color32::BLACK;t.primary_bg=Color32::BLACK;t.primary_text=Color32::WHITE;
+-    }
++    let t = Tokens::for_kind(kind);
+     ctx.data_mut(|d| d.insert_temp(egui::Id::unique("photocraft-theme"), t));
+     let mut v = if t.dark() { Visuals::dark() } else { Visuals::light() };
+     v.panel_fill = t.chrome;

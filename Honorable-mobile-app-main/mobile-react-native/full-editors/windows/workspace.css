@@ -1,0 +1,277 @@
+:root {
+  color-scheme: dark;
+  --workspace-height: 60px;
+  --engine-header: 38px;
+  --canvas: #101317;
+  --bar: #161a1f;
+  --surface: #1a1f25;
+  --lift: #293139;
+  --line: #37414b;
+  --ink: #eff2f5;
+  --muted: #aeb8c2;
+  --accent: #c7eb78;
+  --accent-ink: #1a2511;
+  --accent-hover: #dbf4a7;
+  --agent-width: 352px;
+  --photo-tools-width: 385px;
+}
+html:root, html body { background: var(--canvas); color: var(--ink); }
+#noble-workspace-bar {
+  position: fixed; z-index: 8; inset: 0 0 auto; height: var(--workspace-height); box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px; padding: 0 15px;
+  background: var(--bar); border-bottom: 1px solid var(--line); color: var(--ink); font: 14px "Segoe UI", system-ui, sans-serif;
+}
+#noble-workspace-bar .workspace-home { color: inherit; text-decoration: none; display: inline-flex; gap: 7px; align-items: center; padding: 5px; font-weight: 650; }
+#noble-workspace-bar strong { border-left: 1px solid var(--line); padding-left: 11px; line-height: 24px; margin-left: 3px; white-space: nowrap; }
+.workspace-status { color: var(--muted); font-size: 12px; line-height: 1.2; padding: 0 2px; }
+.workspace-status:not(:empty) {
+  position: fixed; top: calc(var(--workspace-height) + 8px); right: 14px; max-width: min(340px, 90vw);
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 9px 12px; border-radius: 8px;
+  box-shadow: 0 4px 16px #080a0da1; pointer-events: none;
+}
+#noble-workspace-bar .workspace-actions { display: flex; align-items: center; margin-left: auto; gap: 3px; }
+#noble-workspace-bar button {
+  position: static; border: 1px solid transparent; border-radius: 7px; padding: 6px 9px; min-height: 33px;
+  white-space: nowrap; background: transparent; color: var(--ink); font: inherit; cursor: pointer;
+}
+#noble-workspace-bar button:hover, #noble-workspace-bar button[aria-pressed=true] { background: var(--lift); }
+#noble-workspace-bar .workspace-primary { background: var(--accent); color: var(--accent-ink); margin-left: 5px; font-weight: 620; padding-inline: 13px; }
+#noble-workspace-bar .workspace-primary:hover { background: var(--accent-hover); }
+#noble-workspace-bar .workspace-ai { color: var(--accent); background: #243024; border-color: #3a4a33; }
+#noble-workspace-bar .workspace-ai:hover { color: var(--accent); background: #32432c; }
+#noble-workspace-bar .workspace-ai[aria-expanded="true"] { color: var(--accent-ink); background: var(--accent); }
+#noble-workspace-bar .workspace-ai span { margin-right: 4px; }
+#noble-workspace-bar button:disabled { opacity: .5; cursor: default; }
+#noble-workspace-bar :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#filmcraft_canvas, #photocraft_canvas { inset: var(--workspace-height) 0 0 !important; height: calc(100% - var(--workspace-height)) !important; }
+/* The embedded renderer has a fixed 38 CSS-point header. Clip that strip while retaining its
+   editor surface, event coordinates, keyboard bindings, and internal project state. */
+.noble-video-workspace #filmcraft_canvas {
+  inset: calc(var(--workspace-height) - var(--engine-header)) 0 0 !important;
+  height: calc(100% - var(--workspace-height) + var(--engine-header)) !important;
+  clip-path: inset(var(--engine-header) 0 0 0);
+}
+body:has(#filmcraft_canvas) #status { top: calc(var(--workspace-height) + 10px); background: var(--canvas); color: var(--muted); }
+#photocraft_loading { top: var(--workspace-height) !important; color: var(--muted) !important; }
+#photocraft_loading a, #photocraft_stalled { color: var(--muted); }
+.workspace-popover {
+  inset: calc(var(--workspace-height) + 6px) 14px auto auto; margin: 0;
+  width: min(310px, calc(100vw - 28px)); max-height: min(390px,calc(100vh - 80px));
+  border: 1px solid var(--line); border-radius: 11px; padding: 7px; color: var(--ink); background: var(--surface);
+  box-shadow: 0 16px 36px #080a0dc0; overflow: auto;
+}
+#noble-commands { width: min(410px, calc(100vw - 28px)); }
+#noble-workspace-bar .workspace-popover button { display: block; text-align: left; width: 100%; white-space: normal; }
+.workspace-popover button:disabled { cursor: default; opacity: .48; }
+.workspace-popover small { display: block; color: var(--muted); font-size: 11px; padding-top: 3px; }
+.workspace-popover label { display: grid; gap: 5px; padding: 7px; }
+.workspace-popover input { font: inherit; padding: 7px; border: 1px solid var(--line); border-radius: 5px; }
+.command-results { padding: 3px; }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) {
+  box-sizing: border-box; width: min(632px, calc(100vw - 34px)); max-height: calc(100vh - 64px);
+  padding: 25px; border: 1px solid var(--line); border-radius: 15px; color: var(--ink); background: var(--surface);
+  font: 14px/1.5 "Segoe UI", system-ui, sans-serif; box-shadow: 0 20px 65px #080a0dc0;
+}
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent)::backdrop { background: #080a0dad; }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) h2 {
+  font-size: 24px; line-height: 1.2; font-weight: 680; letter-spacing: -.035em; margin: 0 0 8px;
+}
+.noble-video-workspace .dialog-intro { margin: 0 0 18px; color: var(--muted); }
+.noble-video-workspace .cinematic-sources { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.noble-video-workspace .cinematic-sources label {
+  min-width: 0; border: 1px solid var(--line); background: var(--canvas); border-radius: 8px; padding: 9px;
+}
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) label { color: var(--ink); font-weight: 620; }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) input[type=file] { display: block; max-width: 100%; margin-top: 6px; font: inherit; font-weight: 400; }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) input::file-selector-button {
+  margin-right: 8px; padding: 5px 8px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; font: inherit; cursor: pointer;
+}
+.noble-video-workspace :is(#cinematic, #noble-agent) textarea {
+  background: var(--canvas); border: 1px solid var(--line); color: var(--ink);
+  border-radius: 8px; padding: 9px 10px; margin-top: 5px; font-weight: 400;
+}
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) [role=status]:not(:empty) {
+  border-radius: 7px; background: var(--lift); padding: 7px 10px; color: var(--muted);
+}
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) button {
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface);
+  color: var(--ink); font: inherit; font-weight: 550; cursor: pointer;
+}
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) button:enabled:hover { background: var(--lift); }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) button:disabled { cursor: default; opacity: .46; }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) :is([data-draft], [data-build]) {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+}
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) :is([data-draft], [data-build]):enabled:hover { background: var(--accent-hover); }
+.noble-video-workspace :is(#cinematic, #storyboard, #noble-agent) :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.noble-video-workspace .cinematic-footer { display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid var(--line); padding-top: 11px; }
+.noble-video-workspace #cinematic {
+  position:fixed;
+  inset:var(--workspace-height) 0 0 auto;
+  width:var(--agent-width);
+  max-width:calc(100% - 12px);
+  max-height:none;
+  height:calc(100% - var(--workspace-height));
+  margin:0;
+  padding:19px;
+  z-index:7;
+  border-radius:0;
+  border-width:0 0 0 1px;
+  box-shadow:-8px 0 18px #080a0d4d;
+}
+.cinematic-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+.noble-video-workspace .cinematic-heading h2 { font-size:21px; margin:0; }
+.noble-video-workspace #cinematic .cinematic-heading button { margin:0; }
+.noble-video-workspace #cinematic .cinematic-sources { grid-template-columns:1fr; }
+.noble-video-workspace #cinematic .cinematic-sources label { margin:0; }
+.noble-video-workspace #cinematic .cinematic-footer { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.noble-video-workspace #cinematic .cinematic-footer button { margin:0; }
+.noble-video-workspace #cinematic [data-draft] { grid-column:1/-1; min-height:40px; }
+.noble-video-workspace #storyboard ol { list-style:none; padding:0; margin:16px 0; }
+.noble-video-workspace #storyboard li {
+  display:grid; grid-template-columns:60px minmax(0,1fr) auto auto; align-items:center; gap:10px;
+  padding:7px; border:1px solid var(--line); border-radius:8px; background:var(--canvas);
+}
+.noble-video-workspace #storyboard img { border-radius:4px; margin:0; }
+.story-shot { display:grid; min-width:0; }
+.story-shot strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.story-shot output { color:var(--accent); font:12px/1.6 Consolas, monospace; }
+.story-hold { white-space:nowrap; }
+.noble-video-workspace #storyboard input[type=number] { box-sizing:border-box; width:51px; padding:5px; border:1px solid var(--line); border-radius:5px; }
+.story-order { display:flex; gap:3px; }
+.noble-video-workspace #storyboard .story-order button { margin:0; }
+@media (max-width:485px) {
+  .noble-video-workspace #storyboard li { grid-template-columns:60px minmax(0,1fr) auto; }
+  .story-order { grid-column:2/-1; }
+}
+
+#noble-workspace-bar { font: 15px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+#noble-workspace-bar strong { font-weight: 700; }
+#noble-workspace-bar button { min-height: 38px; font-weight: 600; padding-inline: 10px; }
+#noble-workspace-bar .workspace-actions { gap: 4px; }
+#noble-workspace-bar .workspace-popover button { min-height: 36px; }
+#noble-workspace-bar .workspace-primary { padding-inline: 14px; font-weight: 700; }
+.workspace-type { border: 0; border-top: 1px solid var(--line); padding: 8px 5px 1px; margin: 8px 0 0; }
+.workspace-type legend { font-size: 13px; font-weight: 650; padding-inline: 5px; }
+#noble-workspace-bar .workspace-type label { display: inline-flex; align-items: center; gap: 3px; padding: 4px 4px; cursor: pointer; font-size: 13px; }
+.workspace-type input { accent-color: var(--accent); }
+@media (max-width: 850px) {
+  #noble-workspace-bar { padding-inline:9px; gap:4px; }
+  #noble-workspace-bar .workspace-actions { gap: 2px; }
+  #noble-workspace-bar button { padding-inline: 6px; }
+}
+@media (max-width: 780px) {
+  #noble-workspace-bar .workspace-actions { min-width:0; overflow-x:auto; scrollbar-width:thin; }
+}
+@media (max-width: 670px) {
+  :root { --workspace-height: 94px; }
+  #noble-workspace-bar { flex-wrap: wrap; align-content: center; row-gap: 1px; }
+  #noble-workspace-bar .workspace-actions { flex-basis: 100%; margin: 0; overflow-x: auto; }
+}
+
+.workspace-start[hidden] { display:none; }
+.workspace-start {
+  position:fixed; z-index:4; inset:var(--workspace-height) 0 0; overflow:auto;
+  display:grid; align-content:center; justify-items:center; padding:26px;
+  background:radial-gradient(ellipse at 50% 20%, #26312899, transparent 72%), var(--canvas);
+  color:var(--ink); font:15px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.workspace-start .start-inner {
+  box-sizing:border-box; width:min(650px,100%); padding:28px; border:1px solid var(--line);
+  border-radius:15px; background:var(--surface); box-shadow:0 20px 52px #080a0d55;
+}
+.start-heading { background:#141a17; border:1px dashed #465843; border-radius:10px; padding:24px; }
+.workspace-start.is-drop-target { background:#1f2a1e; }
+.workspace-start.is-drop-target .start-heading { border-color:var(--accent); background:#263426; }
+.workspace-start h1 { margin:0 0 6px; font-size:clamp(29px,4vw,41px); line-height:1.1; letter-spacing:-.055em; }
+.workspace-start p { margin:0; color:var(--muted); }
+.start-primary { display:flex; flex-wrap:wrap; gap:8px; margin:24px 0; }
+.workspace-start button {
+  border:1px solid var(--line); border-radius:8px; padding:9px 13px; min-height:40px;
+  background:var(--surface); color:var(--ink); font:inherit; font-weight:640; cursor:pointer;
+}
+.workspace-start button:hover { background:var(--lift); }
+.workspace-start button:disabled { cursor:default; opacity:.55; }
+.workspace-start button[data-start="import"] { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.workspace-start button[data-start="import"]:hover { background:var(--accent-hover); }
+.start-tools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.start-tools button { text-align:left; padding:13px 14px; }
+.start-tools span { display:block; font-weight:400; font-size:13px; color:var(--muted); margin-top:3px; }
+.workspace-start .start-blank { border-color:transparent; margin:12px 0 0; padding-left:0; min-height:34px; }
+.workspace-start .start-feedback:not(:empty) { padding:8px 10px; background:var(--lift); border-radius:6px; margin-top:6px; }
+.workspace-start :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media (max-height:520px) {
+  .workspace-start { align-content:start; padding:17px; }
+  .workspace-start .start-inner { padding:21px; }
+}
+@media (max-width:600px) {
+  .start-tools { grid-template-columns:1fr; }
+  .workspace-start .start-inner { padding:20px; }
+}
+
+.workspace-transport[hidden] { display:none; }
+.workspace-transport {
+  position:fixed; z-index:5; inset:auto 0 0; box-sizing:border-box; height:52px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 14px;
+  background:var(--bar); border-top:1px solid var(--line); color:var(--ink);
+  font:14px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.workspace-transport > div { display:flex; gap:6px; align-items:center; }
+.workspace-transport button {
+  min-height:36px; padding:5px 10px; border:1px solid var(--line); border-radius:7px;
+  background:var(--surface); color:inherit; cursor:pointer; font:inherit; font-weight:620; white-space:nowrap;
+}
+.workspace-transport button:hover { background:var(--lift); }
+.workspace-transport button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.workspace-transport .transport-play { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.workspace-transport .transport-play:hover { background:var(--accent-hover); }
+.workspace-transport .transport-play span { font-size:10px; margin-right:5px; }
+.workspace-transport > div + div { border-left:1px solid var(--line); padding-left:10px; }
+/* Cover the legacy hint strip while leaving the rest of the timeline available. */
+.noble-active-timeline #filmcraft_canvas {
+  --transport-inset: max(0px, calc(52px - var(--engine-status, 20px)));
+  bottom:var(--transport-inset) !important;
+  height:calc(100% - var(--workspace-height) + var(--engine-header) - var(--transport-inset)) !important;
+}
+@media (max-width:700px) {
+  .workspace-transport { overflow-x:auto; padding-inline:8px; }
+  .workspace-transport button { padding-inline:7px; }
+}
+
+.noble-image-workspace #noble-ai-bar { display:none; }
+.noble-image-workspace #photocraft_canvas {
+  inset:var(--workspace-height) 0 0 !important;
+  height:calc(100% - var(--workspace-height)) !important;
+}
+.noble-image-workspace #photocraft_stopped { top:var(--workspace-height); color:var(--ink); background:var(--surface); }
+.noble-image-workspace #photocraft_stopped_detail { color:var(--muted); }
+.noble-image-workspace #noble-ai-dialog {
+  inset:var(--workspace-height) 0 0 auto;
+  width:min(var(--photo-tools-width), calc(100% - 12px));
+  background:var(--surface);
+  color:var(--ink);
+  border-left:1px solid var(--line);
+  box-shadow:-8px 0 18px #080a0d4d;
+  padding:19px 18px 27px;
+  font:15px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.noble-image-workspace #noble-ai-dialog p,
+.noble-image-workspace #noble-ai-dialog figcaption { color:var(--muted); }
+.noble-image-workspace #noble-ai-dialog :is(button, select),
+.noble-image-workspace #noble-ai-dialog input[type=file]::file-selector-button {
+  border-color:var(--line); background:var(--canvas); color:var(--ink); cursor:pointer;
+}
+.noble-image-workspace #noble-ai-dialog button:enabled:hover,
+.noble-image-workspace #noble-ai-dialog [data-compare] button[aria-pressed=true] { background:var(--lift); border-color:#728266; }
+.noble-image-workspace #noble-ai-dialog [data-run]:enabled { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.noble-image-workspace #noble-ai-dialog [data-run]:enabled:hover { background:var(--accent-hover); }
+.noble-image-workspace #noble-ai-dialog :is([data-review], figure) { border-color:var(--line); }
+.noble-image-workspace #noble-ai-dialog [data-compare] { background:var(--canvas); }
+.noble-image-workspace #noble-ai-dialog :is(input[type=range], input[type=checkbox]) { accent-color:var(--accent); }
+.noble-image-workspace #noble-ai-dialog :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media (min-width: 1020px) {
+  .noble-video-workspace:has(#cinematic[open]) #filmcraft_canvas { width:calc(100% - var(--agent-width)) !important; }
+  .noble-video-workspace:has(#cinematic[open]) :is(.workspace-start, .workspace-transport) { right:var(--agent-width); }
+  .noble-image-workspace:has(#noble-ai-dialog:not([hidden])) #photocraft_canvas { width:calc(100% - var(--photo-tools-width)) !important; }
+}

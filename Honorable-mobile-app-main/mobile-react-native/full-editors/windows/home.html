@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Noble Studio</title>
+  <link rel="stylesheet" href="/desktop/home.css">
+  <script src="/desktop/library.js" type="module"></script>
+</head>
+<body>
+  <header class="desktop-nav">
+    <a class="brand" href="#studio" aria-label="Noble Studio home">
+      <img src="/desktop/noble.png" alt="" width="36" height="36"> Noble <span>Studio</span>
+    </a>
+    <nav aria-label="Workspace">
+      <a href="#studio" aria-current="page"><i class="nav-project" aria-hidden="true"></i>Projects</a>
+      <a href="#library"><i class="nav-media" aria-hidden="true"></i>Media library</a>
+    </nav>
+  </header>
+  <main>
+    <section id="studio" aria-labelledby="studio-title">
+      <header class="page-heading project-heading">
+        <div><h1 id="studio-title">Projects</h1><p>Choose a studio to start editing.</p></div>
+        <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project <span aria-hidden="true">↗</span></a>
+      </header>
+      <div class="project-board">
+      <section class="editors" aria-label="Editing workspaces">
+        <a class="project-choice video-choice" href="/video/?empty&amp;webgl">
+          <div class="choice-art video-art" aria-hidden="true"><div class="art-monitor"><i></i></div><div class="art-timeline"><i></i><i></i><i></i><i></i><b></b></div></div>
+          <div><h2>Video Studio</h2><p>Import clips, arrange a timeline, and export.</p></div>
+          <span class="choice-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="project-choice image-choice" href="/image/?empty&amp;webgl">
+          <div class="choice-art image-art" aria-hidden="true"><i></i><i></i><i><b></b></i></div>
+          <div><h2>Image Studio</h2><p>Edit photos with layers, masks, and AI.</p></div>
+          <span class="choice-arrow" aria-hidden="true">↗</span>
+        </a>
+      </section>
+      <section class="project-tasks" aria-labelledby="task-heading">
+        <h2 id="task-heading">Start with a tool</h2>
+        <a href="/video/?empty&amp;webgl&amp;entry=agent"><i aria-hidden="true">✦</i><div><strong>AI editing agent</strong><span>Draft a cut from clips and music.</span></div></a>
+        <a href="/video/?empty&amp;webgl&amp;entry=story"><i aria-hidden="true">▤</i><div><strong>Photo storyboard</strong><span>Arrange photos and set their timing.</span></div></a>
+        <a href="#library"><i aria-hidden="true">⌕</i><div><strong>Search media</strong><span>Find files by name or description.</span></div></a>
+      </section>
+      </div>
+    </section>
+    <section id="library" aria-labelledby="library-title" hidden>
+      <header class="page-heading library-heading">
+        <div><h1 id="library-title">Media library</h1><p>Browse and search a folder on this PC.</p></div>
+        <input id="folder" type="file" webkitdirectory multiple hidden>
+        <button id="choose-folder" class="action" type="button">Choose folder</button>
+      </header>
+      <div class="library-panel">
+        <div class="controls">
+          <label>Filename <input id="query" type="search" placeholder="Filter by name" disabled></label>
+          <form id="semantic">
+            <label>Description <input id="description" type="search" maxlength="160" placeholder="A lamp on a side table" required></label>
+            <button id="find-photos" class="action" type="submit" disabled>Find media</button>
+          </form>
+        </div>
+        <p id="status" role="status">Choose a folder to get started.</p>
+        <div class="media">
+          <ul id="results" aria-label="Media files"></ul>
+          <div id="preview" aria-label="Media preview"></div>
+        </div>
+        <button id="more" type="button" hidden>Show more files</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,106 @@
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -150,6 +150,42 @@
+ }
+ 
+ impl Tokens {
++    /// Windows editing chrome. Monitor and clip content bypass the interface palette.
++    pub fn noble_desktop() -> Self {
++        let rgb = Color32::from_rgb;
++        let mut t = Self::for_kind(ThemeKind::Dark);
++        t.app_bg = rgb(15, 19, 23);
++        t.header_bg = rgb(20, 24, 28);
++        t.panel_bg = rgb(26, 31, 37);
++        t.tab_bg = rgb(22, 26, 31);
++        t.text = rgb(239, 242, 245);
++        t.text_dim = rgb(180, 189, 199);
++        t.text_faint = rgb(144, 154, 166);
++        t.tab_text = t.text_dim;
++        t.tab_text_active = t.text;
++        t.separator = rgb(49, 57, 65);
++        t.field_bg = rgb(20, 25, 30);
++        t.field_border = rgb(60, 69, 79);
++        t.hover = rgb(48, 57, 66);
++        t.pressed = rgb(59, 70, 80);
++        t.accent = rgb(199, 235, 120);
++        t.accent_hover = rgb(218, 249, 152);
++        t.focus = t.accent;
++        t.hot_text = t.accent;
++        t.playhead = t.accent;
++        t.tl_bg = rgb(19, 23, 28);
++        t.tl_track_bg = rgb(30, 36, 43);
++        t.tl_track_bg_alt = rgb(35, 42, 50);
++        t.tl_header_bg = rgb(24, 29, 35);
++        t.tl_ruler_bg = rgb(20, 24, 29);
++        t.tl_ruler_text = t.text_dim;
++        t.monitor_bg = rgb(13, 16, 20);
++        t.timecode = t.text;
++        t.gap = 4.0;
++        t.radius = 8.0;
++        t.radius_sm = 5.0;
++        t
++    }
+     /// Noble mobile chrome: neutral controls; media/scopes keep their own content colors.
+     pub fn noble_light() -> Self {
+         let mut t=Self::for_kind(ThemeKind::Light);
+diff --git a/crates/ui-egui/src/app/prefs.rs b/crates/ui-egui/src/app/prefs.rs
+--- a/crates/ui-egui/src/app/prefs.rs
++++ b/crates/ui-egui/src/app/prefs.rs
+@@ -5,7 +5,7 @@
+     pub fn set_theme(&mut self, ctx: &egui::Context, k: ThemeKind) {
+         let a = &self.session.prefs.appearance;
+         let highlight = filmcraft_engine::settings::parse_hex(&a.highlight_color);
+-        self.tokens = if cfg!(target_arch = "wasm32") { Tokens::noble_light() } else { Tokens::for_kind(k).with_appearance(highlight, a.accessible_contrast) };
++        self.tokens = if cfg!(target_arch = "wasm32") { Tokens::noble_desktop() } else { Tokens::for_kind(k).with_appearance(highlight, a.accessible_contrast) };
+         theme::apply_visuals(ctx, &self.tokens);
+         self.apply_tooltips(ctx);
+         self.ui.dark = k != ThemeKind::Light;
+@@ -19,7 +19,7 @@
+     /// The theme Settings ▸ Appearance selects: the light or dark theme of the Appearance Mode,
+     /// Auto following the system (dark when it gives no answer).
+     pub fn appearance_kind(&self, ctx: &egui::Context) -> ThemeKind {
+-        if cfg!(target_arch = "wasm32") { return ThemeKind::Light; }
++        if cfg!(target_arch = "wasm32") { return ThemeKind::Dark; }
+         let light = self.system_theme(ctx).map(|t| t == egui::Theme::Light);
+         ThemeKind::from_pref(self.session.prefs.appearance.shown_theme(light))
+     }
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -34,7 +34,7 @@
+         Self {
+             session,
+             ui: UiState { language, ..UiState::default() },
+-            tokens: Tokens::noble_light(),
++            tokens: Tokens::noble_desktop(),
+             frames,
+             playback: Playback { speed: 1.0, ..Default::default() },
+             source_playback: Default::default(),
+diff --git a/crates/ui-egui/src/dock.rs b/crates/ui-egui/src/dock.rs
+index b29726d..7a986a2 100644
+--- a/crates/ui-egui/src/dock.rs
++++ b/crates/ui-egui/src/dock.rs
+@@ -440,13 +440,17 @@ fn workspace_root(name: &str) -> Node<PanelKind> {
+     };
+     match name {
+         "Assembly" => vsplit(
+-            Ratio(0.52),
++            Ratio(0.64),
+             hsplit(
+-                Ratio(0.46),
+-                tabs(&[Project, MediaBrowser, Libraries, Info, Effects, Markers, History], 0),
+-                hsplit(Ratio(0.5), tabs(&[Source, EffectControls, AudioClipMixer, Metadata], 0), tabs(&[Program], 0)),
++                SplitSize::FixedFirst(258.0),
++                tabs(&[Project], 0),
++                tabs(&[Program], 0),
++            ),
++            hsplit(
++                SplitSize::FixedFirst(TOOLS_WIDTH),
++                tabs(&[Tools], 0),
++                tabs(&[Timeline], 0),
+             ),
+-            bottom_editing(),
+         ),
+         "Color" => hsplit(
+             Ratio(0.79),
