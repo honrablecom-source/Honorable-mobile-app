@@ -9,12 +9,13 @@ export function mountVideoExport({editor,button,start,lookup,advanced,failed}) {
       <div class="studio-dialog-body">
         <p data-export-empty hidden>Open an editable timeline with media to export an MP4.</p>
         <div data-export-settings>
-          <div class="delivery-summary"><strong data-export-name></strong><span data-export-specs></span></div>
+          <section class="delivery-source"><h3>Source sequence</h3><div class="delivery-summary"><strong data-export-name></strong><span data-export-specs></span></div></section>
+          <section class="delivery-output"><h3>Output settings</h3><dl><div><dt>Format</dt><dd>MP4</dd></div><div><dt>Destination</dt><dd class="delivery-destination">Videos / Noble Exports</dd></div></dl>
           <fieldset><legend>Quality</legend>
             <label><input type="radio" name="quality" value="standard" checked> <span><strong>Standard</strong><small>Smaller file for sharing</small></span></label>
             <label><input type="radio" name="quality" value="high"> <span><strong>High</strong><small>More detail, larger file</small></span></label>
           </fieldset>
-          <p class="delivery-destination">Saves to <strong>Videos / Noble Exports</strong></p>
+          </section>
         </div>
         <progress max="1" value="0" hidden aria-label="Video export progress"></progress>
         <p role="status"></p>
@@ -28,7 +29,7 @@ export function mountVideoExport({editor,button,start,lookup,advanced,failed}) {
   const get = selector=>dialog.querySelector(selector);
   const form=get('form'), status=get('[role=status]'), progress=get('progress');
   const submit=get('[type=submit]'), settings=get('[data-export-settings]'), empty=get('[data-export-empty]');
-  if (!window.nobleNavigation) get('.delivery-destination').textContent='Downloads an MP4 through your browser.';
+  if (!window.nobleNavigation) get('.delivery-destination').textContent='Browser downloads';
   let timeline;
   let busy=false;
 

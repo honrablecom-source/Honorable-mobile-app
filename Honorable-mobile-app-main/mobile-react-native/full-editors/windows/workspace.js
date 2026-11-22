@@ -1,3 +1,4 @@
+import {mountSequenceSetup} from './sequence-setup.js';
 import {mountVideoMcp} from './video-mcp.js';
 import {clearVideoChanges} from './video-changes.js';
 import {mountVideoExport} from './video-export.js';
@@ -268,81 +269,28 @@ async function setupVideo() {
     return input;
   }
 
-  const start = document.createElement('section');
-  start.className = 'workspace-start';
-  start.hidden = true;
-  start.setAttribute('aria-labelledby','workspace-start-title');
-  start.innerHTML = `
-    <div class="start-inner">
-      <div class="start-heading">
-        <h1 id="workspace-start-title">Start a video project</h1>
-      </div>
-      <div class="start-drop">
-        <span class="start-plus" aria-hidden="true">＋</span>
-        <div><strong>Drop video clips or photos here</strong><p>They’ll be added to a new timeline.</p></div>
-        <button type="button" data-start="import">Browse media</button>
-      </div>
-      <div class="start-tools">
-        <button type="button" data-start="agent"><span class="start-tool-icon" aria-hidden="true">✦</span><span><strong>Draft with AI</strong><small>Build a first cut from footage and music.</small></span><span aria-hidden="true" class="start-arrow">→</span></button>
-        <button type="button" data-start="story"><span class="start-tool-icon" aria-hidden="true">▤</span><span><strong>Photo storyboard</strong><small>Arrange photos and set how long each holds.</small></span><span aria-hidden="true" class="start-arrow">→</span></button>
-      </div>
-      <div class="start-bottom">
-        <button type="button" data-start="open">Open project…</button>
-        <button type="button" data-start="blank">Empty timeline</button>
-      </div>
-      <p class="start-feedback" role="status"></p>
-    </div>
-  `;
-  document.body.append(start);
-  const startFeedback = start.querySelector('.start-feedback');
-  const startActions = Object.fromEntries(
-    [...start.querySelectorAll('[data-start]')].map(button => [button.dataset.start, button]));
-  let starting = false;
-
+  const setup = mountSequenceSetup({
+    editor,
+    openProject: () => projects.click(),
+    openEditor: () => { start.hidden = true; canvas.focus(); },
+    openAgent: () => agentButton?.click(),
+    openStoryboard: () => document.querySelector('#story-open')?.click(),
+    onCreated: async partial => {
+      await refreshTimeline();
+      void fitTimeline().catch(() => {});
+      canvas.focus();
+      if (partial) setStatus('Some files could not be opened. The supported files are on the timeline.');
+    },
+  });
+  const start = setup.element;
+  window.addEventListener('noble-project-replaced',setup.reset);
   async function showTimelineIfReady() {
     const project = await refreshTimeline();
-    if (project?.activeSequence) start.hidden = true;
-  }
-  async function beginWithMedia(files) {
-    if (starting) return;
-    const visual = files.filter(file => /^(video|image)\//.test(file.type));
-    if (!visual.length) {
-      startFeedback.textContent = 'Choose a video or photo to start the timeline. Add audio with Import media.';
-      return;
-    }
-    starting = true;
-    for (const button of Object.values(startActions)) button.disabled = true;
-    startFeedback.textContent = 'Opening media…';
-    try {
-      const imported = await editor.importFiles(visual);
-      if (!imported.items?.length) throw Error('Studio could not open those files. Try MP4, PNG, or JPEG.');
-      await editor.execute('file.newSequence',{fromItems:imported.items,video:2,audio:2});
-      void fitTimeline().catch(() => {});
+    if (project?.activeSequence && !start.hidden) {
       start.hidden = true;
-      await refreshTimeline();
-      if (imported.errors?.length) setStatus('Some files could not be opened. The supported files are on the timeline.');
-    } catch (error) {
-      startFeedback.textContent = error.message;
-    } finally {
-      starting = false;
-      for (const button of Object.values(startActions)) button.disabled = false;
+      setup.reset();
     }
   }
-
-  const firstMedia = picker('video/*,image/*', true, beginWithMedia);
-  start.ondragover = event => {
-    if (!event.dataTransfer.types.includes('Files')) return;
-    event.preventDefault();
-    start.classList.add('is-drop-target');
-  };
-  start.ondragleave = event => {
-    if (!start.contains(event.relatedTarget)) start.classList.remove('is-drop-target');
-  };
-  start.ondrop = event => {
-    event.preventDefault();
-    start.classList.remove('is-drop-target');
-    if (event.dataTransfer.files.length) void beginWithMedia(Array.from(event.dataTransfer.files));
-  };
   const imports = picker('video/*,audio/*,image/*,.srt,.vtt', true, files => run(async () => {
     const imported = await editor.importFiles(files);
     if (imported.items?.length) start.hidden = true;
@@ -352,6 +300,7 @@ async function setupVideo() {
     setStatus(imported.items.length + (imported.items.length === 1 ? ' file imported.' : ' files imported.'));
   }));
   async function canReplaceProject() {
+    if (setup.busy) throw Error('Wait for the sequence to finish importing.');
     if ('nobleAgentBusy' in document.body.dataset || document.body.inert) throw Error('Wait for the AI edit to finish before opening another project.');
     const current = await editor.execute('project.inspect');
     return !current.dirty || window.confirm('Replace the current project? Save your edits first if you want to keep them.');
@@ -399,27 +348,21 @@ async function setupVideo() {
           window.dispatchEvent(new Event('noble-project-replaced'));
           await refreshTimeline();
           start.hidden = false;
-          startFeedback.textContent = '';
         }
       });
     } finally { openingFromHome = false; }
   }
   const projects = picker('.fcproj', false, ([file]) => openProject(file));
-  startActions.import.onclick = () => firstMedia.click();
-  startActions.open.onclick = () => projects.click();
-  startActions.blank.onclick = () => { start.hidden = true; canvas.focus(); };
-  startActions.agent.onclick = () => document.querySelector('#cinematic-open')?.click();
-  startActions.story.onclick = () => document.querySelector('#story-open')?.click();
   window.addEventListener('noble-cinematic-edit', () => void showTimelineIfReady());
   for (const id of ['#cinematic','#storyboard','#noble-agent']) {
     document.querySelector(id)?.addEventListener('close', () => void showTimelineIfReady());
   }
   const openEntry = entry => {
     if (entry === 'demo' || entry === 'new') void openFromHome(entry === 'demo');
-    if (entry === 'agent') startActions.agent.click();
-    if (entry === 'story') startActions.story.click();
+    if (entry === 'agent') agentButton?.click();
+    if (entry === 'story') document.querySelector('#story-open')?.click();
     if (entry === 'open') {
-      if (!start.hidden) startActions.open.focus();
+      if (!start.hidden) start.querySelector('[data-start=open]').focus();
       else actions.querySelector('[popovertarget="noble-project-menu"]').focus();
     }
   };

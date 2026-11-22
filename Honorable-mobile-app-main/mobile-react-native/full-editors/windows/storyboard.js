@@ -8,7 +8,7 @@
         <label class="cinematic-file"><input type="file" accept="image/png,image/jpeg,image/webp" multiple aria-label="Choose photos">
           <span class="source-icon" aria-hidden="true">▤</span><span><strong>Photos</strong><small data-selection>Choose 2–12 photos</small></span><span class="file-action">Browse</span>
         </label>
-        <p class="story-instructions">Arrange your shots and set how long each stays on screen.</p>
+        <div class="story-columns" aria-hidden="true" hidden><span>Shot</span><span>Start</span><span>Duration</span><span>Order</span></div>
         <ol aria-label="Storyboard shots" role="list"></ol>
         <p role="status"></p>
       </div>
@@ -39,6 +39,7 @@
   }
 
   function render() {
+    dialog.querySelector('.story-columns').hidden = !photos.length;
     list.replaceChildren(...photos.map((photo, index) => {
       const row = document.createElement('li');
       const thumbnail = document.createElement('img');
@@ -49,7 +50,8 @@
       name.textContent = photo.file.name;
       const caption = document.createElement('div');
       caption.className = 'story-shot';
-      caption.append(name, time);
+      caption.append(name);
+      time.className = 'story-time';
       const duration = document.createElement('input');
       duration.type = 'number';
       duration.min = '1';
@@ -67,7 +69,7 @@
       hold.append(duration, ' s');
       const order = document.createElement('div');
       order.className = 'story-order';
-      row.append(thumbnail, caption, hold, order);
+      row.append(thumbnail, caption, time, hold, order);
       for (const [offset, label] of [[-1, 'Move up'], [1, 'Move down']]) {
         const button = document.createElement('button');
         button.type = 'button';
