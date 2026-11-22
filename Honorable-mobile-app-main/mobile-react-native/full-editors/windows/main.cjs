@@ -421,7 +421,7 @@ async function runSmokeTest() {
         input.value = index + 2;
         input.dispatchEvent(new Event('input'));
       }
-      const starts = [...storyboard.querySelectorAll('output')].map(output => output.textContent);
+      const starts = [...storyboard.querySelectorAll('ol output')].map(output => output.textContent);
       if (starts.join(',') !== '0:00,0:02,0:05') throw Error('Incorrect storyboard start times');
       const calls = [];
       for (const method of ['execute','importFiles']) {
