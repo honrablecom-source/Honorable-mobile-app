@@ -87,7 +87,7 @@ function mountProof(panel) {
   };
 }
 
-export function mountPhotoAgent(panel,{request,command,run,canvas,connection,track}) {
+export function mountPhotoAgent(panel,{request,command,run,canvas,connection,track,onBrief}) {
   panel.innerHTML = `
     <button type="button" data-agent-retry hidden>Check connection</button>
     <details data-agent-request open><summary hidden>Edit request <span data-agent-brief-summary></span></summary><form data-agent-form>
@@ -309,6 +309,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection,tra
   $('form').onsubmit = async event => {
     event.preventDefault();
     if ($('plan').disabled) return;
+    onBrief(text.value);
     const reply = await planEdit(text.value,finish.value);
     if (reply.error) status.textContent = reply.error;
   };

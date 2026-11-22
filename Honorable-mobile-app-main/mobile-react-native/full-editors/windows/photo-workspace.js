@@ -132,10 +132,11 @@ const inspector = $('.photo-inspector');
 const tabs = $('.photo-tabs');
 const activityTab = $('#photo-activity-tab');
 const activityButton = $('[data-activity]');
-const activity = mountPhotoActivity($('#photo-activity'),activityButton,photoCatalog,()=>state?.document?.name);
+const activity = mountPhotoActivity($('#photo-activity'),activityButton,photoCatalog,()=>state?.document?.name,
+  brief=>agent.planFromMcp({brief,finish:'natural'}),()=>showTab($('#photo-agent-tab')));
 const agentTrack = (id,label,args,operation,preview=false) => activity.track({id,name:id,label,args,source:'Noble AI',preview},operation);
 const ai = configureAi();
-const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas,track:agentTrack,connection:$('.photo-connection')});
+const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas,track:agentTrack,onBrief:activity.begin,connection:$('.photo-connection')});
 const settings = mountPhotoSettings(shell,preferences => {
   const theme = preferences.theme === 'warm' ? 'studio' : 'pro';
   if (theme !== engineTheme) {
@@ -199,6 +200,7 @@ assistantButton.onclick = async () => {
 
 function selectTab(tab) {
   inspector.dataset.tab = tab.id;
+  if (tab===activityTab) activity.reveal();
   activityButton.setAttribute('aria-expanded',String(!inspector.hidden && tab === activityTab));
   $('.photo-connection').hidden = tab.id !== 'photo-agent-tab';
   for (const button of tabs.querySelectorAll('[role=tab]')) {
@@ -383,6 +385,11 @@ async function handlePhotoMcp(input) {
     if (route==='context') return {result:before};
     if (route==='open') { open.click(); return {result:{status:'picker_requested'}}; }
     if (before.documentId!==args.documentId || before.revision!==args.revision) throw Error('The photo changed. Call get_photo_context again.');
+    if (route==='request') {
+      if (!before.documentId || !args.brief.trim()) throw Error('Open a photo and supply an editing brief.');
+      activity.begin(args.brief,'Connected client');
+      return {result:{status:'recorded'}};
+    }
     if (route==='model' || route==='strength') {
       if (!before.documentId) throw Error('Open a photo first.');
       await refresh();

@@ -76,6 +76,7 @@ for (const [studio,rows] of Object.entries(catalog)) {
   }
 }
 add('get_photo_context','photo','context','context','Read the active photo ID, revision, dimensions, layer IDs and undo state.',schema({}));
+add('record_photo_request','photo','request','request','Display the current editing brief in Image Studio Activity before a series of photo tool calls. Only send the brief intended for display.',schema({...context,brief:{type:'string',maxLength:1000}}));
 for(const [id,suffix] of Object.entries(models)){
   add('preview_photo_'+suffix,'photo','model',id,'Run Noble’s local '+suffix.replaceAll('_',' ')+' model on the active document and show the result for review. The source is preserved.',schema(context));
 }

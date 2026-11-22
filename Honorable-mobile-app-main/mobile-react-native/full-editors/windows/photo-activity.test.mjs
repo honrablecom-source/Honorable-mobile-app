@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {actionDetail,geometryNote} from './photo-activity.js';
+import {actionDetail,actionReply,geometryNote} from './photo-activity.js';
 import {photoToolCatalog} from '../editing-agent/desktop-mcp.mjs';
 import {editorSkills} from '../editing-agent/editor-skills.mjs';
 
@@ -28,4 +28,14 @@ test('activity details omit preset contents, file paths and arbitrary payloads',
   assert.equal(actionDetail('swatches.import',{data:'private contents',name:'private'}),'Preset import');
   assert.equal(actionDetail('file.new',{name:'C:\\private\\study.png'}),'study.png');
   assert.equal(actionDetail('unknown',{path:'secret',dataUrl:'private contents'}),'');
+});
+
+test('chat distinguishes a prepared preview or save dialog from an applied edit',()=>{
+  assert.match(actionReply('preview_photo_edit','Propose adjustments',{},'Preview'),/review/);
+  assert.match(actionReply('png','Export',{status:'save_requested',format:'png'},'Dialog requested'),/PNG.*Save dialog/);
+  assert.match(actionReply('context','Read',{width:896,height:896},'Done'),/896 × 896/);
+});
+
+test('pressure-sensitive brush samples display their canvas coordinates',()=>{
+  assert.match(actionDetail('paint.stroke',{points:[[20,30,0.1],[40,60,0.8]]}),/\(20, 30\).*\(40, 60\)/);
 });

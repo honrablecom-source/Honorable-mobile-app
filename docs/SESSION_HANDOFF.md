@@ -1,5 +1,11 @@
 # Noble session handoff
 
+## November 22 — Image Studio conversation and ink painting
+
+One new Windows workflow. Activity shows submitted adjustment requests, chronological replies, expandable editor tool steps and a working composer. Connected clients can share their actual brief through record_photo_request. At desktop widths the conversation sits beside the canvas.
+
+Installed app-30332b0ed8abe2cb passed chat submission, preview review, apply, undo, failure display, tool browsing, and desktop and compact window checks. All 33 focused editor tests passed. The Windows installer and the 896 × 896 ink Sun export are in the November 20 task outputs under Noble Ink Studio. Local Qwen2.5 3B chose the painting tools and art direction from a guided composition interface. The client expanded the model’s pigment and contour choices into native MCP operations on ten layers.
+
 ## November 22 — Live photo AI activity on Windows
 
 One new user-facing feature. Open Activity in the Image Studio footer to follow the last 100 editor actions in the current session and browse the 1,203 published photo tools. The feed records external MCP commands and built-in AI work, including previews, apply, undo and failures. MCP brush, gradient and rectangular selection results now describe degenerate or out-of-bounds geometry.
