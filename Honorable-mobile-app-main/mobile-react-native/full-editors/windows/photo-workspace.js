@@ -1,3 +1,4 @@
+import {receiveBrief} from './home-composer.js';
 import {mountPhotoAgent} from './photo-agent.js';
 import {mountPhotoSettings} from './photo-settings.js';
 
@@ -655,3 +656,8 @@ async function initialize() {
 setControls();
 if (window.nobleImage) void initialize();
 else window.addEventListener('noble-image-ready', initialize, {once:true});
+
+receiveBrief('image', value => {
+  showTab($('#photo-agent-tab'));
+  $('#photo-agent-brief').value = value;
+});

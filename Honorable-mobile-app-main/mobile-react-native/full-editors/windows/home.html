@@ -15,28 +15,19 @@
       <a class="transfer" href="/desktop/copy-export">Copy exported file</a>
     </header>
     <main>
-      <section id="studio" aria-label="Choose an editing workspace">
-        <fieldset class="studio-picker">
-          <legend>Choose your studio</legend>
-          <label><input type="radio" name="studio-mode" value="image" checked><img src="/desktop/image-studio-capuchin.jpg" alt="">Image</label>
-          <label><input type="radio" name="studio-mode" value="video"><img src="/desktop/video-studio-tiger.jpg" alt="">Video</label>
-        </fieldset>
-        <article class="studio-spread featured-studio" data-medium="image">
-          <div class="studio-copy"><h1>Image Studio</h1>
-            <p>Retouch a photograph, build a composite, or start with a blank canvas.</p>
-            <div class="launch"><a class="action" href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a></div>
-            <nav class="workflow-links" aria-label="Image workflows"><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a></nav>
+      <section id="studio" aria-labelledby="home-question">
+        <h1 id="home-question">What would you like to edit?</h1>
+        <form id="edit-composer">
+          <textarea id="home-brief" aria-label="Describe your edit" required maxlength="1000" rows="2" placeholder="Describe the change you have in mind…"></textarea>
+          <div class="composer-bar"><label>Agent <select name="medium"><option value="image">Image</option><option value="video">Video</option></select></label>
+            <button type="submit">Continue in Studio <span aria-hidden="true">→</span></button>
           </div>
-          <img class="spread-art" src="/desktop/image-studio-capuchin.jpg" alt="Capuchin in an orange knit cap">
-        </article>
-        <article class="studio-spread" data-medium="video">
-          <div class="studio-copy"><h1>Video Studio</h1>
-            <p>Cut footage on a timeline, shape the soundtrack, or draft a first cut with the editing agent.</p>
-            <div class="launch"><a class="action" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a></div>
-            <nav class="workflow-links" aria-label="Video workflows"><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav>
-          </div>
-          <img class="spread-art" src="/desktop/video-studio-tiger.jpg" alt="Tiger walking toward the camera">
-        </article>
+        </form>
+        <div class="studio-shelf">
+          <article><img src="/desktop/image-studio-capuchin.jpg" alt=""><div><h2>Image Studio</h2><a href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a></div></article>
+          <article><img src="/desktop/video-studio-tiger.jpg" alt=""><div><h2>Video Studio</h2><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a></div></article>
+        </div>
+        <nav class="home-shortcuts" aria-label="More editing tools"><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav>
       </section>
       <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">

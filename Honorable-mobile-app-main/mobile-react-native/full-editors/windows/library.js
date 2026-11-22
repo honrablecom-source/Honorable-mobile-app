@@ -1,7 +1,9 @@
+import {connectComposer} from './home-composer.js';
 import {sampleVideo} from './video-samples.js';
 
 'use strict';
 
+connectComposer(document.querySelector('#edit-composer'));
 const folder = document.querySelector('#folder');
 const query = document.querySelector('#query');
 const status = document.querySelector('#status');
