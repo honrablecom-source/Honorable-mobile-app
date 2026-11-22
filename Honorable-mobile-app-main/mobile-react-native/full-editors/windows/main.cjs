@@ -8,7 +8,7 @@ const {tmpdir} = require('node:os');
 
 const smoke = process.argv.includes('--smoke-test') && process.env.NOBLE_SMOKE_RESULT;
 const studioPort = Number(process.argv.find(arg=>arg.startsWith('--studio-port='))?.slice(14));
-const port = smoke ? 4263 : Number.isInteger(studioPort) && studioPort >= 1024 && studioPort <= 65535 ? studioPort : 4183;
+const port = smoke ? 4263 : Number.isInteger(studioPort) && studioPort >= 1024 && studioPort <= 65535 ? studioPort : 4184;
 const origin = 'http://127.0.0.1:' + port;
 const model = process.argv.find(argument => argument.startsWith('--model='))?.slice(8)
   || process.env.NOBLE_EDIT_MODEL || 'qwen3:4b';
@@ -130,23 +130,29 @@ ipcMain.on('noble:workspace', (event, href) => {
   }
 });
 
-ipcMain.handle('noble:video-mcp-save', async (event,name,bytes) => {
+ipcMain.handle('noble:video-mcp-save', async (event,name,bytes,kind = 'video') => {
   const view = workspaces.get('video');
   if (!view || view.webContents !== event.sender || event.senderFrame !== event.sender.mainFrame ||
       new URL(event.senderFrame.url).origin !== origin || new URL(event.senderFrame.url).pathname !== '/video/') {
-    throw Error('Only Noble Video Studio can save this export.');
+    throw Error('Only Noble Video Studio can save this file.');
   }
-  if (typeof name !== 'string' || !ArrayBuffer.isView(bytes) || bytes.byteLength < 16 || bytes.byteLength > 100*1024*1024) {
-    throw Error('Noble could not save the video. Choose an MP4 under 100 MB.');
+  if (kind !== 'video' && kind !== 'project') throw Error('Unknown Noble file format.');
+  const project = kind === 'project';
+  const limit = project ? 32 : 100;
+  if (typeof name !== 'string' || !ArrayBuffer.isView(bytes) || bytes.byteLength < 16 || bytes.byteLength > limit*1024*1024) {
+    throw Error(`Noble could not save this file. Maximum size is ${limit} MB.`);
   }
   const buffer = Buffer.from(bytes.buffer,bytes.byteOffset,bytes.byteLength);
-  if (buffer.toString('ascii',4,8) !== 'ftyp') throw Error('Noble did not return a valid MP4.');
-  const root = path.join(app.getPath('videos'),'Noble Exports');
+  if (project) {
+    const input = JSON.parse(buffer.toString('utf8'));
+    if (input?.format !== 'filmcraft.project' || !input.project?.items) throw Error('Noble did not return a valid project.');
+  } else if (buffer.toString('ascii',4,8) !== 'ftyp') throw Error('Noble did not return a valid MP4.');
+  const root = path.join(app.getPath('videos'),project ? 'Noble Projects' : 'Noble Exports');
   await mkdir(root,{recursive:true});
-  const folder = await mkdtemp(path.join(root,'Export-'));
-  const base = name.replace(/[^\p{L}\p{N} _-]/gu,' ').trim().slice(0,80) || 'Video';
-  const output = path.join(folder,'Noble - '+base+'.mp4');
-  const incomplete = path.join(folder,'export.part');
+  const folder = await mkdtemp(path.join(root,project ? 'Project-' : 'Export-'));
+  const base = name.replace(/[^\p{L}\p{N} _-]/gu,' ').trim().slice(0,80) || (project ? 'Project' : 'Video');
+  const output = path.join(folder,'Noble - '+base+(project ? '.fcproj' : '.mp4'));
+  const incomplete = path.join(folder,'save.part');
   await writeFile(incomplete,buffer,{flag:'wx'});
   await rename(incomplete,output);
   return output;

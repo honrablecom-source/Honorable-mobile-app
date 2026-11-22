@@ -34,6 +34,8 @@ test('desktop MCP discovers editing tools and rejects browser requests before re
   assert.deepEqual(list.result.tools.map(tool => tool.name),[
     'preview_photo_edit','list_video_media','inspect_video_media','build_video_edit','inspect_video_edit',
     'revise_video_edit','preview_video_edit','export_video_edit','video_export_status',
+    'duplicate_video_edit','edit_video_clip','transform_video_clip','grade_video_clip','add_video_transition',
+    'mix_video_audio','add_video_title','add_video_captions','render_video_frame','save_video_project',
   ]);
   const params = {name:'preview_photo_edit',arguments:{brief:'Brighten softly'}};
   assert.equal((await rpc('tools/call',params,{Origin:'https://example.org'})).status,403);
@@ -56,4 +58,15 @@ test('desktop MCP discovers editing tools and rejects browser requests before re
   const edit = await (await rpc('tools/call',build,modern)).json();
   assert.deepEqual(edit.result.structuredContent,{sequence:10});
   assert.deepEqual(seen[1],{type:'video-edit-request',id:2,tool:'build_video_edit',args:build.arguments});
+  const clipEdit = {name:'edit_video_clip',arguments:{
+    sequence:10,revision:2,clip:12,operation:{type:'split',at:20},
+  }};
+  const invalidOperation = await (await rpc('tools/call',{...clipEdit,arguments:{
+    ...clipEdit.arguments,operation:{type:'split',at:20,track:1},
+  }},modern)).json();
+  assert.equal(invalidOperation.error.code,-32602);
+  assert.equal(seen.length,2);
+  const split = await (await rpc('tools/call',clipEdit,modern)).json();
+  assert.deepEqual(split.result.structuredContent,{sequence:10});
+  assert.deepEqual(seen[2],{type:'video-edit-request',id:3,tool:clipEdit.name,args:clipEdit.arguments});
 });

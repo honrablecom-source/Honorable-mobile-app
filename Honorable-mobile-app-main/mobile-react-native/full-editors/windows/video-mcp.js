@@ -1,4 +1,5 @@
 import {inspectMusic, inspectVideo} from './cinematic-media.js';
+import {createVideoControls} from './video-controls.js';
 
 const ticks = 10584000000; // FilmCraft's ticks per 24 fps frame.
 const snapshotPath = '/opfs/noble-mcp/current-project.fcproj';
@@ -6,14 +7,22 @@ const analysisLimit = 160 * 1024 * 1024;
 const asFrames = value => Math.round(value / ticks);
 const clipTiming = clip => ({
   id:clip.clip,item:clip.item,name:clip.name,at:asFrames(clip.start),frames:asFrames(clip.duration),
-  sourceFrame:asFrames(clip.sourceIn),gainDb:clip.gainDb,speed:clip.speed,
+  sourceFrame:asFrames(clip.sourceIn),gainDb:clip.gainDb,speed:clip.speed,reverse:clip.reverse,
+  effects:clip.effects,
+});
+const trackTiming = track => ({
+  id:track.id,name:track.name,locked:track.locked,clips:track.items.map(clipTiming),
+  transitions:track.transitions.map(transition=>({
+    id:transition.id,effect:transition.effect,at:asFrames(transition.start),frames:asFrames(transition.duration),
+    from:transition.from,to:transition.to,alignment:transition.align,
+  })),
 });
 const timed = sequence => ({
   sequence:sequence.id,name:sequence.name,frames:asFrames(sequence.duration),
   fps:sequence.settings.frame_rate.num/sequence.settings.frame_rate.den,
   width:sequence.settings.width,height:sequence.settings.height,
-  video:sequence.video.map(track=>({name:track.name,clips:track.items.map(clipTiming)})),
-  audio:sequence.audio.map(track=>({name:track.name,clips:track.items.map(clipTiming)})),
+  video:sequence.video.map(trackTiming),
+  audio:sequence.audio.map(trackTiming),
 });
 const fingerprint = sequence => JSON.stringify([sequence.settings,sequence.video,sequence.audio,sequence.markers]);
 const countFrames = segments => segments.reduce((sum,clip)=>sum+clip.frames,0);
@@ -24,7 +33,7 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
   label.className = 'workspace-frame-approval';
   const share = document.createElement('input');
   share.type = 'checkbox';
-  label.append(share,' Allow connected AI to see imported video frames');
+  label.append(share,' Allow connected AI to see imported video frames and edited previews');
   settings.append(label);
   const run = (command,params) => editor.execute(command,params);
   const drafts = new Map();
@@ -161,7 +170,9 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
     }
   }
 
+  const describe = async sequence=>({...timed(await run('sequence.inspect',{item:sequence})),...await currentRevision()});
   const handlers = {
+    ...createVideoControls(editor,{ticks,currentRevision,describe,showTimeline,canShare:()=>share.checked}),
     async list_video_media() {
       const project = await run('project.inspect');
       const all = [...(await sources()).values()];
@@ -202,7 +213,7 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
       return {data:await assemble(args)};
     },
     async inspect_video_edit({sequence}) {
-      return {data:{...timed(await run('sequence.inspect',{item:sequence})),...await currentRevision()}};
+      return {data:await describe(sequence)};
     },
     async revise_video_edit(args) {
       if (!drafts.has(args.sequence)) throw Error('Choose a timeline built through this connection during the current session.');
@@ -255,9 +266,10 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
     },
   };
 
+  const readOnly = new Set(['list_video_media','inspect_video_media','inspect_video_edit','video_export_status']);
   window.nobleVideoMcp = async ({tool,args}) => {
     if (!Object.hasOwn(handlers,tool)) return {error:'Unknown Noble video tool.'};
-    const blocked = ['build_video_edit','revise_video_edit','preview_video_edit','export_video_edit'].includes(tool);
+    const blocked = !readOnly.has(tool);
     if (blocked && document.body.inert) return {error:'Noble is busy.'};
     if (blocked) document.body.inert = true;
     try {

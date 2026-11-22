@@ -12,11 +12,13 @@ Open **Tools > Quick draft** in Video Studio to draft or revise a vertical edit 
 
 Open **AI agent** in Video Studio. Select 3–12 supported videos and a music track at least 20 seconds long. Run `ollama pull qwen3:4b` and start Ollama if setup reports a missing service or model. Enter the brief and select **Build first cut**. Preview in the timeline. **Revise middle** creates a faster middle while keeping the opening and closing cuts in place. **Undo agent revision** switches back to the preceding sequence. Save and export using FilmCraft’s normal controls.
 
-Run `codex mcp add noble-studio --url http://127.0.0.1:4183/mcp/desktop` to register or update Noble in local Codex. Keep Noble open. In **Video Studio**, import the footage and music you want to edit, then ask Codex to use Noble's video tools. It can list media, measure footage and soundtrack beats, create exact cuts in an editable timeline, preview the result, revise a section, and export an MP4. Versions remain as separate sequences so you can return to the original. Finished MP4s appear under **Videos / Noble Exports**. Video MCP tools run without Ollama. If you want the connected AI to see actual images, open **Tools** and enable frame sharing for that editor session.
+Run `codex mcp add noble-studio --url http://127.0.0.1:4184/mcp/desktop` to register or update Noble in local Codex. Keep **Video Studio** open and import the footage or music you want Codex to edit. It can inspect shot timing and music beats, build a timeline, duplicate an existing sequence, and edit specific clips. Tools cover trimming, splitting, moving, retiming, keyframed motion, color, transitions, audio mixing, titles, and timed subtitles. Ask Codex to duplicate your sequence first when you want to compare versions.
+
+Edited timelines stay editable in Noble. Native project copies are saved under **Videos / Noble Projects** and reference the imported source files. Finished MP4s appear under **Videos / Noble Exports**. Video MCP tools run without Ollama. To let Codex review imported footage or a rendered frame, open **Tools** in Video Studio and enable frame sharing for that editor session.
 
 For photos, keep Ollama running, open a photo in Image Studio, and ask Codex to use Noble's `preview_photo_edit` tool. The tool prepares a preview and returns the proposed adjustments. Approve them with **Apply selected** in Noble.
 
-This portable x64 build includes the Electron runtime and Noble’s bundled editor assets. Keep the runtime files beside the executable. The package uses a loopback-only service on port 4183 and is unsigned.
+This portable x64 build includes the Electron runtime and Noble’s bundled editor assets. Keep the runtime files beside the executable. The package uses a loopback-only service on port 4184 and is unsigned.
 
 For a source build, provide the Electron 45.4.1 Windows x64 ZIP and its upstream `SHASUMS256.txt` in one directory. Run `build-portable.ps1 -ElectronDirectory PATH -Stage NEW_PATH -SearchModules NODE_MODULES`. [Electron releases](https://releases.electronjs.org/?channel=stable)
 

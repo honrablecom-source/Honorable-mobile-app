@@ -22,7 +22,7 @@ const tool = {
 };
 const serverInfo = {name:'noble-studio',title:'Noble Studio',version:'1.0.0'};
 const capabilities = {tools:{}};
-const instructions = 'Open Noble Video Studio and import source media. Use list_video_media, inspect_video_media, then build_video_edit with your own exact cuts. Preview, revise or export in Noble. For photos, use preview_photo_edit and approve in Image Studio.';
+const instructions = 'Open Noble Video Studio with imported media. Use list_video_media and build_video_edit to make a cut. For an existing timeline, inspect_video_edit, duplicate_video_edit, then use clip, transform, grade, transition, audio, title and caption tools. Use fresh revisions after changes. Render a review frame when permitted, save the editable project and export the video. For photos, use preview_photo_edit.';
 
 export function createDesktopMcp(port) {
   let pending;
