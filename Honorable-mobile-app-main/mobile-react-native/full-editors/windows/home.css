@@ -155,7 +155,7 @@ input::placeholder { color: var(--muted); }
 }
 .desktop-nav .brand { margin:1px 7px 33px; font-size:19px; font-weight:650; gap:10px; }
 .brand img { border-radius:5px; }
-.desktop-nav :is(nav a,.export-action) { min-height:39px; gap:12px; padding:7px 12px; font-size:15px; font-weight:500; }
+.desktop-nav :is(nav a,.export-action) { min-height:39px; gap:12px; padding:7px 12px; font-size:15px; font-weight:500; white-space:normal; }
 .desktop-nav .shell-icon { color:#afb3b9; }
 .desktop-nav .places a[aria-current] { background:#303236; color:#fff; font-weight:650; }
 .desktop-nav .places a[aria-current] .shell-icon { color:#b1cfff; }
@@ -274,8 +274,9 @@ input::placeholder { color: var(--muted); }
 .extra-tools summary { width:fit-content; color:var(--muted); cursor:pointer; font-size:14px; }
 .extra-tools nav { display:flex; flex-wrap:wrap; gap:8px 20px; padding:10px 0; }
 @media(max-width:1050px) {
-  .desktop-layout { grid-template-columns:170px minmax(0,1fr); --gutter:22px; }
+  .desktop-layout { grid-template-columns:188px minmax(0,1fr); --gutter:22px; }
   .desktop-nav { padding-inline:8px; }
+  .desktop-nav .brand { font-size:17px; }
   .file-search kbd { display:none; }
 }
 @media(max-width:850px) {
