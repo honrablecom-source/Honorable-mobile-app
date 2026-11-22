@@ -20,7 +20,11 @@ Run `codex mcp add noble-studio --url http://127.0.0.1:4184/mcp/desktop` to regi
 
 Edited timelines stay editable in Noble. Native project copies are saved under **Videos / Noble Projects** and reference the imported source files. Finished MP4s appear under **Videos / Noble Exports**. Video MCP tools run without Ollama. To let Codex review imported footage or a rendered frame, open **Tools** in Video Studio and enable frame sharing for that editor session.
 
-For photos, keep Ollama running, open a photo in Image Studio, and ask Codex to use Noble's `preview_photo_edit` tool. The tool prepares a preview and returns the proposed adjustments. Approve them with **Apply selected** in Noble.
+Connected editors advertise individual MCP tools for their native commands. Call `find_editor_skills` with a studio and a search, for example `{"studio":"photo","query":"canvas size"}`. Results include tool names and argument schemas. Clients that load a limited tool list can use `run_editor_skill` with the returned name and arguments. Direct MCP clients can follow `nextCursor` in `tools/list`.
+
+In Image Studio, start with `get_photo_context`. Pass its `documentId` and `revision` to a skill such as `photo_layer_new_layer` with `parameters: {"name":"Foreground"}`. Use the new revision on the next call. Video skills take the revision from `list_video_media` or the previous edit. Native skills use the current editor and report when a command is disabled by the selection, document mode or timeline state. Interactive commands may open an editor dialog. Use `includeManual: true` in a skill search to also find catalog entries that require Studio.
+
+For a model-planned photo edit, run Ollama and use `preview_photo_edit`. Review the proposed layers, enter their strength as a percentage, and choose **Apply selected** in Noble. Connected AI can also call `set_photo_review_strength` or run individual local previews for cutout, subject color, denoise, neural color and neural painting. Those five preview tools use Noble’s bundled processing and the active photo.
 
 The x64 executable is a Windows Forms app. The bundled editor interfaces run in the installed Microsoft Edge WebView2 Runtime. The package includes a headless Node.js service, starts it automatically, and uses a loopback-only endpoint on port 4184. Keep the installed files together. The installer and Noble executable are unsigned. [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
 

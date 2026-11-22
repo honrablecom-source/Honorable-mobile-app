@@ -1,4 +1,5 @@
 import {mountPhotoAgent} from './photo-agent.js';
+import {checkCommand,photoContext,resultSummary} from './native-skill.js';
 import {mountPhotoSettings} from './photo-settings.js';
 
 const bar = document.querySelector('#noble-workspace-bar');
@@ -283,7 +284,7 @@ function configureAi() {
     try {
       source = (await request('ui.inspect')).document;
       await current.onclick();
-      if (!panel.hidden && !runModel.disabled) runModel.click();
+      if (!panel.hidden && !runModel.disabled) await runModel.onclick();
     } catch (error) {
       part('status').textContent = error.message;
     } finally {
@@ -336,7 +337,18 @@ function configureAi() {
     setStatus('The document changed. Run the AI tool again to preview the current edit.');
     return true;
   }
-  return {tab, panel, close, review,update};
+  async function previewModel(model,expected) {
+    if (runOnPhoto.disabled || part('tool').disabled) throw Error('A local photo tool is already running.');
+    const currentDoc=(await request('ui.inspect')).document;
+    if (currentDoc?.documentId!==expected.documentId || currentDoc.revision!==expected.revision) throw Error('The photo changed before preview.');
+    part('tool').value=model;
+    if (part('tool').value!==model) throw Error('This model is unavailable in the installed editor.');
+    part('tool').dispatchEvent(new Event('change'));
+    await runOnPhoto.onclick();
+    if (panel.hidden || review.hidden || update((await request('ui.inspect')).document)) throw Error(part('status').textContent || 'The preview was cancelled.');
+    return {status:'awaiting_approval',model,width:part('after').width,height:part('after').height};
+  }
+  return {tab, panel, close, review,update,preview:previewModel};
 }
 
 function showTab(tab) {
@@ -364,6 +376,51 @@ selectTab($('#photo-agent-tab'));
 
 window.noblePhotoMcp = async input => {
   if (!ready || busy) return {error:'Image Studio is busy. Try again in a moment.'};
+  if (input.tool==='editor_skill') {
+    const {route,id,input:args}=input.args;
+    const read=async()=>photoContext((await request('ui.inspect')).document);
+    const before=await read();
+    if (route==='context') return {result:before};
+    if (route==='open') { open.click(); return {result:{status:'picker_requested'}}; }
+    if (before.documentId!==args.documentId || before.revision!==args.revision) throw Error('The photo changed. Call get_photo_context again.');
+    if (route==='model' || route==='strength') {
+      if (!before.documentId) throw Error('Open a photo first.');
+      await refresh();
+      await openAssistant();
+      if (route==='strength') return {result:await agent.setStrength(args.percent)};
+      if (!ai) throw Error('Local AI tools are unavailable.');
+      showTab(ai.tab);
+      return {result:await ai.preview(id,before)};
+    }
+    busy=true;
+    setControls();
+    try {
+      if (route==='save') {
+        if (!before.documentId) throw Error('Open a photo first.');
+        await save(id,before.name);
+        return {result:{status:'save_requested',format:id}};
+      }
+      if (!['engine','menu','palette','preset'].includes(route)) throw Error('Unknown photo skill.');
+      if (route!=='palette') checkCommand(await request(route==='menu'?'ui.menu.list':'engine.commands'),id);
+      const now=await read();
+      if (now.documentId!==args.documentId || now.revision!==args.revision) throw Error('The photo changed before this action.');
+      let value;
+      if (route==='preset') {
+        const parameters={data:args.data};
+        if (id==='brush.presets.importImage' && args.name) parameters.fileName=args.name;
+        else if (id!=='pattern.import' && args.name) parameters.group=args.name;
+        if (id==='style.presets.importAsl') parameters.replace=false;
+        value=await command(id,parameters);
+      } else if (route==='palette') value=await request('ui.set',{tool:id.slice('toolbox.'.length)});
+      else if (route==='menu') value=await request('ui.menu.invoke',{id});
+      else value=await command(id,args.parameters??{});
+      return {result:{command:id,...await read(),value:resultSummary(value)}};
+    } finally {
+      busy=false;
+      await refresh();
+      void flushPhotoQueue();
+    }
+  }
   await refresh();
   if (!state?.document) return {error:'Open a photo in Noble Image Studio first.'};
   await openAssistant();
@@ -502,8 +559,8 @@ for (const button of actions.querySelectorAll('[data-history]')) {
   button.onclick = () => void run(() => command(button.dataset.history));
 }
 
-async function save(extension) {
-  const clean = state.document.name.replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 100);
+async function save(extension,name=state.document.name) {
+  const clean = name.replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 100);
   status.textContent = 'Preparing file…';
   await request('app.save', {path:(clean || 'Noble image') + '.' + extension, wait:true});
   if (!window.nobleNavigation?.onPhotoDelivery) status.textContent = 'Check your downloads for the file.';

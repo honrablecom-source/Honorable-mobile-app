@@ -112,7 +112,7 @@
       const receiver = video ? window.nobleVideoMcp : window.noblePhotoMcp;
       try {
         if (typeof receiver !== 'function') throw Error('The editor is still starting.');
-        const args = video ? {tool:data.tool,args:data.args} : {brief:data.brief,finish:data.finish};
+        const args = video || data.tool === 'editor_skill' ? {tool:data.tool,args:data.args} : {brief:data.brief,finish:data.finish};
         send({action:'mcp-result',id,data:await receiver(args)});
       } catch (error) {
         send({action:'mcp-result',id,data:{error:error.message}});

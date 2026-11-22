@@ -1,4 +1,5 @@
 import {inspectMusic, inspectVideo} from './cinematic-media.js';
+import {checkCommand,resultSummary} from './native-skill.js';
 import {createVideoControls} from './video-controls.js';
 import {changeTitles, inspectChange, recordVideoChange} from './video-changes.js';
 
@@ -219,8 +220,8 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
   const handlers = {
     ...createVideoControls(editor,{ticks,currentRevision,describe,showTimeline,canShare:()=>share.checked}),
     async list_video_media() {
-      const project = await run('project.inspect');
       const all = [...(await sources()).values()];
+      const project = await run('project.inspect');
       const sequences = [];
       const visit = bin=>{
         for (const entry of bin.children) {
@@ -297,11 +298,26 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
 
   const readOnly = new Set(['list_video_media','inspect_video_media','inspect_video_edit','video_export_status']);
   window.nobleVideoMcp = async ({tool,args}) => {
-    if (!Object.hasOwn(handlers,tool)) return {error:'Unknown Noble video tool.'};
+    if (tool!=='editor_skill' && !Object.hasOwn(handlers,tool)) return {error:'Unknown Noble video tool.'};
     const blocked = !readOnly.has(tool);
     if (blocked && (document.body.inert || 'nobleAgentBusy' in document.body.dataset)) return {error:'Noble is busy.'};
     if (blocked) document.body.inert = true;
     try {
+      if (tool==='editor_skill') {
+        const {route,id,input}=args;
+        if (route!=='menu' && route!=='engine') throw Error('Unknown video skill.');
+        checkCommand(route==='menu'?await editor.request('ui.menu.list'):await run('command.list',{}),id);
+        const {activeSequence}=await currentRevision(input.revision);
+        const before=activeSequence?await inspectChange(editor,activeSequence).catch(()=>null):null;
+        await currentRevision(input.revision);
+        const value=route==='menu'?await editor.request('ui.menu.invoke',{id}):await run(id,input.parameters??{});
+        const state=await currentRevision();
+        if (before && state.activeSequence===activeSequence && state.revision!==input.revision) {
+          const after=await inspectChange(editor,activeSequence).catch(()=>null);
+          if (after) recordVideoChange({before,after,title:id,source:'MCP',tool:id,args:input});
+        }
+        return {result:{command:id,...state,value:resultSummary(value)}};
+      }
       const title = tool === 'edit_video_clip' ? {
         trim:'Trimmed a clip',split:'Split a clip',move:'Moved a clip',retime:'Retimed a clip',remove:'Removed a clip',
       }[args.operation.type] : changeTitles[tool];

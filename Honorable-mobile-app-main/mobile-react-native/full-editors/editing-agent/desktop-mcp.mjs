@@ -1,5 +1,6 @@
 import {recipeSchema} from './photo-recipe.mjs';
 import {videoTools,validateVideoCall} from './video-tools.mjs';
+import {editorSkills,findSkills,runSkill,searchSkills,validSkillArgs} from './editor-skills.mjs';
 
 const legacyVersions = ['2025-11-25','2025-06-18','2025-03-26'];
 const modernVersion = '2026-07-28';
@@ -22,7 +23,10 @@ const tool = {
 };
 const serverInfo = {name:'noble-studio',title:'Noble Studio',version:'1.0.0'};
 const capabilities = {tools:{}};
-const instructions = 'Open Noble Video Studio with imported media. Use list_video_media and build_video_edit to make a cut. For an existing timeline, inspect_video_edit, duplicate_video_edit, then use clip, transform, grade, transition, audio, title and caption tools. Use fresh revisions after changes. Render a review frame when permitted, save the editable project and export the video. For photos, use preview_photo_edit.';
+const instructions = 'Use find_editor_skills to discover individual editing tools by name or native command. Use get_photo_context or list_video_media for current IDs and revisions. Call the named tool in the active workspace, then use the returned revision. Native commands do not require Ollama. Use preview_photo_edit for a local model’s editable adjustment proposal.';
+const skillEntries=[...editorSkills.values()];
+const native=entry=>entry.route==='engine' || entry.route==='menu';
+const definitions=[tool,...videoTools,searchSkills,runSkill,...skillEntries.filter(entry=>!native(entry)).map(entry=>entry.definition),...skillEntries.filter(native).map(entry=>entry.definition)];
 
 export function createDesktopMcp(port) {
   let pending;
@@ -61,10 +65,16 @@ export function createDesktopMcp(port) {
       let length = 0;
       for await (const chunk of req) {
         length += chunk.length;
-        if (length > 16000) return void res.writeHead(413).end();
+        if (length > 192*1024) return void res.writeHead(413).end();
         chunks.push(chunk);
       }
       message = JSON.parse(Buffer.concat(chunks));
+      // Only the bounded preset import tools accept a binary payload.
+      if (length>16000) {
+        const call=message?.params;
+        const name=call?.name===runSkill.name ? call.arguments?.tool : call?.name;
+        if (message?.method!=='tools/call' || editorSkills.get(name)?.route!=='preset') return void res.writeHead(413).end();
+      }
     } catch {
       res.writeHead(400).end();
       return;
@@ -83,7 +93,7 @@ export function createDesktopMcp(port) {
     const result = data => reply({result:header === modernVersion ? {resultType:'complete',...data} : data});
     if (method === 'initialize') {
       const requested = params?.protocolVersion;
-      return void result({protocolVersion:legacyVersions.includes(requested) ? requested : legacyVersions[0],serverInfo,capabilities,instructions});
+      return void result({protocolVersion:requested===modernVersion || legacyVersions.includes(requested) ? requested : legacyVersions[0],serverInfo,capabilities,instructions});
     }
     if (method === 'server/discover') {
       return void result({
@@ -92,10 +102,40 @@ export function createDesktopMcp(port) {
       });
     }
     if (method === 'ping') return void result({});
-    if (method === 'tools/list') return void result({tools:[tool,...videoTools]});
+    if (method === 'tools/list') {
+      const cursor=params?.cursor;
+      if (cursor!==undefined && (typeof cursor!=='string' || !/^skills-[1-9]\d*$/.test(cursor))) return void reply(error(-32602,'Invalid tools cursor.'));
+      const start=cursor===undefined?0:Number(cursor.slice(7));
+      if (start>=definitions.length) return void reply(error(-32602,'Unknown tools cursor.'));
+      const end=start+64;
+      return void result({tools:definitions.slice(start,end),...(end<definitions.length?{nextCursor:'skills-'+end}:{})});
+    }
     if (method !== 'tools/call') return void reply(error(-32601,'Method not found'));
-    const args = params?.arguments ?? {};
-    const video = videoTools.find(entry=>entry.name === params?.name);
+    let args = params?.arguments ?? {};
+    if (params?.name === searchSkills.name) {
+      if (!validSkillArgs(searchSkills,args)) return void reply(error(-32602,'Invalid skill search.'));
+      const matches=findSkills(args,args.studio==='photo'?[tool]:videoTools);
+      return void result({content:[{type:'text',text:JSON.stringify(matches)}],structuredContent:matches});
+    }
+    let name=params?.name;
+    if (name===runSkill.name) {
+      if (!validSkillArgs(runSkill,args) || !(editorSkills.has(args.tool) || args.tool===tool.name || videoTools.some(entry=>entry.name===args.tool))) return void reply(error(-32602,'Choose a named editor skill from find_editor_skills.'));
+      name=args.tool;
+      args=args.arguments;
+    }
+    const skill=editorSkills.get(name);
+    if (skill) {
+      if (!validSkillArgs(skill.definition,args)) return void reply(error(-32602,'Check the input schema for '+name+'.'));
+      try {
+        const answer=await invoke({type:skill.studio==='photo'?'photo-review-request':'video-edit-request',
+          tool:'editor_skill',args:{route:skill.route,id:skill.id,input:args}});
+        result({content:[{type:'text',text:JSON.stringify(answer)}],structuredContent:answer});
+      } catch(failure) {
+        result({isError:true,content:[{type:'text',text:failure.message}]});
+      }
+      return;
+    }
+    const video = videoTools.find(entry=>entry.name === name);
     if (video) {
       if (!validateVideoCall(video,args)) return void reply(error(-32602,'Check the input schema for '+video.name+'.'));
       try {
@@ -109,7 +149,7 @@ export function createDesktopMcp(port) {
       }
       return;
     }
-    if (params?.name !== tool.name || !args || Array.isArray(args) ||
+    if (name !== tool.name || !args || Array.isArray(args) ||
         Object.keys(args).some(key => key !== 'brief' && key !== 'finish') ||
         typeof args.brief !== 'string' || !args.brief.trim() || args.brief.length > 1000 ||
         (args.finish !== undefined && args.finish !== 'natural' && args.finish !== 'creative')) {

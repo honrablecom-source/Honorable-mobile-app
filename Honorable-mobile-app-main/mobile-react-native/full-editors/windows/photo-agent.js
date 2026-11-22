@@ -106,8 +106,8 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
       <div class="photo-layer-review"><h3>Adjustment layers</h3>
       <ol data-agent-edits></ol>
       </div>
-      <div class="photo-review-settings"><label class="photo-proof-strength">Strength <output data-agent-strength-value>100%</output>
-        <input type="range" min="0" max="100" value="100" aria-label="Adjustment strength" data-agent-strength>
+      <div class="photo-review-settings"><label class="photo-proof-strength">Strength
+        <span class="photo-percent"><input type="number" min="0" max="100" step="1" required value="100" aria-label="Adjustment strength" data-agent-strength><span aria-hidden="true">%</span></span>
       </label>
       <p role="status" data-agent-quality hidden></p>
       <button type="button" data-agent-apply>Apply selected</button></div>
@@ -182,6 +182,12 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
   function queueProof(immediate = false) {
     clearTimeout(proofTimer);
     proofReady = undefined;
+    if (!$('strength').validity.valid) {
+      proofWanted = undefined;
+      status.textContent = 'Enter a whole percentage from 0 to 100.';
+      controls();
+      return;
+    }
     const edits = [...$('edits').querySelectorAll('input:checked')].map(box => proposed?.edits[Number(box.value)]).filter(Boolean);
     $('quality').hidden = true;
     proofWanted = proposed && edits.length ? {
@@ -219,10 +225,11 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
       proofReady = desired;
       status.textContent = '';
       const warnings = [];
-      if (result.highlightClipping >= .005) warnings.push('Highlights clip in ' + (result.highlightClipping*100).toFixed(1) + '% of the preview.');
-      if (result.shadowClipping >= .005) warnings.push('Shadows lose detail in ' + (result.shadowClipping*100).toFixed(1) + '% of the preview.');
+      if (result.highlightClipping >= .005) warnings.push('Clipped highlights ' + (result.highlightClipping*100).toFixed(1) + '%');
+      if (result.shadowClipping >= .005) warnings.push('Clipped shadows ' + (result.shadowClipping*100).toFixed(1) + '%');
       $('quality').hidden = !warnings.length;
-      $('quality').textContent = warnings.length ? warnings.join(' ') + ' Reduce strength to keep more detail.' : '';
+      $('quality').textContent = warnings.join(' · ');
+      $('quality').title = 'Lower strength to preserve more detail.';
     } catch (error) {
       if (proofWanted === desired) {
         proof.clear();
@@ -238,10 +245,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
   }
 
   $('edits').onchange = () => queueProof();
-  $('strength').oninput = () => {
-    $('strength-value').value = $('strength').value + '%';
-    queueProof();
-  };
+  $('strength').oninput = () => queueProof();
   finish.onchange = () => {
     if (!proposed) return;
     clearPlan();
@@ -273,7 +277,6 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
       }
       proposed = {source,edits};
       $('strength').value = '100';
-      $('strength-value').value = '100%';
       for (const [index,edit] of edits.entries()) {
         const item = document.createElement('li');
         const label = document.createElement('label');
@@ -359,6 +362,13 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
   controls();
   return {
     open:checkConnection,
+    async setStrength(percent) {
+      if (!proposed || !isSamePhoto(activePhoto,proposed.source) || pending || rendering || proofBusy) throw Error('Prepare a photo edit preview first and wait for it to finish.');
+      $('strength').value=String(percent);
+      await queueProof(true);
+      if (!proofReady) throw Error(status.textContent || 'Could not render the selected adjustments.');
+      return {percent,canApply:!$('apply').disabled,status:'awaiting_approval'};
+    },
     async planFromMcp({brief,finish:style}) {
       if (pending || rendering || proofBusy) return {error:'A photo preview is already being prepared in Noble.'};
       if (!activePhoto) return {error:'Open a photo in Noble Image Studio first.'};

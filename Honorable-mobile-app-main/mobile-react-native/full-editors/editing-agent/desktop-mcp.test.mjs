@@ -31,12 +31,31 @@ test('desktop MCP discovers editing tools and rejects browser requests before re
   assert.ok(discover.result.supportedVersions.includes('2026-07-28'));
   const list = await (await rpc('tools/list',{},modern)).json();
   assert.equal(list.result.resultType,'complete');
-  assert.deepEqual(list.result.tools.map(tool => tool.name),[
+  assert.deepEqual(list.result.tools.slice(0,19).map(tool => tool.name),[
     'preview_photo_edit','list_video_media','inspect_video_media','build_video_edit','inspect_video_edit',
     'revise_video_edit','preview_video_edit','export_video_edit','video_export_status',
     'duplicate_video_edit','edit_video_clip','transform_video_clip','grade_video_clip','add_video_transition',
     'mix_video_audio','add_video_title','add_video_captions','render_video_frame','save_video_project',
   ]);
+  const names=list.result.tools.map(tool=>tool.name);
+  let cursor=list.result.nextCursor;
+  while(cursor) {
+    const page=await (await rpc('tools/list',{cursor},modern)).json();
+    names.push(...page.result.tools.map(tool=>tool.name));
+    cursor=page.result.nextCursor;
+  }
+  assert.equal(new Set(names).size,names.length);
+  assert.ok(names.includes('photo_image_canvas_size') && names.includes('video_markers_add'));
+  assert.ok(names.includes('preview_photo_cutout') && names.includes('preview_photo_neural_color'));
+  assert.ok(!names.includes('photo_file_scripts_browse') && !names.includes('photo_plugin_run'));
+  const search=await (await rpc('tools/call',{name:'find_editor_skills',arguments:{studio:'photo',query:'canvas size'}})).json();
+  assert.ok(search.result.structuredContent.items.some(x=>x.tool==='photo_image_canvas_size'&&x.inputSchema.properties.parameters));
+  const workflows=await (await rpc('tools/call',{name:'find_editor_skills',arguments:{studio:'video',query:'build_video_edit'}})).json();
+  assert.ok(workflows.result.structuredContent.items.some(x=>x.tool==='build_video_edit'));
+  const unsafeImport=await (await rpc('tools/call',{name:'run_editor_skill',arguments:{tool:'photo_swatches_import',arguments:{documentId:1,revision:0,data:'bad!',name:'../palette'}}})).json();
+  assert.equal(unsafeImport.error.code,-32602);
+  const noRevision=await (await rpc('tools/call',{name:'photo_image_canvas_size',arguments:{documentId:1}})).json();
+  assert.equal(noRevision.error.code,-32602);
   const params = {name:'preview_photo_edit',arguments:{brief:'Brighten softly'}};
   assert.equal((await rpc('tools/call',params,{Origin:'https://example.org'})).status,403);
   const invalid = await (await rpc('tools/call',{...params,arguments:{brief:'Brighten',path:'test'}})).json();

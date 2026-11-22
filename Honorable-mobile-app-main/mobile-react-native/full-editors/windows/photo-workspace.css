@@ -251,12 +251,17 @@
 .photo-agent ol label { display:flex; align-items:center; gap:8px; padding-block:4px; }
 .photo-agent ol input { width:14px; height:14px; margin:0; accent-color:var(--photo-active); }
 .photo-review-settings { grid-area:settings; display:flex; flex-direction:column; align-items:start; gap:7px; }
-.photo-proof-strength { width:min(100%,310px); display:grid; grid-template-columns:1fr auto; gap:5px; font-weight:600; }
-.photo-proof-strength input { grid-column:1/-1; width:100%; margin:2px 0; }
-.photo-proof-strength output { color:var(--photo-dim); font-weight:400; }
+.photo-proof-strength { display:inline-flex; align-items:center; gap:8px; font-weight:400; }
+.photo-percent { display:inline-flex; align-items:center; gap:2px; padding:1px 5px; background:var(--photo-mat); border:1px solid var(--photo-line); border-radius:2px; color:var(--photo-ink); }
+.photo-percent:focus-within { outline:1px solid var(--photo-active); }
+.photo-shell .photo-percent input:focus-visible { outline:0; }
+.photo-percent input { width:4ch; min-width:0; padding:1px 0; appearance:textfield; background:transparent; border:0; outline:0; text-align:right; font:inherit; font-variant-numeric:tabular-nums; color:inherit; }
+.photo-percent input::-webkit-inner-spin-button { appearance:none; }
 .photo-agent [data-agent-quality] { max-width:43ch; font-size:.92em; color:var(--photo-dim); }
 #photo-workbench .photo-agent button { min-height:calc(var(--photo-target) - 6px); padding:3px 12px; font:inherit; }
-#photo-workbench .photo-agent :is([data-agent-apply],[data-agent-plan]) {
+#photo-workbench .photo-agent [data-agent-apply] { background:var(--photo-paper); color:var(--photo-ink); border:1px solid var(--photo-line); border-radius:2px; font-weight:400; }
+#photo-workbench .photo-agent [data-agent-apply]:enabled:hover { background:var(--photo-line); }
+#photo-workbench .photo-agent [data-agent-plan] {
   background:var(--photo-active); color:var(--photo-on-active); border-color:transparent; font-weight:600;
 }
 .photo-proof { grid-area:proof; display:grid; grid-template-rows:auto clamp(100px,15vh,165px); gap:5px; --proof-split:50%; }
