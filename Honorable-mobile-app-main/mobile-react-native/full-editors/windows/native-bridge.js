@@ -84,6 +84,7 @@
       pending.delete(id);
       if (message.error) promise.reject(Error(message.error));
       else promise.resolve(data);
+    } else if (event === 'recent-updated') { window.dispatchEvent(new Event('noble-recent-updated'));
     } else if (event === 'photo') {
       if (importPhoto) queuePhoto(data);
       else pendingPhotos.push(data);
@@ -109,6 +110,8 @@
     }
   });
   Object.defineProperty(window,'nobleNavigation',{value:Object.freeze({
+    listRecent: () => invoke('list-recent'),
+    openRecent: id => invoke('open-recent',id),
     openWorkspace: href => send({action:'navigate',data:href}),
     onPhotoDelivery: callback => { onDelivery = callback; },
     onPhotoImport: callback => {

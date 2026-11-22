@@ -46,31 +46,38 @@ internal sealed partial class NobleStudio
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 if (dialog.FileNames.Length > 12) throw new InvalidOperationException("Choose up to 12 photos per import.");
                 string[] files = dialog.FileNames;
-                var view = await ShowWorkspace(kind,PathFor(kind) + "?empty&webgl");
-                long total = 0;
-                foreach (string file in files)
-                {
-                    string name = Path.GetFileName(file);
-                    try
-                    {
-                        long size = new FileInfo(file).Length;
-                        if (size < 1 || size > 64L * Megabyte || total + size > 128L * Megabyte)
-                            throw new InvalidOperationException("Choose a nonempty file under 64 MB and a batch under 128 MB.");
-                        if (!photo && !string.Equals(Path.GetExtension(file),".fcproj",StringComparison.OrdinalIgnoreCase))
-                            throw new InvalidOperationException("Choose a Noble video project (.fcproj).");
-                        string url = IssueTransfer(new Transfer { View=view, Path=file, Name=name });
-                        total += size;
-                        Send(view,photo ? "photo" : "project",new {name,url});
-                    }
-                    catch (Exception error)
-                    {
-                        if (!photo) throw;
-                        Send(view,"photo",new {name,error=error.Message});
-                    }
-                }
+                await OpenSelected(kind,files);
             }
         }
         finally { pickerOpen = false; }
+    }
+
+    private async Task OpenSelected(string kind,string[] files)
+    {
+        bool photo = kind == "image";
+        var view = await ShowWorkspace(kind,PathFor(kind) + "?empty&webgl");
+        long total = 0;
+        foreach (string file in files)
+        {
+            string name = Path.GetFileName(file);
+            try
+            {
+                long size = new FileInfo(file).Length;
+                if (size < 1 || size > 64L * Megabyte || total + size > 128L * Megabyte)
+                    throw new InvalidOperationException("Choose a nonempty file under 64 MB and a batch under 128 MB.");
+                if (!photo && !string.Equals(Path.GetExtension(file),".fcproj",StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Choose a Noble video project (.fcproj).");
+                string url = IssueTransfer(new Transfer { View=view, Path=file, Name=name });
+                total += size;
+                if (!photo) RememberFile(file);
+                Send(view,photo ? "photo" : "project",new {name,url});
+            }
+            catch (Exception error)
+            {
+                if (!photo) throw;
+                Send(view,"photo",new {name,error=error.Message});
+            }
+        }
     }
 
     private static OpenFileDialog CreateOpenDialog(bool photo)

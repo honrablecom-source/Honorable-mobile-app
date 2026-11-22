@@ -345,6 +345,17 @@ internal sealed partial class NobleStudio : Form
         {
             switch (action)
             {
+                case "list-recent":
+                    if (kind=="home") Send(view,"reply",RecentFiles().ConvertAll(x=>new {id=x.Id,name=Path.GetFileName(x.Path),thumbnail=x.Thumbnail}),id);
+                    return;
+                case "open-recent":
+                    if (kind!="home" || view!=active || nativeEditor!=null) throw new InvalidOperationException("Return to Projects first.");
+                    var item = RecentFiles().Find(x=>x.Id==(data as string));
+                    if (item==null || !File.Exists(item.Path)) throw new FileNotFoundException("This file moved or was deleted. Choose Open to locate it.");
+                    if (Path.GetExtension(item.Path).Equals(".fcproj",StringComparison.OrdinalIgnoreCase)) await OpenSelected("video",new[]{item.Path});
+                    else await OpenChosenPhotos(new[]{item.Path});
+                    Send(view,"reply",true,id);
+                    return;
                 case "navigate": await Route(view,data as string); return;
                 case "mcp-result": CompleteMcp(view,id as string,data as Dictionary<string,object>); return;
                 case "prepare-upload": Send(view,"reply",PrepareUpload(view,kind,data),id); return;
@@ -583,11 +594,7 @@ internal sealed partial class NobleStudio : Form
                 files = dialog.FileNames;
             }
             if (files.Length > 12) throw new InvalidOperationException("Choose up to 12 photos per import.");
-            Send(views["home"],"native-photo-loading",true);
-            if (nativeEditor != "image") await ShowEditor("image");
-            HostedEditor editor;
-            if (nativeEditor == "image" && editors.TryGetValue("image",out editor))
-                await editor.PhotoControl.OpenFiles(files);
+            await OpenChosenPhotos(files);
         }
         finally
         {
@@ -596,6 +603,70 @@ internal sealed partial class NobleStudio : Form
         }
     }
 
+    private async Task OpenChosenPhotos(string[] files)
+    {
+        Send(views["home"],"native-photo-loading",true);
+        try
+        {
+            if (nativeEditor != "image") await ShowEditor("image");
+            HostedEditor editor;
+            if (nativeEditor == "image" && editors.TryGetValue("image",out editor))
+            {
+                await editor.PhotoControl.OpenFiles(files);
+                foreach (string file in files) RememberFile(file);
+            }
+        }
+        finally { Send(views["home"],"native-photo-loading",false); }
+    }
+
+    private sealed class RecentFile
+    {
+        public string Id { get; set; }
+        public string Path { get; set; }
+        public string Thumbnail { get; set; }
+    }
+    private List<RecentFile> recentFiles;
+    private List<RecentFile> RecentFiles()
+    {
+        if (recentFiles != null) return recentFiles;
+        recentFiles = new List<RecentFile>();
+        try {
+            var saved = json.Deserialize<List<RecentFile>>(File.ReadAllText(Path.Combine(profile,"recent-files.json")));
+            if (saved != null) foreach (var item in saved)
+                if (item != null && !string.IsNullOrEmpty(item.Path) && !string.IsNullOrEmpty(item.Id) && recentFiles.Count < 16)
+                    recentFiles.Add(item);
+        } catch (IOException) {} catch (UnauthorizedAccessException) {} catch (ArgumentException) {} catch (InvalidOperationException) {}
+        return recentFiles;
+    }
+    private void RememberFile(string file)
+    {
+        var files = RecentFiles();
+        var item = files.Find(x => string.Equals(x.Path,file,StringComparison.OrdinalIgnoreCase));
+        if (item != null) files.Remove(item);
+        else item = new RecentFile {Id=Guid.NewGuid().ToString("N"),Path=file};
+        try {
+            string ext = Path.GetExtension(file).ToLowerInvariant();
+            if ((ext==".jpg" || ext==".jpeg" || ext==".png") && new FileInfo(file).Length<=8*1024*1024)
+                using (var source = Image.FromFile(file)) {
+                    if ((long)source.Width*source.Height<=24000000) {
+                        double scale = Math.Min(160.0/source.Width,100.0/source.Height);
+                        using (var thumb = new Bitmap(source,Math.Max(1,(int)(source.Width*scale)),Math.Max(1,(int)(source.Height*scale))))
+                        using (var stream = new MemoryStream()) {
+                            thumb.Save(stream,System.Drawing.Imaging.ImageFormat.Jpeg);
+                            item.Thumbnail = "data:image/jpeg;base64,"+Convert.ToBase64String(stream.ToArray());
+                        }
+                    }
+                }
+        } catch (ArgumentException) {} catch (IOException) {} catch (OutOfMemoryException) {} catch (ExternalException) {} catch (UnauthorizedAccessException) {}
+        files.Insert(0,item);
+        if (files.Count>16) files.RemoveAt(16);
+        try {
+            string dest=Path.Combine(profile,"recent-files.json"), temp=dest+".tmp";
+            File.WriteAllText(temp,json.Serialize(files));
+            if (File.Exists(dest)) File.Replace(temp,dest,null); else File.Move(temp,dest);
+        } catch (IOException) {} catch (UnauthorizedAccessException) {}
+        Send(views["home"],"recent-updated",null);
+    }
     private void HideEditor()
     {
         if (nativeEditor == null) return;

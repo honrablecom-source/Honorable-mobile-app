@@ -27,9 +27,9 @@ compact.onchange = () => {
   localStorage.setItem('noble.home.compact',String(compact.checked));
 };
 remember.onchange = () => localStorage.setItem('noble.home.remember',String(remember.checked));
-document.querySelector('#studio').addEventListener('click', event => {
+document.querySelector('.desktop-layout').addEventListener('click', event => {
   const link = event.target.closest('a');
-  if (!link || !remember.checked) return;
+  if (!link || !link.closest('#studio,.file-menu') || !remember.checked) return;
   activity.unshift({label:link.getAttribute('aria-label') || link.textContent.trim(),at:Date.now()});
   activity = activity.slice(0,50);
   localStorage.setItem(activityKey,JSON.stringify(activity));
@@ -230,10 +230,68 @@ document.querySelector('#semantic').addEventListener('submit', async event => {
   }
   worker.postMessage({query: term, files: sources});
 });
+const starterCards = document.querySelector('#starter-cards');
+const toggleStarters = document.querySelector('#toggle-starters');
+function showStarters(show) {
+  starterCards.hidden = !show;
+  toggleStarters.textContent = show ? 'Hide starters' : 'Show starters';
+  toggleStarters.setAttribute('aria-expanded',String(show));
+}
+showStarters(localStorage.getItem('noble.home.hideStarters') !== 'true');
+toggleStarters.onclick = () => {
+  showStarters(starterCards.hidden);
+  localStorage.setItem('noble.home.hideStarters',String(starterCards.hidden));
+};
+
+const recentContainer = document.querySelector('#recent-files');
+const recentStatus = document.querySelector('#recent-status');
+const recentFilter = document.querySelector('#recent-filter');
+const sortRecent = document.querySelector('#recent-sort');
+let recent = [];
+function renderRecent() {
+  const filtered = recent.filter(file=>file.name.toLowerCase().includes(recentFilter.value.trim().toLowerCase()));
+  if (sortRecent.value==='name') filtered.sort((a,b)=>a.name.localeCompare(b.name));
+  recentStatus.textContent = filtered.length ? '' : recent.length ? 'No files match your filter.' : 'Open a photo or video project to see it here.';
+  recentContainer.replaceChildren(...filtered.map(file=>{
+    const button = document.createElement('button');
+    button.type = 'button';
+    const preview = document.createElement(file.thumbnail?'img':'span');
+    if (file.thumbnail) {preview.src=file.thumbnail;preview.alt='';}
+    else {preview.className='file-type';preview.textContent=file.name.split('.').pop().toUpperCase();preview.setAttribute('aria-hidden','true');}
+    const name=document.createElement('strong');
+    name.textContent=file.name;
+    button.append(preview,name);
+    button.onclick=async()=>{
+      button.disabled=true;
+      try {await window.nobleNavigation.openRecent(file.id);}
+      catch (error) {recentStatus.textContent=error.message;}
+      finally {button.disabled=false;}
+    };
+    return button;
+  }));
+}
+async function refreshRecent() {
+  try {recent=await window.nobleNavigation?.listRecent() ?? [];renderRecent();}
+  catch (error) {recentStatus.textContent=error.message;}
+}
+recentFilter.oninput=renderRecent;
+sortRecent.onchange=renderRecent;
+function setLayout(layout) {
+  recentContainer.classList.toggle('list',layout==='list');
+  for(const button of document.querySelectorAll('.recent-heading button')) button.setAttribute('aria-pressed',String(button.dataset.layout===layout));
+}
+setLayout(localStorage.getItem('noble.home.recentLayout') || 'grid');
+for (const button of document.querySelectorAll('.recent-heading button')) button.onclick=()=>{
+  setLayout(button.dataset.layout);
+  localStorage.setItem('noble.home.recentLayout',button.dataset.layout);
+};
+window.addEventListener('noble-recent-updated',refreshRecent);
+void refreshRecent();
 if (window.nobleNavigation) {
   for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"],a[href="/desktop/copy-export"],[data-desktop-projects]')) {
     link.addEventListener('click', event => {
       event.preventDefault();
+      link.closest('[popover]')?.hidePopover();
       window.nobleNavigation.openWorkspace(link.href);
     });
   }

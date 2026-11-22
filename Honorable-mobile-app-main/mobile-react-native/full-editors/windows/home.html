@@ -9,8 +9,14 @@
 </head>
 <body>
   <div class="desktop-layout">
+    <header class="home-bar"><a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a></header>
     <aside class="desktop-nav">
-      <a class="brand" href="#studio" aria-label="Noble Studio home"><img src="/desktop/noble.png" width="34" height="34" alt="">Noble Studio</a>
+      <div class="file-commands">
+        <button type="button" popovertarget="new-menu">＋ New project</button>
+        <button type="button" popovertarget="open-menu">Open…</button>
+        <div id="new-menu" class="file-menu" popover><a href="/desktop/native/image?entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
+        <div id="open-menu" class="file-menu" popover><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
+      </div>
       <nav class="places" aria-label="Navigation">
         <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
         <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
@@ -23,23 +29,17 @@
     </aside>
     <main>
       <section id="studio" aria-labelledby="projects-heading">
-        <header class="projects-head"><h1 id="projects-heading">Projects</h1></header>
-        <article class="demo-feature" aria-labelledby="demo-name">
-          <div class="demo-preview">
-            <img src="/desktop/light-study/contact-sheet.jpg" alt="Three frames from Light Study: the lamp, the hand on the switch, and the illuminated shade">
-            <div class="demo-tracks" aria-label="Six video segments over one music track"><div class="demo-cuts" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="demo-score" aria-hidden="true"></div></div>
-          </div>
-          <div class="demo-caption"><p class="project-type">Demo project</p><h2 id="demo-name">Light Study</h2>
-            <p class="demo-facts">20 seconds · Vertical · 24 fps</p>
-            <p>Explore the AI’s first cut and its faster middle revision on an editable timeline.</p>
-            <a class="demo-open" href="/video/?empty&amp;webgl&amp;entry=demo">Open demo timeline <span aria-hidden="true">→</span></a>
-          </div>
-        </article>
-        <section class="create-section" aria-labelledby="create-heading"><h2 id="create-heading">Start a project</h2>
-          <div class="creation-row">
-            <article><img src="/desktop/image-studio-capuchin.jpg" alt=""><div><a class="create-action" href="/desktop/native/image?entry=new">New photo project</a><a href="/desktop/native/image?entry=open">Open photos</a></div></article>
-            <article><img src="/desktop/video-studio-tiger.jpg" alt=""><div><a class="create-action" href="/video/?empty&amp;webgl&amp;entry=new">New video project</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div></article>
-          </div>
+        <div class="starter-heading"><h1 id="projects-heading">Start creating</h1><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
+        <div id="starter-cards" class="starter-cards">
+          <article class="import-card"><a href="/desktop/native/image?entry=open" aria-label="Open photos"><span aria-hidden="true">＋</span>Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></article>
+          <article><a href="/video/?empty&amp;webgl&amp;entry=demo" aria-label="Open demo timeline"><img src="/desktop/light-study/contact-sheet.jpg" alt=""><small>Demo timeline</small><strong>Light Study</strong><p>Explore two cuts of a 20-second film.</p></a></article>
+          <article><a href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><small>Image Studio</small><strong>New photo project</strong><p>Start with a blank, layered canvas.</p></a></article>
+          <article><a href="/video/?empty&amp;webgl&amp;entry=new" aria-label="New video project"><img src="/desktop/video-studio-tiger.jpg" alt=""><small>Video Studio</small><strong>New video project</strong><p>Build a timeline from your footage.</p></a></article>
+        </div>
+        <section class="recents" aria-labelledby="recent-title">
+          <div class="recent-heading"><h2 id="recent-title">Recent files</h2><div role="group" aria-label="Recent file layout"><button type="button" data-layout="grid" aria-pressed="true">Grid</button><button type="button" data-layout="list" aria-pressed="false">List</button></div></div>
+          <div class="recent-controls"><select aria-label="Sort recent files" id="recent-sort"><option value="date">Last opened</option><option value="name">Name A–Z</option></select><input type="search" id="recent-filter" placeholder="Filter recent files" aria-label="Filter recent files"></div>
+          <p id="recent-status" role="status"></p><div id="recent-files"></div>
         </section>
         <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/desktop/native/image">Open Image Studio</a><a href="/desktop/native/video">Open Video Studio</a><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
       </section>
