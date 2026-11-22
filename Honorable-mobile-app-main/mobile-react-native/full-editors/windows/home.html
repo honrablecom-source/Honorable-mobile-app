@@ -29,28 +29,30 @@
           <h1 id="studio-title">Projects</h1>
         </header>
         <section class="editors" aria-label="Editing workspaces">
-            <article class="studio-card">
-              <span class="studio-icon photo-icon" aria-hidden="true"></span>
+          <article class="studio-card featured-studio">
+            <img class="featured-art" src="/desktop/image-studio-capuchin.jpg" width="1536" height="1024" alt="A capuchin monkey in a burnt-orange knit cap" fetchpriority="high">
+            <div class="featured-actions">
               <div class="workspace-name">
                 <h2>Image Studio</h2>
                 <p>PhotoCraft tools and layered projects</p>
-                <a class="workspace-link" href="/desktop/native/image">Open Image Studio <span aria-hidden="true">›</span></a>
               </div>
               <div class="workspace-actions">
+                <a class="workspace-link" href="/desktop/native/image">Open Image Studio <span aria-hidden="true">›</span></a>
                 <a class="action" href="/desktop/native/image?entry=open">Open photos</a>
               </div>
-            </article>
-            <article class="studio-card">
-              <span class="studio-icon video-icon" aria-hidden="true"></span>
-              <div class="workspace-name">
-                <h2>Video Studio</h2>
-                <p>Timeline editing, color, and audio</p>
-                <a class="workspace-link" href="/desktop/native/video">Full video tools <span aria-hidden="true">›</span></a>
-              </div>
-              <div class="workspace-actions">
-                <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
-              </div>
-            </article>
+            </div>
+          </article>
+          <article class="studio-card video-studio">
+            <span class="studio-icon video-icon" aria-hidden="true"></span>
+            <div class="workspace-name">
+              <h2>Video Studio</h2>
+              <p>Timeline editing, color, and audio</p>
+              <a class="workspace-link" href="/desktop/native/video">Full video tools <span aria-hidden="true">›</span></a>
+            </div>
+            <div class="workspace-actions">
+              <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
+            </div>
+          </article>
         </section>
         <nav class="ai-workspaces" aria-label="AI workspaces">
           <a href="/image/?empty&amp;webgl">AI photo workspace <span aria-hidden="true">›</span></a>

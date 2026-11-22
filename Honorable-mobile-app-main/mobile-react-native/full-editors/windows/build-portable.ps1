@@ -103,7 +103,7 @@ foreach ($kind in @('image', 'video')) {
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'noble.ico') -Destination (Join-Path $Stage 'Noble.ico')
 $desktop = Join-Path $studio 'full-editors/windows'
 New-Item -ItemType Directory -Path $desktop | Out-Null
-foreach ($name in @('home.html', 'home.css', 'library.js', 'video-samples.js', 'storyboard.js', 'cinematic-panel.js', 'cinematic-media.js', 'video-mcp.js', 'video-controls.js', 'video-changes.js', 'video-export.js', 'workspace.js', 'workspace.css', 'photo-workspace.js', 'photo-workspace.css', 'photo-agent.js', 'photo-settings.js', 'noble.png')) {
+foreach ($name in @('home.html', 'home.css', 'image-studio-capuchin.jpg', 'library.js', 'video-samples.js', 'storyboard.js', 'cinematic-panel.js', 'cinematic-media.js', 'video-mcp.js', 'video-controls.js', 'video-changes.js', 'video-export.js', 'workspace.js', 'workspace.css', 'photo-workspace.js', 'photo-workspace.css', 'photo-agent.js', 'photo-settings.js', 'noble.png')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $desktop
 }
 $modelAssets = Join-Path (Split-Path $mobile) 'android-app/app/src/main/assets/tinyclip'
