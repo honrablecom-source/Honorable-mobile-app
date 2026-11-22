@@ -9,10 +9,14 @@
 </head>
 <body>
   <div class="desktop-layout">
-    <header class="home-bar"><h1 id="page-title">Projects</h1>
+    <header class="home-bar">
+      <div class="page-identity">
+        <h1 id="page-title">Projects</h1>
+        <button type="button" id="resume-file" hidden><span class="shell-icon" aria-hidden="true">&#xE823;</span><span>Resume</span><strong></strong><span aria-hidden="true">→</span></button>
+      </div>
       <div class="file-commands">
-        <button type="button" popovertarget="new-menu">＋ New project</button>
         <button type="button" popovertarget="open-menu">Open…</button>
+        <button type="button" popovertarget="new-menu"><span aria-hidden="true">＋</span> New project</button>
         <div id="new-menu" class="file-menu" popover><a href="/desktop/native/image?entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
         <div id="open-menu" class="file-menu" popover><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
       </div>
@@ -21,38 +25,47 @@
     <aside class="desktop-nav">
       <a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a>
       <nav class="places" aria-label="Navigation">
-        <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
-        <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
+        <a href="#studio" title="Projects" aria-label="Projects" aria-current="page"><span class="shell-icon" aria-hidden="true">&#xE8FD;</span><span>Projects</span></a>
+        <a href="#library" title="Media library" aria-label="Media library"><span class="shell-icon" aria-hidden="true">&#xE8B7;</span><span>Media library</span></a>
       </nav>
-      <div class="studio-links"><h2>Studios</h2><nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" href="/desktop/native/image">Image Studio</a><a aria-label="Open Video Studio" href="/desktop/native/video">Video Studio</a></nav></div>
+      <div class="studio-links"><h2>Studios</h2><nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" title="Image Studio" href="/desktop/native/image"><span class="shell-icon" aria-hidden="true">&#xEB9F;</span><span>Image Studio</span></a><a aria-label="Open Video Studio" title="Video Studio" href="/desktop/native/video"><span class="shell-icon" aria-hidden="true">&#xE8B2;</span><span>Video Studio</span></a></nav></div>
       <nav class="rail-tools places" aria-label="Workspace preferences">
-        <a href="#history"><span class="nav-icon" aria-hidden="true">◷</span>History</a>
-        <a href="#settings"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</a>
+        <a href="#history" title="History" aria-label="History"><span class="shell-icon" aria-hidden="true">&#xE823;</span><span>History</span></a>
+        <a href="#settings" title="Settings" aria-label="Settings"><span class="shell-icon" aria-hidden="true">&#xE713;</span><span>Settings</span></a>
       </nav>
-      <a class="export-action" href="/desktop/copy-export"><span class="nav-icon icon-copy" aria-hidden="true"></span>Copy exported file</a>
+      <a class="export-action" aria-label="Copy exported file" title="Copy exported file" href="/desktop/copy-export"><span class="shell-icon" aria-hidden="true">&#xE8C8;</span><span>Copy exported file</span></a>
     </aside>
     <main>
       <section id="studio" aria-labelledby="projects-heading">
-        <div class="starter-heading"><h2 id="projects-heading">Project starters</h2><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
+        <div class="starter-heading"><h2 id="projects-heading">Start a project</h2><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
         <div id="starter-cards" class="starter-cards">
-          <article><a href="/video/?empty&amp;webgl&amp;entry=demo" aria-label="Open demo timeline"><img src="/desktop/light-study/contact-sheet.jpg" alt=""><strong>Light Study</strong><p>Demo timeline · 20 seconds</p></a></article>
-          <article><a href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><strong>New photo project</strong><p>1920 × 1080 canvas</p></a></article>
-          <article><a href="/video/?empty&amp;webgl&amp;entry=new" aria-label="New video project"><img src="/desktop/video-studio-tiger.jpg" alt=""><strong>New video project</strong><p>Empty timeline</p></a></article>
+          <a class="studio-cover video-cover" href="/video/?empty&amp;webgl&amp;entry=new" aria-label="New video project">
+            <img src="/desktop/video-studio-tiger.jpg" alt="">
+            <div class="cover-caption"><strong>Video Studio</strong><span class="cover-command"><b aria-hidden="true">＋</b> New video project</span></div>
+          </a>
+          <a class="studio-cover image-cover" href="/desktop/native/image?entry=new" aria-label="New photo project">
+            <img src="/desktop/image-studio-capuchin.jpg" alt="">
+            <div class="cover-caption"><strong>Image Studio</strong><span class="cover-command"><b aria-hidden="true">＋</b> New photo project</span></div>
+          </a>
+          <a class="sample-project" href="/video/?empty&amp;webgl&amp;entry=demo" aria-label="Open demo timeline">
+            <img src="/desktop/light-study/contact-sheet.jpg" alt=""><span class="sample-name"><strong>Light Study</strong><span>Demo timeline · 20 seconds</span></span><span class="sample-open">Open demo <span aria-hidden="true">→</span></span>
+          </a>
         </div>
         <section class="recents" aria-labelledby="recent-title">
           <div class="recent-heading">
-            <h2 id="recent-title">Recent files</h2>
+            <h2 id="recent-title">Recent files <span id="recent-count" aria-hidden="true"></span></h2>
             <div id="file-toolbar" hidden>
-              <input type="search" id="recent-filter" placeholder="Find a recent file" aria-label="Filter recent files">
+              <label class="file-search"><span class="shell-icon" aria-hidden="true">&#xE721;</span><input type="search" id="recent-filter" placeholder="Find a file" aria-label="Filter recent files" aria-keyshortcuts="Control+k"><kbd>Ctrl+K</kbd></label>
               <select aria-label="Sort recent files" id="recent-sort"><option value="date">Last opened</option><option value="name">Name A–Z</option></select>
               <div class="view-selector" role="group" aria-label="Recent file layout"><button type="button" data-layout="grid" aria-label="Grid" title="Grid view" aria-pressed="false"><span class="grid-symbol" aria-hidden="true"></span></button><button type="button" data-layout="list" aria-label="List" title="List view" aria-pressed="true"><span class="list-symbol" aria-hidden="true"></span></button></div>
             </div>
           </div>
           <div class="file-browser">
+            <div id="file-types" role="group" aria-label="Filter by file type" hidden><button type="button" data-type="all" aria-pressed="true">All files</button><button type="button" data-type="photo" aria-pressed="false">Photos</button><button type="button" data-type="video" aria-pressed="false">Video projects</button></div>
             <div id="recent-columns" aria-hidden="true" hidden><span>Name</span><span>File type</span><span>Last opened</span></div>
             <div id="recent-files"></div>
             <p id="recent-status" role="status"></p>
-            <div id="recent-empty" hidden><strong>No recent files yet</strong><p>Files you open on this PC will appear here.</p><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
+            <div id="recent-empty" hidden><span class="shell-icon empty-icon" aria-hidden="true">&#xE8B7;</span><div><strong>No recent files yet</strong><p>Open a photo or video project to find it here next time.</p></div><div class="empty-actions"><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div></div>
           </div>
         </section>
         <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>

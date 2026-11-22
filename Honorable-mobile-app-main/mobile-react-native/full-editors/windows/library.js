@@ -42,7 +42,7 @@ function showSection() {
     if (tab.hash === selected) tab.setAttribute('aria-current','page');
     else tab.removeAttribute('aria-current');
   }
-  document.querySelector('#page-title').textContent = tabs.find(tab=>tab.hash===selected).textContent.trim().replace(/^[◷⚙]\s*/, '');
+  document.querySelector('#page-title').textContent = tabs.find(tab => tab.hash === selected).getAttribute('aria-label');
   if (selected === '#history') {
     document.querySelector('#empty-history').hidden = Boolean(activity.length);
     document.querySelector('#activity-list').replaceChildren(...activity.map(item => {
@@ -248,57 +248,121 @@ const recentContainer = document.querySelector('#recent-files');
 const recentStatus = document.querySelector('#recent-status');
 const recentFilter = document.querySelector('#recent-filter');
 const sortRecent = document.querySelector('#recent-sort');
+const fileToolbar = document.querySelector('#file-toolbar');
+const fileTypes = document.querySelector('#file-types');
+const resumeFile = document.querySelector('#resume-file');
+const layoutButtons = [...document.querySelectorAll('[data-layout]')];
 let recent = [];
+let selectedType = 'all';
+
+function fileDetails(file) {
+  const extension = /\.([^.]+)$/.exec(file.name)?.[1].toUpperCase() || '';
+  if (extension === 'FCPROJ') return {category:'video', label:'Video project'};
+  return {category:'photo', label:extension === 'PCRAFT' ? 'Photo project' : extension || 'Photo'};
+}
+
+async function reopen(file, button) {
+  button.disabled = true;
+  try {
+    await window.nobleNavigation.openRecent(file.id);
+  } catch (error) {
+    recentStatus.textContent = error.message;
+    recentStatus.scrollIntoView({block:'nearest'});
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function recentButton(file) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.title = file.name;
+  button.setAttribute('aria-label',file.name);
+  const info = fileDetails(file);
+  const thumbnail = document.createElement(file.thumbnail ? 'img' : 'span');
+  if (file.thumbnail) {
+    thumbnail.src = file.thumbnail;
+    thumbnail.alt = '';
+  } else {
+    thumbnail.className = 'file-type shell-icon';
+    thumbnail.textContent = info.category === 'video' ? '\uE8B2' : '\uEB9F';
+    thumbnail.setAttribute('aria-hidden','true');
+  }
+  const name = document.createElement('strong');
+  name.textContent = file.name;
+  const format = document.createElement('span');
+  format.className = 'file-format';
+  format.textContent = info.label;
+  const opened = document.createElement('time');
+  opened.className = 'opened-at';
+  const date = new Date(file.opened || NaN);
+  if (Number.isFinite(date.getTime())) {
+    opened.dateTime = date.toISOString();
+    opened.title = date.toLocaleString();
+    const today = new Date().toDateString() === date.toDateString();
+    opened.textContent = today
+      ? 'Today, ' + date.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
+      : date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+  } else opened.textContent = '—';
+  button.append(thumbnail,name,format,opened);
+  button.onclick = () => reopen(file,button);
+  return button;
+}
+
 function renderRecent() {
-  const filtered = recent.filter(file=>file.name.toLowerCase().includes(recentFilter.value.trim().toLowerCase()));
-  if (sortRecent.value==='name') filtered.sort((a,b)=>a.name.localeCompare(b.name));
+  const query = recentFilter.value.trim().toLowerCase();
+  const filtered = recent.filter(file => (selectedType === 'all' || fileDetails(file).category === selectedType) && file.name.toLowerCase().includes(query));
+  if (sortRecent.value === 'name') filtered.sort((a,b) => a.name.localeCompare(b.name));
   document.querySelector('#recent-empty').hidden = recent.length > 0;
-  document.querySelector('#file-toolbar').hidden = !recent.length;
+  fileToolbar.hidden = fileTypes.hidden = !recent.length;
+  document.querySelector('#recent-count').textContent = recent.length ? String(filtered.length) : '';
   document.querySelector('#recent-columns').hidden = !filtered.length || !recentContainer.classList.contains('list');
-  recentStatus.textContent = recent.length && !filtered.length ? 'No files match your filter.' : '';
-  recentContainer.replaceChildren(...filtered.map(file=>{
-    const button = document.createElement('button');
-    button.type = 'button';
-    const preview = document.createElement(file.thumbnail?'img':'span');
-    if (file.thumbnail) {preview.src=file.thumbnail;preview.alt='';}
-    else {preview.className='file-type';preview.textContent=file.name.split('.').pop().toUpperCase();preview.setAttribute('aria-hidden','true');}
-    const name=document.createElement('strong');
-    name.textContent=file.name;
-    button.setAttribute('aria-label',file.name);
-    const ext = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : '';
-    const type = document.createElement('span');
-    type.className = 'file-format';
-    type.textContent = ext === 'FCPROJ' ? 'Video project' : ext === 'PCRAFT' ? 'Photo project' : ext || 'File';
-    const opened = document.createElement('span');
-    opened.className = 'opened-at';
-    const date = new Date(file.opened || NaN);
-    opened.textContent = Number.isFinite(date.getTime()) ? date.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
-    button.append(preview,name,type,opened);
-    button.onclick=async()=>{
-      button.disabled=true;
-      try {await window.nobleNavigation.openRecent(file.id);}
-      catch (error) {recentStatus.textContent=error.message;}
-      finally {button.disabled=false;}
-    };
-    return button;
-  }));
+  recentStatus.textContent = '';
+  if (recent.length && !filtered.length) {
+    recentStatus.textContent = query ? 'No files match your filter.' : selectedType === 'video' ? 'No recent video projects.' : 'No recent photos.';
+  }
+  recentContainer.replaceChildren(...filtered.map(recentButton));
 }
 async function refreshRecent() {
-  try {recent=await window.nobleNavigation?.listRecent() ?? [];renderRecent();}
-  catch (error) {recentStatus.textContent=error.message;}
+  try {
+    recent = await window.nobleNavigation?.listRecent() ?? [];
+    const latest = recent[0];
+    resumeFile.hidden = !latest;
+    if (latest) {
+      resumeFile.querySelector('strong').textContent = latest.name;
+      resumeFile.title = 'Reopen ' + latest.name;
+      resumeFile.onclick = () => reopen(latest,resumeFile);
+    }
+    renderRecent();
+  } catch (error) { recentStatus.textContent = error.message; }
 }
-recentFilter.oninput=renderRecent;
-sortRecent.onchange=renderRecent;
+recentFilter.oninput = renderRecent;
+sortRecent.onchange = renderRecent;
+for (const button of fileTypes.querySelectorAll('button')) {
+  button.onclick = () => {
+    selectedType = button.dataset.type;
+    for (const item of fileTypes.children) item.setAttribute('aria-pressed',String(item === button));
+    renderRecent();
+  };
+}
 function setLayout(layout) {
-  recentContainer.classList.toggle('list',layout==='list');
+  recentContainer.classList.toggle('list',layout === 'list');
+  for (const button of layoutButtons) button.setAttribute('aria-pressed',String(button.dataset.layout === layout));
   renderRecent();
-  for(const button of document.querySelectorAll('.recent-heading button')) button.setAttribute('aria-pressed',String(button.dataset.layout===layout));
 }
-setLayout(localStorage.getItem('noble.home.recentLayout') || 'list');
-for (const button of document.querySelectorAll('.recent-heading button')) button.onclick=()=>{
+setLayout(localStorage.getItem('noble.home.recentLayout') === 'grid' ? 'grid' : 'list');
+for (const button of layoutButtons) button.onclick = () => {
   setLayout(button.dataset.layout);
   localStorage.setItem('noble.home.recentLayout',button.dataset.layout);
 };
+document.addEventListener('keydown',event => {
+  if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k'
+      && !document.querySelector('#studio').hidden && !document.body.classList.contains('desktop-editing') && !fileToolbar.hidden) {
+    event.preventDefault();
+    recentFilter.focus();
+    recentFilter.select();
+  }
+});
 window.addEventListener('noble-recent-updated',refreshRecent);
 void refreshRecent();
 for (const trigger of document.querySelectorAll('.file-commands [popovertarget]')) {
