@@ -28,6 +28,14 @@ const skillEntries=[...editorSkills.values()];
 const native=entry=>entry.route==='engine' || entry.route==='menu';
 const definitions=[tool,...videoTools,searchSkills,runSkill,...skillEntries.filter(entry=>!native(entry)).map(entry=>entry.definition),...skillEntries.filter(native).map(entry=>entry.definition)];
 
+export function photoToolCatalog() {
+  const rows = skillEntries.filter(entry => entry.studio === 'photo').map(({id,route,definition}) => ({
+    id,route,name:definition.name,label:definition.description.split(' in the active Noble ')[0],
+  }));
+  rows.push({id:tool.name,route:'proposal',name:tool.name,label:tool.title});
+  return rows;
+}
+
 export function createDesktopMcp(port) {
   let pending;
   let lastId = 0;

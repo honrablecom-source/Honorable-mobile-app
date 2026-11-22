@@ -20,6 +20,38 @@
   --photo-ink:#f2f2f2; --photo-dim:#c3c3c3; --photo-active:#8ebdff; --photo-on-active:#162338;
 }
 .photo-shell [hidden] { display: none !important; }
+.photo-shell #photo-assistant[data-tab=photo-activity-tab] #noble-ai-dialog { display:none; }
+#photo-activity { display:flex; flex-direction:column; overflow:hidden; }
+#photo-activity .activity-heading {
+  display:flex; align-items:center; gap:10px; padding:7px 14px;
+  border-bottom:1px solid var(--photo-line);
+}
+#photo-activity .activity-heading h2 { font:600 1em/1.4 "Segoe UI",system-ui,sans-serif; }
+#photo-activity .activity-heading span,#photo-activity [data-matches],#photo-activity [data-empty] { color:var(--photo-dim); }
+#photo-workbench #photo-activity button { min-height:26px; padding:3px 9px; background:var(--photo-mat); font:inherit; }
+#photo-activity [data-browse] { margin-inline-start:auto; }
+#photo-activity .activity-body { height:clamp(110px,23vh,220px); min-height:0; overflow:auto; scrollbar-width:thin; }
+#photo-activity :is(ol,ul) { margin:0; list-style:none; padding:0; }
+#photo-activity [data-empty],#photo-activity [data-library] { padding:12px 14px; }
+#photo-activity [data-events] li {
+  display:grid; grid-template-columns:6.5em minmax(0,1fr) auto;
+  align-items:baseline; gap:10px; padding:6px 14px; border-bottom:1px solid var(--photo-line);
+}
+#photo-activity li strong,#photo-activity li small { display:block; overflow-wrap:anywhere; }
+#photo-activity li small,#photo-activity li time,#photo-activity .activity-outcome {
+  font-size:.9em; color:var(--photo-dim); font-variant-numeric:tabular-nums;
+}
+#photo-activity [data-status=running] .activity-outcome { color:var(--photo-active); }
+#photo-activity [data-status=failed] .activity-outcome { color:#ffac97; }
+#photo-activity [data-library] input {
+  width:min(22em,100%); background:var(--photo-mat); border:1px solid var(--photo-line);
+  color:var(--photo-ink); font:inherit; padding:4px 8px; margin:0 10px 6px 0;
+}
+#photo-activity [data-library] li {
+  display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap:12px;
+  padding:5px 0; border-bottom:1px solid var(--photo-line); overflow-wrap:anywhere;
+}
+#photo-activity [data-library] code { color:var(--photo-dim); font-size:.92em; }
 .photo-shell :focus-visible { outline: 2px solid var(--photo-active); outline-offset: 2px; }
 #photo-workbench {
   position:fixed;

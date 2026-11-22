@@ -1,5 +1,11 @@
 # Noble session handoff
 
+## November 22 — Live photo AI activity on Windows
+
+One new user-facing feature. Open Activity in the Image Studio footer to follow the last 100 editor actions in the current session and browse the 1,203 published photo tools. The feed records external MCP commands and built-in AI work, including previews, apply, undo and failures. MCP brush, gradient and rectangular selection results now describe degenerate or out-of-bounds geometry.
+
+Installed build app-ab112433fadfbce9 passed a live Qwen2.5 3B layer creation, an independently sampled brush dab, stale-revision rejection, local adjustment approval and undo, and switching tabs during a neural-color preview. The catalog matched live MCP discovery. All 31 focused regressions passed. The installer, screenshots and verification receipt are in the November 20 task outputs under Noble-Photo-Activity. Installer SHA-256 184438DADE2DD2F18AC3D8980718043AEA00336B6DDD7C6F085B4F6857E2EF9B.
+
 ## November 20 — cleanup across the Android app tour
 
 Search opens with its input and model selection, with editing actions lower on the page. Library starts with filename and media filters and keeps filename shortcuts collapsed until requested. Account groups library access, credits, privacy and support, while Storage shows the actual index state, progress when it is known, and relevant recovery actions. Shared headers are more compact, unused placeholder screens were removed, and the Studio still leads with the bundled photo AI workflows. No new product features in this cleanup pass. The 548 React Native tests and 81 Node checks passed. Phone testing remains deferred.

@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {gunzipSync} from 'node:zlib';
 import {dispatch, planWithOllama, protocol} from './editing-agent/mcp.mjs';
-import {createDesktopMcp} from './editing-agent/desktop-mcp.mjs';
+import {createDesktopMcp,photoToolCatalog} from './editing-agent/desktop-mcp.mjs';
 
 const args=process.argv.slice(2);
 if(args.length&&!(args.length===2&&args[0]==='--port'&&/^\d+$/.test(args[1])))throw Error('Usage: node full-editors/preview.mjs [--port 4181]');
@@ -40,6 +40,8 @@ if(model){
 const csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 const landing=Buffer.from(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Noble studio review</title><style>body{max-width:640px;margin:48px auto;padding:0 24px;font:18px/1.5 system-ui;color:#111;background:white}a{display:block;padding:16px;margin:16px 0;border:1px solid #111;border-radius:12px;color:#111;text-decoration:none}small{color:#555}</style><h1>Noble studio review</h1><p>Open the real image or video engine from this checkout. Your local files stay in the browser; this server accepts no uploads.</p><a href="/image/?empty&amp;webgl">Image studio · local AI, layers and PNG export</a><a href="/video/?empty&amp;webgl">Video studio · timeline and video export</a><p>Save projects and exported copies to a destination you can reopen. Browser storage can keep imported copies after you close a tab.</p><small>This is a browser review, not the Android app. Account search, native sharing, Android lifecycle and phone performance are not tested here. The published APK may use an earlier source.</small></html>`);
 if(process.env.NOBLE_WINDOWS_DESKTOP==='1'){
+  assets.set('/desktop/photo-catalog.js',Buffer.from('export default '+JSON.stringify(photoToolCatalog())));
+  assets.set('/desktop/photo-activity.js',await readFile(new URL('./windows/photo-activity.js',import.meta.url)));
   for(const name of ['light-study/contact-sheet.jpg','light-study/light-study.fcproj','light-study/quiet-room.mp4','light-study/switch-reveal.mp4','light-study/closing-close-up.mp4','light-study/noble-click-score.wav','home.html','home.css','studio-ui.css','image-studio-capuchin.jpg','video-studio-tiger.jpg','library.js','sequence-setup.js','video-menu.js','video-samples.js','storyboard.js','cinematic-panel.js','cinematic-media.js','video-mcp.js','native-skill.js','video-controls.js', 'video-changes.js', 'video-export.js','workspace.js','workspace.css','photo-workspace.js','photo-workspace.css','photo-agent.js','photo-settings.js','noble.png','semantic-bundle.js','model_int8.onnx','tokenizer.json']){
     assets.set('/desktop/'+name,await readFile(new URL('./windows/'+name,import.meta.url)));
   }

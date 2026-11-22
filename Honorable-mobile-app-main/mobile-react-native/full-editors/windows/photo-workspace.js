@@ -1,4 +1,6 @@
 import {mountPhotoAgent} from './photo-agent.js';
+import {geometryNote,mountPhotoActivity} from './photo-activity.js';
+import photoCatalog from './photo-catalog.js';
 import {checkCommand,photoContext,resultSummary} from './native-skill.js';
 import {mountPhotoSettings} from './photo-settings.js';
 
@@ -22,17 +24,20 @@ shell.innerHTML = `
     <header class="photo-dock-bar">
       <div class="photo-tabs" role="tablist" aria-label="Photo AI panels">
         <button id="photo-agent-tab" type="button" role="tab" aria-controls="photo-agent">Editing agent</button>
+        <button id="photo-activity-tab" type="button" role="tab" aria-controls="photo-activity">Activity</button>
       </div>
       <span class="photo-connection" role="status"></span>
       <button type="button" data-close-dock aria-label="Close AI panel" title="Close AI panel">×</button>
     </header>
     <section id="photo-agent" class="photo-pane photo-agent" role="tabpanel" aria-labelledby="photo-agent-tab" hidden></section>
+    <section id="photo-activity" class="photo-pane" role="tabpanel" aria-labelledby="photo-activity-tab" hidden></section>
   </aside>
   <footer class="photo-footer">
     <a class="photo-projects" href="/desktop/home.html" aria-label="Back to Projects">‹ Projects</a>
     <output role="status" data-photo-status></output>
     <button type="button" popovertarget="photo-settings">Workspace</button>
     <button type="button" data-assistant aria-controls="photo-assistant" aria-expanded="false" disabled>Noble AI</button>
+    <button type="button" data-activity aria-controls="photo-activity" aria-expanded="false">Activity</button>
     <input type="file" accept=".pcraft,.psd,.psb,.ora,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.gif,.heic,.heif" multiple hidden>
   </footer>`;
 document.body.append(shell);
@@ -125,8 +130,12 @@ async function refresh() {
 
 const inspector = $('.photo-inspector');
 const tabs = $('.photo-tabs');
+const activityTab = $('#photo-activity-tab');
+const activityButton = $('[data-activity]');
+const activity = mountPhotoActivity($('#photo-activity'),activityButton,photoCatalog,()=>state?.document?.name);
+const agentTrack = (id,label,args,operation,preview=false) => activity.track({id,name:id,label,args,source:'Noble AI',preview},operation);
 const ai = configureAi();
-const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas,connection:$('.photo-connection')});
+const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas,track:agentTrack,connection:$('.photo-connection')});
 const settings = mountPhotoSettings(shell,preferences => {
   const theme = preferences.theme === 'warm' ? 'studio' : 'pro';
   if (theme !== engineTheme) {
@@ -160,28 +169,37 @@ function closeAssistant() {
   inspector.hidden = true;
   $('#photo-agent').hidden = true;
   assistantButton.setAttribute('aria-expanded','false');
+  activityButton.setAttribute('aria-expanded','false');
 }
 $('[data-close-dock]').onclick = () => {
+  const opener = activityButton.getAttribute('aria-expanded') === 'true' ? activityButton : assistantButton;
   closeAssistant();
-  assistantButton.focus();
+  opener.focus();
 };
 
-async function openAssistant() {
+async function openAssistant(tab = $('#photo-agent-tab')) {
   if (canvasOnly) {
     settings.showPanels();
     await panelUpdate;
   }
   inspector.hidden = false;
   assistantButton.setAttribute('aria-expanded','true');
-  showTab($('#photo-agent-tab'));
+  showTab(tab);
 }
+activityButton.onclick = async () => {
+  if (!inspector.hidden && activityTab.getAttribute('aria-selected') === 'true') return closeAssistant();
+  await openAssistant(activityTab);
+  activityTab.focus();
+};
 assistantButton.onclick = async () => {
-  if (!inspector.hidden) return closeAssistant();
+  if (!inspector.hidden && activityTab.getAttribute('aria-selected') !== 'true') return closeAssistant();
   await openAssistant();
   $('#photo-agent-tab').focus();
 };
 
 function selectTab(tab) {
+  inspector.dataset.tab = tab.id;
+  activityButton.setAttribute('aria-expanded',String(!inspector.hidden && tab === activityTab));
   $('.photo-connection').hidden = tab.id !== 'photo-agent-tab';
   for (const button of tabs.querySelectorAll('[role=tab]')) {
     const active = button === tab;
@@ -202,7 +220,7 @@ function configureAi() {
   tab.textContent = 'AI tools';
   tab.setAttribute('role', 'tab');
   tab.setAttribute('aria-controls', panel.id);
-  tabs.append(tab);
+  tabs.insertBefore(tab,activityTab);
   inspector.append(panel);
   panel.setAttribute('role', 'tabpanel');
   panel.setAttribute('aria-labelledby', tab.id);
@@ -250,7 +268,7 @@ function configureAi() {
   delivery.append(part('approve').closest('label'),part('apply').parentElement,copyNote);
   review.append(corrections,delivery);
   let source;
-  runOnPhoto.onclick = async () => {
+  async function runCurrentModel() {
     runOnPhoto.disabled = true;
     try {
       source = (await request('ui.inspect')).document;
@@ -258,10 +276,15 @@ function configureAi() {
       if (!panel.hidden && !runModel.disabled) await runModel.onclick();
     } catch (error) {
       part('status').textContent = error.message;
+      throw error;
     } finally {
       sync();
     }
-  };
+  }
+  runOnPhoto.onclick = () => agentTrack(part('tool').value,'Preview '+part('tool').selectedOptions[0].textContent,{},async () => {
+    await runCurrentModel();
+    if (review.hidden) return {error:part('status').textContent || 'Preview unavailable.'};
+  },true).catch(error => setStatus(error.message));
   const choices = document.createElement('div');
   choices.className = 'photo-ai-commands';
   choices.append(runOnPhoto,stop);
@@ -281,8 +304,11 @@ function configureAi() {
     const before = await request('ui.inspect');
     if (update(before.document)) return;
     source = undefined;
-    await openCopy();
-    if (panel.hidden) await finishImport(before);
+    await agentTrack('open_copy','Open AI result as a new image',{},async () => {
+      await openCopy();
+      if (!panel.hidden) throw Error(part('status').textContent || 'Image was not opened.');
+      await finishImport(before);
+    });
   });
   const sync = () => {
     runOnPhoto.disabled = current.disabled;
@@ -294,7 +320,7 @@ function configureAi() {
   new MutationObserver(() => {
     sync();
     if (!panel.hidden) {
-      selectTab(tab);
+      if (inspector.dataset.tab !== activityTab.id) selectTab(tab);
       part('status').textContent = '';
     } else if (!inspector.hidden && tab.getAttribute('aria-selected') === 'true') {
       selectTab($('#photo-agent-tab'));
@@ -315,7 +341,7 @@ function configureAi() {
     part('tool').value=model;
     if (part('tool').value!==model) throw Error('This model is unavailable in the installed editor.');
     part('tool').dispatchEvent(new Event('change'));
-    await runOnPhoto.onclick();
+    await runCurrentModel();
     if (panel.hidden || review.hidden || update((await request('ui.inspect')).document)) throw Error(part('status').textContent || 'The preview was cancelled.');
     return {status:'awaiting_approval',model,width:part('after').width,height:part('after').height};
   }
@@ -324,15 +350,17 @@ function configureAi() {
 
 function showTab(tab) {
   if (tab === ai?.tab) {
+    selectTab(tab);
     if (ai.panel.hidden) ai.tab.click();
   } else {
-    if (ai && !ai.panel.hidden) ai.close.click();
+    if (tab !== activityTab && ai && !ai.panel.hidden) ai.close.click();
     selectTab(tab);
     if (document.activeElement === ai?.tab) tab.focus();
     if (tab.id === 'photo-agent-tab') void agent.open();
   }
 }
 for (const tab of tabs.querySelectorAll('button:not(#photo-ai-tab)')) tab.onclick = () => showTab(tab);
+ai?.tab.addEventListener('click',() => selectTab(ai.tab));
 tabs.addEventListener('keydown', event => {
   const allTabs = Array.from(tabs.querySelectorAll('button')).filter(tab => !tab.disabled);
   const index = allTabs.indexOf(event.target);
@@ -345,7 +373,8 @@ tabs.addEventListener('keydown', event => {
 });
 selectTab($('#photo-agent-tab'));
 
-window.noblePhotoMcp = async input => {
+window.noblePhotoMcp = input => activity.external(input,() => handlePhotoMcp(input));
+async function handlePhotoMcp(input) {
   if (!ready || busy) return {error:'Image Studio is busy. Try again in a moment.'};
   if (input.tool==='editor_skill') {
     const {route,id,input:args}=input.args;
@@ -357,10 +386,12 @@ window.noblePhotoMcp = async input => {
     if (route==='model' || route==='strength') {
       if (!before.documentId) throw Error('Open a photo first.');
       await refresh();
-      await openAssistant();
+      const watching = !inspector.hidden && inspector.dataset.tab === activityTab.id;
+      if (!watching) await openAssistant();
       if (route==='strength') return {result:await agent.setStrength(args.percent)};
       if (!ai) throw Error('Local AI tools are unavailable.');
-      showTab(ai.tab);
+      if (!watching) showTab(ai.tab);
+      else if (ai.panel.hidden) { ai.tab.click(); selectTab(activityTab); }
       return {result:await ai.preview(id,before)};
     }
     busy=true;
@@ -385,7 +416,10 @@ window.noblePhotoMcp = async input => {
       } else if (route==='palette') value=await request('ui.set',{tool:id.slice('toolbox.'.length)});
       else if (route==='menu') value=await request('ui.menu.invoke',{id});
       else value=await command(id,args.parameters??{});
-      return {result:{command:id,...await read(),value:resultSummary(value)}};
+      const result={command:id,...await read(),value:resultSummary(value)};
+      const note=geometryNote(id,args.parameters ?? {},before.width,before.height);
+      if (note) result.geometryNote=note;
+      return {result};
     } finally {
       busy=false;
       await refresh();
@@ -394,9 +428,9 @@ window.noblePhotoMcp = async input => {
   }
   await refresh();
   if (!state?.document) return {error:'Open a photo in Noble Image Studio first.'};
-  await openAssistant();
+  if (inspector.hidden || inspector.dataset.tab !== activityTab.id) await openAssistant();
   return agent.planFromMcp(input);
-};
+}
 
 async function importPhoto(file) {
   if (!file.size || file.size > 64 * 1024 * 1024) throw Error('Choose a nonempty image or project up to 64 MB.');

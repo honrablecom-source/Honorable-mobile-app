@@ -87,7 +87,7 @@ function mountProof(panel) {
   };
 }
 
-export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
+export function mountPhotoAgent(panel,{request,command,run,canvas,connection,track}) {
   panel.innerHTML = `
     <button type="button" data-agent-retry hidden>Check connection</button>
     <details data-agent-request open><summary hidden>Edit request <span data-agent-brief-summary></span></summary><form data-agent-form>
@@ -211,9 +211,10 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
     const source = desired.source;
     proofBusy = true;
     try {
-      const result = await command('noble.photo.preview',{
+      const previewArgs = {
         documentId:source.documentId,revision:source.revision,layers:desired.layers,includeOriginal:!isSamePhoto(source,proofSource),
-      });
+      };
+      const result = await track('noble.photo.preview','Render adjustment preview',previewArgs,()=>command('noble.photo.preview',previewArgs),true);
       if (proofWanted !== desired || !isSamePhoto(source,activePhoto)) return;
       await proof.show(result);
       if (proofWanted !== desired || !isSamePhoto(source,activePhoto)) {
@@ -263,11 +264,11 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
     try {
       const {document:source} = await request('ui.inspect');
       if (!source || !Number.isSafeInteger(source.documentId)) throw Error('Open a photo in the current Windows build.');
-      const measurements = await readPhoto(command,source);
+      const measurements = await track('document.pixel','Sample photo for the agent',{},()=>readPhoto(command,source));
       controller.signal.throwIfAborted();
       if (!isSamePhoto(source,(await request('ui.inspect')).document)) throw Error('The photo changed. Create a fresh plan.');
       status.textContent = 'Planning with the local model…';
-      const edits = await draft(brief,measurements,style,controller.signal);
+      const edits = await track('draft_photo_edit','Plan adjustments with the local model',{},()=>draft(brief,measurements,style,controller.signal),true);
       controller.signal.throwIfAborted();
       activePhoto = (await request('ui.inspect')).document;
       if (!isSamePhoto(source,activePhoto)) throw Error('The photo changed. Create a fresh plan.');
@@ -340,9 +341,10 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
     if (!plan || $('apply').disabled) return;
     void mutate(async snapshot => {
       if (!isSamePhoto(snapshot,plan.source)) throw Error('The photo changed. Create a fresh plan.');
-      const {layers} = await command('noble.photo.apply',{
+      const args = {
         documentId:snapshot.documentId,revision:snapshot.revision,layers:plan.layers,
-      });
+      };
+      const {layers} = await track('noble.photo.apply','Apply editable adjustment layers',args,()=>command('noble.photo.apply',args));
       undo = (await request('ui.inspect')).document;
       clearPlan();
       status.textContent = 'Added ' + layers.length + (layers.length === 1 ? ' editable layer.' : ' editable layers.');
@@ -353,7 +355,9 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
     if ($('undo').disabled || !last) return;
     void mutate(async snapshot => {
       if (!isSamePhoto(snapshot,last)) throw Error('The photo changed. Use the document history for earlier edits.');
-      if (await command('edit.undo') !== true) throw Error('The previous photo state is unavailable.');
+      await track('edit.undo','Undo agent edit',{},async () => {
+        if (await command('edit.undo') !== true) throw Error('The previous photo state is unavailable.');
+      });
       undo = undefined;
       status.textContent = 'Agent edit undone.';
     });
