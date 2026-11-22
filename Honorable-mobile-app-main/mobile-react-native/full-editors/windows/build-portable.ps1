@@ -106,6 +106,7 @@ New-Item -ItemType Directory -Path $desktop | Out-Null
 foreach ($name in @('home.html', 'home.css', 'image-studio-capuchin.jpg','video-studio-tiger.jpg', 'library.js', 'video-samples.js', 'storyboard.js', 'cinematic-panel.js', 'cinematic-media.js', 'video-mcp.js', 'video-controls.js', 'video-changes.js', 'video-export.js', 'workspace.js', 'workspace.css', 'photo-workspace.js', 'photo-workspace.css', 'photo-agent.js', 'photo-settings.js', 'noble.png')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $desktop
 }
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'light-study') -Destination $desktop -Recurse
 $modelAssets = Join-Path (Split-Path $mobile) 'android-app/app/src/main/assets/tinyclip'
 Copy-Item -LiteralPath (Join-Path $modelAssets 'model_int8.onnx'), (Join-Path $modelAssets 'tokenizer.json') -Destination $desktop
 node (Join-Path $PSScriptRoot 'build-search.mjs') $SearchModules (Join-Path $desktop 'semantic-bundle.js')

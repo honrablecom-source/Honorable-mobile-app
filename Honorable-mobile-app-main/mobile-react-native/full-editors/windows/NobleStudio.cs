@@ -292,7 +292,7 @@ internal sealed partial class NobleStudio : Form
         startup.Visible = false;
         Text = kind == "home" ? "Noble Studio" : "Noble Studio — " + (kind == "image" ? "Image" : "Video");
         string entry = System.Web.HttpUtility.ParseQueryString(new Uri(origin + path).Query).Get("entry");
-        if (existing && kind == "video" && (entry == "agent" || entry == "story")) Send(view,"entry",entry);
+        if (existing && kind == "video" && (entry == "agent" || entry == "story" || entry == "demo" || entry == "new")) Send(view,"entry",entry);
         return view;
     }
 

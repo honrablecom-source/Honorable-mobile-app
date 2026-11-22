@@ -24,20 +24,24 @@
     <main>
       <section id="studio" aria-labelledby="projects-heading">
         <header class="projects-head"><h1 id="projects-heading">Projects</h1></header>
-        <div class="studio-pair">
-          <article class="editor-tile">
-            <a class="cover-link" href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><span class="new-project"><b aria-hidden="true">+</b> New photo project</span></a>
-            <div class="tile-body"><h2>Image Studio</h2><p>Photo editing, layers and masks</p>
-              <div class="tile-actions"><a class="open-file" href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a><a href="/image/?empty&amp;webgl">AI photo workspace</a></div>
-            </div>
-          </article>
-          <article class="editor-tile">
-            <a class="cover-link" href="/desktop/native/video" aria-label="Enter the video editor"><img src="/desktop/video-studio-tiger.jpg" alt=""></a>
-            <div class="tile-body"><h2>Video Studio</h2><p>Timeline editing, sound and color</p>
-              <div class="tile-actions"><a class="open-file" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></div>
-            </div>
-          </article>
-        </div>
+        <article class="demo-feature" aria-labelledby="demo-name">
+          <div class="demo-preview">
+            <img src="/desktop/light-study/contact-sheet.jpg" alt="Three frames from Light Study: the lamp, the hand on the switch, and the illuminated shade">
+            <div class="demo-tracks" aria-label="Six video segments over one music track"><div class="demo-cuts" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="demo-score" aria-hidden="true"></div></div>
+          </div>
+          <div class="demo-caption"><p class="project-type">Demo project</p><h2 id="demo-name">Light Study</h2>
+            <p class="demo-facts">20 seconds · Vertical · 24 fps</p>
+            <p>Explore the AI’s first cut and its faster middle revision on an editable timeline.</p>
+            <a class="demo-open" href="/video/?empty&amp;webgl&amp;entry=demo">Open demo timeline <span aria-hidden="true">→</span></a>
+          </div>
+        </article>
+        <section class="create-section" aria-labelledby="create-heading"><h2 id="create-heading">Start a project</h2>
+          <div class="creation-row">
+            <article><img src="/desktop/image-studio-capuchin.jpg" alt=""><div><a class="create-action" href="/desktop/native/image?entry=new">New photo project</a><a href="/desktop/native/image?entry=open">Open photos</a></div></article>
+            <article><img src="/desktop/video-studio-tiger.jpg" alt=""><div><a class="create-action" href="/video/?empty&amp;webgl&amp;entry=new">New video project</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div></article>
+          </div>
+        </section>
+        <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/desktop/native/image">Open Image Studio</a><a href="/desktop/native/video">Open Video Studio</a><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
       </section>
       <section id="history" hidden aria-labelledby="history-heading">
         <header class="projects-head"><h1 id="history-heading">History</h1></header>

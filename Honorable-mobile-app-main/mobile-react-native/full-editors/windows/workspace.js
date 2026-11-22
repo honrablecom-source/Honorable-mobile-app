@@ -351,10 +351,12 @@ async function setupVideo() {
       : 'These files could not be imported. Check the format and try again.');
     setStatus(imported.items.length + (imported.items.length === 1 ? ' file imported.' : ' files imported.'));
   }));
-  const openProject = file => run(async () => {
+  async function canReplaceProject() {
     if ('nobleAgentBusy' in document.body.dataset || document.body.inert) throw Error('Wait for the AI edit to finish before opening another project.');
     const current = await editor.execute('project.inspect');
-    if (current.dirty && !window.confirm('Replace the current project? Save your edits first if you want to keep them.')) return;
+    return !current.dirty || window.confirm('Replace the current project? Save your edits first if you want to keep them.');
+  }
+  async function loadProject(file) {
     const opened = await editor.openProject(file);
     clearVideoChanges();
     window.dispatchEvent(new Event('noble-project-replaced'));
@@ -364,7 +366,44 @@ async function setupVideo() {
     setStatus(opened.missingMedia
       ? 'Project opened with missing media. Reimport the source files or relink them in the project panel.'
       : 'Project opened.');
+  }
+  const openProject = file => run(async () => {
+    if (await canReplaceProject()) await loadProject(file);
   });
+
+  let openingFromHome = false;
+  async function openFromHome(demo) {
+    if (openingFromHome) return;
+    openingFromHome = true;
+    try {
+      await run(async () => {
+        if (!await canReplaceProject()) return;
+        if (demo) {
+          setStatus('Opening Light Study…');
+          const asset = async name => {
+            const response = await fetch('/desktop/light-study/'+name);
+            if (!response.ok) throw Error('Light Study is missing a packaged file. Reinstall Noble Studio.');
+            return response;
+          };
+          const project = await (await asset('light-study.fcproj')).json();
+          const media = Object.values(project.project.items).filter(item=>item.kind.Media);
+          const files = await Promise.all(media.map(async item=>new File([await (await asset(item.name)).blob()],item.name)));
+          await editor.execute('file.newProject',{name:'Light Study'});
+          const imported = await editor.importFiles(files);
+          if (imported.errors?.length || imported.paths?.length !== files.length) throw Error('The demo media could not be loaded.');
+          media.forEach((item,index)=>{ item.kind.Media.media.File.path = imported.paths[index]; });
+          await loadProject(new File([JSON.stringify(project)],'Light Study.fcproj',{type:'application/json'}));
+        } else {
+          await editor.execute('file.newProject',{name:'Untitled'});
+          clearVideoChanges();
+          window.dispatchEvent(new Event('noble-project-replaced'));
+          await refreshTimeline();
+          start.hidden = false;
+          startFeedback.textContent = '';
+        }
+      });
+    } finally { openingFromHome = false; }
+  }
   const projects = picker('.fcproj', false, ([file]) => openProject(file));
   startActions.import.onclick = () => firstMedia.click();
   startActions.open.onclick = () => projects.click();
@@ -376,6 +415,7 @@ async function setupVideo() {
     document.querySelector(id)?.addEventListener('close', () => void showTimelineIfReady());
   }
   const openEntry = entry => {
+    if (entry === 'demo' || entry === 'new') void openFromHome(entry === 'demo');
     if (entry === 'agent') startActions.agent.click();
     if (entry === 'story') startActions.story.click();
     if (entry === 'open') {
