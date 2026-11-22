@@ -85,12 +85,14 @@ const actions = document.createElement('div');
 actions.className = 'workspace-actions photo-actions';
 actions.innerHTML = `
   <input type="file" accept=".pcraft,.psd,.psb,.ora,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.gif,.heic,.heif" multiple hidden>
-  <button type="button" data-open title="Open photo or project (Ctrl+O)" disabled>Open</button>
+  <div role="group" class="photo-files" aria-label="Photo files">
+    <button type="button" data-open title="Open photo or project (Ctrl+O)" disabled>Open</button>
+    <button type="button" data-save title="Save layered project (Ctrl+S)" disabled>Save project</button>
+  </div>
   <div role="group" class="photo-history" aria-label="Edit history">
     <button type="button" data-history="edit.undo" disabled>Undo</button>
     <button type="button" data-history="edit.redo" disabled>Redo</button>
   </div>
-  <button type="button" data-save title="Save layered project (Ctrl+S)" disabled>Save project</button>
   <div class="photo-layout-actions" role="group" aria-label="Workspace layout">
     <button type="button" popovertarget="photo-settings">Workspace</button>
     <button type="button" data-full aria-pressed="false" disabled>Full tools</button>
@@ -128,9 +130,17 @@ const adjustForms = [...shell.querySelectorAll('[data-adjust]')];
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function request(method, params = {}) {
-  const reply = await window.nobleImage.request(method, params);
-  if (!reply.ok) throw Error(reply.error || 'Image Studio could not complete the action.');
-  return reply.result;
+  let timer;
+  try {
+    const pending = window.nobleImage.request(method, params);
+    const reply = method === 'ui.inspect' ? await Promise.race([pending,new Promise((_,reject)=>{
+      timer = setTimeout(()=>reject(Error('Image Studio is taking too long to respond.')),8000);
+    })]) : await pending;
+    if (!reply.ok) throw Error(reply.error || 'Image Studio could not complete the action.');
+    return reply.result;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 const command = (id, params = {}) => request('engine.execute', {command:id, params});
 const menu = id => request('ui.menu.invoke', {id});
@@ -264,6 +274,9 @@ function opacityTarget(layers = state?.document?.layers || []) {
 async function refresh() {
   try {
     state = await request('ui.inspect');
+    if (!advanced && state.panels?.properties) {
+      await request('ui.set',{panels:{properties:false}});
+    }
     render();
   } catch (error) {
     if (!status.textContent) setStatus(error.message || String(error));
@@ -430,19 +443,43 @@ async function importPhoto(file) {
 }
 
 async function finishImport(before) {
-  const deadline = Date.now() + 60000;
-  while (Date.now() < deadline) {
-    const result = await request('ui.inspect');
-    const newDocument = result.session.documents.find(doc=>!before.session.documents.some(previous=>previous.id === doc.id && previous.index === doc.index));
-    if (newDocument || result.session.documents.length > before.session.documents.length) {
-      const opened = newDocument ?? result.session.documents.at(-1);
-      if (result.session.active !== opened.index) await command('document.activate', {document:opened.index});
-      return;
+  let deadline = Date.now() + 25000;
+  const previousDialogs = new Set((before.dialogs ?? []).map(dialog=>dialog.id));
+  const preserved = new Set();
+  try {
+    while (Date.now() < deadline) {
+      const result = await request('ui.inspect');
+      const newDocument = result.session.documents.find(doc=>!before.session.documents.some(previous=>previous.id === doc.id && previous.index === doc.index));
+      if (newDocument || result.session.documents.length > before.session.documents.length) {
+        const opened = newDocument ?? result.session.documents.at(-1);
+        if (result.session.active !== opened.index) await command('document.activate', {document:opened.index});
+        return;
+      }
+      if (result.status !== before.status && (result.statusError || /^cancel(?:l?ed|ing) opening/i.test(result.status))) {
+        throw Error(result.status);
+      }
+      const dialog = result.dialogs?.at(-1);
+      if (dialog && !previousDialogs.has(dialog.id)) {
+        // Honor PhotoCraft's default Preserve choice for a profile already embedded in the photo.
+        // Show the actual editor dialog whenever opening still needs a decision.
+        const fields = dialog.fields;
+        if (result.dialogs.length === 1 && fields?.__heldOpen === true && fields.missing === false &&
+            fields.action === 'preserve' && fields.remember === false && !preserved.has(dialog.id)) {
+          preserved.add(dialog.id);
+          await request('ui.key',{key:'Enter'});
+        } else {
+          shell.dataset.openPrompt = before.document ? 'document' : 'empty';
+          photoEmpty.hidden = true;
+          setStatus('Image Studio is waiting for your choice in the open dialog.');
+          deadline = Date.now() + 25000;
+        }
+      }
+      await wait(150);
     }
-    if (result.statusError && result.status !== before.status) throw Error(result.status);
-    await wait(150);
+    throw Error('Image Studio could not finish opening this file. Try Full photo tools from Projects.');
+  } finally {
+    delete shell.dataset.openPrompt;
   }
-  throw Error('Image Studio could not open that file. Try a photo or a Noble project.');
 }
 open.onclick = () => filePicker.click();
 emptyOpen.onclick = open.onclick;

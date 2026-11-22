@@ -9,16 +9,19 @@
 </head>
 <body>
   <header class="desktop-nav">
-    <a class="brand" href="#studio" aria-label="Noble Studio home">
-      <img src="/desktop/noble.png" alt="" width="36" height="36"> Noble <span>Studio</span>
-    </a>
-    <nav aria-label="Workspace">
-      <a href="#studio" aria-current="page"><i class="nav-project" aria-hidden="true"></i>Projects</a>
-      <a href="#library"><i class="nav-media" aria-hidden="true"></i>Media library</a>
-    </nav>
+    <div class="nav-inner">
+      <a class="brand" href="#studio" aria-label="Noble Studio home">
+        <img src="/desktop/noble.png" alt="" width="34" height="34"> Noble <span>Studio</span>
+      </a>
+      <nav aria-label="Workspace">
+        <a href="#studio" aria-current="page">Projects</a>
+        <a href="#library">Media library</a>
+      </nav>
+      <a class="header-action" href="/desktop/copy-export">Copy exported file</a>
+    </div>
   </header>
   <header class="desktop-editor-chrome" hidden>
-    <a href="/desktop/home.html" data-desktop-projects>‹ Projects</a>
+    <a href="/desktop/home.html" data-desktop-projects><span aria-hidden="true">‹</span> Projects</a>
     <strong data-desktop-title></strong>
     <a href="/image/?empty&amp;webgl" data-desktop-ai>Noble AI workspace</a>
   </header>
@@ -26,45 +29,39 @@
     <section id="studio" aria-labelledby="studio-title">
       <header class="page-heading project-heading">
         <h1 id="studio-title">Projects</h1>
-        <div class="project-open">
-          <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
-          <a class="action" href="/image/?empty&amp;webgl&amp;entry=open">Open photos</a>
-        </div>
       </header>
-      <div class="project-board">
         <section class="editor-directory" aria-labelledby="editor-heading">
-          <h2 id="editor-heading">Workspaces</h2>
+        <h2 id="editor-heading" class="visually-hidden">Editing workspaces</h2>
           <div class="editors">
             <article class="studio-card">
               <div class="workspace-name">
                 <span class="studio-icon photo-icon" aria-hidden="true"></span>
-                <div><h3>Image Studio</h3><p>Retouch photos, composite layers, and apply local AI.</p></div>
+              <div><h3>Image Studio</h3><p>Retouch photos and edit layers with local AI.</p></div>
               </div>
               <div class="workspace-actions">
-                <a class="workspace-action workspace-action-primary" href="/desktop/native/image">Full photo tools <span aria-hidden="true">→</span></a>
-                <a class="workspace-action" href="/image/?empty&amp;webgl">AI photo workspace</a>
+              <a class="action" href="/image/?empty&amp;webgl&amp;entry=open">Open photos</a>
+              <a class="action secondary" href="/desktop/native/image">Full photo tools</a>
               </div>
+            <a class="workspace-link" href="/image/?empty&amp;webgl">AI photo workspace <span aria-hidden="true">→</span></a>
             </article>
             <article class="studio-card">
               <div class="workspace-name">
                 <span class="studio-icon video-icon" aria-hidden="true"></span>
-                <div><h3>Video Studio</h3><p>Trim, color, and mix footage on an editable timeline.</p></div>
+              <div><h3>Video Studio</h3><p>Cut, color, and mix footage on a timeline.</p></div>
               </div>
               <div class="workspace-actions">
-                <a class="workspace-action workspace-action-primary" href="/desktop/native/video">Full video tools <span aria-hidden="true">→</span></a>
-                <a class="workspace-action" href="/video/?empty&amp;webgl">AI video workspace</a>
+              <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
+              <a class="action secondary" href="/desktop/native/video">Full video tools</a>
               </div>
+            <a class="workspace-link" href="/video/?empty&amp;webgl">AI video workspace <span aria-hidden="true">→</span></a>
             </article>
           </div>
         </section>
         <section class="project-tasks" aria-labelledby="task-heading">
           <h2 id="task-heading">Quick actions</h2>
-          <a href="/video/?empty&amp;webgl&amp;entry=agent"><i aria-hidden="true">✦</i><div><strong>AI editor</strong><span>Draft a cut from clips and music.</span></div></a>
-          <a href="/video/?empty&amp;webgl&amp;entry=story"><i aria-hidden="true">▤</i><div><strong>Photo storyboard</strong><span>Arrange photos and set their timing.</span></div></a>
-          <a href="#library"><i aria-hidden="true">⌕</i><div><strong>Search media</strong><span>Find files by name or description.</span></div></a>
-          <a href="/desktop/copy-export"><i aria-hidden="true">⎘</i><div><strong>Copy exported file</strong><span>Paste it into another app or folder.</span></div></a>
+        <a href="/video/?empty&amp;webgl&amp;entry=agent"><i aria-hidden="true">✦</i><div><strong>AI editor</strong><span>Draft a cut from clips and music.</span></div><b aria-hidden="true">→</b></a>
+        <a href="/video/?empty&amp;webgl&amp;entry=story"><i aria-hidden="true">▤</i><div><strong>Photo storyboard</strong><span>Arrange photos and set their timing.</span></div><b aria-hidden="true">→</b></a>
         </section>
-      </div>
     </section>
     <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">

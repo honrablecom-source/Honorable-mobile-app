@@ -6,8 +6,8 @@ const bar = document.createElement('header');
 bar.id = 'noble-workspace-bar';
 const canvas = document.querySelector('#filmcraft_canvas');
 bar.innerHTML = `
-  <a class="workspace-home" href="/desktop/home.html" aria-label="Noble Home" title="Noble Home"><img src="/desktop/noble.png" width="28" height="28" alt=""><span>Home</span></a>
-  <strong>${canvas ? 'Video Studio' : 'Image Studio'}</strong>
+  <a class="workspace-home" href="/desktop/home.html" aria-label="Back to Projects" title="Back to Projects"><b aria-hidden="true">‹</b><span>Projects</span></a>
+  <strong class="workspace-title">${canvas ? 'Video Studio' : 'Image Studio'}</strong>
 `;
 document.body.prepend(bar);
 document.body.classList.add(canvas ? 'noble-video-workspace' : 'noble-image-workspace');

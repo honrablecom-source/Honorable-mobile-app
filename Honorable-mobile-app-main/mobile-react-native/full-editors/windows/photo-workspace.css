@@ -35,6 +35,7 @@
 .photo-shell[data-photo-theme=neutral] #noble-workspace-bar .workspace-primary:hover { background: #d3e7ff; }
 .photo-shell #noble-workspace-bar .photo-actions { gap: 6px; }
 .photo-history { display: flex; border-inline: 1px solid var(--photo-line); padding-inline: 5px; }
+.photo-files { display:flex; align-items:center; gap:2px; }
 .photo-document-picker {
   min-width: 100px;
   max-width: min(260px, 20vw);
@@ -365,8 +366,8 @@
 .photo-shell #noble-workspace-bar .photo-actions { gap:3px; }
 .photo-shell #noble-workspace-bar .photo-actions button { white-space:nowrap; }
 .photo-shell .photo-document-picker { background:var(--photo-paper); min-width:0; width:min(220px,19vw); }
-#photo-workbench:has(.photo-empty:not([hidden])) { grid-template:"picture" minmax(0,1fr) / minmax(0,1fr); }
-#photo-workbench:has(.photo-empty:not([hidden])) :is(.photo-tools,.photo-inspector,.photo-footer) { display:none; }
+#photo-workbench:is(:has(.photo-empty:not([hidden])),[data-open-prompt=empty]) { grid-template:"picture" minmax(0,1fr) / minmax(0,1fr); }
+#photo-workbench:is(:has(.photo-empty:not([hidden])),[data-open-prompt=empty]) :is(.photo-tools,.photo-inspector,.photo-footer) { display:none; }
 .photo-shell:has(.photo-empty:not([hidden])) #noble-workspace-bar :is(.photo-history,[data-save],[popovertarget=photo-export]) { display:none; }
 .photo-empty { background:radial-gradient(ellipse at 48% 6%,#30322a,transparent 76%),var(--photo-mat); }
 .photo-starter {
