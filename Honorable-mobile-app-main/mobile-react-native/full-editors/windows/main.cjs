@@ -345,11 +345,15 @@ async function runSmokeTest() {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       const editorCanvas = document.querySelector('#filmcraft_canvas');
-      if (toolbar?.querySelectorAll('.workspace-actions button').length !== 7 ||
+      if (!['[data-action=import]','[data-action=export]','#cinematic-open','#cinematic-changes']
+          .every(selector => toolbar.querySelector(selector)?.getBoundingClientRect().width > 0) ||
           getComputedStyle(editorCanvas).clipPath === 'none' ||
           document.elementFromPoint(10, toolbar.offsetHeight - 2) === editorCanvas) {
         throw Error('Desktop workspace controls overlap the editor');
       }
+      toolbar.querySelector('#cinematic-changes').click();
+      if (document.querySelector('#changes-tab').getAttribute('aria-selected') !== 'true') throw Error('AI changes did not open');
+      document.querySelector('#cinematic [data-close]').click();
       toolbar.querySelector('[popovertarget="noble-cut-tools"]').click();
       document.querySelector('#noble-agent-open').click();
       if (!document.querySelector('#noble-agent').open) throw Error('The editing agent did not open');
