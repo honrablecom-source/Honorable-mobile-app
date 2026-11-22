@@ -1,10 +1,13 @@
 const {app, BrowserWindow, WebContentsView, Menu, ipcMain, dialog, session, utilityProcess, nativeTheme} = require('electron');
 const path = require('node:path');
-const {execFile} = require('node:child_process');
+const {execFile, spawn} = require('node:child_process');
 const {promisify} = require('node:util');
 const {mkdtempSync, readFileSync, renameSync, statSync, writeFileSync} = require('node:fs');
-const {mkdir,mkdtemp,rename,writeFile} = require('node:fs/promises');
+const {mkdir,mkdtemp,readFile,rename,rmdir,stat,unlink,writeFile} = require('node:fs/promises');
 const {tmpdir} = require('node:os');
+const nativeStudios = require('./native-studios.json');
+const photoLimit = 64 * 1024 * 1024;
+const photoExtensions = ['pcraft','psd','psb','ora','png','jpg','jpeg','webp','tif','tiff','bmp','gif','heic','heif'];
 
 const smoke = process.argv.includes('--smoke-test') && process.env.NOBLE_SMOKE_RESULT;
 const studioPort = Number(process.argv.find(arg=>arg.startsWith('--studio-port='))?.slice(14));
@@ -98,10 +101,16 @@ function routeWorkspace(target, fromEditor) {
     showHome();
     return true;
   }
+  if (!fromEditor && ['/desktop/native/image','/desktop/native/video'].includes(target.pathname)) {
+    void openNativeStudio(target.pathname.split('/').at(-1)).catch(reportWorkspaceError);
+    return true;
+  }
   if (!fromEditor && ['/video/', '/image/'].includes(target.pathname)) {
     const kind = target.pathname.split('/')[1];
-    const launch = kind === 'video' && target.searchParams.get('entry') === 'open'
-      ? openVideoProjectFromHome() : showStudio(kind, target.href);
+    let launch;
+    if (target.searchParams.get('entry') === 'open') {
+      launch = kind === 'image' ? openPhotosFromHome() : openVideoProjectFromHome();
+    } else launch = showStudio(kind, target.href);
     launch.catch(reportWorkspaceError);
     return true;
   }
@@ -160,13 +169,15 @@ ipcMain.handle('noble:video-mcp-save', async (event,name,bytes,kind = 'video') =
   return output;
 });
 
-ipcMain.handle('noble:photo-preferences', (event, value) => {
+function isPhotoWorkspace(event) {
   const view = workspaces.get('image');
-  if (!view || view.webContents !== event.sender || event.senderFrame !== event.sender.mainFrame) {
-    throw Error('Photo workspace settings are unavailable.');
-  }
+  if (!view || view.webContents !== event.sender || event.senderFrame !== event.sender.mainFrame) return false;
   const source = new URL(event.senderFrame.url);
-  if (source.origin !== origin || source.pathname !== '/image/') throw Error('Photo workspace settings are unavailable.');
+  return source.origin === origin && source.pathname === '/image/';
+}
+
+ipcMain.handle('noble:photo-preferences', (event, value) => {
+  if (!isPhotoWorkspace(event)) throw Error('Photo workspace settings are unavailable.');
   const file = path.join(app.getPath('userData'),'photo-workspace.json');
   if (value === undefined) {
     try {
@@ -187,6 +198,60 @@ ipcMain.handle('noble:photo-preferences', (event, value) => {
   return true;
 });
 
+function nativeStudioPath(kind, field = 'executable') {
+  const release = nativeStudios[kind];
+  return path.join(process.resourcesPath,'native',kind,release.directory,release[field]);
+}
+
+async function openNativeStudio(kind) {
+  if (!windowAvailable()) return;
+  const executable = nativeStudioPath(kind);
+  if (!await stat(executable).then(file=>file.isFile(),()=>false)) {
+    throw Error(nativeStudios[kind].name+' is not included in this installation.');
+  }
+  await new Promise((resolve,reject)=>{
+    const launched = spawn(executable,[],{cwd:path.dirname(executable),stdio:'ignore',detached:true});
+    launched.once('error',reject);
+    launched.once('spawn',()=>{
+      launched.unref();
+      resolve();
+    });
+  });
+}
+
+ipcMain.handle('noble:decode-phone-photo', async (event,name,bytes) => {
+  if (!windowAvailable() || !isPhotoWorkspace(event) || workspaces.get('image') !== activeView) {
+    throw Error('Open Noble Image Studio to import this photo.');
+  }
+  const extension = typeof name === 'string' ? path.extname(name).toLowerCase() : '';
+  if (!['.heic','.heif'].includes(extension) || !ArrayBuffer.isView(bytes) || !bytes.byteLength || bytes.byteLength > photoLimit) {
+    throw Error('Choose an HEIC or HEIF photo under 64 MB.');
+  }
+  const decoder = nativeStudioPath('image','cli');
+  if (!await stat(decoder).then(file=>file.isFile(),()=>false)) throw Error('This installation is missing the PhotoCraft HEIC decoder.');
+  const scratch = await mkdtemp(path.join(tmpdir(),'noble-photo-import-'));
+  const input = path.join(scratch,'photo'+extension);
+  const output = path.join(scratch,'photo.png');
+  try {
+    await writeFile(input,bytes,{flag:'wx'});
+    try {
+      await promisify(execFile)(decoder,['convert',input,output,'--no-gpu'],{
+        cwd:path.dirname(decoder),windowsHide:true,timeout:45000,maxBuffer:65536,
+      });
+    } catch {
+      throw Error('PhotoCraft could not decode this HEIC or HEIF photo. Try opening the original in PhotoCraft.');
+    }
+    const converted = await stat(output);
+    if (!converted.size || converted.size > photoLimit) {
+      throw Error('This photo expands beyond 64 MB. Open the original in PhotoCraft.');
+    }
+    return await readFile(output);
+  } finally {
+    await Promise.all([input,output].map(file=>unlink(file).catch(()=>{})));
+    await rmdir(scratch).catch(()=>{});
+  }
+});
+
 function reportWorkspaceError(error) {
   if (!windowAvailable()) return;
   if (smoke) return fail(error);
@@ -197,15 +262,46 @@ function windowAvailable() {
   return !closing && window && !window.isDestroyed();
 }
 
-async function pickFile(options, onFile) {
+async function pickFiles(options, onFiles) {
   if (!windowAvailable() || choosingFile) return;
   choosingFile = true;
   try {
     const {canceled,filePaths} = await dialog.showOpenDialog(window,options);
-    if (!canceled && filePaths[0] && windowAvailable()) await onFile(filePaths[0]);
+    if (!canceled && filePaths.length && windowAvailable()) await onFiles(filePaths);
   } finally {
     choosingFile = false;
   }
+}
+
+function pickFile(options,onFile) {
+  return pickFiles(options,([file])=>onFile(file));
+}
+
+function openPhotosFromHome() {
+  return pickFiles({
+    title:'Open photos in Noble',
+    properties:['openFile','multiSelections'],
+    filters:[{name:'Photos and projects',extensions:photoExtensions},{name:'All files',extensions:['*']}],
+  },async files=>{
+    if (files.length > 12) throw Error('Choose up to 12 photos per import.');
+    const contents = await showStudio('image');
+    let total = 0;
+    for (const file of files) {
+      if (!windowAvailable() || contents.isDestroyed()) return;
+      const name = path.basename(file);
+      try {
+        const info = await stat(file);
+        if (!info.isFile() || !info.size || info.size > photoLimit) throw Error('Choose a nonempty image or project up to 64 MB.');
+        if (total+info.size > 2*photoLimit) throw Error('Choose fewer photos for a batch over 128 MB.');
+        const bytes = await readFile(file);
+        if (!bytes.length || bytes.length > photoLimit || total+bytes.length > 2*photoLimit) throw Error('Choose smaller photos for this batch.');
+        total += bytes.length;
+        if (!contents.isDestroyed()) contents.send('noble:photo-import',{name,bytes});
+      } catch (error) {
+        if (!contents.isDestroyed()) contents.send('noble:photo-import',{name,error:error.message});
+      }
+    }
+  });
 }
 
 function openVideoProjectFromHome() {
@@ -348,8 +444,8 @@ async function runSmokeTest() {
     })()
   `);
   if (routes.length !== 2) throw Error('Missing Studio entry points');
-  await showStudio('image', routes[1]);
-  const video = await showStudio('video', routes[0]);
+  await showStudio('image', routes.find(route=>new URL(route).pathname === '/image/'));
+  const video = await showStudio('video', routes.find(route=>new URL(route).pathname === '/video/'));
   const evidence = await video.executeJavaScript(`
     (async () => {
       const started = Date.now();
@@ -591,6 +687,8 @@ if (!app.requestSingleInstanceLock()) {
         {label:'Home and media library', accelerator:'Ctrl+Shift+H', click:() => showHome()},
         {label:'Video Studio', click:() => showStudio('video').catch(reportWorkspaceError)},
         {label:'Image Studio', click:() => showStudio('image').catch(reportWorkspaceError)},
+        {label:'Open PhotoCraft', click:() => openNativeStudio('image').catch(reportWorkspaceError)},
+        {label:'Open FilmCraft', click:() => openNativeStudio('video').catch(reportWorkspaceError)},
         {type:'separator'}, {role:'quit'},
       ]},
       {label:'Share', submenu:[{label:'Copy exported file', click:() => {

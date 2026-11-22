@@ -20,21 +20,29 @@
   <main>
     <section id="studio" aria-labelledby="studio-title">
       <header class="page-heading project-heading">
-        <div><h1 id="studio-title">Projects</h1></div>
-        <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
+        <h1 id="studio-title">Projects</h1>
+        <div class="project-open">
+          <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
+          <a class="action" href="/image/?empty&amp;webgl&amp;entry=open">Open photos</a>
+        </div>
       </header>
-      <div class="project-board">
       <section class="editors" aria-label="Editing workspaces">
-        <a class="project-choice video-choice" href="/video/?empty&amp;webgl">
-          <img class="choice-art" src="/desktop/project-video.jpg" alt="" width="816" height="420">
-          <div><h2>Video Studio</h2><p>Import clips, arrange a timeline, and export.</p></div>
-          <span class="choice-arrow" aria-hidden="true">→</span>
-        </a>
-        <a class="project-choice image-choice" href="/image/?empty&amp;webgl">
-          <img class="choice-art" src="/desktop/project-image.jpg" alt="" width="816" height="420">
-          <div><h2>Image Studio</h2><p>Edit photos with layers, masks, and AI.</p></div>
-          <span class="choice-arrow" aria-hidden="true">→</span>
-        </a>
+        <article class="studio-card">
+          <a class="project-choice image-choice" href="/image/?empty&amp;webgl">
+            <span class="studio-icon photo-icon" aria-hidden="true"></span>
+            <div><h2>Image Studio</h2><p>Edit photos with layers, masks, and local AI.</p></div>
+            <span class="choice-arrow" aria-hidden="true">→</span>
+          </a>
+          <a class="native-launch" href="/desktop/native/image"><strong>Open PhotoCraft</strong><span>Native Windows editor</span><b aria-hidden="true">↗</b></a>
+        </article>
+        <article class="studio-card">
+          <a class="project-choice video-choice" href="/video/?empty&amp;webgl">
+            <span class="studio-icon video-icon" aria-hidden="true"></span>
+            <div><h2>Video Studio</h2><p>Cut footage, edit with AI, and export your timeline.</p></div>
+            <span class="choice-arrow" aria-hidden="true">→</span>
+          </a>
+          <a class="native-launch" href="/desktop/native/video"><strong>Open FilmCraft</strong><span>Native Windows editor</span><b aria-hidden="true">↗</b></a>
+        </article>
       </section>
       <section class="project-tasks" aria-labelledby="task-heading">
         <h2 id="task-heading">Quick actions</h2>
@@ -42,7 +50,6 @@
         <a href="/video/?empty&amp;webgl&amp;entry=story"><i aria-hidden="true">▤</i><div><strong>Photo storyboard</strong><span>Arrange photos and set their timing.</span></div></a>
         <a href="#library"><i aria-hidden="true">⌕</i><div><strong>Search media</strong><span>Find files by name or description.</span></div></a>
       </section>
-      </div>
     </section>
     <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">

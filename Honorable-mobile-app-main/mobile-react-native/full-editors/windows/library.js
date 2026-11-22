@@ -196,7 +196,7 @@ document.querySelector('#semantic').addEventListener('submit', async event => {
   worker.postMessage({query: term, files: sources});
 });
 if (window.nobleNavigation) {
-  for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"]')) {
+  for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"]')) {
     link.addEventListener('click', event => {
       event.preventDefault();
       window.nobleNavigation.openWorkspace(link.href);

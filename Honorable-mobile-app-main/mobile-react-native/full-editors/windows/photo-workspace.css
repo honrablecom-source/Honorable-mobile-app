@@ -427,3 +427,8 @@
   #photo-workbench .photo-tools button { gap:4px; padding-inline:5px; font-size:13px; }
   .photo-tools button span { flex-basis:15px; font-size:15px; }
 }
+
+#photo-workbench .photo-starter [data-empty-status] {
+  display:block; max-width:100%; color:var(--photo-dim); font-size:14px; overflow-wrap:anywhere;
+}
+#photo-workbench .photo-starter [data-empty-status]:empty { display:none; }

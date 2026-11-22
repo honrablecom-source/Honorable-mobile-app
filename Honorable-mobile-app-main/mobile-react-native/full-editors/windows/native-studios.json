@@ -1,0 +1,20 @@
+{
+  "image": {
+    "name": "PhotoCraft",
+    "version": "0.23.1",
+    "archive": "photocraft-0.23.1-windows-x64-portable.zip",
+    "sha256": "6317e764ecfa804227c38079311bea489283ab383ef040c81ef2fd6d86bd60b1",
+    "directory": "",
+    "executable": "photocraft.exe",
+    "cli": "photocraft-cli.exe"
+  },
+  "video": {
+    "name": "FilmCraft",
+    "version": "0.20.1",
+    "archive": "filmcraft-0.20.1-windows-x64-portable.zip",
+    "sha256": "bfb00e2089df5f13e6f76aab117a4572a8d005d009c5818989688b140a502710",
+    "directory": "filmcraft-0.20.1-windows-x64-portable",
+    "executable": "filmcraft.exe",
+    "cli": "filmcraft-cli.exe"
+  }
+}

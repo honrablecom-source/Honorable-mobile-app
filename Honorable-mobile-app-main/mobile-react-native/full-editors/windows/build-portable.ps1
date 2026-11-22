@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$Stage,
     [Parameter(Mandatory)][string]$SearchModules,
     [string]$DesktopVideoBundle,
-    [string]$DesktopImageBundle
+    [string]$DesktopImageBundle,
+    [string]$NativeArchiveDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,7 +27,25 @@ $appAssets = Join-Path $studio 'android/app/src/main/assets'
 New-Item -ItemType Directory -Path (Join-Path $studio 'full-editors'), $appAssets | Out-Null
 $editors = Split-Path $PSScriptRoot
 $mobile = Split-Path $editors
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'main.cjs'), (Join-Path $PSScriptRoot 'navigation.cjs'), (Join-Path $PSScriptRoot 'package.json') -Destination $appDirectory
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'main.cjs'), (Join-Path $PSScriptRoot 'navigation.cjs'), (Join-Path $PSScriptRoot 'package.json'), (Join-Path $PSScriptRoot 'native-studios.json') -Destination $appDirectory
+if ($NativeArchiveDirectory) {
+    $native = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'native-studios.json') -Raw | ConvertFrom-Json
+    foreach ($kind in @('image', 'video')) {
+        $release = $native.$kind
+        $zip = Join-Path $NativeArchiveDirectory $release.archive
+        if ((Get-FileHash -LiteralPath $zip).Hash -ine $release.sha256) {
+            throw "$($release.name) does not match the pinned publisher archive."
+        }
+        $destination = Join-Path $Stage "resources/native/$kind"
+        Expand-Archive -LiteralPath $zip -DestinationPath $destination
+        $bin = if ($release.directory) { Join-Path $destination $release.directory } else { $destination }
+        foreach ($name in @($release.executable, $release.cli, 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE')) {
+            if (!(Test-Path -LiteralPath (Join-Path $bin $name) -PathType Leaf)) {
+                throw "The $($release.name) archive is missing $name."
+            }
+        }
+    }
+}
 Copy-Item -LiteralPath (Join-Path $editors 'preview.mjs'), (Join-Path $editors 'editing-agent') -Destination (Join-Path $studio 'full-editors') -Recurse
 $bundledEditors = Join-Path $mobile 'android/app/src/main/assets/creative-editors'
 $stagedEditors = Join-Path $appAssets 'creative-editors'
@@ -47,7 +66,7 @@ foreach ($kind in @('image', 'video')) {
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'noble.ico') -Destination (Join-Path $Stage 'Noble.ico')
 $desktop = Join-Path $studio 'full-editors/windows'
 New-Item -ItemType Directory -Path $desktop | Out-Null
-foreach ($name in @('home.html', 'home.css', 'library.js', 'video-samples.js', 'storyboard.js', 'cinematic-panel.js', 'cinematic-media.js', 'video-mcp.js', 'video-controls.js', 'video-changes.js', 'video-export.js', 'workspace.js', 'workspace.css', 'photo-workspace.js', 'photo-workspace.css', 'photo-agent.js', 'photo-settings.js', 'noble.png', 'project-video.jpg', 'project-image.jpg')) {
+foreach ($name in @('home.html', 'home.css', 'library.js', 'video-samples.js', 'storyboard.js', 'cinematic-panel.js', 'cinematic-media.js', 'video-mcp.js', 'video-controls.js', 'video-changes.js', 'video-export.js', 'workspace.js', 'workspace.css', 'photo-workspace.js', 'photo-workspace.css', 'photo-agent.js', 'photo-settings.js', 'noble.png')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $desktop
 }
 $modelAssets = Join-Path (Split-Path $mobile) 'android-app/app/src/main/assets/tinyclip'

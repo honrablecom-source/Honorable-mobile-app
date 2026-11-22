@@ -21,8 +21,9 @@ shell.innerHTML = `
     <div class="photo-empty" hidden>
       <div class="photo-starter">
         <h1>Open a photo</h1>
-        <p>Drop a photo or a layered project here.</p>
-        <button type="button" data-empty-open>Browse files</button>
+        <p>Drop photos or layered projects here.</p>
+        <button type="button" data-empty-open disabled>Browse files</button>
+        <output data-empty-status role="status"></output>
       </div>
     </div>
   </section>
@@ -83,7 +84,7 @@ canvas.setAttribute('aria-label', 'Photo editing canvas');
 const actions = document.createElement('div');
 actions.className = 'workspace-actions photo-actions';
 actions.innerHTML = `
-  <input type="file" accept=".pcraft,.psd,.psb,.ora,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.gif" hidden>
+  <input type="file" accept=".pcraft,.psd,.psb,.ora,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.gif,.heic,.heif" multiple hidden>
   <button type="button" data-open title="Open photo or project (Ctrl+O)" disabled>Open</button>
   <div role="group" class="photo-history" aria-label="Edit history">
     <button type="button" data-history="edit.undo" disabled>Undo</button>
@@ -112,6 +113,8 @@ const open = actions.querySelector('[data-open]');
 const filePicker = actions.querySelector('input');
 const full = actions.querySelector('[data-full]');
 const status = $('[data-photo-status]');
+const emptyStatus = $('[data-empty-status]');
+const emptyOpen = $('[data-empty-open]');
 const photoEmpty = $('.photo-empty');
 const photoControl = [...shell.querySelectorAll('[data-photo]'), actions.querySelector('[data-save]'), actions.querySelector('[popovertarget=photo-export]')];
 const focusedPanels = {menu_bar:false, toolbar:false, status_bar:false, dock:false, properties:false, options_bar:true, context_task_bar:false};
@@ -120,6 +123,7 @@ let busy = false;
 let ready = false;
 let advanced = false;
 let polling = false;
+const photoQueue = [];
 const adjustForms = [...shell.querySelectorAll('[data-adjust]')];
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -134,23 +138,28 @@ const menu = id => request('ui.menu.invoke', {id});
 async function run(action) {
   if (!ready || busy) return;
   busy = true;
-  status.textContent = '';
+  setStatus('');
   setControls();
   try {
     await action();
   } catch (error) {
-    status.textContent = error.message || String(error);
+    setStatus(error.message || String(error));
   } finally {
     busy = false;
     await refresh();
     setControls();
+    void flushPhotoQueue();
   }
+}
+
+function setStatus(text) {
+  status.textContent = emptyStatus.textContent = text;
 }
 
 function setControls() {
   const doc = state?.document;
   const reviewing = ai && !ai.panel.hidden && !ai.review.hidden;
-  open.disabled = full.disabled = !ready || busy;
+  open.disabled = full.disabled = emptyOpen.disabled = !ready || busy;
   documentPicker.disabled = busy;
   if (ai) ai.tab.disabled = !doc || busy;
   for (const button of photoControl) button.disabled = !ready || busy || !doc || reviewing;
@@ -257,7 +266,7 @@ async function refresh() {
     state = await request('ui.inspect');
     render();
   } catch (error) {
-    if (!status.textContent) status.textContent = error.message || String(error);
+    if (!status.textContent) setStatus(error.message || String(error));
   }
 }
 
@@ -408,7 +417,15 @@ async function importPhoto(file) {
   if (!file.size || file.size > 64 * 1024 * 1024) throw Error('Choose a nonempty image or project up to 64 MB.');
   if (ai && !ai.panel.hidden) ai.close.click();
   const before = await request('ui.inspect');
-  window.nobleImage.importFile(file.name, new Uint8Array(await file.arrayBuffer()));
+  let name = file.name;
+  let bytes = new Uint8Array(await file.arrayBuffer());
+  if (/\.hei[cf]$/i.test(name)) {
+    const decode = window.nobleNavigation?.decodePhonePhoto;
+    if (!decode) throw Error('Open this HEIC or HEIF photo in the Windows PhotoCraft editor.');
+    bytes = new Uint8Array(await decode(name,bytes));
+    name = name.replace(/\.hei[cf]$/i,'.png');
+  }
+  await window.nobleImage.importFile(name,bytes);
   await finishImport(before);
 }
 
@@ -416,9 +433,10 @@ async function finishImport(before) {
   const deadline = Date.now() + 16000;
   while (Date.now() < deadline) {
     const result = await request('ui.inspect');
-    if (result.session.documents.length > before.session.documents.length) {
-      const newDocument = result.session.documents.at(-1);
-      if (result.session.active !== newDocument.index) await command('document.activate', {document:newDocument.index});
+    const newDocument = result.session.documents.find(doc=>!before.session.documents.some(previous=>previous.id === doc.id && previous.index === doc.index));
+    if (newDocument || result.session.documents.length > before.session.documents.length) {
+      const opened = newDocument ?? result.session.documents.at(-1);
+      if (result.session.active !== opened.index) await command('document.activate', {document:opened.index});
       return;
     }
     if (result.statusError && result.status !== before.status) throw Error(result.status);
@@ -427,11 +445,43 @@ async function finishImport(before) {
   throw Error('Image Studio could not open that file. Try a photo or a Noble project.');
 }
 open.onclick = () => filePicker.click();
-$('[data-empty-open]').onclick = open.onclick;
+emptyOpen.onclick = open.onclick;
+
+function queuePhotos(files) {
+  if (files.length > 12) return setStatus('Choose up to 12 photos per import.');
+  if (!files.length) return;
+  photoQueue.push(...files);
+  void flushPhotoQueue();
+}
+
+async function flushPhotoQueue() {
+  if (!ready || busy || !photoQueue.length) return;
+  const batch = photoQueue.splice(0);
+  await run(async()=>{
+    const failures = [];
+    let opened = 0;
+    for (const file of batch) {
+      const name = file.name;
+      setStatus('Opening '+name+'…');
+      try {
+        if (!(file instanceof File)) throw Error(file.error);
+        await importPhoto(file);
+        opened++;
+      } catch (error) {
+        failures.push(name+' · '+error.message);
+      }
+    }
+    setStatus([opened ? 'Opened '+opened+(opened === 1 ? ' file.' : ' files.') : '',...failures].filter(Boolean).join(' '));
+  });
+}
+
+window.nobleNavigation?.onPhotoImport?.(entry=>{
+  queuePhotos([entry.error ? entry : new File([entry.bytes],entry.name)]);
+});
 filePicker.onchange = () => {
-  const file = filePicker.files[0];
+  const files = Array.from(filePicker.files);
   filePicker.value = '';
-  if (file) void run(() => importPhoto(file));
+  queuePhotos(files);
 };
 viewer.ondragover = event => {
   if (advanced || !event.dataTransfer.types.includes('Files')) return;
@@ -444,7 +494,7 @@ viewer.ondrop = event => {
   if (advanced || !event.dataTransfer.files.length) return;
   event.preventDefault();
   event.stopPropagation();
-  void run(() => importPhoto(event.dataTransfer.files[0]));
+  queuePhotos(Array.from(event.dataTransfer.files));
 };
 documentPicker.onchange = () => void run(async () => {
   if (ai && !ai.panel.hidden) ai.close.click();
@@ -549,6 +599,7 @@ async function initialize() {
     await request('ui.set', {panels:focusedPanels, fit:true});
     ready = true;
     await refresh();
+    void flushPhotoQueue();
     setInterval(async () => {
       if (busy || polling || document.hidden) return;
       polling = true;
@@ -561,7 +612,7 @@ async function initialize() {
     shell.classList.add('photo-full-tools');
     await refresh();
     full.hidden = true;
-    status.textContent = error.message || String(error);
+    setStatus(error.message || String(error));
   }
 }
 setControls();
