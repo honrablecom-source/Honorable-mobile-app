@@ -25,15 +25,19 @@ export function mountSequenceSetup({editor, onCreated, openProject, openEditor, 
   element.setAttribute('aria-labelledby','workspace-start-title');
   element.innerHTML = `
     <div class="sequence-sheet">
-      <header class="sequence-title"><h1 id="workspace-start-title">New video project</h1><button type="button" data-start="open">Open existing project…</button></header>
+      <header class="sequence-title"><h1 id="workspace-start-title">New sequence</h1><button type="button" data-start="open">Open existing project…</button></header>
       <div class="sequence-columns">
         <section class="sequence-browser" aria-label="Project setup">
+          <figure class="sequence-monitor">
+            <div class="monitor-mat"><div class="monitor-frame"></div></div>
+            <figcaption><span data-monitor-label>Sample frame</span><span data-monitor-spec></span></figcaption>
+          </figure>
           <div class="sequence-tabs" role="tablist" aria-label="Project setup">
             <button type="button" role="tab" id="preset-tab" aria-controls="preset-panel" aria-selected="true">Sequence presets</button>
             <button type="button" role="tab" id="media-tab" aria-controls="media-panel" aria-selected="false" tabindex="-1">Import media <span data-file-count></span></button>
           </div>
           <div id="preset-panel" role="tabpanel" aria-labelledby="preset-tab">
-            <fieldset class="preset-grid"><legend>Choose a starting format</legend></fieldset>
+            <fieldset class="preset-grid"><legend>Frame format</legend></fieldset>
           </div>
           <div id="media-panel" role="tabpanel" aria-labelledby="media-tab" hidden>
             <div class="source-heading"><h2>Source media</h2><button type="button" data-start="import">Add files…</button></div>
@@ -41,10 +45,10 @@ export function mountSequenceSetup({editor, onCreated, openProject, openEditor, 
             <div class="source-drop"><strong>Drop clips or photos here</strong><span>Files are added to the timeline in selection order.</span></div>
             <ol class="source-list" aria-label="Selected media"></ol>
           </div>
-          <div class="setup-workflows"><h2>Other workflows</h2><div><button type="button" data-start="agent">AI editing agent <span aria-hidden="true">↗</span></button><button type="button" data-start="story">Photo storyboard <span aria-hidden="true">↗</span></button></div></div>
+          <div class="setup-workflows"><h2>Start with</h2><div><button type="button" data-start="agent">AI editing agent <span aria-hidden="true">↗</span></button><button type="button" data-start="story">Photo storyboard <span aria-hidden="true">↗</span></button></div></div>
         </section>
         <form class="sequence-details">
-          <h2>Sequence details</h2>
+          <h2>Sequence settings</h2>
           <label>Sequence name<input name="sequenceName" type="text" value="Sequence 01" required maxlength="120" autocomplete="off"></label>
           <dl><div><dt>Frame size</dt><dd data-frame-size></dd></div></dl>
           <label>Frame rate<select name="frameRate"><option value="auto">Match source</option><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select></label>
@@ -88,21 +92,53 @@ export function mountSequenceSetup({editor, onCreated, openProject, openEditor, 
   for (const preset of presets) {
     const label = document.createElement('label');
     label.className = 'sequence-preset';
-    label.innerHTML = `<input type="radio" name="sequencePreset" value="${preset.id}"><span class="preset-preview" aria-hidden="true"><i></i></span><strong>${preset.title}</strong><small>${preset.caption || preset.width+' × '+preset.height}</small>`;
+    label.innerHTML = `<input type="radio" name="sequencePreset" value="${preset.id}"><span class="preset-preview" aria-hidden="true"><i></i></span><strong>${preset.title}</strong><small>${({source:'Automatic',landscape:'16:9',portrait:'9:16',square:'1:1'})[preset.id]}</small>`;
     grid.append(label);
   }
   function currentPreset() {
     return presets.find(preset => preset.id === grid.querySelector(':checked').value);
   }
+  const frame = find('.monitor-frame');
+  let monitorSource;
+  let sourceSize;
+  function updateMonitor() {
+    const entry = media[0];
+    if (entry !== monitorSource || !frame.firstChild) {
+      monitorSource = entry;
+      sourceSize = null;
+      const video = entry && (entry.file.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|avi)$/i.test(entry.file.name));
+      const preview = document.createElement(video ? 'video' : 'img');
+      if (video) {
+        preview.muted = true;
+        preview.preload = 'metadata';
+      } else { preview.alt = ''; }
+      preview.addEventListener(video ? 'loadedmetadata' : 'load',() => {
+        if (entry && monitorSource === entry) {
+          sourceSize = [preview.videoWidth || preview.naturalWidth,preview.videoHeight || preview.naturalHeight];
+          updateDetails();
+        }
+      },{once:true});
+      preview.onerror = () => {
+        if (monitorSource === entry) find('[data-monitor-label]').textContent = 'Preview unavailable';
+      };
+      frame.replaceChildren(preview);
+      preview.src = entry?.url || '/desktop/video-studio-tiger.jpg';
+      find('[data-monitor-label]').textContent = entry ? entry.file.name : 'Sample frame';
+    }
+  }
   function updateDetails() {
+    updateMonitor();
     const preset = currentPreset();
     const follow = preset.id === 'source' && media.length > 0;
-    find('[data-frame-size]').textContent = follow ? 'Match first file' : (preset.width || 1920) + ' × ' + (preset.height || 1080) + ' px';
+    const [width,height] = follow && sourceSize ? sourceSize : [preset.width || 1920,preset.height || 1080];
+    frame.style.setProperty('--frame-ratio',width / height);
+    find('[data-frame-size]').textContent = follow && !sourceSize ? 'Match first file' : width+' × '+height+' px';
+    find('[data-monitor-spec]').textContent = width+' × '+height+'  /  '+(rate.value === 'auto' ? (follow ? 'Source rate' : '24 fps') : rate.value+' fps');
     rate.options[0].textContent = follow ? 'Match first file' : 'Default (24 fps)';
     find('[data-file-count]').textContent = media.length ? String(media.length) : '';
     find('[data-review]').textContent = media.length ? media.length + (media.length === 1 ? ' file selected' : ' files selected') : 'Add media…';
   }
-  grid.onchange = updateDetails;
+  grid.onchange = rate.onchange = updateDetails;
 
   function renderMedia() {
     list.replaceChildren(...media.map((entry,index) => {
@@ -110,8 +146,9 @@ export function mountSequenceSetup({editor, onCreated, openProject, openEditor, 
       const order = document.createElement('span');
       order.className = 'source-order';
       order.textContent = String(index + 1);
-      const thumb = document.createElement(entry.url ? 'img' : 'span');
-      if (entry.url) { thumb.src = entry.url; thumb.alt = ''; }
+      const image = entry.file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(entry.file.name);
+      const thumb = document.createElement(image ? 'img' : 'span');
+      if (image) { thumb.src = entry.url; thumb.alt = ''; }
       else { thumb.className = 'video-file-icon'; thumb.setAttribute('aria-hidden','true'); }
       const filename = document.createElement('span');
       filename.className = 'source-name';
@@ -137,7 +174,7 @@ export function mountSequenceSetup({editor, onCreated, openProject, openEditor, 
     let skipped = 0;
     for (const file of files) {
       if (!/^(image|video)\//.test(file.type) && !(file.type === '' && /\.(mp4|m4v|mov|webm|mkv|avi|png|jpe?g|webp|gif|bmp|tiff?)$/i.test(file.name))) { skipped++; continue; }
-      media.push({file, url:file.type.startsWith('image/') ? URL.createObjectURL(file) : null});
+      media.push({file, url:URL.createObjectURL(file)});
     }
     showTab(tabs[1]);
     renderMedia();

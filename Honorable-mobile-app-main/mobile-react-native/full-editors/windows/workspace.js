@@ -1,3 +1,4 @@
+import {mountVideoMenus} from './video-menu.js';
 import {mountSequenceSetup} from './sequence-setup.js';
 import {mountVideoMcp} from './video-mcp.js';
 import {clearVideoChanges} from './video-changes.js';
@@ -7,8 +8,7 @@ const bar = document.createElement('header');
 bar.id = 'noble-workspace-bar';
 const canvas = document.querySelector('#filmcraft_canvas');
 bar.innerHTML = `
-  <a class="workspace-home" href="/desktop/home.html" aria-label="Back to Projects" title="Back to Projects"><b aria-hidden="true">‹</b><span>Projects</span></a>
-  <strong class="workspace-title">Video Studio</strong>
+  <a class="workspace-home" href="/desktop/home.html" aria-label="Back to Projects" title="Back to Projects">N</a>
 `;
 document.body.prepend(bar);
 document.body.classList.add('noble-video-workspace');
@@ -35,23 +35,12 @@ async function setupVideo() {
   actions.setAttribute('role', 'group');
   actions.setAttribute('aria-label', 'Video Studio actions');
   actions.innerHTML = `
-    <div class="workspace-group workspace-files">
-      <button type="button" popovertarget="noble-project-menu">Project <span aria-hidden="true">⌄</span></button>
-      <button type="button" data-action="import"><span aria-hidden="true">＋</span> Import media</button>
-      <section id="noble-project-menu" class="workspace-popover" aria-label="Project actions" popover="auto">
-        <button type="button" data-action="open">Open project…</button>
-        <button type="button" data-action="save">Save project</button>
-      </section>
-    </div>
-    <div class="workspace-group workspace-adjust">
-      <button type="button" popovertarget="noble-cut-tools">Tools</button>
-      <button type="button" popovertarget="noble-layouts"><span class="layout-current-label">Layout</span><span class="layout-options-label">Layout</span> ▾</button>
-      <button type="button" popovertarget="noble-commands">Commands</button>
-    </div>
-    <div class="workspace-group workspace-review">
-      <button type="button" class="workspace-primary" data-action="export" aria-pressed="false">Export</button>
-    </div>
-  `;
+    <nav class="video-menus" aria-label="Video editing menus"></nav>
+    <strong class="video-document" aria-label="Active document">Untitled</strong>
+    <div class="video-utilities">
+      <button type="button" popovertarget="noble-commands" class="command-search" aria-label="Find a command" title="Find a command"></button>
+      <button type="button" popovertarget="noble-layouts" class="layout-select"><span class="layout-current-label">Focused</span><span aria-hidden="true">⌄</span></button>
+    </div>`;
   actions.inert = true;
   bar.append(actions);
   const transport = document.createElement('footer');
@@ -127,17 +116,18 @@ async function setupVideo() {
     quickDraft.append(footer);
   }
   const agentButton = document.querySelector('#cinematic-open');
-  if (agentButton) {
-    agentButton.innerHTML = '<span aria-hidden="true">✦</span> AI editor';
-    agentButton.classList.add('workspace-ai');
-    actions.querySelector('.workspace-review').prepend(agentButton);
-  }
   const changesButton = document.querySelector('#cinematic-changes');
-  if (changesButton) {
-    changesButton.className = 'workspace-changes';
-    changesButton.hidden = false;
-    actions.querySelector('.workspace-review').insertBefore(changesButton,actions.querySelector('[data-action="export"]'));
+  for (const button of [agentButton,changesButton].filter(Boolean)) {
+    button.hidden = false;
+    createPopover.prepend(button);
   }
+  const toolsTrigger = document.createElement('button');
+  toolsTrigger.type = 'button';
+  toolsTrigger.textContent = 'Tools';
+  toolsTrigger.setAttribute('popovertarget',createPopover.id);
+  createPopover.addEventListener('click', event => {
+    if (event.target.closest('button')) createPopover.hidePopover();
+  });
 
   const layouts = document.createElement('section');
   layouts.id = 'noble-layouts';
@@ -172,7 +162,6 @@ async function setupVideo() {
   bar.append(commands);
   const filter = commands.querySelector('input');
   const results = commands.querySelector('.command-results');
-  const action = name => actions.querySelector('[data-action="' + name + '"]');
   let statusTimer;
   const setStatus = message => {
     clearTimeout(statusTimer);
@@ -183,6 +172,8 @@ async function setupVideo() {
   async function refreshTimeline() {
     try {
       const project = await editor.execute('project.inspect');
+      const sequence = project.activeSequence && await editor.execute('sequence.inspect',{item:project.activeSequence});
+      actions.querySelector('.video-document').textContent = sequence?.name || project.name || 'Untitled';
       transport.hidden = exporting || !project.activeSequence;
       document.body.classList.toggle('noble-active-timeline', !transport.hidden);
       return project;
@@ -206,21 +197,7 @@ async function setupVideo() {
   const editor = window.filmcraft;
   const invoke = id => editor.request('ui.menu.invoke', {id});
   const layoutButtons = [...layouts.querySelectorAll('[data-layout]')];
-  const workspaceModes = document.createElement('div');
-  workspaceModes.className = 'workspace-modes';
-  workspaceModes.setAttribute('role','group');
-  workspaceModes.setAttribute('aria-label','Editing workspaces');
   const layoutTrigger = actions.querySelector('[popovertarget=noble-layouts]');
-  const modeButtons = layoutButtons.map(option => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = option.dataset.layout;
-    button.dataset.mode = option.dataset.layout;
-    button.onclick = () => run(() => setLayout(button.dataset.mode));
-    workspaceModes.append(button);
-    return button;
-  });
-  bar.insertBefore(workspaceModes,actions);
   const fitTimeline = () => editor.request('ui.set', {timeline:{fit:true}});
   const transportActions = {
     play: async () => {await editor.request('ui.playback', {action:'toggle'});},
@@ -260,11 +237,18 @@ async function setupVideo() {
 
   async function setLayout(layout) {
     await editor.request('ui.set', {workspace:layout === 'Focused' ? 'Assembly' : layout});
+    updateLayoutLabel(layout);
+    localStorage.setItem('noble-video-layout', layout);
+  }
+
+  const menuLayoutNames = new Map(Object.entries({
+    allpanels:'All Panels', assembly:'Focused', audio:'Audio', captionsandgraphics:'Captions and Graphics',
+    color:'Color', editing:'Editing', effects:'Effects', learning:'Learning', review:'Review', vertical:'Vertical',
+  }).map(([id,name]) => ['window.workspace.'+id,name]));
+  function updateLayoutLabel(layout) {
     for (const button of layoutButtons) button.setAttribute('aria-pressed', String(button.dataset.layout === layout));
-    for (const button of modeButtons) button.setAttribute('aria-pressed',String(button.dataset.mode === layout));
     layoutTrigger.querySelector('.layout-current-label').textContent = layout;
     layoutTrigger.setAttribute('aria-label','Layout: '+layout);
-    localStorage.setItem('noble-video-layout', layout);
   }
 
   for (const button of layoutButtons) {
@@ -383,14 +367,9 @@ async function setupVideo() {
     if (entry === 'story') document.querySelector('#story-open')?.click();
     if (entry === 'open') {
       if (!start.hidden) start.querySelector('[data-start=open]').focus();
-      else actions.querySelector('[popovertarget="noble-project-menu"]').focus();
+      else fileMenu.focus();
     }
   };
-  action('import').onclick = () => imports.click();
-  const projectMenu = actions.querySelector('#noble-project-menu');
-  action('open').onclick = () => { projectMenu.hidePopover(); projects.click(); };
-  action('save').onclick = () => { projectMenu.hidePopover(); void run(() => invoke('file.save')); };
-  const exportButton = action('export');
   let returnToStarter = false;
   const openAdvancedExport = () => run(async () => {
     const desiredMode = !exporting;
@@ -406,11 +385,42 @@ async function setupVideo() {
       await showTimelineIfReady();
       returnToStarter = false;
     }
-    exportButton.textContent = exporting ? 'Back to edit' : 'Export';
-    exportButton.setAttribute('aria-pressed', String(exporting));
     await refreshTimeline();
   });
 
+  const overrides = {
+    'file.open': () => projects.click(),
+    'file.newSequence': () => { start.hidden = false; start.querySelector('[name=sequenceName]').focus(); },
+    'file.newProject': () => openFromHome(false),
+    'file.openDemoProject': () => openFromHome(true),
+    'file.import': () => imports.click(),
+    'file.exportMedia': () => exporting ? openAdvancedExport() : openExport(),
+    'mode.export': openAdvancedExport,
+  };
+  async function perform(id) {
+    if (setup.busy) throw Error('Wait for the media import to finish.');
+    if (overrides[id]) await overrides[id]();
+    else {
+      // Engine commands can open a dialog in the canvas, including on an empty project.
+      const fromSetup = !start.hidden;
+      start.hidden = true;
+      try { await invoke(id); }
+      catch (error) { start.hidden = !fromSetup; throw error; }
+      if (id.startsWith('window.workspace.')) {
+        const nativeLayout = menuLayoutNames.get(id);
+        if (nativeLayout) updateLayoutLabel(nativeLayout);
+      }
+      const project = await refreshTimeline();
+      if (project?.activeSequence) start.hidden = true;
+      else if (project && !project.root?.children?.length && id.startsWith('file.close')) start.hidden = false;
+    }
+  }
+  const listMenus = async () => (await editor.request('ui.menu.list')).filter(item =>
+    item.path.length && !/^help\.(discord|website|github|appPage)$/.test(item.id));
+  const fileMenu = mountVideoMenus(actions.querySelector('.video-menus'), {
+    listMenus, toolsTrigger, run: id => run(() => perform(id)), currentExport: () => exporting,
+    onError: error => setStatus(error.message),
+  });
   let menu = [];
   function renderCommands() {
     const query = filter.value.trim().toLowerCase();
@@ -426,7 +436,7 @@ async function setupVideo() {
       button.append(path);
       button.onclick = () => {
         commands.hidePopover();
-        void run(async () => {await invoke(item.id); await refreshTimeline();});
+        void run(() => perform(item.id));
       };
       return button;
     }));
@@ -438,7 +448,7 @@ async function setupVideo() {
     filter.value = '';
     results.textContent = 'Loading commands…';
     try {
-      menu = (await editor.request('ui.menu.list')).filter(item => item.path.length && !/^help\.(discord|website|github|appPage)$/.test(item.id));
+      menu = await listMenus();
       renderCommands();
     } catch {
       results.textContent = 'Commands are temporarily unavailable.';
@@ -510,7 +520,6 @@ async function setupVideo() {
     await setEditorSize(sizeChoices.some(choice => choice.value === size) ? size : 'comfortable');
     await setLayout(layoutButtons.some(button => button.dataset.layout === saved) ? saved : 'Focused');
   });
-  actions.inert = false;
   const initialProject = await refreshTimeline();
   start.hidden = !initialProject || Boolean(initialProject.activeSequence) || Boolean(initialProject.root?.children?.length);
   window.nobleProjectLauncher = {
@@ -525,11 +534,11 @@ async function setupVideo() {
   };
   const delivery=mountVideoMcp(editor,{settings:createPopover,notify:setStatus,showTimeline:()=>void showTimelineIfReady()});
   const openExport=mountVideoExport({
-    editor,button:exportButton,
+    editor,button:fileMenu,
     start:(sequence,quality)=>delivery.startExport(sequence,quality,{matchRate:true}),
     lookup:delivery.exportStatus,advanced:openAdvancedExport,failed:error=>setStatus(error.message),
   });
-  exportButton.onclick=()=>exporting ? void openAdvancedExport() : openExport();
+  actions.inert = false;
   const entry = window.nobleNavigation?.takeVideoEntry?.() ?? new URLSearchParams(location.search).get('entry');
   await window.nobleProjectLauncher.openEntry(entry);
 }

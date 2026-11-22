@@ -98,14 +98,33 @@
 #noble-workspace-bar .workspace-review .workspace-ai:hover,
 #noble-workspace-bar .workspace-review :is(.workspace-ai,.workspace-changes)[aria-expanded=true],
 #noble-workspace-bar .workspace-popover button[aria-pressed=true] { background:var(--studio-selected); border-color:#61748c; color:#e4efff; }
-.workspace-modes { display:none; }
-#noble-workspace-bar .layout-options-label { display:none; }
-@media(min-width:1320px) {
-  .noble-active-timeline:not(:has(.workspace-start:not([hidden]))) #noble-workspace-bar .workspace-modes { display:flex; align-self:stretch; align-items:stretch; gap:3px; }
-  .noble-active-timeline #noble-workspace-bar .layout-options-label { display:inline; }
-  .noble-active-timeline #noble-workspace-bar .layout-current-label { display:none; }
-  #noble-workspace-bar .workspace-modes button { background:transparent; border:0; border-bottom:2px solid transparent; border-radius:0; min-height:32px; padding:4px 6px; font-size:13px; }
-  #noble-workspace-bar .workspace-modes button[aria-pressed=true] { border-bottom-color:var(--studio-focus); color:white; }
+.noble-video-workspace { --workspace-height:32px; }
+.noble-video-workspace #noble-workspace-bar { display:flex; flex-wrap:nowrap; height:var(--workspace-height); padding:0 8px 0 3px; gap:5px; background:#303030; border-bottom:1px solid #1b1b1b; font:13px "Segoe UI",sans-serif; }
+#noble-workspace-bar .workspace-home { flex:none; min-height:26px; padding:1px 5px; border:0; border-radius:2px; font:600 16px/1 "Segoe UI",sans-serif; }
+.noble-video-workspace #noble-workspace-bar .workspace-actions { flex:1; display:flex; align-items:center; margin:0; gap:8px; width:auto; min-width:0; overflow:visible; }
+.workspace-status:empty { display:none; }
+.video-menus,.video-utilities { display:flex; align-items:center; }
+.video-menus { flex:none; }
+.video-utilities { margin-left:auto; gap:4px; }
+#noble-workspace-bar .video-menus button,#noble-workspace-bar .video-utilities button { min-height:25px; padding:2px 6px; border:0; background:transparent; border-radius:2px; color:#cecece; font:13px "Segoe UI",sans-serif; }
+#noble-workspace-bar .video-menus button:is(:hover,[aria-expanded=true]),#noble-workspace-bar .video-utilities button:hover { background:#484848; color:white; }
+#noble-workspace-bar .video-document { position:absolute; left:50%; transform:translateX(-50%); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:clamp(40px,calc(100vw - 940px),320px); pointer-events:none; padding:0; color:#ccc; font:600 13px "Segoe UI",sans-serif; }
+#noble-workspace-bar .video-utilities .layout-select { display:flex; justify-content:space-between; gap:14px; align-items:center; min-width:101px; height:24px; min-height:24px; padding:2px 7px; border:1px solid #505050; border-radius:3px; background:#242424; }
+.command-search { width:27px; position:relative !important; }
+.command-search::before { content:""; position:absolute; top:6px; left:6px; width:8px; height:8px; border:1.4px solid; border-radius:50%; }
+.command-search::after { content:""; position:absolute; top:16px; left:15px; width:6px; height:1.5px; background:currentColor; transform:rotate(45deg); }
+#noble-workspace-bar .video-menu-popup { inset:32px auto auto 0; width:min(258px,94vw); padding:4px; border:1px solid #535353; border-radius:0 0 4px 4px; max-height:min(70vh,550px); font:13px "Segoe UI",sans-serif; }
+#noble-workspace-bar .video-menu-popup button { display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; padding:4px 9px; min-height:26px; border:0; font:13px "Segoe UI",sans-serif; }
+.menu-hint { margin-left:14px; color:#bcbcbc; font-size:12px; }
+#noble-workspace-bar .menu-back { border-bottom:1px solid #555; }
+#noble-workspace-bar #noble-cut-tools { right:auto; left:clamp(4px,anchor(left),calc(100vw - 320px)); }
+@media(max-width:1160px) {
+  #noble-workspace-bar .video-document { position:static; transform:none; max-width:none; flex:1; text-align:center; min-width:0; }
+}
+@media(max-width:660px) {
+  #noble-workspace-bar .video-document { display:none; }
+  .video-menus { flex:1; min-width:0; overflow-x:auto; scrollbar-width:none; }
+  #noble-workspace-bar .video-utilities .layout-select { min-width:0; }
 }
 .workspace-transport { background:var(--studio-panel); }
 .noble-video-workspace .workspace-popover h2,.photo-shell .workspace-popover h2 { font-size:15px; }
