@@ -114,25 +114,13 @@
 #cinematic .changes-range .changed { background:#94baff; }
 #cinematic .changes-details ol strong { font-weight:600; }
 
-.photo-shell .photo-document-picker { display:none; }
-.photo-shell:has(#photo-workbench:is(.photo-full-tools,.photo-canvas-only)) .photo-document-picker { display:block; }
-#photo-workbench [hidden],.photo-shell .photo-document-picker[hidden] { display:none !important; }
 .photo-shell[data-photo-theme=neutral] { --photo-paper:#303030; --photo-line:#494949; --photo-mat:#212121; --photo-active:#a2c5ff; }
 .photo-shell[data-photo-theme=neutral] .photo-empty { background:var(--photo-mat); }
 #photo-workbench .photo-starter { width:min(500px,100%); color:var(--photo-ink); border:1px solid var(--photo-line); border-radius:4px; background:var(--photo-paper); padding:26px; text-align:left; justify-items:start; gap:8px; }
 #photo-workbench .photo-starter h1 { font-size:26px; }
 .photo-open-icon { color:var(--photo-dim); font:29px "Segoe Fluent Icons","Segoe MDL2 Assets"; }
 #photo-workbench .photo-tabs button { border-radius:0; font-weight:600; }
-#photo-workbench .adjust-section summary { cursor:pointer; font-weight:620; font-size:15px; }
-#photo-workbench .adjust-section summary::marker { color:var(--photo-dim); }
 #photo-workbench .photo-pane form + form { margin-top:11px; padding-top:11px; }
-#photo-workbench .layer-list { gap:0; }
-#photo-workbench .layer-list li { border-radius:0; border:0; border-bottom:1px solid var(--photo-line); }
-.photo-shell[data-photo-theme=neutral] #photo-workbench .layer-list li { background:var(--photo-paper); }
-.photo-shell[data-photo-theme=neutral] #photo-workbench .layer-list li.selected { background:var(--studio-selected); }
-#photo-workbench .layer-opacity,#photo-workbench .photo-agent-actions { border-top:1px solid var(--photo-line); padding-top:10px; }
-#photo-workbench :is(.photo-agent,.photo-tools,.photo-more,.photo-ai-setup) button { border-radius:3px; }
-.photo-shell[data-photo-theme=neutral] #photo-workbench .photo-tools button[aria-pressed=true] { background:var(--studio-selected); color:#e4efff; border-color:#687b96; }
 @media(max-width:850px) {
   .desktop-nav .file-commands { margin-inline:0; }
   .desktop-nav .file-commands button { justify-content:center; padding:5px 2px; }

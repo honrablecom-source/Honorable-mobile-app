@@ -41,7 +41,7 @@ async function draft(brief, measurements, finish, signal) {
   return validatePhotoRecipe(plan);
 }
 
-function mountProof(viewer,panel,onVisibility) {
+function mountProof(panel,onVisibility) {
   const proof = document.createElement('section');
   proof.className = 'photo-proof';
   proof.setAttribute('aria-label','Photo adjustment proof');
@@ -53,7 +53,7 @@ function mountProof(viewer,panel,onVisibility) {
       <button type="button" data-proof-mode="split" aria-pressed="true">Split</button>
       <button type="button" data-proof-mode="preview" aria-pressed="false">Preview</button>
       <input type="range" min="6" max="94" value="50" aria-label="Comparison divider">
-      <button type="button" data-proof-close>Back to canvas</button>
+      <button type="button" data-proof-close>Hide comparison</button>
     </div>
     <div class="photo-proof-stage">
       <div class="photo-proof-frame">
@@ -64,7 +64,7 @@ function mountProof(viewer,panel,onVisibility) {
         <span class="photo-proof-label after" aria-hidden="true">Preview</span>
       </div>
     </div>`;
-  viewer.append(proof);
+  panel.querySelector('[data-agent-edits]').before(proof);
   const original = proof.querySelector('[data-proof-original]');
   const adjusted = proof.querySelector('[data-proof-adjusted]');
   const divider = proof.querySelector('input');
@@ -114,11 +114,11 @@ function mountProof(viewer,panel,onVisibility) {
   };
 }
 
-export function mountPhotoAgent(panel,{request,command,run,canvas,viewer}) {
+export function mountPhotoAgent(panel,{request,command,run,canvas}) {
   panel.innerHTML = `
     <header class="photo-agent-heading"><h2>Photo agent</h2><span data-agent-connection role="status"></span></header>
     <button type="button" data-agent-retry hidden>Check connection</button>
-    <form data-agent-form>
+    <details data-agent-request open><summary hidden>Edit request</summary><form data-agent-form>
       <label for="photo-agent-brief">Describe your edit</label>
       <textarea id="photo-agent-brief" rows="4" maxlength="1000" required placeholder="Brighten the photo and warm the colors."></textarea>
       <label class="photo-finish" for="photo-agent-finish">Finish
@@ -128,7 +128,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,viewer}) {
         <button type="submit" data-agent-plan>Plan edit</button>
         <button type="button" data-agent-cancel hidden>Cancel</button>
       </div>
-    </form>
+    </form></details>
     <p role="status" data-agent-status></p>
     <section data-agent-review hidden aria-label="Proposed adjustments">
       <h3>Adjustments</h3>
@@ -144,7 +144,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,viewer}) {
   const $ = name => panel.querySelector('[data-agent-' + name + ']');
   const text = panel.querySelector('textarea');
   const finish = panel.querySelector('select');
-  const proof = mountProof(viewer,panel,visible => { $('compare').hidden = visible; });
+  const proof = mountProof(panel,visible => { $('compare').hidden = visible; });
   const status = $('status');
   let connected = false;
   let checking;
@@ -196,6 +196,8 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,viewer}) {
   }
 
   function clearPlan() {
+    $('request').open = true;
+    $('request').querySelector('summary').hidden = true;
     proposed = undefined;
     clearTimeout(proofTimer);
     proofWanted = proofReady = proofSource = undefined;
@@ -208,7 +210,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,viewer}) {
   $('cancel').onclick = () => pending?.abort();
   $('compare').onclick = () => {
     proof.setVisible(true);
-    viewer.querySelector('[data-proof-mode][aria-pressed="true"]').focus();
+    panel.querySelector('[data-proof-mode][aria-pressed="true"]').focus();
   };
   function queueProof(immediate = false) {
     clearTimeout(proofTimer);
@@ -317,6 +319,8 @@ export function mountPhotoAgent(panel,{request,command,run,canvas,viewer}) {
         $('edits').append(item);
       }
       $('review').hidden = false;
+      $('request').querySelector('summary').hidden = false;
+      $('request').open = false;
       proof.setVisible(true);
       await queueProof(true);
       controller.signal.throwIfAborted();

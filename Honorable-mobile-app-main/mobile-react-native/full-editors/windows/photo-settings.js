@@ -25,8 +25,8 @@ export function mountPhotoSettings(bar, shell, onLayout) {
   settings.innerHTML = `
     <h2>Customize workspace</h2>
     <form>
-      <label>Inspector position <select name="dock"><option value="right">Right</option><option value="left">Left</option></select></label>
-      <label class="photo-settings-width"><span>Inspector width</span><output></output><input name="width" type="range" min="240" max="440" step="2" aria-label="Inspector width"></label>
+      <label>AI panel position <select name="dock"><option value="right">Right</option><option value="left">Left</option></select></label>
+      <label class="photo-settings-width"><span>AI panel width</span><output></output><input name="width" type="range" min="240" max="440" step="2" aria-label="AI panel width"></label>
       <label>Control size <select name="density"><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="large">Large</option></select></label>
       <label>Theme <select name="theme"><option value="warm">Warm dark</option><option value="neutral">Neutral dark</option></select></label>
       <label class="photo-settings-canvas"><input name="canvasOnly" type="checkbox"> Canvas only</label>
@@ -84,4 +84,7 @@ export function mountPhotoSettings(bar, shell, onLayout) {
   }).catch(() => {
     settings.querySelector('.photo-settings-status').textContent = 'Could not read the saved workspace settings.';
   });
+  return {showPanels() {
+    if (fields.namedItem('canvasOnly').checked) fields.namedItem('canvasOnly').click();
+  }};
 }
