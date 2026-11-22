@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Threading;
 using System.Windows.Forms;
 
 static class Installer
@@ -25,40 +26,26 @@ static class Installer
                 return 0;
             }
 
-            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string root = Path.Combine(local, "Noble Studio");
-            string destination = Path.Combine(root, PackageIdentity.Folder);
-            string executable = Path.Combine(destination, "NobleStudio.exe");
-            if (!quiet && MessageBox.Show("Install and open Noble Studio for your Windows account?", "Noble Studio Setup",
-                MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
-                return 0;
-
-            if (!quiet && AnotherVersionIsRunning(root, executable) &&
-                MessageBox.Show("Close the open Noble Studio window, then select OK to continue.",
-                    "Noble Studio Setup", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK)
-                return 0;
-            if (!quiet && AnotherVersionIsRunning(root, executable))
-                throw new InvalidOperationException("Noble Studio is still open. Close it and run Setup again.");
-
-            Directory.CreateDirectory(root);
-            if (!File.Exists(executable))
-                Install(root, destination);
-            CreateShortcut(executable, destination);
-            if (!quiet || unattendedLaunch)
+            using (var setup = new Mutex(false, @"Local\Honorable.NobleStudio.Setup"))
             {
-                var startup = new ProcessStartInfo
+                try
                 {
-                    FileName = executable,
-                    WorkingDirectory = destination,
-                    UseShellExecute = false
-                };
-                using (var launched = Process.Start(startup))
+                    if (!setup.WaitOne(0))
+                        return quiet ? 1 : 0;
+                }
+                catch (AbandonedMutexException)
                 {
-                    if (launched == null)
-                        throw new InvalidOperationException("Noble Studio was installed but could not be opened.");
+                    // This invocation now owns the lock.
+                }
+                try
+                {
+                    return RunSetup(quiet, unattendedLaunch);
+                }
+                finally
+                {
+                    setup.ReleaseMutex();
                 }
             }
-            return 0;
         }
         catch (Exception error)
         {
@@ -66,6 +53,49 @@ static class Installer
                 MessageBox.Show(error.Message, "Noble Studio Setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
+    }
+
+    static int RunSetup(bool quiet, bool unattendedLaunch)
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string root = Path.Combine(local, "Noble Studio");
+        string destination = Path.Combine(root, PackageIdentity.Folder);
+        string executable = Path.Combine(destination, "NobleStudio.exe");
+        if (!quiet && MessageBox.Show("Install Noble Studio for your Windows account?", "Noble Studio Setup",
+            MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.OK)
+            return 0;
+
+        if (!quiet && StudioIsRunning(root, executable, anotherVersion: true))
+        {
+            if (MessageBox.Show("Close the open Noble Studio window, then select OK to continue.",
+                "Noble Studio Setup", MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) != DialogResult.OK)
+                return 0;
+            if (StudioIsRunning(root, executable, anotherVersion: true))
+                throw new InvalidOperationException("Noble Studio is still open. Close it and run Setup again.");
+        }
+
+        Directory.CreateDirectory(root);
+        if (!File.Exists(executable))
+            Install(root, destination);
+        CreateShortcut(executable, destination);
+        if ((quiet && !unattendedLaunch) || StudioIsRunning(root, executable, anotherVersion: false))
+            return 0;
+        if (!unattendedLaunch && MessageBox.Show("Noble Studio is installed. Open it now?", "Noble Studio Setup",
+            MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) != DialogResult.OK)
+            return 0;
+
+        var startup = new ProcessStartInfo
+        {
+            FileName = executable,
+            WorkingDirectory = destination,
+            UseShellExecute = false
+        };
+        using (var launched = Process.Start(startup))
+        {
+            if (launched == null)
+                throw new InvalidOperationException("Noble Studio was installed but could not be opened.");
+        }
+        return 0;
     }
 
     static ZipArchive OpenPayload()
@@ -95,7 +125,7 @@ static class Installer
         }
     }
 
-    static bool AnotherVersionIsRunning(string root, string executable)
+    static bool StudioIsRunning(string root, string executable, bool anotherVersion)
     {
         string prefix = root + Path.DirectorySeparatorChar;
         foreach (var process in Process.GetProcessesByName("NobleStudio"))
@@ -107,7 +137,7 @@ static class Installer
                 catch (System.ComponentModel.Win32Exception) { continue; }
                 catch (InvalidOperationException) { continue; }
                 if (location.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
-                    !location.Equals(executable, StringComparison.OrdinalIgnoreCase))
+                    location.Equals(executable, StringComparison.OrdinalIgnoreCase) != anotherVersion)
                     return true;
             }
         }

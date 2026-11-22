@@ -16,6 +16,8 @@ const preload = path.join(__dirname, 'navigation.cjs');
 const icon = path.join(__dirname, '..', '..', 'Noble.ico');
 const workspaces = new Map();
 let studio, window, activeView;
+let closing = false;
+let choosingFile = false;
 app.setAppUserModelId('Honorable.NobleStudio');
 nativeTheme.themeSource = 'dark';
 
@@ -62,7 +64,7 @@ function launchStudio() {
       } catch (error) {
         reply.error = error.message;
       }
-      studio.postMessage(reply);
+      if (!closing) studio.postMessage(reply);
     });
     studio.once('exit', () => {
       clearTimeout(timeout);
@@ -72,7 +74,7 @@ function launchStudio() {
 }
 
 function fitWorkspace() {
-  if (!activeView) return;
+  if (!activeView || !windowAvailable()) return;
   const [width, height] = window.getContentSize();
   activeView.setBounds({x:0, y:0, width, height});
 }
@@ -91,7 +93,7 @@ function detachWorkspace() {
 }
 
 function routeWorkspace(target, fromEditor) {
-  if (target.origin !== origin) return false;
+  if (!windowAvailable() || target.origin !== origin) return false;
   if (fromEditor && target.pathname === '/desktop/home.html') {
     showHome();
     return true;
@@ -118,7 +120,7 @@ function protectNavigation(contents, kind) {
 }
 
 ipcMain.on('noble:workspace', (event, href) => {
-  if (!window || window.isDestroyed() || typeof href !== 'string' || href.length >= 256) return;
+  if (!windowAvailable() || typeof href !== 'string' || href.length >= 256) return;
   const isEditor = activeView?.webContents === event.sender;
   const isHome = !activeView && event.sender === window.webContents;
   if (!isHome && !isEditor) return;
@@ -186,18 +188,32 @@ ipcMain.handle('noble:photo-preferences', (event, value) => {
 });
 
 function reportWorkspaceError(error) {
+  if (!windowAvailable()) return;
   if (smoke) return fail(error);
   dialog.showErrorBox('Noble Studio', 'Could not open the workspace. Try opening it again.\n\n' + error.message);
 }
 
-async function openVideoProjectFromHome() {
-  const selection = await dialog.showOpenDialog(window, {
+function windowAvailable() {
+  return !closing && window && !window.isDestroyed();
+}
+
+async function pickFile(options, onFile) {
+  if (!windowAvailable() || choosingFile) return;
+  choosingFile = true;
+  try {
+    const {canceled,filePaths} = await dialog.showOpenDialog(window,options);
+    if (!canceled && filePaths[0] && windowAvailable()) await onFile(filePaths[0]);
+  } finally {
+    choosingFile = false;
+  }
+}
+
+function openVideoProjectFromHome() {
+  return pickFile({
     title:'Open a Noble video project',
     properties:['openFile'],
     filters:[{name:'Noble video project',extensions:['fcproj']}],
-  });
-  if (selection.canceled || !selection.filePaths[0]) return;
-  await openLocalVideoProject(selection.filePaths[0]);
+  },openLocalVideoProject);
 }
 
 async function openLocalVideoProject(file) {
@@ -218,6 +234,7 @@ async function openLocalVideoProject(file) {
   `);
 }
 async function showStudio(kind, url = origin + '/' + kind + '/?empty&webgl') {
+  if (!windowAvailable()) throw Error('Noble Studio is closing.');
   let view = workspaces.get(kind);
   const fresh = !view;
   if (fresh) {
@@ -226,7 +243,7 @@ async function showStudio(kind, url = origin + '/' + kind + '/?empty&webgl') {
     workspaces.set(kind, view);
     protectNavigation(view.webContents, kind);
     view.webContents.on('render-process-gone', (_event, details) => {
-      if (details.reason === 'clean-exit' || window.isDestroyed()) return;
+      if (details.reason === 'clean-exit' || !windowAvailable()) return;
       if (activeView === view) showHome();
       workspaces.delete(kind);
       if (!view.webContents.isDestroyed()) view.webContents.close();
@@ -242,7 +259,7 @@ async function showStudio(kind, url = origin + '/' + kind + '/?empty&webgl') {
   window.setTitle(kind === 'video' ? 'Noble Studio — Video' : 'Noble Studio — Image');
   try {
     if (fresh) await view.webContents.loadURL(url);
-    if (activeView === view) {
+    if (windowAvailable() && activeView === view) {
       view.webContents.setAudioMuted(false);
       view.webContents.focus();
       const entry = new URL(url).searchParams.get('entry');
@@ -251,36 +268,37 @@ async function showStudio(kind, url = origin + '/' + kind + '/?empty&webgl') {
       }
     }
   } catch (error) {
-    if (activeView === view) showHome();
+    if (windowAvailable() && activeView === view) showHome();
     workspaces.delete(kind);
-    view.webContents.close();
+    if (!view.webContents.isDestroyed()) view.webContents.close();
     throw error;
   }
   return view.webContents;
 }
-async function copyExportForSharing() {
-  const {canceled, filePaths} = await dialog.showOpenDialog(window, {
+function copyExportForSharing() {
+  return pickFile({
     title: 'Choose an exported file to share',
     properties: ['openFile'],
     filters: [{name:'Exported media', extensions:['mp4','webm','png','jpg','jpeg','webp','gif','wav']}],
-  });
-  if (canceled) return;
-  const powershell = path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-  await promisify(execFile)(powershell, [
-    '-NoProfile', '-NonInteractive', '-STA', '-Command',
-    '$ErrorActionPreference = "Stop"; Set-Clipboard -LiteralPath $env:NOBLE_SHARE_SOURCE',
-  ], {
-    windowsHide:true,
-    timeout:10000,
-    env:{...process.env, NOBLE_SHARE_SOURCE:filePaths[0]},
-  });
-  await dialog.showMessageBox(window, {
-    type:'info',
-    title:'File copied',
-    message:'Paste the file into the app or folder where you want to share it.',
+  },async file=>{
+    const powershell = path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    await promisify(execFile)(powershell, [
+      '-NoProfile', '-NonInteractive', '-STA', '-Command',
+      '$ErrorActionPreference = "Stop"; Set-Clipboard -LiteralPath $env:NOBLE_SHARE_SOURCE',
+    ], {
+      windowsHide:true,
+      timeout:10000,
+      env:{...process.env, NOBLE_SHARE_SOURCE:file},
+    });
+    if (windowAvailable()) await dialog.showMessageBox(window, {
+      type:'info',
+      title:'File copied',
+      message:'Paste the file into the app or folder where you want to share it.',
+    });
   });
 }
 function showHome() {
+  if (!windowAvailable()) return;
   detachWorkspace();
   window.setTitle('Noble Studio');
   window.webContents.focus();
@@ -509,6 +527,7 @@ async function runSmokeTest() {
 }
 
 function fail(error) {
+  if (closing) return;
   if (smoke) writeFileSync(smoke, JSON.stringify({error:error.message}));
   else dialog.showErrorBox('Noble Studio', error.message);
   app.exit(1);
@@ -518,15 +537,19 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (!window || window.isDestroyed()) return;
+    if (!windowAvailable() || choosingFile || (!window.isVisible() && !window.isMinimized())) return;
     if (window.isMinimized()) window.restore();
     window.show();
     window.focus();
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', () => studio?.kill());
+  app.on('before-quit', () => {
+    closing = true;
+    studio?.kill();
+  });
   app.whenReady().then(async () => {
     await launchStudio();
+    if (closing) return;
     const local = session.defaultSession;
     local.setPermissionRequestHandler((_contents, _permission, done) => done(false));
     local.setPermissionCheckHandler(() => false);
@@ -553,11 +576,13 @@ if (!app.requestSingleInstanceLock()) {
       webPreferences:{preload, sandbox:true, contextIsolation:true, nodeIntegration:false},
     });
     window.on('resize', fitWorkspace);
+    window.on('close', () => { closing = true; });
     window.on('closed', () => {
       for (const view of workspaces.values()) {
         if (!view.webContents.isDestroyed()) view.webContents.close();
       }
       workspaces.clear();
+      activeView = undefined;
     });
     window.webContents.on('page-title-updated', event => event.preventDefault());
     protectNavigation(window.webContents);
@@ -569,7 +594,9 @@ if (!app.requestSingleInstanceLock()) {
         {type:'separator'}, {role:'quit'},
       ]},
       {label:'Share', submenu:[{label:'Copy exported file', click:() => {
-        copyExportForSharing().catch(() => dialog.showErrorBox('Noble Studio', 'The file could not be copied to the Windows clipboard.'));
+        copyExportForSharing().catch(() => {
+          if (windowAvailable()) dialog.showErrorBox('Noble Studio', 'The file could not be copied to the Windows clipboard.');
+        });
       }}]},
       {role:'editMenu'},
       {label:'Help', submenu:[{label:'Editing agent setup', click:() => dialog.showMessageBox(window, {
@@ -578,6 +605,7 @@ if (!app.requestSingleInstanceLock()) {
       })}]},
     ]));
     await window.loadURL(origin + '/desktop/home.html');
+    if (!windowAvailable()) return;
     if (smoke && process.env.NOBLE_SMOKE_SHOW !== '1') {
       window.setOpacity(0);
       window.setSkipTaskbar(true);
