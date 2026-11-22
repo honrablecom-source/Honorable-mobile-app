@@ -41,11 +41,7 @@ internal sealed partial class NobleStudio
         bool photo = kind == "image";
         try
         {
-            using (var dialog = new OpenFileDialog {
-                Title = photo ? "Open photos in Noble" : "Open a Noble video project",
-                Filter = photo ? "Photos and projects|*.pcraft;*.psd;*.psb;*.ora;*.png;*.jpg;*.jpeg;*.webp;*.tif;*.tiff;*.bmp;*.gif;*.heic;*.heif|All files|*.*" : "Noble video project|*.fcproj",
-                Multiselect = photo, CheckFileExists = true, RestoreDirectory = true
-            })
+            using (var dialog = CreateOpenDialog(photo))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 if (dialog.FileNames.Length > 12) throw new InvalidOperationException("Choose up to 12 photos per import.");
@@ -75,6 +71,15 @@ internal sealed partial class NobleStudio
             }
         }
         finally { pickerOpen = false; }
+    }
+
+    private static OpenFileDialog CreateOpenDialog(bool photo)
+    {
+        return new OpenFileDialog {
+            Title = photo ? "Open photos in Noble" : "Open a Noble video project",
+            Filter = photo ? "Photos and projects|*.pcraft;*.psd;*.psb;*.ora;*.png;*.jpg;*.jpeg;*.webp;*.tif;*.tiff;*.bmp;*.gif;*.heic;*.heif|All files|*.*" : "Noble video project|*.fcproj",
+            Multiselect = photo, CheckFileExists = true, RestoreDirectory = true
+        };
     }
 
     private string PrepareUpload(WebView2 view,string workspace,object data)

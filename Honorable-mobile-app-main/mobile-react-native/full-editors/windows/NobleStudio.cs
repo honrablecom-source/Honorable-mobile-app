@@ -293,7 +293,12 @@ internal sealed partial class NobleStudio : Form
             {
                 if (path == "/desktop/copy-export") CopyExportedFile();
                 else if (path == "/desktop/native/image" || path == "/desktop/native/video")
-                    await ShowEditor(path.Substring("/desktop/native/".Length));
+                {
+                    string kind = path.Substring("/desktop/native/".Length);
+                    if (kind == "image" && System.Web.HttpUtility.ParseQueryString(uri.Query).Get("entry") == "open")
+                        await OpenNativePhotoPicker();
+                    else await ShowEditor(kind);
+                }
                 else if (path == "/image/" || path == "/video/")
                 {
                     string kind = path.Trim('/');
@@ -302,7 +307,7 @@ internal sealed partial class NobleStudio : Form
                 }
             }
         }
-        catch (Exception error) { ShowError(error.Message); }
+        catch (Exception error) { if (!closingEditors) ShowError(error.Message); }
     }
 
     private async Task FromRenderer(WebView2 view,string kind,string text)
@@ -421,6 +426,7 @@ internal sealed partial class NobleStudio : Form
     private sealed class HostedEditor
     {
         public Process Process;
+        public NativePhotoControl PhotoControl;
         public TaskCompletionSource<bool> Ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
@@ -439,26 +445,48 @@ internal sealed partial class NobleStudio : Form
         HideEditor();
         nativeEditor = kind;
         Send(views["home"],"desktop-editor",kind);
-        Text = "Noble Studio — Full " + (kind == "image" ? "photo" : "video") + " tools";
+        Text = "Noble Studio — " + (kind == "image" ? "Image Studio" : "Full video tools");
         HostedEditor editor;
         if (!editors.TryGetValue(kind,out editor))
         {
             editor = new HostedEditor();
             string data = Path.Combine(settingsProfile,"desktop-editor-" + kind);
-            string args = Handle.ToInt64().ToString("x") + " 54 " + Quote(binary) +
-                (kind == "image" ? " --new-instance --in-window-menus" : " --empty --data-dir " + Quote(data));
+            string args = Handle.ToInt64().ToString("x") + " 54 " + Quote(binary);
+            if (kind == "image")
+            {
+                editor.PhotoControl = new NativePhotoControl(profile);
+                args += " --new-instance --in-window-menus --control 0" +
+                    " --automation-read-root " + Quote(editor.PhotoControl.ReadRoot) +
+                    " --automation-write-root " + Quote(editor.PhotoControl.WriteRoot);
+            }
+            else args += " --empty --data-dir " + Quote(data);
             var info = HiddenProcess(host,args);
-            if (kind == "image") info.EnvironmentVariables["PHOTOCRAFT_CONFIG_DIR"] = data;
-            editor.Process = Process.Start(info);
+            if (editor.PhotoControl != null)
+            {
+                info.EnvironmentVariables["PHOTOCRAFT_CONFIG_DIR"] = data;
+                info.EnvironmentVariables.Remove("PHOTOCRAFT_CONTROL_TOKEN_FILE");
+                info.EnvironmentVariables["PHOTOCRAFT_CONTROL_TOKEN"] = editor.PhotoControl.Token;
+            }
+            try { editor.Process = Process.Start(info); }
+            catch
+            {
+                if (editor.PhotoControl != null) editor.PhotoControl.Stop();
+                throw;
+            }
             editors.Add(kind,editor);
             string error = null;
             var launched = editor;
             editor.Process.ErrorDataReceived += (_,e) => { if (!string.IsNullOrWhiteSpace(e.Data)) error = e.Data; };
-            editor.Process.OutputDataReceived += (_,e) => { if (e.Data == "ready") launched.Ready.TrySetResult(true); };
+            editor.Process.OutputDataReceived += (_,e) =>
+            {
+                if (e.Data == "ready") launched.Ready.TrySetResult(true);
+                else if (launched.PhotoControl != null) launched.PhotoControl.AcceptPort(e.Data);
+            };
             editor.Process.EnableRaisingEvents = true;
             editor.Process.Exited += delegate
             {
                 launched.Ready.TrySetException(new InvalidOperationException(error ?? "The full desktop editor stopped."));
+                if (launched.PhotoControl != null) launched.PhotoControl.Stop();
                 OnUi(() =>
                 {
                     editors.Remove(kind);
@@ -478,6 +506,32 @@ internal sealed partial class NobleStudio : Form
         }
         await editor.Ready.Task;
         if (!closed && nativeEditor == kind) EditorCommand(editor,"show");
+    }
+
+    private async Task OpenNativePhotoPicker()
+    {
+        if (pickerOpen) return;
+        pickerOpen = true;
+        try
+        {
+            string[] files;
+            using (var dialog = CreateOpenDialog(true))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                files = dialog.FileNames;
+            }
+            if (files.Length > 12) throw new InvalidOperationException("Choose up to 12 photos per import.");
+            Send(views["home"],"native-photo-loading",true);
+            if (nativeEditor != "image") await ShowEditor("image");
+            HostedEditor editor;
+            if (nativeEditor == "image" && editors.TryGetValue("image",out editor))
+                await editor.PhotoControl.OpenFiles(files);
+        }
+        finally
+        {
+            pickerOpen = false;
+            Send(views["home"],"native-photo-loading",false);
+        }
     }
 
     private void HideEditor()

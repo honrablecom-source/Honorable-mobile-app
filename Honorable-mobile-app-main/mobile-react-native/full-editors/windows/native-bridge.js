@@ -6,7 +6,7 @@
   let importPhoto;
   let importQueue = Promise.resolve();
   const pendingPhotos = [];
-  let onDelivery, onEditor;
+  let onDelivery, onEditor, onNativePhotoLoading;
   const send = message => socket.postMessage(message);
   const invoke = (action, data) => new Promise((resolve,reject) => {
     const id = ++nextId;
@@ -91,6 +91,7 @@
       await openProject(data);
     } else if (event === 'delivery') onDelivery?.(data);
     else if (event === 'desktop-editor') onEditor?.(data);
+    else if (event === 'native-photo-loading') onNativePhotoLoading?.(data);
     else if (event === 'stop') {
       await window.filmcraft?.request('ui.playback',{action:'stop'});
     } else if (event === 'entry') {
@@ -115,6 +116,7 @@
       for (const entry of pendingPhotos.splice(0)) queuePhoto(entry);
     },
     onDesktopEditor: callback => { onEditor = callback; },
+    onNativePhotoLoading: callback => { onNativePhotoLoading = callback; },
     decodePhonePhoto: (name,bytes) => upload('decode',name,bytes),
     saveVideoExport: (name,bytes) => upload('video',name,bytes),
     saveVideoProject: (name,bytes) => upload('project',name,bytes),

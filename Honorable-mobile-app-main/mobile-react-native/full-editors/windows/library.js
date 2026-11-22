@@ -203,11 +203,17 @@ if (window.nobleNavigation) {
     });
   }
   const editorChrome = document.querySelector('.desktop-editor-chrome');
+  const photoOpen = editorChrome.querySelector('[data-desktop-photo-open]');
+  window.nobleNavigation.onNativePhotoLoading?.(loading=>{
+    photoOpen.textContent = loading ? 'Opening photos…' : 'Open photos';
+    photoOpen.setAttribute('aria-busy',String(loading));
+  });
   window.nobleNavigation.onDesktopEditor?.(kind=>{
     document.body.classList.toggle('desktop-editing',Boolean(kind));
     editorChrome.hidden = !kind;
     if (!kind) return;
     editorChrome.querySelector('[data-desktop-title]').textContent = kind === 'image' ? 'Image Studio' : 'Video Studio';
+    photoOpen.hidden = kind !== 'image';
     editorChrome.querySelector('[data-desktop-ai]').href = '/'+kind+'/?empty&webgl';
   });
 }

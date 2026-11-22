@@ -53,7 +53,7 @@ $references = @('System.Windows.Forms.dll','System.Drawing.dll','System.Web.dll'
 $referenceOptions = $references | ForEach-Object { "/reference:$_" }
 & $compiler /nologo /target:winexe /platform:x64 "/out:$(Join-Path $Stage 'NobleStudio.exe')" @referenceOptions `
     "/win32icon:$(Join-Path $PSScriptRoot 'noble.ico')" "/win32manifest:$(Join-Path $PSScriptRoot 'NobleStudio.manifest')" `
-    (Join-Path $PSScriptRoot 'NobleStudio.cs') (Join-Path $PSScriptRoot 'NativeTransfers.cs')
+    (Join-Path $PSScriptRoot 'NobleStudio.cs') (Join-Path $PSScriptRoot 'NativeTransfers.cs') (Join-Path $PSScriptRoot 'NativePhotoControl.cs')
 if ($LASTEXITCODE) { throw 'Could not compile Noble Studio.' }
 
 $appDirectory = Join-Path $Stage 'resources/app'

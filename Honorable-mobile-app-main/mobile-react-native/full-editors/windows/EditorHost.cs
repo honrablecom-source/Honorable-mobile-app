@@ -55,6 +55,8 @@ internal static class EditorHost
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             };
+            bool photoControl = !string.IsNullOrEmpty(startup.EnvironmentVariables["PHOTOCRAFT_CONTROL_TOKEN"]);
+            startup.RedirectStandardError = photoControl;
             var arguments = new StringBuilder();
             for (int i = 3; i < args.Length; i++)
             {
@@ -64,6 +66,18 @@ internal static class EditorHost
             startup.Arguments = arguments.ToString();
             editor = Process.Start(startup);
             if (editor == null) throw new InvalidOperationException("The editor could not start.");
+            if (photoControl)
+            {
+                editor.ErrorDataReceived += (_, line) =>
+                {
+                    const string prefix = "photocraft: control server listening on 127.0.0.1:";
+                    int port;
+                    if (line.Data != null && line.Data.StartsWith(prefix, StringComparison.Ordinal) &&
+                        int.TryParse(line.Data.Substring(prefix.Length), out port) && port > 0 && port <= 65535)
+                        Console.WriteLine("photo-control:" + port);
+                };
+                editor.BeginErrorReadLine();
+            }
 
             var deadline = Stopwatch.StartNew();
             while (!editor.HasExited && IsWindow(parent) && deadline.ElapsedMilliseconds < 18000)
