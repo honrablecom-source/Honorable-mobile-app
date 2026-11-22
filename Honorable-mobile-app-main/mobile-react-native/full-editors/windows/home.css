@@ -272,9 +272,13 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 @media(max-width:880px){.demo-feature,.compact-covers .demo-feature{grid-template-columns:1fr}.demo-preview img{flex:none;height:150px}.demo-caption{gap:8px}.creation-row{gap:8px}.creation-row article{gap:9px}}
 @media(max-width:620px){.creation-row{grid-template-columns:1fr}}
 
-.desktop-layout { grid-template-rows:auto 1fr; align-items:start; background:#202020; font:400 15px/1.45 "Segoe UI Variable Text","Segoe UI",sans-serif; }
-.home-bar { grid-column:1/-1; background:#303030; border-bottom:1px solid #414141; padding:11px 18px; }
-.home-bar .brand { margin:0; font-size:17px; font-weight:650; }
+.desktop-layout { grid-template-rows:auto 1fr; align-items:start; background:#202020; font:500 16px/1.45 "Segoe UI Variable Text","Segoe UI",sans-serif; }
+.home-bar { grid-column:1/-1; display:flex; align-items:center; gap:clamp(16px,3vw,42px); padding:8px 18px; background:#262626; border-bottom:1px solid #414141; }
+.editor-launchers { display:flex; align-items:center; gap:5px; padding-left:14px; border-left:1px solid #555; }
+.editor-launchers a { display:inline-flex; align-items:center; min-height:36px; padding:0 10px; border-radius:4px; font-weight:650; color:#eee; }
+.editor-launchers a:hover { background:#393939; }
+@media(max-width:520px){.home-bar{flex-wrap:wrap;gap:5px}.editor-launchers{padding-left:5px}.editor-launchers a{padding-inline:6px}}
+.home-bar .brand { margin:0; font-size:19px; font-weight:750; }
 .desktop-nav { height:calc(100vh - 51px); background:#1e1e1e; top:0; padding-top:18px; }
 .file-commands { display:grid; gap:6px; margin:0 6px 20px; }
 .file-commands button,.file-menu a,.recent-heading button,.starter-heading button { font:inherit; border:0; cursor:pointer; }
@@ -285,7 +289,7 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 .file-menu { inset:92px auto auto 26px; margin:0; padding:5px; border:1px solid #626262; border-radius:6px; background:#303030; color:white; }
 .file-menu a { display:block; padding:8px 12px; }
 .starter-heading,.recent-heading,.recent-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.starter-heading h1 { font-size:clamp(22px,1.7vw,27px); font-weight:600; letter-spacing:-.025em; }
+.starter-heading h1 { font-size:clamp(26px,2vw,32px); font-weight:725; letter-spacing:-.025em; }
 .starter-heading button,.recent-heading button { background:transparent; color:#ddd; padding:6px 9px; border-radius:4px; font-size:14px; }
 .recent-heading button[aria-pressed=true]{ background:#404040; color:white; }
 .starter-cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0 0; }
@@ -295,12 +299,12 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 .compact-covers .starter-cards img { height:84px; }
 .starter-cards :is(small,strong,p) { display:block; margin:0; padding:0 12px; }
 .starter-cards small { color:#c2c2c2; margin-top:10px; font-size:12px; }
-.starter-cards strong { font-size:16px; font-weight:600; line-height:1.35; margin:3px 0; }
-.starter-cards p { font-size:14px; line-height:1.45; padding-bottom:14px; }
+.starter-cards strong { font-size:clamp(18px,1.4vw,21px); font-weight:700; line-height:1.25; margin:13px 0 5px; }
+.starter-cards p { font-size:15px; font-weight:500; line-height:1.45; padding-bottom:14px; }
 .import-card { display:grid; grid-template-rows:1fr auto; padding:12px; text-align:center; }
 .import-card a:first-child { display:grid; place-content:center; border:1px dashed #888; border-radius:4px; font-weight:650; }
 .import-card span { font:300 38px/1.2 system-ui; }
-.import-card a+a { padding-top:10px; font-size:14px; }
+.import-card a+a { padding-top:10px; font-size:15px; font-weight:600; }
 .recents { margin-top:26px; border-top:1px solid #404040; padding-top:18px; }
 .recent-controls { margin:12px 0; }
 .recent-controls select { max-width:46%; background:#282828; color:white; border:1px solid #555; border-radius:4px; padding:6px; }
@@ -313,3 +317,7 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 #recent-files.list button { grid-template-columns:46px 1fr; align-items:center; }
 #recent-files.list :is(img,.file-type) { height:36px; }
 @media(max-width:950px){.starter-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.starter-cards img{height:95px}.recent-controls input{max-width:50%}}
+
+.desktop-nav .places a,.file-commands button,.recent-heading button,.starter-heading button,.extra-tools summary { font-weight:650; }
+.recent-heading h2 { font-size:22px; font-weight:700; }
+.recent-controls :is(select,input) { font:500 15px/1.4 "Segoe UI",sans-serif; }

@@ -9,7 +9,9 @@
 </head>
 <body>
   <div class="desktop-layout">
-    <header class="home-bar"><a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a></header>
+    <header class="home-bar"><a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a>
+      <nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" href="/desktop/native/image">Image Studio</a><a aria-label="Open Video Studio" href="/desktop/native/video">Video Studio</a></nav>
+    </header>
     <aside class="desktop-nav">
       <div class="file-commands">
         <button type="button" popovertarget="new-menu">＋ New project</button>
@@ -29,19 +31,19 @@
     </aside>
     <main>
       <section id="studio" aria-labelledby="projects-heading">
-        <div class="starter-heading"><h1 id="projects-heading">Start creating</h1><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
+        <div class="starter-heading"><h1 id="projects-heading">Projects</h1><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
         <div id="starter-cards" class="starter-cards">
           <article class="import-card"><a href="/desktop/native/image?entry=open" aria-label="Open photos"><span aria-hidden="true">＋</span>Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></article>
-          <article><a href="/video/?empty&amp;webgl&amp;entry=demo" aria-label="Open demo timeline"><img src="/desktop/light-study/contact-sheet.jpg" alt=""><small>Demo timeline</small><strong>Light Study</strong><p>Explore two cuts of a 20-second film.</p></a></article>
-          <article><a href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><small>Image Studio</small><strong>New photo project</strong><p>Start with a blank, layered canvas.</p></a></article>
-          <article><a href="/video/?empty&amp;webgl&amp;entry=new" aria-label="New video project"><img src="/desktop/video-studio-tiger.jpg" alt=""><small>Video Studio</small><strong>New video project</strong><p>Build a timeline from your footage.</p></a></article>
+          <article><a href="/video/?empty&amp;webgl&amp;entry=demo" aria-label="Open demo timeline"><img src="/desktop/light-study/contact-sheet.jpg" alt=""><strong>Light Study</strong><p>Demo timeline · 20 seconds</p></a></article>
+          <article><a href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><strong>New photo project</strong><p>1920 × 1080 canvas</p></a></article>
+          <article><a href="/video/?empty&amp;webgl&amp;entry=new" aria-label="New video project"><img src="/desktop/video-studio-tiger.jpg" alt=""><strong>New video project</strong><p>Empty timeline</p></a></article>
         </div>
         <section class="recents" aria-labelledby="recent-title">
           <div class="recent-heading"><h2 id="recent-title">Recent files</h2><div role="group" aria-label="Recent file layout"><button type="button" data-layout="grid" aria-pressed="true">Grid</button><button type="button" data-layout="list" aria-pressed="false">List</button></div></div>
           <div class="recent-controls"><select aria-label="Sort recent files" id="recent-sort"><option value="date">Last opened</option><option value="name">Name A–Z</option></select><input type="search" id="recent-filter" placeholder="Filter recent files" aria-label="Filter recent files"></div>
           <p id="recent-status" role="status"></p><div id="recent-files"></div>
         </section>
-        <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/desktop/native/image">Open Image Studio</a><a href="/desktop/native/video">Open Video Studio</a><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
+        <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
       </section>
       <section id="history" hidden aria-labelledby="history-heading">
         <header class="projects-head"><h1 id="history-heading">History</h1></header>
