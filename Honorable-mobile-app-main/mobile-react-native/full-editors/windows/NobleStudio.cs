@@ -346,7 +346,7 @@ internal sealed partial class NobleStudio : Form
             switch (action)
             {
                 case "list-recent":
-                    if (kind=="home") Send(view,"reply",RecentFiles().ConvertAll(x=>new {id=x.Id,name=Path.GetFileName(x.Path),thumbnail=x.Thumbnail}),id);
+                    if (kind=="home") Send(view,"reply",RecentFiles().ConvertAll(x=>new {id=x.Id,name=Path.GetFileName(x.Path),thumbnail=x.Thumbnail,opened=x.OpenedUtc}),id);
                     return;
                 case "open-recent":
                     if (kind!="home" || view!=active || nativeEditor!=null) throw new InvalidOperationException("Return to Projects first.");
@@ -624,6 +624,7 @@ internal sealed partial class NobleStudio : Form
         public string Id { get; set; }
         public string Path { get; set; }
         public string Thumbnail { get; set; }
+        public string OpenedUtc { get; set; }
     }
     private List<RecentFile> recentFiles;
     private List<RecentFile> RecentFiles()
@@ -658,6 +659,7 @@ internal sealed partial class NobleStudio : Form
                     }
                 }
         } catch (ArgumentException) {} catch (IOException) {} catch (OutOfMemoryException) {} catch (ExternalException) {} catch (UnauthorizedAccessException) {}
+        item.OpenedUtc = DateTime.UtcNow.ToString("o");
         files.Insert(0,item);
         if (files.Count>16) files.RemoveAt(16);
         try {

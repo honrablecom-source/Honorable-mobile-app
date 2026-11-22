@@ -9,20 +9,22 @@
 </head>
 <body>
   <div class="desktop-layout">
-    <header class="home-bar"><a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a>
+    <header class="home-bar"><h1 id="page-title">Projects</h1>
       <div class="file-commands">
         <button type="button" popovertarget="new-menu">＋ New project</button>
         <button type="button" popovertarget="open-menu">Open…</button>
         <div id="new-menu" class="file-menu" popover><a href="/desktop/native/image?entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
         <div id="open-menu" class="file-menu" popover><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
       </div>
-      <nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" href="/desktop/native/image">Image Studio</a><a aria-label="Open Video Studio" href="/desktop/native/video">Video Studio</a></nav>
+
     </header>
     <aside class="desktop-nav">
+      <a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a>
       <nav class="places" aria-label="Navigation">
         <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
         <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
       </nav>
+      <div class="studio-links"><h2>Studios</h2><nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" href="/desktop/native/image">Image Studio</a><a aria-label="Open Video Studio" href="/desktop/native/video">Video Studio</a></nav></div>
       <nav class="rail-tools places" aria-label="Workspace preferences">
         <a href="#history"><span class="nav-icon" aria-hidden="true">◷</span>History</a>
         <a href="#settings"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</a>
@@ -31,31 +33,42 @@
     </aside>
     <main>
       <section id="studio" aria-labelledby="projects-heading">
-        <div class="starter-heading"><h1 id="projects-heading">Projects</h1><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
+        <div class="starter-heading"><h2 id="projects-heading">Project starters</h2><button type="button" id="toggle-starters" aria-expanded="true" aria-controls="starter-cards">Hide starters</button></div>
         <div id="starter-cards" class="starter-cards">
           <article><a href="/video/?empty&amp;webgl&amp;entry=demo" aria-label="Open demo timeline"><img src="/desktop/light-study/contact-sheet.jpg" alt=""><strong>Light Study</strong><p>Demo timeline · 20 seconds</p></a></article>
           <article><a href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><strong>New photo project</strong><p>1920 × 1080 canvas</p></a></article>
           <article><a href="/video/?empty&amp;webgl&amp;entry=new" aria-label="New video project"><img src="/desktop/video-studio-tiger.jpg" alt=""><strong>New video project</strong><p>Empty timeline</p></a></article>
         </div>
         <section class="recents" aria-labelledby="recent-title">
-          <div class="recent-heading"><h2 id="recent-title">Recent files</h2><div role="group" aria-label="Recent file layout"><button type="button" data-layout="grid" aria-pressed="true">Grid</button><button type="button" data-layout="list" aria-pressed="false">List</button></div></div>
-          <div class="recent-controls"><select aria-label="Sort recent files" id="recent-sort"><option value="date">Last opened</option><option value="name">Name A–Z</option></select><input type="search" id="recent-filter" placeholder="Filter recent files" aria-label="Filter recent files"></div>
-          <p id="recent-status" role="status"></p><div id="recent-files"></div>
+          <div class="recent-heading">
+            <h2 id="recent-title">Recent files</h2>
+            <div id="file-toolbar" hidden>
+              <input type="search" id="recent-filter" placeholder="Find a recent file" aria-label="Filter recent files">
+              <select aria-label="Sort recent files" id="recent-sort"><option value="date">Last opened</option><option value="name">Name A–Z</option></select>
+              <div class="view-selector" role="group" aria-label="Recent file layout"><button type="button" data-layout="grid" aria-label="Grid" title="Grid view" aria-pressed="false"><span class="grid-symbol" aria-hidden="true"></span></button><button type="button" data-layout="list" aria-label="List" title="List view" aria-pressed="true"><span class="list-symbol" aria-hidden="true"></span></button></div>
+            </div>
+          </div>
+          <div class="file-browser">
+            <div id="recent-columns" aria-hidden="true" hidden><span>Name</span><span>File type</span><span>Last opened</span></div>
+            <div id="recent-files"></div>
+            <p id="recent-status" role="status"></p>
+            <div id="recent-empty" hidden><strong>No recent files yet</strong><p>Files you open on this PC will appear here.</p><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
+          </div>
         </section>
         <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
       </section>
       <section id="history" hidden aria-labelledby="history-heading">
-        <header class="projects-head"><h1 id="history-heading">History</h1></header>
-        <h2>Recent workspace actions</h2><p id="empty-history">Your workspace actions will appear here.</p><ol id="activity-list"></ol>
+        <header class="projects-head"><h2 id="history-heading">Recent workspace actions</h2></header>
+        <p id="empty-history">Your workspace actions will appear here.</p><ol id="activity-list"></ol>
       </section>
       <section id="settings" hidden aria-labelledby="settings-heading">
-        <header class="projects-head"><h1 id="settings-heading">Settings</h1></header>
+        <header class="projects-head"><h2 id="settings-heading">Home preferences</h2></header>
         <label class="setting"><span>Compact project covers</span><input type="checkbox" id="compact-covers"></label>
         <label class="setting"><span>Remember workspace actions on this PC</span><input type="checkbox" id="remember-history"></label>
       </section>
       <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">
-        <div><h1 id="library-title">Media library</h1><p data-library-folder>Browse and search files on this PC.</p></div>
+        <div><h2 id="library-title">Media folder</h2><p data-library-folder>Browse and search files on this PC.</p></div>
         <input id="folder" type="file" webkitdirectory multiple hidden>
         <button id="choose-folder" class="action" type="button">Choose folder</button>
       </header>

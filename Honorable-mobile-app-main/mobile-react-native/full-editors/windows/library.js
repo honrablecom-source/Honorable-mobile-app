@@ -42,6 +42,7 @@ function showSection() {
     if (tab.hash === selected) tab.setAttribute('aria-current','page');
     else tab.removeAttribute('aria-current');
   }
+  document.querySelector('#page-title').textContent = tabs.find(tab=>tab.hash===selected).textContent.trim().replace(/^[◷⚙]\s*/, '');
   if (selected === '#history') {
     document.querySelector('#empty-history').hidden = Boolean(activity.length);
     document.querySelector('#activity-list').replaceChildren(...activity.map(item => {
@@ -251,7 +252,10 @@ let recent = [];
 function renderRecent() {
   const filtered = recent.filter(file=>file.name.toLowerCase().includes(recentFilter.value.trim().toLowerCase()));
   if (sortRecent.value==='name') filtered.sort((a,b)=>a.name.localeCompare(b.name));
-  recentStatus.textContent = filtered.length ? '' : recent.length ? 'No files match your filter.' : 'Open a photo or video project to see it here.';
+  document.querySelector('#recent-empty').hidden = recent.length > 0;
+  document.querySelector('#file-toolbar').hidden = !recent.length;
+  document.querySelector('#recent-columns').hidden = !filtered.length || !recentContainer.classList.contains('list');
+  recentStatus.textContent = recent.length && !filtered.length ? 'No files match your filter.' : '';
   recentContainer.replaceChildren(...filtered.map(file=>{
     const button = document.createElement('button');
     button.type = 'button';
@@ -260,7 +264,16 @@ function renderRecent() {
     else {preview.className='file-type';preview.textContent=file.name.split('.').pop().toUpperCase();preview.setAttribute('aria-hidden','true');}
     const name=document.createElement('strong');
     name.textContent=file.name;
-    button.append(preview,name);
+    button.setAttribute('aria-label',file.name);
+    const ext = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : '';
+    const type = document.createElement('span');
+    type.className = 'file-format';
+    type.textContent = ext === 'FCPROJ' ? 'Video project' : ext === 'PCRAFT' ? 'Photo project' : ext || 'File';
+    const opened = document.createElement('span');
+    opened.className = 'opened-at';
+    const date = new Date(file.opened || NaN);
+    opened.textContent = Number.isFinite(date.getTime()) ? date.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    button.append(preview,name,type,opened);
     button.onclick=async()=>{
       button.disabled=true;
       try {await window.nobleNavigation.openRecent(file.id);}
@@ -278,6 +291,7 @@ recentFilter.oninput=renderRecent;
 sortRecent.onchange=renderRecent;
 function setLayout(layout) {
   recentContainer.classList.toggle('list',layout==='list');
+  renderRecent();
   for(const button of document.querySelectorAll('.recent-heading button')) button.setAttribute('aria-pressed',String(button.dataset.layout===layout));
 }
 setLayout(localStorage.getItem('noble.home.recentLayout') || 'list');
@@ -287,6 +301,16 @@ for (const button of document.querySelectorAll('.recent-heading button')) button
 };
 window.addEventListener('noble-recent-updated',refreshRecent);
 void refreshRecent();
+for (const trigger of document.querySelectorAll('.file-commands [popovertarget]')) {
+  const menu = trigger.popoverTargetElement;
+  menu.addEventListener('beforetoggle',event=>{
+    if(event.newState==='open') {
+      const rect=trigger.getBoundingClientRect();
+      menu.style.left=Math.max(6,Math.min(rect.left,innerWidth-194))+'px';
+      menu.style.top=(rect.bottom+5)+'px';
+    }
+  });
+}
 if (window.nobleNavigation) {
   for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"],a[href="/desktop/copy-export"],[data-desktop-projects]')) {
     link.addEventListener('click', event => {

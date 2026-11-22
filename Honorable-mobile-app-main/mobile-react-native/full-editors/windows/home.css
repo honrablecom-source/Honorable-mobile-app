@@ -274,23 +274,27 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 
 /* Desktop home */
 .desktop-layout { --canvas:#202123; --bar:#292a2c; --surface:#303133; --line:#444649; --ink:#f2f2f2; --muted:#c0c1c3; --accent:#91bafb; grid-template-rows:auto 1fr; align-items:start; background:var(--canvas); font:500 16px/1.45 "Segoe UI Variable Text","Segoe UI",sans-serif; }
-.home-bar { grid-column:1/-1; display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:8px 16px; background:var(--bar); border-bottom:1px solid var(--line); }
-.home-bar .brand { margin:0; font-size:18px; font-weight:700; }
-.file-commands,.editor-launchers { display:flex; align-items:center; gap:4px; }
-.file-commands { position:relative; border-left:1px solid var(--line); padding-left:16px; }
-.editor-launchers { margin-left:auto; }
-.home-bar button,.editor-launchers a,.file-menu a,.recent-heading button,.starter-heading button { border:0; border-radius:4px; padding:7px 11px; font:600 15px/1.35 "Segoe UI",sans-serif; background:transparent; color:var(--ink); cursor:pointer; }
-.file-commands button:first-child { background:#2264c7; color:white; }
-.home-bar button:hover,.editor-launchers a:hover,.file-menu a:hover,.recent-heading button:hover,.starter-heading button:hover { background:#404246; }
-.file-commands button:first-child:hover { background:#295da9; }
-.file-menu { position:fixed; inset:52px auto auto 170px; margin:0; padding:5px; background:#303133; border:1px solid #56585b; border-radius:5px; color:white; }
-.file-menu a { display:block; }
-.desktop-nav { height:calc(100vh - 51px); padding-top:16px; background:#242527; }
+.home-bar { grid-area:1/2; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px clamp(18px,2.5vw,40px); background:#262729; border-bottom:1px solid #414347; }
+.home-bar h1 { font-size:clamp(24px,2.2vw,32px); font-weight:690; letter-spacing:-.035em; }
+.desktop-nav { grid-column:1; grid-row:1/3; height:100vh; padding:20px 12px 12px; background:#1b1c1e; }
+.desktop-nav .brand { margin:0 6px 32px; font-size:18px; }
+.desktop-layout>main { grid-area:2/2; width:100%; min-width:0; }
 .desktop-nav .places a { color:#ddd; font-weight:600; }
-.desktop-nav .places a[aria-current] { background:#36383b; box-shadow:inset 3px 0 var(--accent); }
-.starter-heading,.recent-heading,.recent-controls { display:flex; gap:12px; align-items:center; justify-content:space-between; }
-.starter-heading h1 { font-size:clamp(25px,2vw,32px); font-weight:680; }
-.starter-heading button { color:var(--muted); }
+.desktop-nav .places a[aria-current] { background:#30343a; box-shadow:inset 3px 0 var(--accent); }
+.studio-links { padding:16px 0 0; margin-top:18px; border-top:1px solid #383a3d; }
+.studio-links h2 { margin:0 9px 5px; font-size:13px; font-weight:600; color:#abaeb3; }
+.studio-links .editor-launchers a { padding-inline:9px; }
+.file-commands { display:flex; gap:8px; align-items:center; }
+.file-commands button,.file-menu a,.starter-heading button,.view-selector button { font:600 15px/1.35 "Segoe UI",sans-serif; border-radius:4px; cursor:pointer; }
+.file-commands button { min-height:36px; border:1px solid #54575b; background:#303236; color:var(--ink); padding:6px 15px; }
+.file-commands button:first-child { background:#2264c7; border-color:transparent; color:white; }
+.file-commands button:hover,.file-menu a:hover,.view-selector button:hover { filter:brightness(1.16); }
+.file-menu { position:fixed; inset:auto; min-width:174px; margin:0; padding:5px; background:#303133; border:1px solid #56585b; border-radius:5px; color:white; }
+.file-menu a { display:block; padding:8px 12px; }
+.file-menu a:hover { background:#424549; }
+.starter-heading,.recent-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.starter-heading h2,.recent-heading h2 { font-size:21px; font-weight:650; letter-spacing:-.02em; }
+.starter-heading button { background:transparent; border:0; padding:6px 2px; color:var(--muted); }
 .starter-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(10px,1.4vw,22px); margin-top:16px; }
 .starter-cards article { min-width:0; }
 .starter-cards a { display:block; border-bottom:2px solid transparent; padding-bottom:7px; }
@@ -299,21 +303,49 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 .compact-covers .starter-cards img { height:84px; }
 .starter-cards strong { display:block; margin:10px 0 2px; font-size:clamp(17px,1.45vw,21px); line-height:1.3; font-weight:680; }
 .starter-cards p { font-size:14px; color:var(--muted); }
-.recents { border-top:1px solid var(--line); margin-top:20px; padding-top:18px; }
-.recent-heading h2 { font-size:22px; font-weight:660; }
-.recent-heading button[aria-pressed=true] { background:#383b3f; color:white; }
-.recent-controls { margin:12px 0; }
-.recent-controls select,.recent-controls input { background:var(--bar); color:var(--ink); border:1px solid #525458; border-radius:3px; padding:6px 10px; font:500 15px "Segoe UI",sans-serif; }
-#recent-status:empty { display:none; }
-#recent-files { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); }
-#recent-files button { display:grid; gap:8px; min-width:0; padding:8px; border:1px solid var(--line); border-radius:3px; background:var(--bar); color:var(--ink); text-align:left; }
-#recent-files button:hover { background:#36383a; }
-#recent-files img,#recent-files .file-type { width:100%; height:96px; object-fit:contain; background:#1c1d1f; }
-.file-type { display:grid; place-content:center; font-weight:600; }
-#recent-files strong { overflow-wrap:anywhere; font-weight:600; }
-#recent-files.list { grid-template-columns:1fr; gap:0; }
-#recent-files.list button { grid-template-columns:46px 1fr; align-items:center; gap:14px; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
-#recent-files.list button:hover { background:var(--bar); }
-#recent-files.list :is(img,.file-type) { height:36px; }
-@media(max-width:850px){.home-bar{gap:8px}.file-commands{padding-left:8px}.starter-cards img{height:110px}.recent-controls input{max-width:52%}}
-@media(max-width:650px){.starter-cards{grid-template-columns:1fr}.editor-launchers{margin:0}.file-menu{inset:86px auto auto 16px}}
+.recents { margin-top:24px; }
+.recent-heading { flex-wrap:wrap; margin-bottom:12px; }
+#file-toolbar,.view-selector { display:flex; align-items:center; gap:6px; }
+#file-toolbar input,#file-toolbar select { min-height:33px; background:#28292b; color:var(--ink); border:1px solid #505257; border-radius:4px; padding:5px 9px; font:500 14px/1.3 "Segoe UI",sans-serif; }
+#file-toolbar input { width:clamp(130px,15vw,210px); }
+.view-selector { gap:0; padding-left:5px; border-left:1px solid #444; }
+.view-selector button { display:grid; place-items:center; width:33px; height:33px; border:1px solid transparent; background:transparent; color:#c8c9cc; }
+.view-selector button[aria-pressed=true] { background:#3b3e41; border-color:#54575b; color:#fff; }
+.grid-symbol,.list-symbol { display:block; width:14px; height:14px; }
+.grid-symbol { background:linear-gradient(currentColor,currentColor) left top/6px 6px,linear-gradient(currentColor,currentColor) right top/6px 6px,linear-gradient(currentColor,currentColor) left bottom/6px 6px,linear-gradient(currentColor,currentColor) right bottom/6px 6px; background-repeat:no-repeat; }
+.list-symbol { height:12px; border-block:2px solid; background:linear-gradient(currentColor,currentColor) center/100% 2px no-repeat; }
+.file-browser { border:1px solid #414347; border-radius:6px; overflow:hidden; background:#242527; }
+#recent-columns,#recent-files.list button { display:grid; grid-template-columns:minmax(0,1fr) minmax(78px,.25fr) minmax(150px,.38fr); align-items:center; column-gap:14px; padding:0 16px; }
+#recent-columns { background:#2d2f31; color:#cbced2; min-height:34px; font-size:13px; }
+#recent-files { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); padding:10px; }
+#recent-files:empty,#recent-status:empty { display:none; }
+#recent-files button { display:grid; gap:5px; min-width:0; padding:10px; border:1px solid #484a4e; border-radius:4px; background:#2b2d30; color:var(--ink); text-align:left; }
+#recent-files button:hover { background:#35383c; }
+#recent-files img,#recent-files .file-type { width:100%; height:106px; object-fit:contain; background:#191a1c; }
+.file-type { display:grid; place-content:center; font-size:13px; font-weight:650; }
+#recent-files strong { overflow-wrap:anywhere; font-size:16px; font-weight:600; }
+#recent-files .file-format,#recent-files .opened-at { color:var(--muted); font-size:14px; }
+#recent-files.list { grid-template-columns:1fr; gap:0; padding:0; }
+#recent-files.list button { position:relative; min-height:67px; border:0; border-top:1px solid #3c3e41; border-radius:0; background:transparent; }
+#recent-files.list button:hover { background:#313438; }
+#recent-files.list strong { padding-left:74px; }
+#recent-files.list :is(img,.file-type) { position:absolute; left:16px; width:60px; height:44px; border-radius:2px; object-fit:cover; }
+#recent-empty { padding:28px; text-align:center; }
+#recent-empty p { margin:5px 0 13px; }
+#recent-empty a { display:inline-block; padding:5px 9px; color:#a9caff; font-weight:600; }
+#recent-status:not(:empty) { padding:12px 16px; }
+@media(max-width:930px){
+  .recent-heading { align-items:flex-start; }
+  #file-toolbar { flex-wrap:wrap; }
+  #recent-columns,#recent-files.list button { grid-template-columns:minmax(0,1fr) minmax(100px,.5fr); }
+  #recent-columns span:nth-child(2),#recent-files.list .file-format { display:none; }
+  .starter-cards img { height:110px; }
+}
+@media(max-width:680px){
+  .desktop-nav .brand { margin-inline:0; font-size:15px; }
+  .home-bar { align-items:flex-start; flex-wrap:wrap; }
+  .starter-cards { grid-template-columns:1fr; }
+  #recent-columns,#recent-files.list button { grid-template-columns:1fr; }
+  #recent-columns span:last-child,#recent-files.list .opened-at { display:none; }
+  #file-toolbar input { max-width:100%; }
+}
