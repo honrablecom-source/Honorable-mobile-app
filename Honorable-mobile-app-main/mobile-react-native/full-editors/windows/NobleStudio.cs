@@ -40,8 +40,8 @@ internal sealed partial class NobleStudio : Form
     private Process service;
     private CoreWebView2Environment environment;
     private WebView2 active;
-    private TaskCompletionSource<bool> photoCloseCheck;
-    private bool photoCloseConfirmed;
+    private TaskCompletionSource<bool> photoCloseCheck, videoCloseCheck;
+    private bool photoCloseConfirmed, videoCloseConfirmed;
     private string nativeEditor;
     private int workspaceVersion;
     private bool pickerOpen, closingEditors, closed;
@@ -356,6 +356,18 @@ internal sealed partial class NobleStudio : Form
                     Send(view,"reply",true,id);
                     return;
                 case "navigate": await Route(view,data as string); return;
+                case "pick-video":
+                    if (kind != "video" || view != active) throw new InvalidOperationException("Open Video Studio first.");
+                    await Pick("video");
+                    Send(view,"reply",true,id);
+                    return;
+                case "project-open-result":
+                    if (kind == "video") FinishProjectOpen(view,data as Dictionary<string,object>);
+                    return;
+                case "project-save-target": Send(view,"reply",ProjectSaveTarget(view,kind,data),id); return;
+                case "video-close-state":
+                    if (kind == "video" && videoCloseCheck != null) videoCloseCheck.TrySetResult(Equals(data,true));
+                    return;
                 case "pick-photos":
                     if (kind != "image" || view != active) throw new InvalidOperationException("Open Image Studio first.");
                     await Pick("image");
@@ -444,12 +456,17 @@ internal sealed partial class NobleStudio : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        WebView2 imageView;
+        WebView2 imageView, videoView;
         if (editors.Count > 0 && !closed)
         {
             e.Cancel = true;
             closingEditors = true;
             CloseEditors();
+        }
+        else if (!closed && !videoCloseConfirmed && views.TryGetValue("video",out videoView))
+        {
+            e.Cancel = true;
+            if (videoCloseCheck == null) CheckVideoBeforeClose(videoView);
         }
         else if (!closed && !photoCloseConfirmed && views.TryGetValue("image",out imageView))
         {
@@ -472,6 +489,23 @@ internal sealed partial class NobleStudio : Form
         base.OnFormClosing(e);
     }
 
+    private async void CheckVideoBeforeClose(WebView2 view)
+    {
+        var check = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        videoCloseCheck = check;
+        try
+        {
+            Send(view,"check-video-close",null);
+            bool answered = await Task.WhenAny(check.Task,Task.Delay(3500)) == check.Task;
+            if ((!answered || await check.Task) && MessageBox.Show(this,
+                "Close Noble and discard unsaved video edits or interrupt work in progress?","Noble Video Studio",
+                MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2) != DialogResult.OK) return;
+            videoCloseConfirmed = true;
+            Close();
+        }
+        finally { videoCloseCheck = null; }
+    }
+
     private async void CheckPhotoBeforeClose(WebView2 view)
     {
         var check = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -482,7 +516,7 @@ internal sealed partial class NobleStudio : Form
             Send(view,"check-photo-close",null);
             if (await Task.WhenAny(check.Task,Task.Delay(2500)) == check.Task) dirty = await check.Task;
             if (dirty && MessageBox.Show(this,"Close Noble and discard unsaved photo edits?","Noble Image Studio",
-                MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2) != DialogResult.OK) return;
+                MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2) != DialogResult.OK) { videoCloseConfirmed = false; return; }
             photoCloseConfirmed = true;
             Close();
         }

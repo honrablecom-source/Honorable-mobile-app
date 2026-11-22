@@ -31,6 +31,18 @@ test('increases the count of middle cuts without changing the protected endpoint
   assert.deepEqual(revision.at(-1),draft.at(-1));
 });
 
+test('makes visible cuts when the model chooses adjacent samples of the same clip', () => {
+  const repeated = [0,3,0,3,4,2];
+  const draft = buildCinematic(media,repeated);
+  const revision = buildCinematic(media,repeated,draft);
+  for (const sequence of [draft,revision]) {
+    assert.ok(sequence.slice(1).every((cut,index) => cut.clip !== sequence[index].clip));
+    assert.equal(sequence.at(-1).clip,media.moments[2].clip);
+  }
+  const oneSource = {...media,moments:media.moments.map(moment => ({...moment,clip:0}))};
+  assert.equal(buildCinematic(oneSource,repeated).length,6);
+});
+
 test('rejects unordered beats, unreadable moments and music without enough beats', () => {
   assert.throws(()=>validateAnalysis({...media,beats:[60,48,96,120]}),/detectable beats/);
   assert.throws(()=>buildCinematic({...media,moments:media.moments.map(m=>({...m,available:12}))},[0]),/long enough/);

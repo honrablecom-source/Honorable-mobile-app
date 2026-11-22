@@ -153,7 +153,8 @@ dialog.addEventListener('cancel', event => {if (busy) event.preventDefault();});
 dialog.addEventListener('close', () => {
   toggle.setAttribute('aria-expanded', 'false');
   changes.setAttribute('aria-expanded', 'false');
-  opener.focus();
+  const focusTarget = opener.checkVisibility() ? opener : document.querySelector('[popovertarget=noble-cut-tools]');
+  focusTarget?.focus();
 });
 dialog.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !busy) dialog.close();

@@ -34,7 +34,7 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
     void run(id);
   }
   function entries() { return [...popup.querySelectorAll('button:enabled')]; }
-  function render(focus) {
+  function render(focus,returnTo) {
     popup.replaceChildren();
     popup.setAttribute('aria-label',path.join(' / '));
     if (path.length > 1) {
@@ -61,13 +61,14 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
         if (branches.has(next)) continue;
         branches.add(next);
         const branch = row(next, () => { path.push(next); render(true); }, '›');
+        branch.dataset.branch = next;
         branch.setAttribute('aria-haspopup','menu');
       } else {
         row(cmd.label, () => execute(cmd.id), cmd.shortcut?.replaceAll('Cmd','Ctrl').replaceAll('Option','Alt'),!cmd.enabled);
       }
     }
     popup.scrollTop = 0;
-    if (focus) entries()[0]?.focus();
+    if (focus) (entries().find(item => item.dataset.branch === returnTo) || entries()[0])?.focus();
   }
   async function open(button, focus = false) {
     const ticket = ++generation;
@@ -75,10 +76,10 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
     active = button;
     active.setAttribute('aria-expanded','true');
     path = [button.dataset.menu];
-    popup.style.left = Math.max(4,Math.min(innerWidth-264,button.getBoundingClientRect().left))+'px';
     popup.replaceChildren();
     popup.textContent = 'Loading commands…';
     popup.showPopover();
+    align();
     try {
       const items = await listMenus();
       if (ticket !== generation || !popup.matches(':popover-open')) return;
@@ -88,6 +89,13 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
       if (ticket === generation) { popup.hidePopover(); onError(error); }
     }
   }
+  function align() {
+    if (!active || !popup.matches(':popover-open')) return;
+    const button = active.getBoundingClientRect();
+    popup.style.left = Math.max(4,Math.min(innerWidth-popup.offsetWidth-4,button.left))+'px';
+    popup.style.top = Math.ceil(button.bottom)+'px';
+  }
+  window.addEventListener('resize',align);
   const buttons = groups.map(group => {
     const button = group === 'Tools' ? toolsTrigger : document.createElement('button');
     button.type = 'button';
@@ -101,7 +109,7 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
       button.onpointerdown = () => { wasOpen = active === button && popup.matches(':popover-open'); };
       button.onclick = event => {
         if (active === button && ((event.detail && wasOpen) || popup.matches(':popover-open'))) popup.hidePopover();
-        else void open(button);
+        else void open(button,event.detail === 0);
         wasOpen = false;
       };
       button.onpointerenter = () => {
@@ -117,12 +125,19 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
   function adjacent(button, offset) {
     return buttons[(buttons.indexOf(button) + offset + buttons.length) % buttons.length];
   }
+  function switchMenu(button) {
+    button.focus();
+    if (button === toolsTrigger) button.click();
+    else void open(button,true);
+  }
   nav.onkeydown = event => {
     const button = event.target.closest('[data-menu]');
     if (!button) return;
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      adjacent(button,event.key === 'ArrowLeft' ? -1 : 1).focus();
+      const next = adjacent(button,event.key === 'ArrowLeft' ? -1 : 1);
+      if (popup.matches(':popover-open')) switchMenu(next);
+      else next.focus();
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       if (button === toolsTrigger) button.click();
@@ -142,7 +157,9 @@ export function mountVideoMenus(nav, {listMenus, toolsTrigger, run, currentExpor
     } else if (event.key === 'ArrowRight' && selected.getAttribute('aria-haspopup')) {
       event.preventDefault(); selected.click();
     } else if ((event.key === 'ArrowLeft' || event.key === 'Escape') && path.length > 1) {
-      event.preventDefault(); path.pop(); render(true);
+      event.preventDefault(); const branch = path.pop(); render(true,branch);
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault(); switchMenu(adjacent(active,event.key === 'ArrowRight' ? 1 : -1));
     } else if (event.key === 'Escape') {
       event.preventDefault(); popup.hidePopover(); active.focus();
     }

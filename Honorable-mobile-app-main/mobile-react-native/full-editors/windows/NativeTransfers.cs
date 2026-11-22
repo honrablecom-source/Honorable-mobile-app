@@ -15,6 +15,8 @@ internal sealed partial class NobleStudio
     private const string TransferPrefix = "/desktop-transfer/";
     private readonly Dictionary<string, Transfer> transfers = new Dictionary<string, Transfer>();
 
+    private string videoTargetKey, videoTargetPath;
+
     private sealed class Transfer
     {
         public WebView2 View;
@@ -67,9 +69,8 @@ internal sealed partial class NobleStudio
                     throw new InvalidOperationException("Choose a nonempty file under 64 MB and a batch under 128 MB.");
                 if (!photo && !string.Equals(Path.GetExtension(file),".fcproj",StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Choose a Noble video project (.fcproj).");
-                string url = IssueTransfer(new Transfer { View=view, Path=file, Name=name, Kind=photo ? "photo-read" : null });
+                string url = IssueTransfer(new Transfer { View=view, Path=file, Name=name, Kind=photo ? "photo-read" : "project-read" });
                 total += size;
-                if (!photo) RememberFile(file);
                 Send(view,photo ? "photo" : "project",new {name,url});
             }
             catch (Exception error)
@@ -98,6 +99,28 @@ internal sealed partial class NobleStudio
         if (Equals(Field(result,"opened"),true)) RememberFile(transfer.Path);
     }
 
+    private void FinishProjectOpen(WebView2 view,Dictionary<string,object> result)
+    {
+        string key = Field(result,"url") as string;
+        Transfer transfer;
+        if (key == null || !transfers.TryGetValue(key,out transfer) || transfer.View != view || transfer.Kind != "project-receipt") return;
+        transfers.Remove(key);
+        if (!Equals(Field(result,"opened"),true)) return;
+        videoTargetKey = key;
+        videoTargetPath = transfer.Path;
+        RememberFile(transfer.Path);
+    }
+
+    private string ProjectSaveTarget(WebView2 view,string kind,object data)
+    {
+        if (kind != "video" || view != active || pickerOpen) throw new InvalidOperationException("Open Video Studio before saving.");
+        var options = data as Dictionary<string,object>;
+        var key = Field(options,"target") as string;
+        if (key != null && key == videoTargetKey && videoTargetPath != null)
+            return IssueTransfer(new Transfer {View=view,Kind="project-delivery",Destination=videoTargetPath});
+        return ChooseSaveDestination(view,kind,data,true);
+    }
+
     private string PrepareUpload(WebView2 view,string workspace,object data)
     {
         var options = data as Dictionary<string,object>;
@@ -111,7 +134,7 @@ internal sealed partial class NobleStudio
         throw new InvalidOperationException("This file action is unavailable in the current workspace.");
     }
 
-    private string ChooseSaveDestination(WebView2 view,string kind,object data)
+    private string ChooseSaveDestination(WebView2 view,string kind,object data,bool project = false)
     {
         if ((kind != "image" && kind != "video") || view != active || pickerOpen)
             throw new InvalidOperationException("Open the workspace before saving.");
@@ -123,13 +146,16 @@ internal sealed partial class NobleStudio
         {
             using (var dialog = new SaveFileDialog {
                 Title = kind == "image" ? "Save from Noble Image Studio" : "Save from Noble Video Studio",
+                Filter = project ? "Noble video project (*.fcproj)|*.fcproj" : "",
                 FileName = name, OverwritePrompt = true, RestoreDirectory = true,
-                DefaultExt = Path.GetExtension(name).TrimStart('.'),
+                DefaultExt = project ? "fcproj" : Path.GetExtension(name).TrimStart('.'),
                 InitialDirectory = Environment.GetFolderPath(kind == "image" ? Environment.SpecialFolder.MyPictures : Environment.SpecialFolder.MyVideos)
             })
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return null;
-                return IssueTransfer(new Transfer { View=view, Kind=kind + "-delivery", Destination=dialog.FileName });
+                if (project && !Path.GetExtension(dialog.FileName).Equals(".fcproj",StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Choose a .fcproj filename for your video project.");
+                return IssueTransfer(new Transfer { View=view, Kind=project ? "project-delivery" : kind + "-delivery", Destination=dialog.FileName });
             }
         }
         finally { pickerOpen = false; }
@@ -151,7 +177,7 @@ internal sealed partial class NobleStudio
     private async void HandleTransfer(WebView2 view,string key,CoreWebView2WebResourceRequestedEventArgs e)
     {
         Transfer transfer;
-        if (!transfers.TryGetValue(key,out transfer) || transfer.View != view || transfer.Kind == "photo-receipt" || transfer.Expires < DateTime.UtcNow ||
+        if (!transfers.TryGetValue(key,out transfer) || transfer.View != view || (transfer.Kind == "photo-receipt" || transfer.Kind == "project-receipt") || transfer.Expires < DateTime.UtcNow ||
             e.Request.Method != (transfer.Path == null ? "POST" : "GET"))
         {
             e.Response = Response(404,"text/plain",null);
@@ -171,10 +197,20 @@ internal sealed partial class NobleStudio
                         file.Dispose();
                         throw new InvalidDataException("Choose a nonempty file under 64 MB.");
                     }
-                    e.Response = Response(200,"application/octet-stream",file);
-                    if (transfer.Kind == "photo-read")
+                    // WebView2 can retain the response stream after the project-open dialog closes.
+                    // Hand it a snapshot so subsequent atomic saves can replace the on-disk project.
+                    if (transfer.Kind == "project-read")
                     {
-                        transfer.Kind = "photo-receipt";
+                        using (file)
+                        {
+                            var projectBytes = ReadAtMost(file,64 * Megabyte);
+                            e.Response = Response(200,"application/octet-stream",new MemoryStream(projectBytes,false));
+                        }
+                    }
+                    else e.Response = Response(200,"application/octet-stream",file);
+                    if (transfer.Kind == "photo-read" || transfer.Kind == "project-read")
+                    {
+                        transfer.Kind = transfer.Kind == "photo-read" ? "photo-receipt" : "project-receipt";
                         transfer.Expires = DateTime.UtcNow.AddMinutes(10);
                         transfers.Add(key,transfer);
                     }
@@ -182,7 +218,7 @@ internal sealed partial class NobleStudio
                 else
                 {
                     int limit = (transfer.Kind == "decode" || transfer.Kind == "image-delivery" ? 64 :
-                        transfer.Kind == "project" ? 32 : 100) * Megabyte;
+                        transfer.Kind == "project" || transfer.Kind == "project-delivery" ? 32 : 100) * Megabyte;
                     byte[] bytes;
                     using (var input = e.Request.Content) bytes = ReadAtMost(input,limit);
                     if (transfer.Kind == "decode")
@@ -194,7 +230,18 @@ internal sealed partial class NobleStudio
                     {
                         string saved = await Task.Run(() => transfer.Destination == null ?
                             SaveEditedMedia(transfer.Name,transfer.Kind,bytes) : DeliverFile(transfer.Destination,bytes));
-                        e.Response = Response(200,"application/json",Utf8Stream(json.Serialize(saved)));
+                        if (transfer.Kind == "project-delivery")
+                        {
+                            videoTargetKey = key;
+                            videoTargetPath = transfer.Destination;
+                            RememberFile(videoTargetPath);
+                            e.Response = Response(200,"application/json",Utf8Stream(json.Serialize(new {target=key,name=saved})));
+                        }
+                        else
+                        {
+                            if (transfer.Kind == "project") RememberFile(saved);
+                            e.Response = Response(200,"application/json",Utf8Stream(json.Serialize(saved)));
+                        }
                     }
                 }
             }

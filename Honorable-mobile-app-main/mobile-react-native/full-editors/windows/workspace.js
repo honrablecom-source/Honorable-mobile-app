@@ -275,7 +275,7 @@ async function setupVideo() {
 
   const setup = mountSequenceSetup({
     editor,
-    openProject: () => projects.click(),
+    openProject: () => chooseProject(),
     openEditor: () => { start.hidden = true; canvas.focus(); },
     openAgent: () => agentButton?.click(),
     openStoryboard: () => document.querySelector('#story-open')?.click(),
@@ -303,16 +303,71 @@ async function setupVideo() {
       : 'These files could not be imported. Check the format and try again.');
     setStatus(imported.items.length + (imported.items.length === 1 ? ' file imported.' : ' files imported.'));
   }));
-  async function canReplaceProject() {
+  let fileTarget = null;
+  let savedRevision = null;
+  let saving = false;
+  window.addEventListener('noble-project-replaced',() => { fileTarget = null; savedRevision = null; });
+  async function needsCloseConfirmation() {
+    if (saving || setup.busy || 'nobleAgentBusy' in document.body.dataset || delivery.exporting()) return true;
+    const project = await editor.execute('project.inspect');
+    return project.dirty && project.revision !== savedRevision;
+  }
+  async function saveDesktopProject(saveAs) {
+    if (saving) return;
+    if (setup.busy || 'nobleAgentBusy' in document.body.dataset) throw Error('Wait for the edit to finish before saving.');
+    saving = true;
+    try {
+      const project = await editor.execute('project.inspect');
+      const title = (fileTarget?.name || (project.name === 'Untitled' && project.activeSequence
+        ? (await editor.execute('sequence.inspect',{item:project.activeSequence})).name : project.name) || 'Untitled')
+        .replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,170);
+      const name = /\.fcproj$/i.test(title) ? title : title+'.fcproj';
+      const snapshot = '/opfs/noble-mcp/desktop-save.fcproj';
+      await editor.execute('file.saveCopy',{path:snapshot});
+      const result = await window.nobleNavigation.writeVideoProject(name,await editor.readFile(snapshot),
+        saveAs ? null : fileTarget?.target);
+      if (!result) { setStatus('Save cancelled.'); return; }
+      fileTarget = result;
+      savedRevision = project.revision;
+      setStatus('Saved '+result.name);
+    } finally { saving = false; }
+  }
+  function chooseProject() {
+    if (window.nobleNavigation) return run(() => window.nobleNavigation.pickVideoProject());
+    projects.click();
+  }
+  function sameProjectData(a,b) {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b,key) && sameProjectData(a[key],b[key]));
+  }
+  async function matchesRecoveredProject(file) {
+    // Recovery can mark an already-saved timeline dirty on cold launch. Compare only the editable
+    // project, since playback position and panel layout belong to the separate view record.
+    try {
+      const existing = JSON.parse(await file.text()).project;
+      if (!existing) return false;
+      const snapshot = '/opfs/noble-mcp/recovery-compare.fcproj';
+      await editor.execute('file.saveCopy',{path:snapshot});
+      const recovered = JSON.parse(new TextDecoder().decode(await editor.readFile(snapshot))).project;
+      return sameProjectData(existing,recovered);
+    } catch { return false; }
+  }
+  async function canReplaceProject(file) {
+    if (saving) throw Error('Wait for the project save to finish.');
     if (setup.busy) throw Error('Wait for the sequence to finish importing.');
     if ('nobleAgentBusy' in document.body.dataset || document.body.inert) throw Error('Wait for the AI edit to finish before opening another project.');
-    const current = await editor.execute('project.inspect');
-    return !current.dirty || window.confirm('Replace the current project? Save your edits first if you want to keep them.');
+    if (!await needsCloseConfirmation()) return true;
+    if (file && !delivery.exporting() && await matchesRecoveredProject(file)) return true;
+    return window.confirm('Replace the current project? Save your edits first if you want to keep them.');
   }
-  async function loadProject(file) {
+  async function loadProject(file,target = null) {
     const opened = await editor.openProject(file);
     clearVideoChanges();
     window.dispatchEvent(new Event('noble-project-replaced'));
+    fileTarget = target && {name:file.name,target};
+    if (fileTarget) savedRevision = (await editor.execute('project.inspect')).revision;
     start.hidden = true;
     await refreshTimeline();
     void fitTimeline().catch(() => {});
@@ -389,7 +444,7 @@ async function setupVideo() {
   });
 
   const overrides = {
-    'file.open': () => projects.click(),
+    'file.open': chooseProject,
     'file.newSequence': () => { start.hidden = false; start.querySelector('[name=sequenceName]').focus(); },
     'file.newProject': () => openFromHome(false),
     'file.openDemoProject': () => openFromHome(true),
@@ -399,7 +454,8 @@ async function setupVideo() {
   };
   async function perform(id) {
     if (setup.busy) throw Error('Wait for the media import to finish.');
-    if (overrides[id]) await overrides[id]();
+    if (window.nobleNavigation && (id === 'file.save' || id === 'file.saveAs')) await saveDesktopProject(id === 'file.saveAs');
+    else if (overrides[id]) await overrides[id]();
     else {
       // Engine commands can open a dialog in the canvas, including on an empty project.
       const fromSetup = !start.hidden;
@@ -527,9 +583,14 @@ async function setupVideo() {
       try { await openEntry(entry); }
       finally { delete document.documentElement.dataset.editorStarting; }
     },
-    async openLocalProject(name, base64) {
+    needsCloseConfirmation,
+    saveProject: saveAs => run(() => saveDesktopProject(saveAs)),
+    async openLocalProject(name, base64,target) {
       const bytes = Uint8Array.from(atob(base64), value => value.charCodeAt(0));
-      await openProject(new File([bytes], name, {type:'application/json'}));
+      const file = new File([bytes], name, {type:'application/json'});
+      if (!await canReplaceProject(file)) return false;
+      await loadProject(file,target);
+      return true;
     },
   };
   const delivery=mountVideoMcp(editor,{settings:createPopover,notify:setStatus,showTimeline:()=>void showTimelineIfReady()});

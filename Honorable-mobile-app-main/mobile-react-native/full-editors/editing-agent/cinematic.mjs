@@ -33,17 +33,25 @@ export function buildCinematic(media, picks, previous) {
   for (const target of targets) {
     starts.push(chooseBeat(beats, target, starts.at(-1) + 12, end - 12));
   }
-  let cutsLast;
+  const closing = previous?.at(-1)?.clip ?? moments[picks.at(-1)]?.clip;
+  let lastSource = previous?.[0]?.clip;
   const cuts = starts.map((at, index) => {
     const frames = (starts[index+1] ?? end) - at;
-    const preferred = picks[index % picks.length];
-    const suitable = (moment, i) => moment.available >= frames && (i !== preferred || preferred !== cutsLast);
-    const ranked = moments.map((moment, i) => ({moment, i})).filter(({moment,i}) => suitable(moment,i));
-    if (!ranked.length) throw Error('The selected footage has no moment long enough for a cut.');
-    const selected = ranked.find(({i}) => i === preferred) ??
-      ranked.sort((a,b) => Math.abs(a.moment.motion - (index === 0 ? 0 : .2)) - Math.abs(b.moment.motion - (index === 0 ? 0 : .2)))[0];
-    cutsLast = selected.i;
-    return {clip:selected.moment.clip, from:selected.moment.start, at, frames};
+    const preferred = moments[picks[index % picks.length]];
+    const usable = moments.filter(moment => moment.available >= frames);
+    if (!usable.length) throw Error('The selected footage has no moment long enough for a cut.');
+    const alternatives = usable.filter(moment => moment.clip !== lastSource);
+    let candidates = alternatives.length ? alternatives : usable;
+    // Let the model's closing shot enter on its own cut, including after a middle-only revision.
+    const beforeClosing = index === starts.length - (previous ? 1 : 2);
+    if (beforeClosing && candidates.some(moment => moment.clip !== closing)) {
+      candidates = candidates.filter(moment => moment.clip !== closing);
+    }
+    const selected = candidates.includes(preferred) ? preferred :
+      picks.map(pick => moments[pick]).find(moment => candidates.includes(moment)) ??
+      candidates.reduce((best,moment) => moment.motion > best.motion ? moment : best);
+    lastSource = selected.clip;
+    return {clip:selected.clip, from:selected.start, at, frames};
   });
   return previous ? [previous[0], ...cuts, previous.at(-1)] : cuts;
 }
@@ -90,10 +98,10 @@ export async function planCinematic({brief, media, previous}, model, invoke = as
   const evidence = await invoke(call.function.name);
   messages.push({role:'assistant',content:requested.content ?? '',tool_calls:requested.tool_calls});
   messages.push({role:'tool',tool_name:inspect.name,content:JSON.stringify(evidence)});
-  messages.push({role:'user',content:'Return JSON with picks, an array of six zero-based moment indices in your preferred order. Choose footage based on the measurements. ' + (previous ? 'Choose faster middle moments. The first and last cuts are protected separately.' : '')});
-  const reply = await chat(messages, undefined, {type:'object',required:['picks'],additionalProperties:false,properties:{picks:{type:'array',minItems:1,maxItems:6,items:{type:'integer',minimum:0,maximum:evidence.moments.length-1}}}});
+  messages.push({role:'user',content:'Return JSON with picks, six zero-based moment indices in timeline order. Pick a quiet opening, vary source clips between cuts, and make the last pick a decisive closing image. Use the source labels and measurements. ' + (previous ? 'Choose faster middle moments. The first and last cuts are protected separately.' : '')});
+  const reply = await chat(messages, undefined, {type:'object',required:['picks'],additionalProperties:false,properties:{picks:{type:'array',minItems:6,maxItems:6,items:{type:'integer',minimum:0,maximum:evidence.moments.length-1}}}});
   const {picks} = JSON.parse(reply.content);
-  if (!Array.isArray(picks) || picks.length < 1 || picks.length > 6 ||
+  if (!Array.isArray(picks) || picks.length !== 6 ||
       !picks.every(pick => Number.isInteger(pick) && pick >= 0 && pick < evidence.moments.length)) {
     throw Error('The local model returned invalid shot choices. Try a more specific brief.');
   }

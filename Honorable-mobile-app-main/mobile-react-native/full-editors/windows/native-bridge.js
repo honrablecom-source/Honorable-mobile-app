@@ -42,6 +42,7 @@
   const queuePhoto = entry => { importQueue = importQueue.then(() => openPhoto(entry)); };
 
   async function openProject(entry) {
+    let opened = false;
     try {
       const utf8 = await download(entry.url);
       let data = '';
@@ -49,11 +50,20 @@
       const end = Date.now() + 45000;
       while (!window.nobleProjectLauncher && Date.now() < end) await new Promise(resolve=>setTimeout(resolve,80));
       if (!window.nobleProjectLauncher) throw Error('Video Studio is still starting.');
-      await window.nobleProjectLauncher.openLocalProject(entry.name,btoa(data));
+      opened = await window.nobleProjectLauncher.openLocalProject(entry.name,btoa(data),entry.url);
     } catch (error) {
       send({action:'show-error',data:error.message});
-    }
+    } finally { send({action:'project-open-result',data:{url:entry.url,opened}}); }
   }
+
+  // Capture native project-save shortcuts before the canvas consumes them.
+  window.addEventListener('keydown',event => {
+    if (location.pathname !== '/video/' || !window.nobleProjectLauncher || !event.ctrlKey || event.altKey ||
+        event.key.toLowerCase() !== 's' || document.querySelector('dialog:modal')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!event.repeat) void window.nobleProjectLauncher.saveProject(event.shiftKey);
+  },true);
 
   // The editor engines deliver finished files through local Blob links.
   document.addEventListener('click', async event => {
@@ -99,6 +109,11 @@
         const reply = await window.nobleImage.request('ui.inspect');
         send({action:'photo-close-state',data:!reply.ok || reply.result.session.documents.some(doc => doc.dirty)});
       } catch { send({action:'photo-close-state',data:true}); }
+    } else if (event === 'check-video-close') {
+      try {
+        const dirty = await window.nobleProjectLauncher?.needsCloseConfirmation();
+        send({action:'video-close-state',data:Boolean(dirty)});
+      } catch { send({action:'video-close-state',data:true}); }
     } else if (event === 'project') {
       await openProject(data);
     } else if (event === 'delivery') onDelivery?.(data);
@@ -130,6 +145,14 @@
     listRecent: () => invoke('list-recent'),
     openRecent: id => invoke('open-recent',id),
     pickPhotos: () => invoke('pick-photos'),
+    pickVideoProject: () => invoke('pick-video'),
+    async writeVideoProject(name,bytes,target) {
+      const url = await invoke('project-save-target',{name,target});
+      if (!url) return null;
+      const response = await fetch(url,{method:'POST',body:bytes});
+      if (!response.ok) throw Error(await response.text() || 'The project could not be saved.');
+      return response.json();
+    },
     photoImportResult: (url,opened) => send({action:'photo-import-result',data:{url,opened}}),
     onPhotoEntry: callback => {
       photoEntry = callback;

@@ -74,6 +74,7 @@ export function mountVideoExport({editor,button,start,lookup,advanced,failed}) {
         await new Promise(resolve=>setTimeout(resolve,500));
         job=lookup(job.job);
         progress.value=job.progress || 0;
+        if (job.status==='exporting' && progress.value>0) status.textContent='Rendering MP4 · '+Math.floor(progress.value*100)+'%';
       }
       if (job.status!=='finished') throw Error(job.error || 'The video export could not finish.');
       progress.value=1;

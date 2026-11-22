@@ -194,7 +194,7 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
       if (!frames || frames > 2880 || width*height > 1920*1080) {
         throw Error('Quick export supports up to two minutes at HD resolution. Open Advanced export for other settings.');
       }
-      await run('sequence.open',{item:sequence});
+      if ((await run('project.inspect')).activeSequence !== sequence) await run('sequence.open',{item:sequence});
       const virtualPath = '/opfs/noble-mcp/export-'+job.job+'.mp4';
       const started = await run('file.exportMedia',{
         path:virtualPath,format:'h264',width,height,fps:matchRate ? fps : 24,
@@ -334,5 +334,5 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
       if (blocked) document.body.inert = false;
     }
   };
-  return {startExport,exportStatus};
+  return {startExport,exportStatus,exporting:() => Boolean(exportingJob)};
 }
