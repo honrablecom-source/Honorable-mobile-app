@@ -13,15 +13,15 @@
       <a class="brand" href="#studio" aria-label="Noble Studio home">
         <img src="/desktop/noble.png" alt="" width="30" height="30"> <span>Noble Studio</span>
       </a>
-      <nav class="main-nav" aria-label="Workspace">
+      <span class="nav-label">Browse</span><nav class="main-nav" aria-label="Workspace">
         <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
         <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
       </nav>
-      <nav class="create-nav" aria-label="Video workflows">
+      <div class="workflow-group"><span class="nav-label">Create</span><nav class="create-nav" aria-label="Video workflows">
         <a href="/video/?empty&amp;webgl&amp;entry=agent"><span class="nav-icon" aria-hidden="true">✦</span>AI editor</a>
         <a href="/video/?empty&amp;webgl&amp;entry=story"><span class="nav-icon icon-story" aria-hidden="true"></span>Photo storyboard</a>
       </nav>
-      <a class="export-action" href="/desktop/copy-export"><span class="nav-icon icon-copy" aria-hidden="true"></span>Copy exported file</a>
+      </div><a class="export-action" href="/desktop/copy-export"><span class="nav-icon icon-copy" aria-hidden="true"></span>Copy exported file</a>
     </aside>
     <main>
       <section id="studio" aria-labelledby="studio-title">
@@ -43,14 +43,16 @@
             </div>
           </article>
           <article class="studio-card video-studio">
-            <span class="studio-icon video-icon" aria-hidden="true"></span>
-            <div class="workspace-name">
-              <h2>Video Studio</h2>
-              <p>Timeline editing, color, and audio</p>
-              <a class="workspace-link" href="/desktop/native/video">Full video tools <span aria-hidden="true">›</span></a>
-            </div>
-            <div class="workspace-actions">
-              <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
+            <img class="video-art" src="/desktop/video-studio-skate.jpg" width="1536" height="1024" alt="A skateboarder above a sunlit skate bowl">
+            <div class="featured-actions">
+              <div class="workspace-name">
+                <h2>Video Studio</h2>
+                <p>Timeline editing, color, and audio</p>
+              </div>
+              <div class="workspace-actions">
+                <a class="workspace-link" href="/desktop/native/video">Full video tools <span aria-hidden="true">›</span></a>
+                <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
+              </div>
             </div>
           </article>
         </section>
