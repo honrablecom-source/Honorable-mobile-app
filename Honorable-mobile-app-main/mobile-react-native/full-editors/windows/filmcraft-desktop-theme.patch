@@ -1,40 +1,47 @@
 diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
 --- a/crates/ui-egui/src/theme.rs
 +++ b/crates/ui-egui/src/theme.rs
-@@ -150,6 +150,42 @@
+@@ -150,6 +150,49 @@
  }
  
  impl Tokens {
 +    /// Windows editing chrome. Monitor and clip content bypass the interface palette.
 +    pub fn noble_desktop() -> Self {
-+        let rgb = Color32::from_rgb;
++        let gray = Color32::from_gray;
 +        let mut t = Self::for_kind(ThemeKind::Dark);
-+        t.app_bg = rgb(15, 19, 23);
-+        t.header_bg = rgb(20, 24, 28);
-+        t.panel_bg = rgb(26, 31, 37);
-+        t.tab_bg = rgb(22, 26, 31);
-+        t.text = rgb(239, 242, 245);
-+        t.text_dim = rgb(180, 189, 199);
-+        t.text_faint = rgb(144, 154, 166);
++        // Same sRGB fill as the Windows menu bar. Dividers define the docked panels.
++        let chrome = gray(48);
++        t.app_bg = chrome;
++        t.header_bg = chrome;
++        t.panel_bg = chrome;
++        t.tab_bg = chrome;
++        t.row_alt = chrome;
++        t.control_surface = chrome;
++        t.plot_bg = chrome;
++        t.keyframe_plot_bg = chrome;
++        t.caption_track_bg = chrome;
++        t.text = gray(242);
++        t.text_dim = gray(203);
++        t.text_faint = gray(169);
 +        t.tab_text = t.text_dim;
 +        t.tab_text_active = t.text;
-+        t.separator = rgb(49, 57, 65);
-+        t.field_bg = rgb(20, 25, 30);
-+        t.field_border = rgb(60, 69, 79);
-+        t.hover = rgb(48, 57, 66);
-+        t.pressed = rgb(59, 70, 80);
-+        t.accent = rgb(199, 235, 120);
-+        t.accent_hover = rgb(218, 249, 152);
++        t.separator = gray(80);
++        t.field_bg = gray(36);
++        t.field_border = gray(92);
++        t.hover = gray(65);
++        t.pressed = gray(78);
++        t.accent = Color32::from_rgb(164, 199, 255);
++        t.accent_hover = Color32::from_rgb(196, 218, 255);
 +        t.focus = t.accent;
 +        t.hot_text = t.accent;
 +        t.playhead = t.accent;
-+        t.tl_bg = rgb(19, 23, 28);
-+        t.tl_track_bg = rgb(30, 36, 43);
-+        t.tl_track_bg_alt = rgb(35, 42, 50);
-+        t.tl_header_bg = rgb(24, 29, 35);
-+        t.tl_ruler_bg = rgb(20, 24, 29);
++        t.tl_bg = chrome;
++        t.tl_track_bg = chrome;
++        t.tl_track_bg_alt = chrome;
++        t.tl_header_bg = chrome;
++        t.tl_ruler_bg = chrome;
 +        t.tl_ruler_text = t.text_dim;
-+        t.monitor_bg = rgb(13, 16, 20);
++        t.monitor_bg = chrome;
 +        t.timecode = t.text;
 +        t.gap = 4.0;
 +        t.radius = 8.0;

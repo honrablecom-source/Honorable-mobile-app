@@ -90,16 +90,21 @@
   --bar:var(--studio-panel); --canvas:var(--studio-base); --surface:#333;
   --line:var(--studio-line); --ink:var(--studio-text); --accent:#98bfff;
 }
-.noble-video-workspace #noble-workspace-bar { background:var(--studio-rail); border-color:var(--studio-line); }
+/* The same sRGB value is used by the Windows renderer in Tokens::noble_desktop. */
+html:has(#filmcraft_canvas) { --video-chrome:#303030; --canvas:var(--video-chrome); }
+.noble-video-workspace {
+  --studio-base:var(--video-chrome); --studio-panel:var(--video-chrome); --studio-rail:var(--video-chrome);
+  --studio-line:#505050; --surface:var(--video-chrome);
+}
 #noble-workspace-bar .workspace-home { border-color:transparent; }
 #noble-workspace-bar button,.workspace-transport button,.noble-video-workspace .workspace-popover { border-radius:4px; }
-#noble-workspace-bar .workspace-popover { background:#303030; border-color:#555; }
+#noble-workspace-bar .workspace-popover { background:var(--surface); border-color:#555; }
 #noble-workspace-bar .workspace-review .workspace-ai,
 #noble-workspace-bar .workspace-review .workspace-ai:hover,
 #noble-workspace-bar .workspace-review :is(.workspace-ai,.workspace-changes)[aria-expanded=true],
 #noble-workspace-bar .workspace-popover button[aria-pressed=true] { background:var(--studio-selected); border-color:#61748c; color:#e4efff; }
 .noble-video-workspace { --workspace-height:32px; }
-.noble-video-workspace #noble-workspace-bar { display:flex; flex-wrap:nowrap; height:var(--workspace-height); padding:0 8px 0 3px; gap:5px; background:#303030; border-bottom:1px solid #1b1b1b; font:13px "Segoe UI",sans-serif; }
+.noble-video-workspace #noble-workspace-bar { display:flex; flex-wrap:nowrap; height:var(--workspace-height); padding:0 8px 0 3px; gap:5px; background:var(--bar); border-bottom:1px solid #1b1b1b; font:13px "Segoe UI",sans-serif; }
 #noble-workspace-bar .workspace-home { flex:none; min-height:26px; padding:1px 5px; border:0; border-radius:2px; font:600 16px/1 "Segoe UI",sans-serif; }
 .noble-video-workspace #noble-workspace-bar .workspace-actions { flex:1; display:flex; align-items:center; margin:0; gap:8px; width:auto; min-width:0; overflow:visible; }
 .workspace-status:empty { display:none; }
