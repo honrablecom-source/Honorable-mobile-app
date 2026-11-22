@@ -40,6 +40,8 @@ internal sealed partial class NobleStudio : Form
     private Process service;
     private CoreWebView2Environment environment;
     private WebView2 active;
+    private TaskCompletionSource<bool> photoCloseCheck;
+    private bool photoCloseConfirmed;
     private string nativeEditor;
     private int workspaceVersion;
     private bool pickerOpen, closingEditors, closed;
@@ -290,9 +292,10 @@ internal sealed partial class NobleStudio : Form
         active.BringToFront();
         active.Focus();
         startup.Visible = false;
-        Text = kind == "home" ? "Noble Studio" : "Noble Studio — " + (kind == "image" ? "Image" : "Video");
+        Text = kind == "home" ? "Noble Studio" : "Noble Studio — " + (kind == "image" ? "Image Studio" : "Video");
         string entry = System.Web.HttpUtility.ParseQueryString(new Uri(origin + path).Query).Get("entry");
         if (existing && kind == "video" && (entry == "agent" || entry == "story" || entry == "demo" || entry == "new")) Send(view,"entry",entry);
+        if (kind == "image" && entry == "new") Send(view,"photo-entry",entry);
         return view;
     }
 
@@ -308,24 +311,12 @@ internal sealed partial class NobleStudio : Form
             else if (sender == views["home"])
             {
                 if (path == "/desktop/copy-export") CopyExportedFile();
-                else if (path == "/desktop/native/image" || path == "/desktop/native/video")
+                else if (path == "/desktop/native/video") await ShowVideoEditor();
+                else if (path == "/image/" || path == "/desktop/native/image" || path == "/video/")
                 {
-                    string kind = path.Substring("/desktop/native/".Length);
-                    if (kind == "image" && System.Web.HttpUtility.ParseQueryString(uri.Query).Get("entry") == "open")
-                        await OpenNativePhotoPicker();
-                    else if (kind == "image" && System.Web.HttpUtility.ParseQueryString(uri.Query).Get("entry") == "new")
-                    {
-                        await ShowEditor(kind);
-                        HostedEditor editor;
-                        if (nativeEditor == kind && editors.TryGetValue(kind,out editor)) await editor.PhotoControl.NewProject();
-                    }
-                    else await ShowEditor(kind);
-                }
-                else if (path == "/image/" || path == "/video/")
-                {
-                    string kind = path.Trim('/');
+                    string kind = path == "/video/" ? "video" : "image";
                     if (System.Web.HttpUtility.ParseQueryString(uri.Query).Get("entry") == "open") await Pick(kind);
-                    else await ShowWorkspace(kind,uri.PathAndQuery);
+                    else await ShowWorkspace(kind,PathFor(kind) + (path == "/desktop/native/image" ? "?empty&webgl&" + uri.Query.TrimStart('?') : uri.Query));
                 }
             }
         }
@@ -352,11 +343,22 @@ internal sealed partial class NobleStudio : Form
                     if (kind!="home" || view!=active || nativeEditor!=null) throw new InvalidOperationException("Return to Projects first.");
                     var item = RecentFiles().Find(x=>x.Id==(data as string));
                     if (item==null || !File.Exists(item.Path)) throw new FileNotFoundException("This file moved or was deleted. Choose Open to locate it.");
-                    if (Path.GetExtension(item.Path).Equals(".fcproj",StringComparison.OrdinalIgnoreCase)) await OpenSelected("video",new[]{item.Path});
-                    else await OpenChosenPhotos(new[]{item.Path});
+                    bool videoProject = Path.GetExtension(item.Path).Equals(".fcproj",StringComparison.OrdinalIgnoreCase);
+                    await OpenSelected(videoProject ? "video" : "image",new[]{item.Path});
                     Send(view,"reply",true,id);
                     return;
                 case "navigate": await Route(view,data as string); return;
+                case "pick-photos":
+                    if (kind != "image" || view != active) throw new InvalidOperationException("Open Image Studio first.");
+                    await Pick("image");
+                    Send(view,"reply",true,id);
+                    return;
+                case "photo-import-result":
+                    if (kind == "image") FinishPhotoTransfer(view,data as Dictionary<string,object>);
+                    return;
+                case "photo-close-state":
+                    if (kind == "image" && photoCloseCheck != null) photoCloseCheck.TrySetResult(Equals(data,true));
+                    return;
                 case "mcp-result": CompleteMcp(view,id as string,data as Dictionary<string,object>); return;
                 case "prepare-upload": Send(view,"reply",PrepareUpload(view,kind,data),id); return;
                 case "save-dialog": Send(view,"reply",ChooseSaveDestination(view,kind,data),id); return;
@@ -434,11 +436,17 @@ internal sealed partial class NobleStudio : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        WebView2 imageView;
         if (editors.Count > 0 && !closed)
         {
             e.Cancel = true;
             closingEditors = true;
             CloseEditors();
+        }
+        else if (!closed && !photoCloseConfirmed && views.TryGetValue("image",out imageView))
+        {
+            e.Cancel = true;
+            if (photoCloseCheck == null) CheckPhotoBeforeClose(imageView);
         }
         else
         {
@@ -456,10 +464,26 @@ internal sealed partial class NobleStudio : Form
         base.OnFormClosing(e);
     }
 
+    private async void CheckPhotoBeforeClose(WebView2 view)
+    {
+        var check = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        photoCloseCheck = check;
+        bool dirty = true;
+        try
+        {
+            Send(view,"check-photo-close",null);
+            if (await Task.WhenAny(check.Task,Task.Delay(2500)) == check.Task) dirty = await check.Task;
+            if (dirty && MessageBox.Show(this,"Close Noble and discard unsaved photo edits?","Noble Image Studio",
+                MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2) != DialogResult.OK) return;
+            photoCloseConfirmed = true;
+            Close();
+        }
+        finally { photoCloseCheck = null; }
+    }
+
     private sealed class HostedEditor
     {
         public Process Process;
-        public NativePhotoControl PhotoControl;
         public TaskCompletionSource<bool> Ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
@@ -469,47 +493,9 @@ internal sealed partial class NobleStudio : Form
         return Path.Combine(Package,"resources","native",kind,releases[kind]["directory"],releases[kind][field]);
     }
 
-    private void ConfigureDockedPhotoFrame(string settingsDirectory)
+    private async Task ShowVideoEditor()
     {
-        string preferences = Path.Combine(settingsDirectory,"preferences.json");
-        string pending = preferences + ".noble-frame-" + Guid.NewGuid().ToString("N");
-        try
-        {
-            Directory.CreateDirectory(settingsDirectory);
-            var values = File.Exists(preferences)
-                ? json.Deserialize<Dictionary<string,object>>(File.ReadAllText(preferences))
-                : new Dictionary<string,object>();
-            if (values == null) return;
-            object section;
-            if (!values.TryGetValue("interface",out section))
-            {
-                section = new Dictionary<string,object>();
-                values["interface"] = section;
-            }
-            var appearance = section as Dictionary<string,object>;
-            if (appearance == null || Equals(Field(appearance,"systemTitleBar"),true)) return;
-
-            // The dock host removes the child HWND frame. Keep PhotoCraft's menus
-            // and let the Noble window supply the caption buttons.
-            appearance["systemTitleBar"] = true;
-            File.WriteAllText(pending,json.Serialize(values));
-            if (File.Exists(preferences)) File.Replace(pending,preferences,null);
-            else File.Move(pending,preferences);
-        }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
-        catch (ArgumentException) { }
-        catch (InvalidOperationException) { }
-        finally
-        {
-            try { File.Delete(pending); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-        }
-    }
-
-    private async Task ShowEditor(string kind)
-    {
+        const string kind = "video";
         string binary = NativePath(kind,"executable");
         string host = Path.Combine(Resources,"NobleEditorHost.exe");
         if (!File.Exists(binary) || !File.Exists(host)) throw new InvalidOperationException("The full desktop editing tools are missing. Reinstall Noble Studio.");
@@ -517,35 +503,15 @@ internal sealed partial class NobleStudio : Form
         HideEditor();
         nativeEditor = kind;
         Send(views["home"],"desktop-editor",kind);
-        Text = "Noble Studio — " + (kind == "image" ? "Image Studio" : "Full video tools");
+        Text = "Noble Studio — Full video tools";
         HostedEditor editor;
         if (!editors.TryGetValue(kind,out editor))
         {
             editor = new HostedEditor();
             string data = Path.Combine(settingsProfile,"desktop-editor-" + kind);
             string args = Handle.ToInt64().ToString("x") + " " + DockHeaderHeight + " " + Quote(binary);
-            if (kind == "image")
-            {
-                ConfigureDockedPhotoFrame(data);
-                editor.PhotoControl = new NativePhotoControl(profile);
-                args += " --new-instance --in-window-menus --control 0" +
-                    " --automation-read-root " + Quote(editor.PhotoControl.ReadRoot) +
-                    " --automation-write-root " + Quote(editor.PhotoControl.WriteRoot);
-            }
-            else args += " --empty --data-dir " + Quote(data);
-            var info = HiddenProcess(host,args);
-            if (editor.PhotoControl != null)
-            {
-                info.EnvironmentVariables["PHOTOCRAFT_CONFIG_DIR"] = data;
-                info.EnvironmentVariables.Remove("PHOTOCRAFT_CONTROL_TOKEN_FILE");
-                info.EnvironmentVariables["PHOTOCRAFT_CONTROL_TOKEN"] = editor.PhotoControl.Token;
-            }
-            try { editor.Process = Process.Start(info); }
-            catch
-            {
-                if (editor.PhotoControl != null) editor.PhotoControl.Stop();
-                throw;
-            }
+            args += " --empty --data-dir " + Quote(data);
+            editor.Process = Process.Start(HiddenProcess(host,args));
             editors.Add(kind,editor);
             string error = null;
             var launched = editor;
@@ -553,13 +519,11 @@ internal sealed partial class NobleStudio : Form
             editor.Process.OutputDataReceived += (_,e) =>
             {
                 if (e.Data == "ready") launched.Ready.TrySetResult(true);
-                else if (launched.PhotoControl != null) launched.PhotoControl.AcceptPort(e.Data);
             };
             editor.Process.EnableRaisingEvents = true;
             editor.Process.Exited += delegate
             {
                 launched.Ready.TrySetException(new InvalidOperationException(error ?? "The full desktop editor stopped."));
-                if (launched.PhotoControl != null) launched.PhotoControl.Stop();
                 OnUi(() =>
                 {
                     editors.Remove(kind);
@@ -579,44 +543,6 @@ internal sealed partial class NobleStudio : Form
         }
         await editor.Ready.Task;
         if (!closed && nativeEditor == kind) EditorCommand(editor,"show");
-    }
-
-    private async Task OpenNativePhotoPicker()
-    {
-        if (pickerOpen) return;
-        pickerOpen = true;
-        try
-        {
-            string[] files;
-            using (var dialog = CreateOpenDialog(true))
-            {
-                if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                files = dialog.FileNames;
-            }
-            if (files.Length > 12) throw new InvalidOperationException("Choose up to 12 photos per import.");
-            await OpenChosenPhotos(files);
-        }
-        finally
-        {
-            pickerOpen = false;
-            Send(views["home"],"native-photo-loading",false);
-        }
-    }
-
-    private async Task OpenChosenPhotos(string[] files)
-    {
-        Send(views["home"],"native-photo-loading",true);
-        try
-        {
-            if (nativeEditor != "image") await ShowEditor("image");
-            HostedEditor editor;
-            if (nativeEditor == "image" && editors.TryGetValue("image",out editor))
-            {
-                await editor.PhotoControl.OpenFiles(files);
-                foreach (string file in files) RememberFile(file);
-            }
-        }
-        finally { Send(views["home"],"native-photo-loading",false); }
     }
 
     private sealed class RecentFile
@@ -693,7 +619,7 @@ internal sealed partial class NobleStudio : Form
         try
         {
             if (active != views["home"]) await ShowWorkspace("home", Home);
-            await ShowEditor(kind);
+            await ShowVideoEditor();
             if (closingEditors && nativeEditor == kind) EditorCommand(editors[kind],"close");
         }
         catch (Exception error) { if (!closed && !closingEditors) ShowError(error.Message); }

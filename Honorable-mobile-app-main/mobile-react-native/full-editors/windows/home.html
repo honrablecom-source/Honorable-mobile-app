@@ -22,14 +22,14 @@
       <div class="file-commands">
         <button type="button" popovertarget="open-menu" title="Open…" aria-label="Open…"><span class="shell-icon" aria-hidden="true">&#xE8DA;</span><span class="cmd-label">Open…</span></button>
         <button type="button" popovertarget="new-menu" title="New project" aria-label="New project"><span class="shell-icon" aria-hidden="true">&#xE710;</span><span class="cmd-label">New project</span></button>
-        <div id="new-menu" class="file-menu" popover><a href="/desktop/native/image?entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
-        <div id="open-menu" class="file-menu" popover><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
+        <div id="new-menu" class="file-menu" popover><a href="/image/?empty&amp;webgl&amp;entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
+        <div id="open-menu" class="file-menu" popover><a href="/image/?empty&amp;webgl&amp;entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
       </div>
       <nav class="places" aria-label="Navigation">
         <a href="#studio" title="Projects" aria-label="Projects" aria-current="page"><span class="shell-icon" aria-hidden="true">&#xE8FD;</span><span>Projects</span></a>
         <a href="#library" title="Media library" aria-label="Media library"><span class="shell-icon" aria-hidden="true">&#xE8B7;</span><span>Media library</span></a>
       </nav>
-      <div class="studio-links"><h2>Studios</h2><nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" title="Image Studio" href="/desktop/native/image"><span class="shell-icon" aria-hidden="true">&#xEB9F;</span><span>Image Studio</span></a><a aria-label="Open Video Studio" title="Video Studio" href="/desktop/native/video"><span class="shell-icon" aria-hidden="true">&#xE8B2;</span><span>Video Studio</span></a></nav></div>
+      <div class="studio-links"><h2>Studios</h2><nav class="editor-launchers" aria-label="Studio workspaces"><a aria-label="Open Image Studio" title="Image Studio" href="/image/?empty&amp;webgl"><span class="shell-icon" aria-hidden="true">&#xEB9F;</span><span>Image Studio</span></a><a aria-label="Open Video Studio" title="Video Studio" href="/desktop/native/video"><span class="shell-icon" aria-hidden="true">&#xE8B2;</span><span>Video Studio</span></a></nav></div>
       <nav class="rail-tools places" aria-label="Workspace preferences">
         <a href="#history" title="History" aria-label="History"><span class="shell-icon" aria-hidden="true">&#xE823;</span><span>History</span></a>
         <a href="#settings" title="Settings" aria-label="Settings"><span class="shell-icon" aria-hidden="true">&#xE713;</span><span>Settings</span></a>
@@ -44,7 +44,7 @@
             <img src="/desktop/video-studio-tiger.jpg" alt="">
             <div class="cover-caption"><strong>Video Studio</strong><span class="cover-command"><b aria-hidden="true">＋</b> New video project</span></div>
           </a>
-          <a class="studio-cover image-cover" href="/desktop/native/image?entry=new" aria-label="New photo project">
+          <a class="studio-cover image-cover" href="/image/?empty&amp;webgl&amp;entry=new" aria-label="New photo project">
             <img src="/desktop/image-studio-capuchin.jpg" alt="">
             <div class="cover-caption"><strong>Image Studio</strong><span class="cover-command"><b aria-hidden="true">＋</b> New photo project</span></div>
           </a>
@@ -66,10 +66,10 @@
             <div id="recent-columns" aria-hidden="true" hidden><span>Name</span><span>File type</span><span>Last opened</span></div>
             <div id="recent-files"></div>
             <p id="recent-status" role="status"></p>
-            <div id="recent-empty" hidden><span class="shell-icon empty-icon" aria-hidden="true">&#xE8B7;</span><div><strong>No recent files yet</strong><p>Open a photo or video project to find it here next time.</p></div><div class="empty-actions"><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div></div>
+            <div id="recent-empty" hidden><span class="shell-icon empty-icon" aria-hidden="true">&#xE8B7;</span><div><strong>No recent files yet</strong><p>Open a photo or video project to find it here next time.</p></div><div class="empty-actions"><a href="/image/?empty&amp;webgl&amp;entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div></div>
           </div>
         </section>
-        <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
+        <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
       </section>
       <section id="history" hidden aria-labelledby="history-heading">
         <header class="panel-bar"><h2 id="history-heading">Workspace activity</h2><input type="search" id="history-filter" placeholder="Find an action" aria-label="Filter workspace activity"></header>

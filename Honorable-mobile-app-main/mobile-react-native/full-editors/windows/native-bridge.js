@@ -6,6 +6,8 @@
   let importPhoto;
   let importQueue = Promise.resolve();
   const pendingPhotos = [];
+  let photoEntry;
+  const pendingPhotoEntries = [];
   let onDelivery, onEditor, onNativePhotoLoading;
   const send = message => socket.postMessage(message);
   const invoke = (action, data) => new Promise((resolve,reject) => {
@@ -33,7 +35,7 @@
       const bytes = entry.url && await download(entry.url);
       importPhoto({...entry,bytes});
     } catch (error) {
-      importPhoto({name:entry.name,error:error.message});
+      importPhoto({...entry,error:error.message});
     }
   }
   const queuePhoto = entry => { importQueue = importQueue.then(() => openPhoto(entry)); };
@@ -88,6 +90,14 @@
     } else if (event === 'photo') {
       if (importPhoto) queuePhoto(data);
       else pendingPhotos.push(data);
+    } else if (event === 'photo-entry') {
+      if (photoEntry) photoEntry(data);
+      else pendingPhotoEntries.push(data);
+    } else if (event === 'check-photo-close') {
+      try {
+        const reply = await window.nobleImage.request('ui.inspect');
+        send({action:'photo-close-state',data:!reply.ok || reply.result.session.documents.some(doc => doc.dirty)});
+      } catch { send({action:'photo-close-state',data:true}); }
     } else if (event === 'project') {
       await openProject(data);
     } else if (event === 'delivery') onDelivery?.(data);
@@ -112,6 +122,12 @@
   Object.defineProperty(window,'nobleNavigation',{value:Object.freeze({
     listRecent: () => invoke('list-recent'),
     openRecent: id => invoke('open-recent',id),
+    pickPhotos: () => invoke('pick-photos'),
+    photoImportResult: (url,opened) => send({action:'photo-import-result',data:{url,opened}}),
+    onPhotoEntry: callback => {
+      photoEntry = callback;
+      for (const entry of pendingPhotoEntries.splice(0)) callback(entry);
+    },
     openWorkspace: href => send({action:'navigate',data:href}),
     onPhotoDelivery: callback => { onDelivery = callback; },
     onPhotoImport: callback => {

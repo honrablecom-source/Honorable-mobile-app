@@ -477,18 +477,21 @@ async function finishImport(before) {
       }
       await wait(150);
     }
-    throw Error('Image Studio could not finish opening this file. Try Full photo tools from Projects.');
+    throw Error('Image Studio could not finish opening this file.');
   } finally {
     delete shell.dataset.openPrompt;
   }
 }
-open.onclick = () => filePicker.click();
+open.onclick = () => {
+  if (window.nobleNavigation?.pickPhotos) window.nobleNavigation.pickPhotos().catch(error => setStatus(error.message));
+  else filePicker.click();
+};
 emptyOpen.onclick = open.onclick;
 
 function queuePhotos(files) {
   if (files.length > 12) return setStatus('Choose up to 12 photos per import.');
   if (!files.length) return;
-  photoQueue.push(...files);
+  photoQueue.push(...files.map(file => ({file,name:file.name})));
   void flushPhotoQueue();
 }
 
@@ -498,15 +501,23 @@ async function flushPhotoQueue() {
   await run(async()=>{
     const failures = [];
     let opened = 0;
-    for (const file of batch) {
-      const name = file.name;
+    for (const item of batch) {
+      if (item.entry === 'new') {
+        await command('file.new',{width:1920,height:1080,background:'white'});
+        continue;
+      }
+      const {file,name,url} = item;
       setStatus('Opening '+name+'…');
+      let success = false;
       try {
-        if (!(file instanceof File)) throw Error(file.error);
+        if (item.error) throw Error(item.error);
         await importPhoto(file);
+        success = true;
         opened++;
       } catch (error) {
         failures.push(name+' · '+error.message);
+      } finally {
+        if (url) window.nobleNavigation.photoImportResult(url,success);
       }
     }
     setStatus([opened ? 'Opened '+opened+(opened === 1 ? ' file.' : ' files.') : '',...failures].filter(Boolean).join(' '));
@@ -514,7 +525,13 @@ async function flushPhotoQueue() {
 }
 
 window.nobleNavigation?.onPhotoImport?.(entry=>{
-  queuePhotos([entry.error ? entry : new File([entry.bytes],entry.name)]);
+  photoQueue.push({name:entry.name,url:entry.url,error:entry.error,file:entry.error ? null : new File([entry.bytes],entry.name)});
+  void flushPhotoQueue();
+});
+window.nobleNavigation?.onPhotoEntry?.(entry=>{
+  if (entry !== 'new') return;
+  photoQueue.push({entry});
+  void flushPhotoQueue();
 });
 filePicker.onchange = () => {
   const files = Array.from(filePicker.files);

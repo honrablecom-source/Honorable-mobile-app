@@ -67,7 +67,7 @@ internal sealed partial class NobleStudio
                     throw new InvalidOperationException("Choose a nonempty file under 64 MB and a batch under 128 MB.");
                 if (!photo && !string.Equals(Path.GetExtension(file),".fcproj",StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Choose a Noble video project (.fcproj).");
-                string url = IssueTransfer(new Transfer { View=view, Path=file, Name=name });
+                string url = IssueTransfer(new Transfer { View=view, Path=file, Name=name, Kind=photo ? "photo-read" : null });
                 total += size;
                 if (!photo) RememberFile(file);
                 Send(view,photo ? "photo" : "project",new {name,url});
@@ -87,6 +87,15 @@ internal sealed partial class NobleStudio
             Filter = photo ? "Photos and projects|*.pcraft;*.psd;*.psb;*.ora;*.png;*.jpg;*.jpeg;*.webp;*.tif;*.tiff;*.bmp;*.gif;*.heic;*.heif|All files|*.*" : "Noble video project|*.fcproj",
             Multiselect = photo, CheckFileExists = true, RestoreDirectory = true
         };
+    }
+
+    private void FinishPhotoTransfer(WebView2 view,Dictionary<string,object> result)
+    {
+        string key = Field(result,"url") as string;
+        Transfer transfer;
+        if (key == null || !transfers.TryGetValue(key,out transfer) || transfer.View != view || transfer.Kind != "photo-receipt") return;
+        transfers.Remove(key);
+        if (Equals(Field(result,"opened"),true)) RememberFile(transfer.Path);
     }
 
     private string PrepareUpload(WebView2 view,string workspace,object data)
@@ -142,7 +151,7 @@ internal sealed partial class NobleStudio
     private async void HandleTransfer(WebView2 view,string key,CoreWebView2WebResourceRequestedEventArgs e)
     {
         Transfer transfer;
-        if (!transfers.TryGetValue(key,out transfer) || transfer.View != view || transfer.Expires < DateTime.UtcNow ||
+        if (!transfers.TryGetValue(key,out transfer) || transfer.View != view || transfer.Kind == "photo-receipt" || transfer.Expires < DateTime.UtcNow ||
             e.Request.Method != (transfer.Path == null ? "POST" : "GET"))
         {
             e.Response = Response(404,"text/plain",null);
@@ -163,6 +172,12 @@ internal sealed partial class NobleStudio
                         throw new InvalidDataException("Choose a nonempty file under 64 MB.");
                     }
                     e.Response = Response(200,"application/octet-stream",file);
+                    if (transfer.Kind == "photo-read")
+                    {
+                        transfer.Kind = "photo-receipt";
+                        transfer.Expires = DateTime.UtcNow.AddMinutes(10);
+                        transfers.Add(key,transfer);
+                    }
                 }
                 else
                 {
