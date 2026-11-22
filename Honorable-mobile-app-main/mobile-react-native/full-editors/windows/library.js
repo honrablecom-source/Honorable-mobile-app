@@ -11,13 +11,48 @@ const more = document.querySelector('#more');
 const pageSize = 50;
 const tabs = Array.from(document.querySelectorAll('nav a[href^="#"]'));
 
+const activityKey = 'noble.home.activity';
+let activity = [];
+try {
+  const saved = JSON.parse(localStorage.getItem(activityKey));
+  if (Array.isArray(saved)) activity = saved.filter(item => typeof item?.label === 'string' && Number.isFinite(item.at)).slice(0,50);
+} catch {}
+const compact = document.querySelector('#compact-covers');
+const remember = document.querySelector('#remember-history');
+compact.checked = localStorage.getItem('noble.home.compact') === 'true';
+remember.checked = localStorage.getItem('noble.home.remember') !== 'false';
+document.body.classList.toggle('compact-covers',compact.checked);
+compact.onchange = () => {
+  document.body.classList.toggle('compact-covers',compact.checked);
+  localStorage.setItem('noble.home.compact',String(compact.checked));
+};
+remember.onchange = () => localStorage.setItem('noble.home.remember',String(remember.checked));
+document.querySelector('#studio').addEventListener('click', event => {
+  const link = event.target.closest('a');
+  if (!link || !remember.checked) return;
+  activity.unshift({label:link.getAttribute('aria-label') || link.textContent.trim(),at:Date.now()});
+  activity = activity.slice(0,50);
+  localStorage.setItem(activityKey,JSON.stringify(activity));
+});
+
 function showSection() {
-  const library = location.hash === '#library';
-  document.querySelector('#studio').hidden = library;
-  document.querySelector('#library').hidden = !library;
+  const selected = tabs.find(tab => tab.hash === location.hash)?.hash || '#studio';
   for (const tab of tabs) {
-    if (tab.hash === (library ? '#library' : '#studio')) tab.setAttribute('aria-current', 'page');
+    document.querySelector(tab.hash).hidden = tab.hash !== selected;
+    if (tab.hash === selected) tab.setAttribute('aria-current','page');
     else tab.removeAttribute('aria-current');
+  }
+  if (selected === '#history') {
+    document.querySelector('#empty-history').hidden = Boolean(activity.length);
+    document.querySelector('#activity-list').replaceChildren(...activity.map(item => {
+      const row = document.createElement('li');
+      const time = document.createElement('time');
+      const at = new Date(item.at);
+      time.dateTime = at.toISOString();
+      time.textContent = at.toLocaleString();
+      row.append(item.label,time);
+      return row;
+    }));
   }
 }
 

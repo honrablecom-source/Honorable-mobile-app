@@ -48,28 +48,31 @@ internal sealed class NativePhotoControl
         RemoveEmpty(root);
     }
 
-    public async Task OpenFiles(string[] files)
+    public Task OpenFiles(string[] files) { return Edit(files,false); }
+    public Task NewProject() { return Edit(null,true); }
+
+    private async Task Edit(string[] files,bool create)
     {
         if (await Task.WhenAny(port.Task,Task.Delay(6000)) != port.Task || port.Task.IsCanceled)
-            throw new InvalidOperationException("Choose File > Open in Image Studio.");
+            throw new InvalidOperationException(create ? "Choose File > New in Image Studio." : "Choose File > Open in Image Studio.");
         int number = await port.Task;
-        try { await Task.Run(() => SendOpen(number,files)); }
+        try { await Task.Run(() => SendEdit(number,files,create)); }
         catch (IOException)
         {
-            throw new InvalidOperationException("Choose File > Open in Image Studio.");
+            throw new InvalidOperationException(create ? "Choose File > New in Image Studio." : "Choose File > Open in Image Studio.");
         }
         catch (SocketException)
         {
-            throw new InvalidOperationException("Choose File > Open in Image Studio.");
+            throw new InvalidOperationException(create ? "Choose File > New in Image Studio." : "Choose File > Open in Image Studio.");
         }
         catch (AggregateException error)
         {
             if (!(error.GetBaseException() is SocketException)) throw;
-            throw new InvalidOperationException("Choose File > Open in Image Studio.");
+            throw new InvalidOperationException(create ? "Choose File > New in Image Studio." : "Choose File > Open in Image Studio.");
         }
     }
 
-    private void SendOpen(int number,string[] files)
+    private void SendEdit(int number,string[] files,bool create)
     {
         var json = new JavaScriptSerializer { MaxJsonLength = 65536 };
         using (var client = new TcpClient())
@@ -88,6 +91,11 @@ internal sealed class NativePhotoControl
                     throw new IOException("The editor could not authenticate.");
                 Send(json,reader,writer,2,"auth",new {proof=Proof("client",clientNonce,serverNonce)});
                 stream.ReadTimeout = 60000;
+                if (create)
+                {
+                    Send(json,reader,writer,3,"engine.execute",new {command="file.new",@params=new {width=1920,height=1080,background="white"}});
+                    return;
+                }
                 var failed = new List<string>();
                 for (int i=0; i<files.Length; i++)
                 {

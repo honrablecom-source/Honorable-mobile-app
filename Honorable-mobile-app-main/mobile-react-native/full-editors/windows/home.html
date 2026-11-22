@@ -15,14 +15,10 @@
         <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
         <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
       </nav>
-      <div class="rail-tools"><h2>Editing tools</h2>
-        <nav aria-label="Editing tools">
-          <a href="/image/?empty&amp;webgl">AI photo workspace</a>
-          <a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a>
-          <a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a>
-          <a href="/video/?empty&amp;webgl">AI video workspace</a>
-        </nav>
-      </div>
+      <nav class="rail-tools places" aria-label="Workspace preferences">
+        <a href="#history"><span class="nav-icon" aria-hidden="true">◷</span>History</a>
+        <a href="#settings"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</a>
+      </nav>
       <a class="export-action" href="/desktop/copy-export"><span class="nav-icon icon-copy" aria-hidden="true"></span>Copy exported file</a>
     </aside>
     <main>
@@ -30,18 +26,27 @@
         <header class="projects-head"><h1 id="projects-heading">Projects</h1></header>
         <div class="studio-pair">
           <article class="editor-tile">
-            <a class="cover-link" href="/desktop/native/image" aria-label="Enter the photo editor"><img src="/desktop/image-studio-capuchin.jpg" alt=""></a>
+            <a class="cover-link" href="/desktop/native/image?entry=new" aria-label="New photo project"><img src="/desktop/image-studio-capuchin.jpg" alt=""><span class="new-project"><b aria-hidden="true">+</b> New photo project</span></a>
             <div class="tile-body"><h2>Image Studio</h2><p>Photo editing, layers and masks</p>
-              <div class="tile-actions"><a class="open-file" href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a></div>
+              <div class="tile-actions"><a class="open-file" href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a><a href="/image/?empty&amp;webgl">AI photo workspace</a></div>
             </div>
           </article>
           <article class="editor-tile">
             <a class="cover-link" href="/desktop/native/video" aria-label="Enter the video editor"><img src="/desktop/video-studio-tiger.jpg" alt=""></a>
             <div class="tile-body"><h2>Video Studio</h2><p>Timeline editing, sound and color</p>
-              <div class="tile-actions"><a class="open-file" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a></div>
+              <div class="tile-actions"><a class="open-file" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></div>
             </div>
           </article>
         </div>
+      </section>
+      <section id="history" hidden aria-labelledby="history-heading">
+        <header class="projects-head"><h1 id="history-heading">History</h1></header>
+        <h2>Recent workspace actions</h2><p id="empty-history">Your workspace actions will appear here.</p><ol id="activity-list"></ol>
+      </section>
+      <section id="settings" hidden aria-labelledby="settings-heading">
+        <header class="projects-head"><h1 id="settings-heading">Settings</h1></header>
+        <label class="setting"><span>Compact project covers</span><input type="checkbox" id="compact-covers"></label>
+        <label class="setting"><span>Remember workspace actions on this PC</span><input type="checkbox" id="remember-history"></label>
       </section>
       <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">

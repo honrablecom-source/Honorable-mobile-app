@@ -313,6 +313,12 @@ internal sealed partial class NobleStudio : Form
                     string kind = path.Substring("/desktop/native/".Length);
                     if (kind == "image" && System.Web.HttpUtility.ParseQueryString(uri.Query).Get("entry") == "open")
                         await OpenNativePhotoPicker();
+                    else if (kind == "image" && System.Web.HttpUtility.ParseQueryString(uri.Query).Get("entry") == "new")
+                    {
+                        await ShowEditor(kind);
+                        HostedEditor editor;
+                        if (nativeEditor == kind && editors.TryGetValue(kind,out editor)) await editor.PhotoControl.NewProject();
+                    }
                     else await ShowEditor(kind);
                 }
                 else if (path == "/image/" || path == "/video/")
