@@ -1,10 +1,11 @@
 import {mountVideoMcp} from './video-mcp.js';
+import {clearVideoChanges} from './video-changes.js';
 
 const bar = document.createElement('header');
 bar.id = 'noble-workspace-bar';
 const canvas = document.querySelector('#filmcraft_canvas');
 bar.innerHTML = `
-  <a class="workspace-home" href="/desktop/home.html"><img src="/desktop/noble.png" width="24" height="24" alt=""> Home</a>
+  <a class="workspace-home" href="/desktop/home.html" aria-label="Noble Home" title="Noble Home"><img src="/desktop/noble.png" width="28" height="28" alt=""><span>Home</span></a>
   <strong>${canvas ? 'Video Studio' : 'Image Studio'}</strong>
 `;
 document.body.prepend(bar);
@@ -29,13 +30,22 @@ async function setupVideo() {
   actions.setAttribute('role', 'group');
   actions.setAttribute('aria-label', 'Video Studio actions');
   actions.innerHTML = `
-    <button type="button" data-action="import">Import media</button>
-    <button type="button" data-action="open">Open</button>
-    <button type="button" data-action="save">Save</button>
-    <button type="button" popovertarget="noble-cut-tools">Tools</button>
-    <button type="button" popovertarget="noble-layouts">Layout</button>
-    <button type="button" popovertarget="noble-commands">Commands</button>
-    <button type="button" class="workspace-primary" data-action="export" aria-pressed="false">Export</button>
+    <div class="workspace-group workspace-files">
+      <button type="button" popovertarget="noble-project-menu">Project <span aria-hidden="true">⌄</span></button>
+      <button type="button" data-action="import"><span aria-hidden="true">＋</span> Import media</button>
+      <section id="noble-project-menu" class="workspace-popover" aria-label="Project actions" popover="auto">
+        <button type="button" data-action="open">Open project…</button>
+        <button type="button" data-action="save">Save project</button>
+      </section>
+    </div>
+    <div class="workspace-group workspace-adjust">
+      <button type="button" popovertarget="noble-cut-tools">Tools</button>
+      <button type="button" popovertarget="noble-layouts">Layout</button>
+      <button type="button" popovertarget="noble-commands">Commands</button>
+    </div>
+    <div class="workspace-group workspace-review">
+      <button type="button" class="workspace-primary" data-action="export" aria-pressed="false">Export</button>
+    </div>
   `;
   actions.inert = true;
   bar.append(actions);
@@ -76,9 +86,15 @@ async function setupVideo() {
   bar.append(createPopover);
   const agentButton = document.querySelector('#cinematic-open');
   if (agentButton) {
-    agentButton.innerHTML = '<span aria-hidden="true">✦</span> AI agent';
+    agentButton.innerHTML = '<span aria-hidden="true">✦</span> AI editor';
     agentButton.classList.add('workspace-ai');
-    actions.insertBefore(agentButton, actions.querySelector('[data-action="export"]'));
+    actions.querySelector('.workspace-review').prepend(agentButton);
+  }
+  const changesButton = document.querySelector('#cinematic-changes');
+  if (changesButton) {
+    changesButton.className = 'workspace-changes';
+    changesButton.hidden = false;
+    actions.querySelector('.workspace-review').insertBefore(changesButton,actions.querySelector('[data-action="export"]'));
   }
 
   const layouts = document.createElement('section');
@@ -221,18 +237,21 @@ async function setupVideo() {
   start.innerHTML = `
     <div class="start-inner">
       <div class="start-heading">
-        <h1 id="workspace-start-title">Start your edit</h1>
-        <p>Drop video clips or photos here to put them on an editable timeline.</p>
+        <h1 id="workspace-start-title">Start a video project</h1>
       </div>
-      <div class="start-primary">
-        <button type="button" data-start="import">Choose media</button>
-        <button type="button" data-start="open">Open project</button>
+      <div class="start-drop">
+        <span class="start-plus" aria-hidden="true">＋</span>
+        <div><strong>Drop video clips or photos here</strong><p>They’ll be added to a new timeline.</p></div>
+        <button type="button" data-start="import">Browse media</button>
       </div>
       <div class="start-tools">
-        <button type="button" data-start="agent"><strong>Draft with AI</strong><span>Build a first cut from clips and music.</span></button>
-        <button type="button" data-start="story"><strong>Photo storyboard</strong><span>Set the order and timing of your photos.</span></button>
+        <button type="button" data-start="agent"><span class="start-tool-icon" aria-hidden="true">✦</span><span><strong>Draft with AI</strong><small>Build a first cut from footage and music.</small></span><span aria-hidden="true" class="start-arrow">→</span></button>
+        <button type="button" data-start="story"><span class="start-tool-icon" aria-hidden="true">▤</span><span><strong>Photo storyboard</strong><small>Arrange photos and set how long each holds.</small></span><span aria-hidden="true" class="start-arrow">→</span></button>
       </div>
-      <button class="start-blank" type="button" data-start="blank">Open empty timeline</button>
+      <div class="start-bottom">
+        <button type="button" data-start="open">Open project…</button>
+        <button type="button" data-start="blank">Empty timeline</button>
+      </div>
       <p class="start-feedback" role="status"></p>
     </div>
   `;
@@ -295,9 +314,12 @@ async function setupVideo() {
     setStatus(imported.items.length + (imported.items.length === 1 ? ' file imported.' : ' files imported.'));
   }));
   const openProject = file => run(async () => {
+    if ('nobleAgentBusy' in document.body.dataset || document.body.inert) throw Error('Wait for the AI edit to finish before opening another project.');
     const current = await editor.execute('project.inspect');
     if (current.dirty && !window.confirm('Replace the current project? Save your edits first if you want to keep them.')) return;
     const opened = await editor.openProject(file);
+    clearVideoChanges();
+    window.dispatchEvent(new Event('noble-project-replaced'));
     start.hidden = true;
     await refreshTimeline();
     void fitTimeline().catch(() => {});
@@ -320,12 +342,13 @@ async function setupVideo() {
     if (entry === 'story') startActions.story.click();
     if (entry === 'open') {
       if (!start.hidden) startActions.open.focus();
-      else action('open').focus();
+      else actions.querySelector('[popovertarget="noble-project-menu"]').focus();
     }
   };
   action('import').onclick = () => imports.click();
-  action('open').onclick = () => projects.click();
-  action('save').onclick = () => { void run(() => invoke('file.save')); };
+  const projectMenu = actions.querySelector('#noble-project-menu');
+  action('open').onclick = () => { projectMenu.hidePopover(); projects.click(); };
+  action('save').onclick = () => { projectMenu.hidePopover(); void run(() => invoke('file.save')); };
   const exportButton = action('export');
   let returnToStarter = false;
   exportButton.onclick = () => void run(async () => {

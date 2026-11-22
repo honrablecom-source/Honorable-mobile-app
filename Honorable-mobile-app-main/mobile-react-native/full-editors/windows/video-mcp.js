@@ -1,5 +1,6 @@
 import {inspectMusic, inspectVideo} from './cinematic-media.js';
 import {createVideoControls} from './video-controls.js';
+import {changeTitles, inspectChange, recordVideoChange} from './video-changes.js';
 
 const ticks = 10584000000; // FilmCraft's ticks per 24 fps frame.
 const snapshotPath = '/opfs/noble-mcp/current-project.fcproj';
@@ -270,10 +271,19 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
   window.nobleVideoMcp = async ({tool,args}) => {
     if (!Object.hasOwn(handlers,tool)) return {error:'Unknown Noble video tool.'};
     const blocked = !readOnly.has(tool);
-    if (blocked && document.body.inert) return {error:'Noble is busy.'};
+    if (blocked && (document.body.inert || 'nobleAgentBusy' in document.body.dataset)) return {error:'Noble is busy.'};
     if (blocked) document.body.inert = true;
     try {
-      return {result:await handlers[tool](args)};
+      const title = tool === 'edit_video_clip' ? {
+        trim:'Trimmed a clip',split:'Split a clip',move:'Moved a clip',retime:'Retimed a clip',remove:'Removed a clip',
+      }[args.operation.type] : changeTitles[tool];
+      const before = title ? await inspectChange(editor,args.sequence).catch(()=>null) : null;
+      const result = await handlers[tool](args);
+      if (title && result.data.revision !== args.revision) {
+        const after = await inspectChange(editor,result.data.sequence).catch(()=>null);
+        if (after) recordVideoChange({before,after,title,source:'MCP',tool,args,change:result.data.change});
+      }
+      return {result};
     } catch (error) {
       return {error:error.message || String(error)};
     } finally {
