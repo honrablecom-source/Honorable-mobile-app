@@ -9,25 +9,39 @@
 </head>
 <body>
   <div class="desktop-layout">
-    <header class="mast">
-      <a class="brand" href="#studio" aria-label="Noble Studio home"><img src="/desktop/noble.png" alt="" width="32" height="32">Noble Studio</a>
-      <nav aria-label="Workspace"><a href="#studio" aria-current="page">Projects</a><a href="#library">Media library</a></nav>
-      <a class="transfer" href="/desktop/copy-export">Copy exported file</a>
-    </header>
+    <aside class="desktop-nav">
+      <a class="brand" href="#studio" aria-label="Noble Studio home"><img src="/desktop/noble.png" width="34" height="34" alt="">Noble Studio</a>
+      <nav class="places" aria-label="Navigation">
+        <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
+        <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
+      </nav>
+      <div class="rail-tools"><h2>Editing tools</h2>
+        <nav aria-label="Editing tools">
+          <a href="/image/?empty&amp;webgl">AI photo workspace</a>
+          <a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a>
+          <a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a>
+          <a href="/video/?empty&amp;webgl">AI video workspace</a>
+        </nav>
+      </div>
+      <a class="export-action" href="/desktop/copy-export"><span class="nav-icon icon-copy" aria-hidden="true"></span>Copy exported file</a>
+    </aside>
     <main>
-      <section id="studio" aria-labelledby="home-question">
-        <h1 id="home-question">What would you like to edit?</h1>
-        <form id="edit-composer">
-          <textarea id="home-brief" aria-label="Describe your edit" required maxlength="1000" rows="2" placeholder="Describe the change you have in mind…"></textarea>
-          <div class="composer-bar"><label>Agent <select name="medium"><option value="image">Image</option><option value="video">Video</option></select></label>
-            <button type="submit">Continue in Studio <span aria-hidden="true">→</span></button>
-          </div>
-        </form>
-        <div class="studio-shelf">
-          <article><img src="/desktop/image-studio-capuchin.jpg" alt=""><div><h2>Image Studio</h2><a href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a></div></article>
-          <article><img src="/desktop/video-studio-tiger.jpg" alt=""><div><h2>Video Studio</h2><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a></div></article>
+      <section id="studio" aria-labelledby="projects-heading">
+        <header class="projects-head"><h1 id="projects-heading">Projects</h1></header>
+        <div class="studio-pair">
+          <article class="editor-tile">
+            <a class="cover-link" href="/desktop/native/image" aria-label="Enter the photo editor"><img src="/desktop/image-studio-capuchin.jpg" alt=""></a>
+            <div class="tile-body"><h2>Image Studio</h2><p>Photo editing, layers and masks</p>
+              <div class="tile-actions"><a class="open-file" href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio</a></div>
+            </div>
+          </article>
+          <article class="editor-tile">
+            <a class="cover-link" href="/desktop/native/video" aria-label="Enter the video editor"><img src="/desktop/video-studio-tiger.jpg" alt=""></a>
+            <div class="tile-body"><h2>Video Studio</h2><p>Timeline editing, sound and color</p>
+              <div class="tile-actions"><a class="open-file" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a><a href="/desktop/native/video">Open Video Studio</a></div>
+            </div>
+          </article>
         </div>
-        <nav class="home-shortcuts" aria-label="More editing tools"><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav>
       </section>
       <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">

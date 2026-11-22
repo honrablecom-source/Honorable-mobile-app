@@ -1,4 +1,3 @@
-import {receiveBrief} from './home-composer.js';
 import {inspectVideo, inspectMusic} from './cinematic-media.js';
 import {inspectChange, mountVideoChanges, recordVideoChange} from './video-changes.js';
 
@@ -256,9 +255,3 @@ get('undo').onclick = async () => {
     buttons();
   }
 };
-
-receiveBrief('video', value => {
-  brief.value = value;
-  if (dialog.open) selectTab('agent');
-  else openPanel(toggle, 'agent');
-});
