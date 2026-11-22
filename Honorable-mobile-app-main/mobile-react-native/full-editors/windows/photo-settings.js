@@ -1,5 +1,5 @@
 const key = 'noble.photo.workspace.v1';
-const defaults = {dock:'right',width:326,density:'comfortable',theme:'warm',canvasOnly:false};
+const defaults = {dock:'right',width:326,density:'comfortable',theme:'neutral',canvasOnly:false};
 
 function normalize(value) {
   const options = value ?? {};
@@ -7,7 +7,7 @@ function normalize(value) {
     dock: options.dock === 'left' ? 'left' : defaults.dock,
     width: Number.isInteger(options.width) && options.width >= 240 && options.width <= 440 ? options.width : defaults.width,
     density: ['compact','large'].includes(options.density) ? options.density : defaults.density,
-    theme: options.theme === 'neutral' ? 'neutral' : defaults.theme,
+    theme: options.theme === 'warm' ? 'warm' : defaults.theme,
     canvasOnly: options.canvasOnly === true,
   };
 }

@@ -13,7 +13,7 @@ internal static class EditorHost
     private const int ExtendedStyle = -20;
     private const uint ChildStyle = 0x40000000;
     private const uint SystemFrame = 0x80CF0000;
-    private const uint AppWindow = 0x00040000;
+    private const uint ExtendedFrame = 0x00060301;
     private const uint NoActivate = 0x0010;
     private const uint FrameChanged = 0x0020;
     private const uint CloseMessage = 0x0010;
@@ -88,10 +88,7 @@ internal static class EditorHost
             }
             if (child == IntPtr.Zero) throw new InvalidOperationException("The editor did not create a window.");
             ShowWindowAsync(child, 0);
-            var style = unchecked((uint)GetWindowLongPtr(child, Style).ToInt64());
-            var expanded = unchecked((uint)GetWindowLongPtr(child, ExtendedStyle).ToInt64());
-            SetWindowLongPtr(child, Style, new IntPtr((style & ~SystemFrame) | ChildStyle));
-            SetWindowLongPtr(child, ExtendedStyle, new IntPtr(expanded & ~AppWindow));
+            ApplyChildFrame(child);
             SetParent(child, parent);
             if (GetParent(child) != parent) throw new InvalidOperationException("Windows refused to dock the editor.");
             attached = true;
@@ -198,8 +195,21 @@ internal static class EditorHost
         var dpi = Math.Max(96u, GetDpiForWindow(parent));
         int y = (int)Math.Round(toolbar * dpi / 96.0);
         var bounds = new Rectangle { Top = y, Right = Math.Max(1, client.Right), Bottom = Math.Max(1, client.Bottom - y) };
-        if (!force && bounds.Top == previous.Top && bounds.Right == previous.Right && bounds.Bottom == previous.Bottom) return;
-        if (SetWindowPos(child, IntPtr.Zero, 0, bounds.Top, bounds.Right, bounds.Bottom, NoActivate | (force ? FrameChanged : 0)))
+        bool frameChanged = ApplyChildFrame(child);
+        if (!force && !frameChanged && bounds.Top == previous.Top && bounds.Right == previous.Right && bounds.Bottom == previous.Bottom) return;
+        if (SetWindowPos(child, IntPtr.Zero, 0, bounds.Top, bounds.Right, bounds.Bottom,
+            NoActivate | (force || frameChanged ? FrameChanged : 0)))
             previous = bounds;
+    }
+
+    private static bool ApplyChildFrame(IntPtr child)
+    {
+        var style = unchecked((uint)GetWindowLongPtr(child, Style).ToInt64());
+        var expanded = unchecked((uint)GetWindowLongPtr(child, ExtendedStyle).ToInt64());
+        uint childStyle = (style & ~SystemFrame) | ChildStyle;
+        uint childExtended = expanded & ~ExtendedFrame;
+        if (style != childStyle) SetWindowLongPtr(child, Style, new IntPtr(childStyle));
+        if (expanded != childExtended) SetWindowLongPtr(child, ExtendedStyle, new IntPtr(childExtended));
+        return style != childStyle || expanded != childExtended;
     }
 }

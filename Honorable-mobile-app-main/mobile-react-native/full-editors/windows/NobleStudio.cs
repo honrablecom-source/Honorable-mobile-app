@@ -23,6 +23,9 @@ internal sealed partial class NobleStudio : Form
     private static readonly string Package = AppDomain.CurrentDomain.BaseDirectory;
     private static readonly string Resources = Path.Combine(Package, "resources", "app");
     private const string Home = "/desktop/home.html";
+    private const int DockHeaderHeight = 36;
+    private const int DwmCaptionColor = 35;
+    private const int DwmTextColor = 36;
     private readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 16 * 1024 * 1024 };
     private readonly string profile;
     private readonly string settingsProfile;
@@ -43,6 +46,9 @@ internal sealed partial class NobleStudio : Form
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string id);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
 
     [STAThread]
     private static void Main(string[] args)
@@ -74,7 +80,7 @@ internal sealed partial class NobleStudio : Form
         model = Option(args, "model") ?? Environment.GetEnvironmentVariable("NOBLE_EDIT_MODEL") ?? "qwen3:4b";
         Text = "Noble Studio";
         Icon = new Icon(Path.Combine(Package, "Noble.ico"));
-        BackColor = Color.FromArgb(16, 19, 23);
+        BackColor = Color.FromArgb(40, 40, 40);
         ForeColor = Color.WhiteSmoke;
         AutoScaleMode = AutoScaleMode.Dpi;
         MinimumSize = new Size(780, 520);
@@ -86,6 +92,16 @@ internal sealed partial class NobleStudio : Form
         };
         Controls.Add(startup);
         Shown += async delegate { await Initialize(); };
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        if (SystemInformation.HighContrast) return;
+        int caption = ColorTranslator.ToWin32(Color.FromArgb(53, 53, 53));
+        int text = ColorTranslator.ToWin32(Color.WhiteSmoke);
+        DwmSetWindowAttribute(Handle, DwmCaptionColor, ref caption, sizeof(int));
+        DwmSetWindowAttribute(Handle, DwmTextColor, ref text, sizeof(int));
     }
 
     private static string Option(string[] args, string name)
@@ -436,6 +452,45 @@ internal sealed partial class NobleStudio : Form
         return Path.Combine(Package,"resources","native",kind,releases[kind]["directory"],releases[kind][field]);
     }
 
+    private void ConfigureDockedPhotoFrame(string settingsDirectory)
+    {
+        string preferences = Path.Combine(settingsDirectory,"preferences.json");
+        string pending = preferences + ".noble-frame-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            Directory.CreateDirectory(settingsDirectory);
+            var values = File.Exists(preferences)
+                ? json.Deserialize<Dictionary<string,object>>(File.ReadAllText(preferences))
+                : new Dictionary<string,object>();
+            if (values == null) return;
+            object section;
+            if (!values.TryGetValue("interface",out section))
+            {
+                section = new Dictionary<string,object>();
+                values["interface"] = section;
+            }
+            var appearance = section as Dictionary<string,object>;
+            if (appearance == null || Equals(Field(appearance,"systemTitleBar"),true)) return;
+
+            // The dock host removes the child HWND frame. Keep PhotoCraft's menus
+            // and let the Noble window supply the caption buttons.
+            appearance["systemTitleBar"] = true;
+            File.WriteAllText(pending,json.Serialize(values));
+            if (File.Exists(preferences)) File.Replace(pending,preferences,null);
+            else File.Move(pending,preferences);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        catch (ArgumentException) { }
+        catch (InvalidOperationException) { }
+        finally
+        {
+            try { File.Delete(pending); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     private async Task ShowEditor(string kind)
     {
         string binary = NativePath(kind,"executable");
@@ -451,9 +506,10 @@ internal sealed partial class NobleStudio : Form
         {
             editor = new HostedEditor();
             string data = Path.Combine(settingsProfile,"desktop-editor-" + kind);
-            string args = Handle.ToInt64().ToString("x") + " 54 " + Quote(binary);
+            string args = Handle.ToInt64().ToString("x") + " " + DockHeaderHeight + " " + Quote(binary);
             if (kind == "image")
             {
+                ConfigureDockedPhotoFrame(data);
                 editor.PhotoControl = new NativePhotoControl(profile);
                 args += " --new-instance --in-window-menus --control 0" +
                     " --automation-read-root " + Quote(editor.PhotoControl.ReadRoot) +

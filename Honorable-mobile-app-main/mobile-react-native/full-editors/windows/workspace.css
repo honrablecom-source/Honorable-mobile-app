@@ -2,16 +2,16 @@
   color-scheme: dark;
   --workspace-height: 60px;
   --engine-header: 38px;
-  --canvas: #101317;
-  --bar: #161a1f;
-  --surface: #1a1f25;
-  --lift: #293139;
-  --line: #37414b;
-  --ink: #eff2f5;
-  --muted: #aeb8c2;
-  --accent: #c7eb78;
-  --accent-ink: #1a2511;
-  --accent-hover: #dbf4a7;
+  --canvas: #282828;
+  --bar: #353535;
+  --surface: #323232;
+  --lift: #454545;
+  --line: #505050;
+  --ink: #f2f2f2;
+  --muted: #c3c3c3;
+  --accent: #8ebdff;
+  --accent-ink: #162338;
+  --accent-hover: #b5d5ff;
   --agent-width: clamp(350px, 30vw, 414px);
   --photo-tools-width: 385px;
 }
@@ -42,8 +42,8 @@ html:root, html body { background: var(--canvas); color: var(--ink); }
 #noble-workspace-bar button:hover, #noble-workspace-bar button[aria-pressed=true] { background: var(--lift); }
 #noble-workspace-bar .workspace-primary { background: var(--accent); color: var(--accent-ink); margin-left: 5px; font-weight: 620; padding-inline: 13px; }
 #noble-workspace-bar .workspace-primary:hover { background: var(--accent-hover); }
-#noble-workspace-bar .workspace-ai { color: var(--accent); background: #243024; border-color: #3a4a33; }
-#noble-workspace-bar .workspace-ai:hover { color: var(--accent); background: #32432c; }
+#noble-workspace-bar .workspace-ai { color: var(--accent); background: #344355; border-color: #506782; }
+#noble-workspace-bar .workspace-ai:hover { color: var(--accent); background: #41536a; }
 #noble-workspace-bar .workspace-ai[aria-expanded="true"] { color: var(--accent-ink); background: var(--accent); }
 #noble-workspace-bar .workspace-ai span { margin-right: 4px; }
 #noble-workspace-bar button:disabled { opacity: .5; cursor: default; }

@@ -21,12 +21,13 @@
 .photo-shell[data-photo-density=compact] { --photo-font:13px; --photo-target:32px; --photo-pane-pad:12px; }
 .photo-shell[data-photo-density=large] { --photo-font:16px; --photo-target:42px; --photo-pane-pad:17px; }
 .photo-shell[data-photo-theme=neutral] {
-  --photo-paper:#22262e; --photo-mat:#13161b; --photo-line:#434c5a;
-  --photo-ink:#f5f6fa; --photo-dim:#c2cad7; --photo-active:#b7d9ff; --photo-on-active:#10233e;
+  --photo-paper:#353535; --photo-mat:#282828; --photo-line:#535353;
+  --photo-ink:#f2f2f2; --photo-dim:#c3c3c3; --photo-active:#8ebdff; --photo-on-active:#162338;
 }
 .photo-shell [hidden] { display: none !important; }
 .photo-shell :focus-visible { outline: 2px solid var(--photo-active); outline-offset: 2px; }
 .photo-shell #noble-workspace-bar { background: #1b1d1b; border-color: var(--photo-line); }
+.photo-shell[data-photo-theme=neutral] #noble-workspace-bar { background:var(--bar); }
 .photo-shell #noble-workspace-bar .workspace-primary {
   background: var(--photo-active);
   color: var(--photo-on-active);
@@ -380,13 +381,13 @@
 #photo-workbench .photo-tools button { border-radius:7px; }
 .photo-tabs { background:#242621; }
 .photo-tabs [role=tab] { white-space:nowrap; }
-.photo-shell[data-photo-theme=neutral] .photo-tabs { background:#282e37; }
-.photo-shell[data-photo-theme=neutral] #photo-workbench .photo-tabs button[aria-selected=true] { background:#2e3842; }
+.photo-shell[data-photo-theme=neutral] .photo-tabs { background:#373737; }
+.photo-shell[data-photo-theme=neutral] #photo-workbench .photo-tabs button[aria-selected=true] { background:#454545; }
 #photo-workbench .photo-pane form {
   background:#1a1e1b; border:1px solid var(--photo-line); border-radius:8px; padding:10px;
 }
 #photo-workbench .photo-pane form + form { margin-top:10px; }
-.photo-shell[data-photo-theme=neutral] #photo-workbench .photo-pane form { background:#1a2028; }
+.photo-shell[data-photo-theme=neutral] #photo-workbench .photo-pane form { background:#303030; }
 #photo-workbench .photo-more button { min-height:34px; }
 .layer-heading h2 { font-size:16px; }
 #photo-workbench .photo-footer button { min-height:31px; }
