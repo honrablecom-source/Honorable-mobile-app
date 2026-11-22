@@ -24,7 +24,7 @@ shell.innerHTML = `
         <h1>Open a photo</h1>
         <p>Drop photos or layered projects here.</p>
         <button type="button" data-empty-open disabled>Browse files</button>
-        <output data-empty-status role="status"></output>
+        <p data-home-request hidden></p><output data-empty-status role="status"></output>
       </div>
     </div>
   </section>
@@ -213,6 +213,7 @@ function drawLayers(layers, depth = 0) {
 function render() {
   const {document:doc, session, tool, views} = state;
   photoEmpty.hidden = Boolean(doc) || advanced;
+  if (doc) document.querySelector('[data-home-request]').hidden = true;
   shell.dataset.canvasTool = String(tool).toLowerCase();
   const zoom = views?.[session.active]?.zoom;
   $('[data-photo-info]').textContent = doc
@@ -658,6 +659,9 @@ if (window.nobleImage) void initialize();
 else window.addEventListener('noble-image-ready', initialize, {once:true});
 
 receiveBrief('image', value => {
+  const note = $('[data-home-request]');
+  note.textContent = 'Open a photo to continue with your request: ' + value;
+  note.hidden = Boolean(state?.document);
   showTab($('#photo-agent-tab'));
   $('#photo-agent-brief').value = value;
 });
