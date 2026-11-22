@@ -137,7 +137,8 @@ internal sealed partial class NobleStudio
             return;
         }
         transfers.Remove(key);
-        using (var pending = e.GetDeferral())
+        // Disposing the WebView2 deferral completes the request.
+        using (e.GetDeferral())
         {
             try
             {
@@ -171,7 +172,6 @@ internal sealed partial class NobleStudio
                 }
             }
             catch (Exception error) { e.Response = Response(400,"text/plain; charset=utf-8",Utf8Stream(error.Message)); }
-            finally { pending.Complete(); }
         }
     }
 
