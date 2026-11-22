@@ -272,76 +272,48 @@ body.compact-covers .studio-pair { flex:0; grid-template-rows:auto auto; }
 @media(max-width:880px){.demo-feature,.compact-covers .demo-feature{grid-template-columns:1fr}.demo-preview img{flex:none;height:150px}.demo-caption{gap:8px}.creation-row{gap:8px}.creation-row article{gap:9px}}
 @media(max-width:620px){.creation-row{grid-template-columns:1fr}}
 
-.desktop-layout {
-  --canvas:#1b1e24; --bar:#22262d; --surface:#292e37; --lift:#353d49; --line:#47505d;
-  --ink:#f3f5fa; --muted:#c1cad7; --accent:#a9caff; --pill:999px; --card:18px;
-  color:var(--ink); grid-template-rows:auto 1fr; align-items:start; background:var(--canvas); font:500 16px/1.45 "Segoe UI Variable Text","Segoe UI",sans-serif; }
-.home-bar { grid-column:1/-1; display:flex; align-items:center; gap:clamp(16px,3vw,42px); padding:8px 18px; background:var(--bar); border-bottom:1px solid var(--line); }
-.editor-launchers { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.editor-launchers a { display:inline-flex; align-items:center; min-height:36px; padding:0 15px; background:var(--surface); border:1px solid var(--line); border-radius:var(--pill); font-weight:650; color:var(--ink); }
-.editor-launchers a:hover { background:var(--line); }
-@media(max-width:520px){.home-bar{flex-wrap:wrap;gap:5px}.editor-launchers{padding-left:5px}.editor-launchers a{padding-inline:6px}}
-.home-bar .brand { margin:0; font-size:19px; font-weight:750; }
-.desktop-nav { height:calc(100vh - 51px); background:var(--bar); top:0; padding-top:18px; }
-.file-commands { display:grid; gap:6px; margin:0 6px 20px; }
-.file-commands button,.file-menu a,.recent-heading button,.starter-heading button { font:inherit; border:0; cursor:pointer; }
-.file-commands button { text-align:left; border-radius:var(--pill); padding:8px 12px; color:var(--ink); background:var(--surface); }
-.file-commands button:first-child { background:#2264c7; color:#fff; font-weight:600; justify-self:start; border-radius:20px; padding-inline:17px; }
-.file-commands button:hover,.file-menu a:hover { background:var(--line); }
-.file-commands button:first-child:hover { background:#2d70d4; }
-.file-menu { inset:92px auto auto 26px; margin:0; padding:5px; border:1px solid var(--line); border-radius:var(--card); background:var(--surface); color:white; }
-.file-menu a { display:block; padding:8px 12px; }
-.starter-heading,.recent-heading,.recent-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.starter-heading h1 { font-size:clamp(26px,2vw,32px); font-weight:725; letter-spacing:-.025em; }
-.starter-heading button,.recent-heading button { background:var(--surface); color:var(--ink); padding:7px 13px; border-radius:var(--pill); font-size:14px; }
-.recent-heading button[aria-pressed=true]{ background:var(--lift); color:white; }
-.starter-cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0 0; }
-.starter-cards article { overflow:hidden; background:var(--surface); border:1px solid var(--line); border-radius:var(--card); }
-.starter-cards article>a { display:block; height:100%; }
-.starter-cards img { display:block; width:100%; height:clamp(100px,12vw,174px); object-fit:cover; }
+/* Desktop home */
+.desktop-layout { --canvas:#202123; --bar:#292a2c; --surface:#303133; --line:#444649; --ink:#f2f2f2; --muted:#c0c1c3; --accent:#91bafb; grid-template-rows:auto 1fr; align-items:start; background:var(--canvas); font:500 16px/1.45 "Segoe UI Variable Text","Segoe UI",sans-serif; }
+.home-bar { grid-column:1/-1; display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:8px 16px; background:var(--bar); border-bottom:1px solid var(--line); }
+.home-bar .brand { margin:0; font-size:18px; font-weight:700; }
+.file-commands,.editor-launchers { display:flex; align-items:center; gap:4px; }
+.file-commands { position:relative; border-left:1px solid var(--line); padding-left:16px; }
+.editor-launchers { margin-left:auto; }
+.home-bar button,.editor-launchers a,.file-menu a,.recent-heading button,.starter-heading button { border:0; border-radius:4px; padding:7px 11px; font:600 15px/1.35 "Segoe UI",sans-serif; background:transparent; color:var(--ink); cursor:pointer; }
+.file-commands button:first-child { background:#2264c7; color:white; }
+.home-bar button:hover,.editor-launchers a:hover,.file-menu a:hover,.recent-heading button:hover,.starter-heading button:hover { background:#404246; }
+.file-commands button:first-child:hover { background:#295da9; }
+.file-menu { position:fixed; inset:52px auto auto 170px; margin:0; padding:5px; background:#303133; border:1px solid #56585b; border-radius:5px; color:white; }
+.file-menu a { display:block; }
+.desktop-nav { height:calc(100vh - 51px); padding-top:16px; background:#242527; }
+.desktop-nav .places a { color:#ddd; font-weight:600; }
+.desktop-nav .places a[aria-current] { background:#36383b; box-shadow:inset 3px 0 var(--accent); }
+.starter-heading,.recent-heading,.recent-controls { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+.starter-heading h1 { font-size:clamp(25px,2vw,32px); font-weight:680; }
+.starter-heading button { color:var(--muted); }
+.starter-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(10px,1.4vw,22px); margin-top:16px; }
+.starter-cards article { min-width:0; }
+.starter-cards a { display:block; border-bottom:2px solid transparent; padding-bottom:7px; }
+.starter-cards a:hover { border-color:var(--accent); }
+.starter-cards img { display:block; width:100%; height:clamp(110px,14vw,200px); object-fit:cover; object-position:center 38%; border-radius:3px; }
 .compact-covers .starter-cards img { height:84px; }
-.starter-cards :is(small,strong,p) { display:block; margin:0; padding:0 12px; }
-.starter-cards small { color:var(--muted); margin-top:10px; font-size:12px; }
-.starter-cards strong { width:fit-content; max-width:calc(100% - 20px); border-radius:var(--pill); background:var(--lift); color:var(--ink); padding:5px 12px; font-size:clamp(18px,1.4vw,21px); font-weight:700; line-height:1.25; margin:10px 10px 6px; }
-.starter-cards p { font-size:15px; font-weight:500; line-height:1.45; padding-bottom:14px; }
-.import-card { display:grid; grid-template-rows:1fr auto; padding:12px; text-align:center; }
-.import-card a:first-child { display:grid; place-content:center; border:1px dashed #8391a6; background:var(--bar); border-radius:12px; font-weight:650; }
-.import-card span { font:300 38px/1.2 system-ui; }
-.import-card a+a { padding-top:10px; font-size:15px; font-weight:600; }
-.recents { margin-top:26px; border-top:1px solid var(--lift); padding-top:18px; }
+.starter-cards strong { display:block; margin:10px 0 2px; font-size:clamp(17px,1.45vw,21px); line-height:1.3; font-weight:680; }
+.starter-cards p { font-size:14px; color:var(--muted); }
+.recents { border-top:1px solid var(--line); margin-top:20px; padding-top:18px; }
+.recent-heading h2 { font-size:22px; font-weight:660; }
+.recent-heading button[aria-pressed=true] { background:#383b3f; color:white; }
 .recent-controls { margin:12px 0; }
-.recent-controls select { max-width:46%; background:var(--bar); color:white; border:1px solid #555; border-radius:12px; padding:6px; }
-#recent-files { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:12px; }
-#recent-files button { display:grid; gap:6px; min-width:0; padding:10px; border:1px solid var(--line); background:var(--surface); color:white; text-align:left; border-radius:var(--pill); }
-#recent-files img,#recent-files .file-type { width:100%; height:90px; object-fit:contain; background:var(--canvas); }
-.file-type { display:grid; place-content:center; font-weight:650; color:#ccc; }
+.recent-controls select,.recent-controls input { background:var(--bar); color:var(--ink); border:1px solid #525458; border-radius:3px; padding:6px 10px; font:500 15px "Segoe UI",sans-serif; }
+#recent-status:empty { display:none; }
+#recent-files { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); }
+#recent-files button { display:grid; gap:8px; min-width:0; padding:8px; border:1px solid var(--line); border-radius:3px; background:var(--bar); color:var(--ink); text-align:left; }
+#recent-files button:hover { background:#36383a; }
+#recent-files img,#recent-files .file-type { width:100%; height:96px; object-fit:contain; background:#1c1d1f; }
+.file-type { display:grid; place-content:center; font-weight:600; }
 #recent-files strong { overflow-wrap:anywhere; font-weight:600; }
-#recent-files.list { grid-template-columns:1fr; }
-#recent-files.list button { grid-template-columns:46px 1fr; align-items:center; }
+#recent-files.list { grid-template-columns:1fr; gap:0; }
+#recent-files.list button { grid-template-columns:46px 1fr; align-items:center; gap:14px; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
+#recent-files.list button:hover { background:var(--bar); }
 #recent-files.list :is(img,.file-type) { height:36px; }
-@media(max-width:950px){.starter-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.starter-cards img{height:95px}.recent-controls input{max-width:50%}}
-
-.desktop-nav .places a,.file-commands button,.recent-heading button,.starter-heading button,.extra-tools summary { font-weight:650; }
-.recent-heading h2 { font-size:22px; font-weight:700; }
-.recent-controls :is(select,input) { font:500 15px/1.4 "Segoe UI",sans-serif; }
-.desktop-nav .places a,.desktop-nav .export-action,.extra-tools summary,.extra-tools nav a,.file-menu a {
-  border:1px solid transparent; border-radius:var(--pill); background:var(--surface); color:var(--ink);
-}
-.desktop-nav .places { gap:6px; }
-.desktop-nav .places a[aria-current],.recent-heading button[aria-pressed=true] {
-  background:#304462; color:#e4eeff; border-color:#627fa7; box-shadow:none;
-}
-.desktop-nav .export-action { margin-inline:2px; }
-.extra-tools summary,.extra-tools nav a { padding:7px 14px; }
-.starter-cards article:focus-within,#recent-files button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-#recent-files :is(img,.file-type) { border-radius:12px; }
-#recent-files strong { width:fit-content; max-width:100%; padding:3px 10px; border-radius:var(--pill); background:var(--lift); color:var(--ink); }
-.recents { background:var(--bar); border:1px solid var(--line); border-radius:var(--card); padding:clamp(12px,1.7vw,22px); }
-.recent-controls :is(select,input),.desktop-layout input[type=search],.desktop-layout .action {
-  border-radius:var(--pill); padding-inline:13px;
-}
-.desktop-layout .setting,#activity-list li { background:var(--surface); border:1px solid var(--line); border-radius:15px; margin-block:8px; padding:12px 16px; }
-.desktop-layout .library-empty,.desktop-layout .library-panel { border-radius:var(--card); background:var(--surface); }
-.starter-cards p,.desktop-layout #recent-status,.desktop-layout #empty-history { color:var(--muted); }
-.desktop-layout :is(.places a,.editor-launchers a,.extra-tools nav a,.file-menu a):hover { background:var(--lift); }
-@media(max-width:640px){.starter-cards{grid-template-columns:1fr}.recent-controls{flex-wrap:wrap}.recent-controls input{max-width:100%}}
+@media(max-width:850px){.home-bar{gap:8px}.file-commands{padding-left:8px}.starter-cards img{height:110px}.recent-controls input{max-width:52%}}
+@media(max-width:650px){.starter-cards{grid-template-columns:1fr}.editor-launchers{margin:0}.file-menu{inset:86px auto auto 16px}}

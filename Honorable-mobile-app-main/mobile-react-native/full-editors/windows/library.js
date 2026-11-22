@@ -280,7 +280,7 @@ function setLayout(layout) {
   recentContainer.classList.toggle('list',layout==='list');
   for(const button of document.querySelectorAll('.recent-heading button')) button.setAttribute('aria-pressed',String(button.dataset.layout===layout));
 }
-setLayout(localStorage.getItem('noble.home.recentLayout') || 'grid');
+setLayout(localStorage.getItem('noble.home.recentLayout') || 'list');
 for (const button of document.querySelectorAll('.recent-heading button')) button.onclick=()=>{
   setLayout(button.dataset.layout);
   localStorage.setItem('noble.home.recentLayout',button.dataset.layout);
