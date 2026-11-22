@@ -90,7 +90,7 @@
   --bar:var(--studio-panel); --canvas:var(--studio-base); --surface:#333;
   --line:var(--studio-line); --ink:var(--studio-text); --accent:#98bfff;
 }
-.noble-video-workspace #noble-workspace-bar,.photo-shell[data-photo-theme=neutral] #noble-workspace-bar { background:var(--studio-rail); border-color:var(--studio-line); }
+.noble-video-workspace #noble-workspace-bar { background:var(--studio-rail); border-color:var(--studio-line); }
 #noble-workspace-bar .workspace-home { border-color:transparent; }
 #noble-workspace-bar button,.workspace-transport button,.noble-video-workspace .workspace-popover { border-radius:4px; }
 #noble-workspace-bar .workspace-popover { background:#303030; border-color:#555; }

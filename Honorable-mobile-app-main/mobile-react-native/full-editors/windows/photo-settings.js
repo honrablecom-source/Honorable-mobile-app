@@ -12,7 +12,7 @@ function normalize(value) {
   };
 }
 
-export function mountPhotoSettings(bar, shell, onLayout) {
+export function mountPhotoSettings(shell, onLayout) {
   let preferences = defaults;
   let modified = false;
   const store = window.nobleNavigation?.photoPreferences;
@@ -33,7 +33,7 @@ export function mountPhotoSettings(bar, shell, onLayout) {
       <button type="reset">Reset layout</button>
       <output class="photo-settings-status" role="status"></output>
     </form>`;
-  bar.append(settings);
+  shell.append(settings);
 
   const form = settings.querySelector('form');
   const fields = form.elements;

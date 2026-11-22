@@ -45,19 +45,23 @@ if(process.env.NOBLE_WINDOWS_DESKTOP==='1'){
   }
   assets.set('/desktop/photo-recipe.js',await readFile(new URL('./editing-agent/photo-recipe.mjs',import.meta.url)));
   const desktopBootstrap=assets.get('/video/bootstrap.js').toString('utf8')
+    .replace("console.warn('Video Studio startup failed'", "document.documentElement.dataset.videoBootFailed='true';\n    console.warn('Video Studio startup failed'")
     .replace('Retry or update Android System WebView.', 'Retry with compatibility settings.');
   assets.set('/video/bootstrap.js',Buffer.from(desktopBootstrap));
   const desktopImageBootstrap=assets.get('/image/bootstrap.js').toString('utf8')
+    .replace("document.querySelector('#photocraft_loading')","document.querySelector('#studio-opening span')")
     .replace('Close and reopen it with an updated Android System WebView.','Close Image Studio and try opening it again.');
   assets.set('/image/bootstrap.js',Buffer.from(desktopImageBootstrap));
   for(const kind of ['image','video']){
     const page='/' + kind + '/index.html';
     const tools=kind==='video'?'<script defer src="/desktop/storyboard.js"></script><script type="module" src="/desktop/cinematic-panel.js"></script>':'';
     const styles=kind==='image'?'<link rel="stylesheet" href="/desktop/photo-workspace.css">':'';
-    const photo=kind==='image'?'<script type="module" src="/desktop/photo-workspace.js"></script>':'';
+    const workspace=kind==='image'?'photo-workspace':'workspace';
     const html=assets.get(page).toString('utf8')
+      .replace('<html lang="en">','<html lang="en" data-editor-starting="'+kind+'">')
+      .replace('<body>','<body><div id="studio-opening" role="status"><span>Opening '+(kind==='image'?'Image':'Video')+' Studio…</span><a href="">Reload</a></div>')
       .replace('</head>','<link rel="stylesheet" href="/desktop/workspace.css">'+styles+'<link rel="stylesheet" href="/desktop/studio-ui.css">'+(kind==='video'?'<script type="module" src="/desktop/sequence-setup.js"></script>':'')+'</head>')
-      .replace('</body>',tools+'<script type="module" src="/desktop/workspace.js"></script>'+photo+'</body>');
+      .replace('</body>',tools+'<script type="module" src="/desktop/'+workspace+'.js"></script></body>');
     assets.set(page,Buffer.from(html));
   }
 }

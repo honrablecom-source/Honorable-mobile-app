@@ -8,10 +8,10 @@ bar.id = 'noble-workspace-bar';
 const canvas = document.querySelector('#filmcraft_canvas');
 bar.innerHTML = `
   <a class="workspace-home" href="/desktop/home.html" aria-label="Back to Projects" title="Back to Projects"><b aria-hidden="true">‹</b><span>Projects</span></a>
-  <strong class="workspace-title">${canvas ? 'Video Studio' : 'Image Studio'}</strong>
+  <strong class="workspace-title">Video Studio</strong>
 `;
 document.body.prepend(bar);
-document.body.classList.add(canvas ? 'noble-video-workspace' : 'noble-image-workspace');
+document.body.classList.add('noble-video-workspace');
 if (window.nobleNavigation) {
   const home = bar.querySelector('.workspace-home');
   home.addEventListener('click', event => {
@@ -19,7 +19,10 @@ if (window.nobleNavigation) {
     window.nobleNavigation.openWorkspace(home.href);
   });
 }
-if (canvas) void setupVideo();
+if (canvas) void setupVideo().catch(error => {
+  const opening = document.querySelector('#studio-opening');
+  if (opening) opening.firstElementChild.textContent = 'Video Studio could not open. ' + (error.message || '');
+});
 
 async function setupVideo() {
   const status = document.createElement('output');
@@ -196,12 +199,11 @@ async function setupVideo() {
       setStatus(error.message || 'This action could not be completed.');
     }
   };
-  const started = Date.now();
-  while (!window.filmcraft?.info?.().startupMs && Date.now() - started < 30000) {
+  while (!window.filmcraft?.info?.().startupMs) {
+    if (document.documentElement.dataset.videoBootFailed) return;
     await new Promise(resolve => setTimeout(resolve, 80));
   }
   const editor = window.filmcraft;
-  if (!editor?.info?.().startupMs) return;
   const invoke = id => editor.request('ui.menu.invoke', {id});
   const layoutButtons = [...layouts.querySelectorAll('[data-layout]')];
   const workspaceModes = document.createElement('div');
@@ -375,8 +377,8 @@ async function setupVideo() {
   for (const id of ['#cinematic','#storyboard','#noble-agent']) {
     document.querySelector(id)?.addEventListener('close', () => void showTimelineIfReady());
   }
-  const openEntry = entry => {
-    if (entry === 'demo' || entry === 'new') void openFromHome(entry === 'demo');
+  const openEntry = async entry => {
+    if (entry === 'demo' || entry === 'new') await openFromHome(entry === 'demo');
     if (entry === 'agent') agentButton?.click();
     if (entry === 'story') document.querySelector('#story-open')?.click();
     if (entry === 'open') {
@@ -512,7 +514,10 @@ async function setupVideo() {
   const initialProject = await refreshTimeline();
   start.hidden = !initialProject || Boolean(initialProject.activeSequence) || Boolean(initialProject.root?.children?.length);
   window.nobleProjectLauncher = {
-    openEntry,
+    async openEntry(entry) {
+      try { await openEntry(entry); }
+      finally { delete document.documentElement.dataset.editorStarting; }
+    },
     async openLocalProject(name, base64) {
       const bytes = Uint8Array.from(atob(base64), value => value.charCodeAt(0));
       await openProject(new File([bytes], name, {type:'application/json'}));
@@ -525,6 +530,6 @@ async function setupVideo() {
     lookup:delivery.exportStatus,advanced:openAdvancedExport,failed:error=>setStatus(error.message),
   });
   exportButton.onclick=()=>exporting ? void openAdvancedExport() : openExport();
-  const entry = new URLSearchParams(location.search).get('entry');
-  if (entry) openEntry(entry);
+  const entry = window.nobleNavigation?.takeVideoEntry?.() ?? new URLSearchParams(location.search).get('entry');
+  await window.nobleProjectLauncher.openEntry(entry);
 }

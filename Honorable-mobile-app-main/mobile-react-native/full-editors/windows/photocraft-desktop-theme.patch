@@ -294,3 +294,40 @@ index 6836116..b18e112 100644
      ctx.data_mut(|d| d.insert_temp(egui::Id::unique("photocraft-theme"), t));
      let mut v = if t.dark() { Visuals::dark() } else { Visuals::light() };
      v.panel_fill = t.chrome;
+diff --git a/crates/ui-egui/src/app/frame.rs b/crates/ui-egui/src/app/frame.rs
+index 780fd3f..5849613 100644
+--- a/crates/ui-egui/src/app/frame.rs
++++ b/crates/ui-egui/src/app/frame.rs
+@@ -26,9 +26,8 @@ impl PhotocraftApp {
+     /// draws no tool strip, options bar, status bar or docks under Home, and the canvas area
+     /// draws Home itself; both ask here so they cannot disagree.
+     pub(crate) fn home_screen_up(&mut self) -> bool {
+-        let opening = !self.jobs.opens.is_empty();
+-        let n = self.session.documents().len();
+-        !opening && self.ui.chrome.shows_home(n, self.session.prefs().general.auto_show_home_screen)
++        // The Windows host owns Projects and the empty-document surface.
++        false
+     }
+ 
+     /// Shared logic body. A wrapping host owns the final reset tail after its own work.
+diff --git a/crates/ui-egui/src/panels/chrome_ui.rs b/crates/ui-egui/src/panels/chrome_ui.rs
+index 27251b2..9aec4bb 100644
+--- a/crates/ui-egui/src/panels/chrome_ui.rs
++++ b/crates/ui-egui/src/panels/chrome_ui.rs
+@@ -248,13 +248,9 @@ fn status_message(app: &PhotocraftApp, ui: &mut egui::Ui, t: &Tokens) {
+ /// Home button at the very start of Photoshop 2026's options bar: toggles the Home (start)
+ /// screen over the open documents, which stay open.
+ pub fn home_button(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+-    let n = app.session.documents().len();
+-    let auto = app.session.prefs().general.auto_show_home_screen;
+-    let on = app.ui.chrome.shows_home(n, auto);
+-    // With no documents and auto-show on, Home can't be dismissed (there's nothing behind it).
+-    let can_toggle = n > 0 || !auto;
+-    if icons::button(ui, "house", 26.0, on && can_toggle, tl!("Home")).clicked() && can_toggle {
+-        app.ui.chrome.home = if on { None } else { Some(n) };
++    let _ = app;
++    if icons::button(ui, "house", 26.0, false, "Projects").clicked() {
++        ui.ctx().open_url(egui::OpenUrl::same_tab("/desktop/home.html"));
+     }
+ }
+ 

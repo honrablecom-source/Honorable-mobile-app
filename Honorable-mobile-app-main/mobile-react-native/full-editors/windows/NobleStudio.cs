@@ -280,6 +280,15 @@ internal sealed partial class NobleStudio : Form
             finally { loading.Remove(kind); }
         }
         if (closed || version != workspaceVersion) return view;
+        string entry = System.Web.HttpUtility.ParseQueryString(new Uri(origin + path).Query).Get("entry");
+        if (existing && kind == "video")
+        {
+            // Set the next surface before the cached WebView is visible again.
+            await view.CoreWebView2.ExecuteScriptAsync(entry == "new" || entry == "demo"
+                ? "document.documentElement.dataset.editorStarting='video'"
+                : "if(window.nobleProjectLauncher) delete document.documentElement.dataset.editorStarting");
+            if (closed || version != workspaceVersion) return view;
+        }
         if (active != null && active != view)
         {
             Send(active,"stop",null);
@@ -293,7 +302,6 @@ internal sealed partial class NobleStudio : Form
         active.Focus();
         startup.Visible = false;
         Text = kind == "home" ? "Noble Studio" : "Noble Studio — " + (kind == "image" ? "Image Studio" : "Video");
-        string entry = System.Web.HttpUtility.ParseQueryString(new Uri(origin + path).Query).Get("entry");
         if (existing && kind == "video" && (entry == "agent" || entry == "story" || entry == "demo" || entry == "new")) Send(view,"entry",entry);
         if (kind == "image" && entry == "new") Send(view,"photo-entry",entry);
         return view;

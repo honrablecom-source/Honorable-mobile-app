@@ -2,7 +2,6 @@ import {mountPhotoAgent} from './photo-agent.js';
 import {checkCommand,photoContext,resultSummary} from './native-skill.js';
 import {mountPhotoSettings} from './photo-settings.js';
 
-const bar = document.querySelector('#noble-workspace-bar');
 const canvas = document.querySelector('#photocraft_canvas');
 const shell = document.createElement('main');
 shell.id = 'photo-workbench';
@@ -13,7 +12,7 @@ shell.innerHTML = `
       <div class="photo-starter">
         <span class="photo-open-icon" aria-hidden="true">&#xEB9F;</span><h1>Open a photo</h1>
         <p>Drop photos or layered projects here.</p>
-        <button type="button" data-empty-open disabled>Browse files</button>
+        <button type="button" data-open disabled>Browse files</button>
         <button type="button" data-retry hidden>Retry Image Studio</button>
         <output data-empty-status role="status"></output>
       </div>
@@ -30,10 +29,14 @@ shell.innerHTML = `
     <section id="photo-agent" class="photo-pane photo-agent" role="tabpanel" aria-labelledby="photo-agent-tab" hidden></section>
   </aside>
   <footer class="photo-footer">
+    <a class="photo-projects" href="/desktop/home.html" aria-label="Back to Projects">‹ Projects</a>
     <output role="status" data-photo-status></output>
+    <button type="button" popovertarget="photo-settings">Workspace</button>
+    <button type="button" data-assistant aria-controls="photo-assistant" aria-expanded="false" disabled>Noble AI</button>
+    <input type="file" accept=".pcraft,.psd,.psb,.ora,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.gif,.heic,.heif" multiple hidden>
   </footer>`;
 document.body.append(shell);
-document.body.classList.add('photo-shell');
+document.body.classList.add('noble-image-workspace','photo-shell');
 const $ = selector => shell.querySelector(selector);
 const viewer = $('#photo-viewer');
 for (const node of [canvas, document.querySelector('#photocraft_loading'), document.querySelector('#photocraft_stopped')]) {
@@ -41,40 +44,13 @@ for (const node of [canvas, document.querySelector('#photocraft_loading'), docum
 }
 canvas.setAttribute('aria-label', 'Photo editing canvas');
 
-const actions = document.createElement('div');
-actions.className = 'workspace-actions photo-actions';
-actions.innerHTML = `
-  <input type="file" accept=".pcraft,.psd,.psb,.ora,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,.gif,.heic,.heif" multiple hidden>
-  <div role="group" class="photo-files" aria-label="Photo files">
-    <button type="button" data-open title="Open photo or project (Ctrl+O)" disabled>Open</button>
-    <button type="button" data-save title="Save layered project (Ctrl+S)" disabled>Save project</button>
-  </div>
-  <div role="group" class="photo-history" aria-label="Edit history">
-    <button type="button" data-history="edit.undo" disabled>Undo</button>
-    <button type="button" data-history="edit.redo" disabled>Redo</button>
-  </div>
-  <div class="photo-layout-actions" role="group" aria-label="Workspace layout">
-    <button type="button" popovertarget="photo-settings">Workspace</button>
-    <button type="button" data-assistant aria-controls="photo-assistant" aria-expanded="false" disabled>Noble AI</button>
-  </div>
-  <button type="button" popovertarget="photo-export" class="workspace-primary" disabled>Export photo</button>`;
-bar.append(actions);
-const exportMenu = document.createElement('div');
-exportMenu.id = 'photo-export';
-exportMenu.className = 'workspace-popover';
-exportMenu.setAttribute('popover', 'auto');
-exportMenu.innerHTML = '<h2>Export a copy</h2><button type="button" data-format="png">PNG <small>Preserves transparency</small></button><button type="button" data-format="jpg">JPEG <small>Smaller file for sharing</small></button>';
-bar.append(exportMenu);
-
-const open = actions.querySelector('[data-open]');
-const filePicker = actions.querySelector('input');
-const assistantButton = actions.querySelector('[data-assistant]');
+const open = $('[data-open]');
+const filePicker = $('.photo-footer input[type=file]');
+const assistantButton = $('[data-assistant]');
 const status = $('[data-photo-status]');
 const emptyStatus = $('[data-empty-status]');
-const emptyOpen = $('[data-empty-open]');
 const retry = $('[data-retry]');
 const photoEmpty = $('.photo-empty');
-const photoControl = [actions.querySelector('[data-save]'), actions.querySelector('[popovertarget=photo-export]')];
 let state;
 let canvasOnly = false;
 let engineTheme = 'pro';
@@ -125,14 +101,9 @@ function setStatus(text) {
 
 function setControls() {
   const doc = state?.document;
-  const reviewing = ai && !ai.panel.hidden && !ai.review.hidden;
-  open.disabled = emptyOpen.disabled = !ready || busy;
+  open.disabled = !ready || busy;
   assistantButton.disabled = !ready;
   if (ai) ai.tab.disabled = !doc || busy;
-  for (const button of photoControl) button.disabled = !ready || busy || !doc || reviewing;
-  for (const button of actions.querySelectorAll('[data-history]')) {
-    button.disabled = busy || reviewing || !doc?.[button.dataset.history.endsWith('undo') ? 'canUndo' : 'canRedo'];
-  }
 }
 
 function render() {
@@ -156,7 +127,7 @@ const inspector = $('.photo-inspector');
 const tabs = $('.photo-tabs');
 const ai = configureAi();
 const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas,connection:$('.photo-connection')});
-const settings = mountPhotoSettings(bar,shell,preferences => {
+const settings = mountPhotoSettings(shell,preferences => {
   const theme = preferences.theme === 'warm' ? 'studio' : 'pro';
   if (theme !== engineTheme) {
     engineTheme = theme;
@@ -486,7 +457,6 @@ open.onclick = () => {
   if (window.nobleNavigation?.pickPhotos) window.nobleNavigation.pickPhotos().catch(error => setStatus(error.message));
   else filePicker.click();
 };
-emptyOpen.onclick = open.onclick;
 
 function queuePhotos(files) {
   if (files.length > 12) return setStatus('Choose up to 12 photos per import.');
@@ -555,22 +525,12 @@ const activateDocument = index => void run(async () => {
   if (ai && !ai.panel.hidden) ai.close.click();
   await command('document.activate', {document:Number(index)});
 });
-for (const button of actions.querySelectorAll('[data-history]')) {
-  button.onclick = () => void run(() => command(button.dataset.history));
-}
 
 async function save(extension,name=state.document.name) {
   const clean = name.replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 100);
   status.textContent = 'Preparing file…';
   await request('app.save', {path:(clean || 'Noble image') + '.' + extension, wait:true});
   if (!window.nobleNavigation?.onPhotoDelivery) status.textContent = 'Check your downloads for the file.';
-}
-actions.querySelector('[data-save]').onclick = () => void run(() => save('pcraft'));
-for (const button of exportMenu.querySelectorAll('[data-format]')) {
-  button.onclick = () => {
-    exportMenu.hidePopover();
-    void run(() => save(button.dataset.format));
-  };
 }
 window.nobleNavigation?.onPhotoDelivery?.(({file,state:delivery}) => {
   status.textContent = delivery === 'completed' ? 'Saved ' + file : delivery === 'cancelled' ? 'Save cancelled.' : 'Could not save the file.';
@@ -589,11 +549,12 @@ document.addEventListener('keydown', event => {
     }
     return;
   }
-  const button = key === 'o' ? open : key === 's' ? actions.querySelector('[data-save]') : null;
-  if (!button) return;
+  if (key !== 'o' && key !== 's') return;
   event.preventDefault();
   event.stopPropagation();
-  if (!button.disabled && !event.repeat) button.click();
+  if (busy || event.repeat) return;
+  if (key === 'o') open.click();
+  else if (state?.document && (!ai || ai.panel.hidden || ai.review.hidden)) void run(() => save('pcraft'));
 }, true);
 
 async function initialize() {
@@ -616,7 +577,9 @@ async function initialize() {
     }
     ready = true;
     if (canvasOnly) await syncCanvasPanels();
-    await refresh();
+    state = await request('ui.inspect');
+    render();
+    delete document.documentElement.dataset.editorStarting;
     void flushPhotoQueue();
     setInterval(async () => {
       if (busy || polling || document.hidden) return;
@@ -629,6 +592,7 @@ async function initialize() {
     photoEmpty.hidden = false;
     retry.hidden = false;
     setStatus(error.message || String(error));
+    delete document.documentElement.dataset.editorStarting;
   }
 }
 retry.onclick = initialize;

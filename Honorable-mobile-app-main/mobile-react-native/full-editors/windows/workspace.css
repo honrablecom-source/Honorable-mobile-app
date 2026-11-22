@@ -16,6 +16,19 @@
   --photo-tools-width: 385px;
 }
 html:root, html body { background: var(--canvas); color: var(--ink); }
+#studio-opening { display:none; }
+html[data-editor-starting] #studio-opening {
+  display:grid; place-content:center; justify-items:center; gap:10px; position:fixed;
+  inset:0; z-index:40; background:var(--canvas); color:var(--ink); font:14px "Segoe UI", sans-serif;
+}
+#studio-opening a { color:var(--accent); }
+html[data-editor-starting] :is(#filmcraft_canvas,#photocraft_canvas),
+body:has(.workspace-start:not([hidden])) #filmcraft_canvas,
+#photo-viewer:has(.photo-empty:not([hidden])) #photocraft_canvas {
+  opacity:0; pointer-events:none;
+}
+html[data-editor-starting] #status:has(#retry:not([hidden])),
+html[data-editor-starting] #photocraft_stopped:not([hidden]) { z-index:45; }
 #noble-workspace-bar {
   position: fixed; z-index: 8; inset: 0 0 auto; height: var(--workspace-height); box-sizing: border-box;
   display: flex; align-items: center; gap: 12px; padding: 0 16px;

@@ -7,6 +7,7 @@
   let importQueue = Promise.resolve();
   const pendingPhotos = [];
   let photoEntry;
+  let pendingVideoEntry;
   const pendingPhotoEntries = [];
   let onDelivery, onEditor, onNativePhotoLoading;
   const send = message => socket.postMessage(message);
@@ -106,7 +107,8 @@
     else if (event === 'stop') {
       await window.filmcraft?.request('ui.playback',{action:'stop'});
     } else if (event === 'entry') {
-      window.nobleProjectLauncher?.openEntry(data);
+      if (window.nobleProjectLauncher) void window.nobleProjectLauncher.openEntry(data);
+      else pendingVideoEntry = data;
     } else if (event === 'mcp') {
       const video = data.type === 'video-edit-request';
       const receiver = video ? window.nobleVideoMcp : window.noblePhotoMcp;
@@ -120,6 +122,11 @@
     }
   });
   Object.defineProperty(window,'nobleNavigation',{value:Object.freeze({
+    takeVideoEntry: () => {
+      const entry = pendingVideoEntry;
+      pendingVideoEntry = undefined;
+      return entry;
+    },
     listRecent: () => invoke('list-recent'),
     openRecent: id => invoke('open-recent',id),
     pickPhotos: () => invoke('pick-photos'),
