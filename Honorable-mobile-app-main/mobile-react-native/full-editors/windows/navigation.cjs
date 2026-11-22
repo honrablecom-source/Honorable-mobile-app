@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('nobleNavigation', {
   onPhotoDelivery: callback => {
     ipcRenderer.on('noble:photo-delivery', (_event, result) => callback(result));
   },
+  saveVideoExport: (name,bytes) => ipcRenderer.invoke('noble:video-mcp-save',name,bytes),
   photoPreferences: {
     read: () => ipcRenderer.invoke('noble:photo-preferences'),
     write: value => ipcRenderer.invoke('noble:photo-preferences', value),

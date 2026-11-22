@@ -111,7 +111,7 @@ async function run(revision) {
   try {
     status.textContent = 'Measuring footage motion and detecting beats locally…';
     const media = prior?.media ?? {
-      moments:(await Promise.all(files.map(inspectVideo))).flat(),
+      moments:(await Promise.all(files.map((file,index)=>inspectVideo(file,index)))).flat(),
       beats:await inspectMusic(track),
     };
     status.textContent = 'Waiting for the local model to inspect the media through MCP…';

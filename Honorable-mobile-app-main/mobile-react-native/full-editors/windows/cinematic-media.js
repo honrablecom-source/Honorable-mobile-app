@@ -16,7 +16,7 @@ function nextEvent(media, event, action) {
   });
 }
 
-export async function inspectVideo(file, clip) {
+export async function inspectVideo(file, clip, {minFrames = 12, details = false, preview = false} = {}) {
   const video = document.createElement('video');
   const url = URL.createObjectURL(file);
   const canvas = document.createElement('canvas');
@@ -27,10 +27,10 @@ export async function inspectVideo(file, clip) {
     video.muted = true;
     video.preload = 'auto';
     await nextEvent(video, 'loadeddata', () => {video.src = url;});
-    if (!Number.isFinite(video.duration) || video.duration < 1) throw Error(file.name + ' is too short.');
+    if (!Number.isFinite(video.duration) || video.duration < (details ? minFrames/24 : 1)) throw Error(file.name + ' is too short.');
     const moments = [];
     for (const time of [0, .25, .5, .7].map(fraction => Math.min(1800, video.duration * fraction))) {
-      if (video.duration - time < .5) continue;
+      if (video.duration - time < minFrames/24) continue;
       const snapshots = [];
       for (const timestamp of [time, Math.min(time + .22, video.duration - .02)]) {
         if (Math.abs(video.currentTime - timestamp) > .005) {
@@ -46,7 +46,22 @@ export async function inspectVideo(file, clip) {
         available:Math.min(14400, Math.floor(video.duration*24)-Math.ceil(time*24)),
         light:Number(light.toFixed(3)), motion:Number(motion.toFixed(3))});
     }
-    return moments.filter(moment => moment.available >= 12);
+    const candidates = moments.filter(moment => moment.available >= minFrames);
+    if (!details) return candidates;
+    let image, previewFrame;
+    if (preview && candidates.length) {
+      const strongest = candidates.reduce((a,b)=>a.motion >= b.motion ? a : b);
+      previewFrame = strongest.start;
+      if (Math.abs(video.currentTime-strongest.start/24) > .005) {
+        await nextEvent(video,'seeked',()=>{video.currentTime = strongest.start/24;});
+      }
+      const ratio = Math.min(1,384/Math.max(video.videoWidth,video.videoHeight));
+      canvas.width = Math.max(1,Math.round(video.videoWidth*ratio));
+      canvas.height = Math.max(1,Math.round(video.videoHeight*ratio));
+      context.drawImage(video,0,0,canvas.width,canvas.height);
+      image = {type:'image',mimeType:'image/jpeg',data:canvas.toDataURL('image/jpeg',.76).split(',')[1]};
+    }
+    return {candidates,image,previewFrame};
   } finally {
     video.removeAttribute('src');
     video.load();
@@ -54,16 +69,16 @@ export async function inspectVideo(file, clip) {
   }
 }
 
-export async function inspectMusic(file) {
+export async function inspectMusic(file,{minSeconds = 20,maxSeconds = 20} = {}) {
   if (file.size > 60 * 1024 * 1024) throw Error('Choose a soundtrack smaller than 60 MB.');
   const context = new AudioContext();
   try {
     const audio = await context.decodeAudioData(await file.arrayBuffer());
-    if (audio.duration < 20) throw Error('Choose a soundtrack at least 20 seconds long.');
+    if (audio.duration < minSeconds) throw Error('Choose a soundtrack at least ' + minSeconds + ' seconds long.');
     const samples = audio.getChannelData(0);
     const hop = Math.floor(audio.sampleRate / 100);
     const energy = [];
-    for (let start = 0; start + hop <= Math.min(samples.length, audio.sampleRate * 20); start += hop) {
+    for (let start = 0; start + hop <= Math.min(samples.length, audio.sampleRate * maxSeconds); start += hop) {
       let squared = 0;
       for (let i = start; i < start+hop; i++) squared += samples[i]*samples[i];
       energy.push(Math.sqrt(squared/hop));
@@ -76,7 +91,7 @@ export async function inspectMusic(file) {
       if (i-last < 23 || flux[i] < Math.max(.009,average*3.5) ||
           flux[i] < flux[i-1] || flux[i] < flux[i+1]) continue;
       const frame = Math.round(i * hop * 24 / audio.sampleRate);
-      if (frame > 0 && frame < 480) beats.push(frame);
+      if (frame > 0 && frame < maxSeconds*24) beats.push(frame);
       last = i;
     }
     return beats;

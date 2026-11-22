@@ -3,10 +3,12 @@ const path = require('node:path');
 const {execFile} = require('node:child_process');
 const {promisify} = require('node:util');
 const {mkdtempSync, readFileSync, renameSync, statSync, writeFileSync} = require('node:fs');
+const {mkdir,mkdtemp,rename,writeFile} = require('node:fs/promises');
 const {tmpdir} = require('node:os');
 
 const smoke = process.argv.includes('--smoke-test') && process.env.NOBLE_SMOKE_RESULT;
-const port = smoke ? 4263 : 4182;
+const studioPort = Number(process.argv.find(arg=>arg.startsWith('--studio-port='))?.slice(14));
+const port = smoke ? 4263 : Number.isInteger(studioPort) && studioPort >= 1024 && studioPort <= 65535 ? studioPort : 4183;
 const origin = 'http://127.0.0.1:' + port;
 const model = process.argv.find(argument => argument.startsWith('--model='))?.slice(8)
   || process.env.NOBLE_EDIT_MODEL || 'qwen3:4b';
@@ -42,20 +44,23 @@ function launchStudio() {
       }
     });
     studio.on('message', async message => {
-      if (message?.type !== 'photo-review-request') return;
-      const reply = {type:'photo-review-result',id:message.id};
-      const image = workspaces.get('image');
+      if (!['photo-review-request','video-edit-request'].includes(message?.type)) return;
+      const video = message.type === 'video-edit-request';
+      const reply = {type:video ? 'video-edit-result' : 'photo-review-result',id:message.id};
+      const editor = workspaces.get(video ? 'video' : 'image');
+      const open = video ? 'Open Noble Video Studio first.' : 'Open a photo in Noble Image Studio first.';
       try {
-        if (!image || activeView !== image) throw Error('Open a photo in Noble Image Studio first.');
-        const args = JSON.stringify({brief:message.brief,finish:message.finish});
-        const preview = await image.webContents.executeJavaScript(
-          'window.noblePhotoMcp?.(' + args + ') ?? {error:"Image Studio is still starting."}'
+        if (!editor || (activeView !== editor && !(video && message.tool === 'video_export_status'))) throw Error(open);
+        const args = JSON.stringify(video ? {tool:message.tool,args:message.args} : {brief:message.brief,finish:message.finish});
+        const receiver = video ? 'nobleVideoMcp' : 'noblePhotoMcp';
+        const result = await editor.webContents.executeJavaScript(
+          'window.' + receiver + '?.(' + args + ') ?? {error:"The editor is still starting."}'
         );
-        if (activeView !== image) throw Error('Return to Noble Image Studio to review the photo.');
-        reply.result = preview.result;
-        reply.error = preview.error;
+        if (!video && activeView !== editor) throw Error('Return to Noble Image Studio to review the photo.');
+        reply.result = result.result;
+        reply.error = result.error;
       } catch (error) {
-        reply.error = activeView !== image ? 'Open a photo in Noble Image Studio first.' : error.message;
+        reply.error = error.message;
       }
       studio.postMessage(reply);
     });
@@ -123,6 +128,28 @@ ipcMain.on('noble:workspace', (event, href) => {
   } catch {
     // Ignore malformed requests from a renderer.
   }
+});
+
+ipcMain.handle('noble:video-mcp-save', async (event,name,bytes) => {
+  const view = workspaces.get('video');
+  if (!view || view.webContents !== event.sender || event.senderFrame !== event.sender.mainFrame ||
+      new URL(event.senderFrame.url).origin !== origin || new URL(event.senderFrame.url).pathname !== '/video/') {
+    throw Error('Only Noble Video Studio can save this export.');
+  }
+  if (typeof name !== 'string' || !ArrayBuffer.isView(bytes) || bytes.byteLength < 16 || bytes.byteLength > 100*1024*1024) {
+    throw Error('Noble could not save the video. Choose an MP4 under 100 MB.');
+  }
+  const buffer = Buffer.from(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  if (buffer.toString('ascii',4,8) !== 'ftyp') throw Error('Noble did not return a valid MP4.');
+  const root = path.join(app.getPath('videos'),'Noble Exports');
+  await mkdir(root,{recursive:true});
+  const folder = await mkdtemp(path.join(root,'Export-'));
+  const base = name.replace(/[^\p{L}\p{N} _-]/gu,' ').trim().slice(0,80) || 'Video';
+  const output = path.join(folder,'Noble - '+base+'.mp4');
+  const incomplete = path.join(folder,'export.part');
+  await writeFile(incomplete,buffer,{flag:'wx'});
+  await rename(incomplete,output);
+  return output;
 });
 
 ipcMain.handle('noble:photo-preferences', (event, value) => {

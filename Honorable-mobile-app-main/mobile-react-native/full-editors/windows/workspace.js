@@ -1,3 +1,5 @@
+import {mountVideoMcp} from './video-mcp.js';
+
 const bar = document.createElement('header');
 bar.id = 'noble-workspace-bar';
 const canvas = document.querySelector('#filmcraft_canvas');
@@ -440,6 +442,7 @@ async function setupVideo() {
       await openProject(new File([bytes], name, {type:'application/json'}));
     },
   };
+  mountVideoMcp(editor,{settings:createPopover,notify:setStatus,showTimeline:()=>void showTimelineIfReady()});
   const entry = new URLSearchParams(location.search).get('entry');
   if (entry) openEntry(entry);
 }

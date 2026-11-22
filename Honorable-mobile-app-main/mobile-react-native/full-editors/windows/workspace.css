@@ -63,6 +63,8 @@ body:has(#filmcraft_canvas) #status { top: calc(var(--workspace-height) + 10px);
 #noble-commands { width: min(410px, calc(100vw - 28px)); }
 #noble-workspace-bar .workspace-popover button { display: block; text-align: left; width: 100%; white-space: normal; }
 .workspace-popover button:disabled { cursor: default; opacity: .48; }
+.workspace-frame-approval { display:flex; align-items:flex-start; gap:8px; margin:8px 4px 3px; padding:9px 4px 3px; border-top:1px solid var(--line); color:var(--muted); }
+.workspace-frame-approval input { flex:none; accent-color:var(--accent); }
 .workspace-popover small { display: block; color: var(--muted); font-size: 11px; padding-top: 3px; }
 .workspace-popover label { display: grid; gap: 5px; padding: 7px; }
 .workspace-popover input { font: inherit; padding: 7px; border: 1px solid var(--line); border-radius: 5px; }

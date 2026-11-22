@@ -1,4 +1,5 @@
 import {recipeSchema} from './photo-recipe.mjs';
+import {videoTools,validateVideoCall} from './video-tools.mjs';
 
 const legacyVersions = ['2025-11-25','2025-06-18','2025-03-26'];
 const modernVersion = '2026-07-28';
@@ -21,13 +22,13 @@ const tool = {
 };
 const serverInfo = {name:'noble-studio',title:'Noble Studio',version:'1.0.0'};
 const capabilities = {tools:{}};
-const instructions = 'Open a photo in Windows Image Studio before calling preview_photo_edit. Review and approve the result inside Noble.';
+const instructions = 'Open Noble Video Studio and import source media. Use list_video_media, inspect_video_media, then build_video_edit with your own exact cuts. Preview, revise or export in Noble. For photos, use preview_photo_edit and approve in Image Studio.';
 
 export function createDesktopMcp(port) {
   let pending;
   let lastId = 0;
   port.on('message', ({data}) => {
-    if (data?.type !== 'photo-review-result' || pending?.id !== data.id) return;
+    if (!['photo-review-result','video-edit-result'].includes(data?.type) || pending?.id !== data.id) return;
     clearTimeout(pending.timer);
     const {resolve,reject} = pending;
     pending = undefined;
@@ -35,18 +36,18 @@ export function createDesktopMcp(port) {
     else resolve(data.result);
   });
 
-  const review = (brief,finish) => new Promise((resolve,reject) => {
+  const invoke = message => new Promise((resolve,reject) => {
     if (pending) {
-      reject(Error('A photo preview is already being prepared in Noble.'));
+      reject(Error('Noble is processing another tool request.'));
       return;
     }
     const id = ++lastId;
     const timer = setTimeout(() => {
       pending = undefined;
-      reject(Error('Noble took too long to prepare the preview. Check Image Studio.'));
+      reject(Error('Noble took too long to complete the request.'));
     },240000);
     pending = {id,timer,resolve,reject};
-    port.postMessage({type:'photo-review-request',id,brief,finish});
+    port.postMessage({...message,id});
   });
 
   return async (req,res) => {
@@ -91,9 +92,23 @@ export function createDesktopMcp(port) {
       });
     }
     if (method === 'ping') return void result({});
-    if (method === 'tools/list') return void result({tools:[tool]});
+    if (method === 'tools/list') return void result({tools:[tool,...videoTools]});
     if (method !== 'tools/call') return void reply(error(-32601,'Method not found'));
-    const args = params?.arguments;
+    const args = params?.arguments ?? {};
+    const video = videoTools.find(entry=>entry.name === params?.name);
+    if (video) {
+      if (!validateVideoCall(video,args)) return void reply(error(-32602,'Check the input schema for '+video.name+'.'));
+      try {
+        const answer = await invoke({type:'video-edit-request',tool:video.name,args});
+        result({
+          content:[{type:'text',text:JSON.stringify(answer.data)},...(answer.images ?? [])],
+          structuredContent:answer.data,
+        });
+      } catch (failure) {
+        result({isError:true,content:[{type:'text',text:failure.message}]});
+      }
+      return;
+    }
     if (params?.name !== tool.name || !args || Array.isArray(args) ||
         Object.keys(args).some(key => key !== 'brief' && key !== 'finish') ||
         typeof args.brief !== 'string' || !args.brief.trim() || args.brief.length > 1000 ||
@@ -101,7 +116,7 @@ export function createDesktopMcp(port) {
       return void reply(error(-32602,'Use preview_photo_edit with a brief and an optional natural or creative finish.'));
     }
     try {
-      const edits = await review(args.brief.trim(),args.finish ?? 'natural');
+      const edits = await invoke({type:'photo-review-request',brief:args.brief.trim(),finish:args.finish ?? 'natural'});
       result({
         content:[{type:'text',text:'Preview ready in Noble Image Studio. Use Apply selected to commit the adjustment layers.'}],
         structuredContent:{edits,status:'awaiting_approval'},
