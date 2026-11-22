@@ -204,7 +204,7 @@ body:has(#filmcraft_canvas) #status { top: calc(var(--workspace-height) + 10px);
 @media (min-width: 1020px) {
   .noble-video-workspace:has(#cinematic[open]) #filmcraft_canvas { width:calc(100% - var(--agent-width)) !important; }
   .noble-video-workspace:has(#cinematic[open]) :is(.workspace-start, .workspace-transport) { right:var(--agent-width); }
-  .noble-image-workspace:has(#noble-ai-dialog:not([hidden])) #photocraft_canvas { width:calc(100% - var(--photo-tools-width)) !important; }
+  .noble-image-workspace:not(.photo-shell):has(#noble-ai-dialog:not([hidden])) #photocraft_canvas { width:calc(100% - var(--photo-tools-width)) !important; }
 }
 
 /* Video Studio command bar and project entry */

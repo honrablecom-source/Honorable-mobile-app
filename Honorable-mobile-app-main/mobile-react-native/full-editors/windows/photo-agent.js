@@ -41,86 +41,58 @@ async function draft(brief, measurements, finish, signal) {
   return validatePhotoRecipe(plan);
 }
 
-function mountProof(panel,onVisibility) {
+function mountProof(panel) {
   const proof = document.createElement('section');
   proof.className = 'photo-proof';
   proof.setAttribute('aria-label','Photo adjustment proof');
   proof.hidden = true;
   proof.dataset.mode = 'split';
   proof.innerHTML = `
-    <div class="photo-proof-controls" role="group" aria-label="Photo comparison">
-      <button type="button" data-proof-mode="original" aria-pressed="false">Original</button>
-      <button type="button" data-proof-mode="split" aria-pressed="true">Split</button>
-      <button type="button" data-proof-mode="preview" aria-pressed="false">Preview</button>
-      <input type="range" min="6" max="94" value="50" aria-label="Comparison divider">
-      <button type="button" data-proof-close>Hide comparison</button>
-    </div>
+    <label class="photo-proof-mode">Comparison
+      <select aria-label="Comparison mode">
+        <option value="original">Original</option><option value="split" selected>Split view</option><option value="preview">Preview</option>
+      </select>
+    </label>
     <div class="photo-proof-stage">
       <div class="photo-proof-frame">
         <img alt="Original photo" data-proof-original>
         <img alt="Photo with the selected adjustments" data-proof-adjusted>
         <div class="photo-proof-divider" aria-hidden="true"></div>
-        <span class="photo-proof-label before" aria-hidden="true">Original</span>
-        <span class="photo-proof-label after" aria-hidden="true">Preview</span>
+        <input type="range" min="0" max="100" value="50" aria-label="Original and preview divider" title="Drag to compare the original and preview">
       </div>
     </div>`;
-  panel.querySelector('[data-agent-edits]').before(proof);
+  panel.querySelector('[data-agent-review]').append(proof);
   const original = proof.querySelector('[data-proof-original]');
   const adjusted = proof.querySelector('[data-proof-adjusted]');
   const divider = proof.querySelector('input');
-  const modes = [...proof.querySelectorAll('[data-proof-mode]')];
-  for (const button of modes) button.onclick = () => {
-    proof.dataset.mode = button.dataset.proofMode;
+  const mode = proof.querySelector('select');
+  mode.onchange = () => {
+    proof.dataset.mode = mode.value;
     divider.hidden = proof.dataset.mode !== 'split';
-    for (const item of modes) item.setAttribute('aria-pressed', String(item === button));
   };
   divider.oninput = () => proof.style.setProperty('--proof-split',divider.value+'%');
-  let decoded = false;
-  let showComparison = true;
-  const sync = () => {
-    proof.hidden = panel.hidden || !decoded || !showComparison;
-    onVisibility(!proof.hidden);
-  };
-  const setVisible = visible => {
-    showComparison = visible;
-    sync();
-  };
-  new MutationObserver(sync).observe(panel,{attributeFilter:['hidden']});
-  proof.querySelector('[data-proof-close]').onclick = () => {
-    setVisible(false);
-    panel.querySelector('[data-agent-compare]').focus();
-  };
-  proof.addEventListener('keydown', event => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    proof.querySelector('[data-proof-close]').click();
-  });
   return {
-    setVisible,
     async show(result) {
       proof.style.setProperty('--proof-ratio',result.width / result.height);
       if (result.original) original.src = 'data:image/png;base64,' + result.original;
       adjusted.src = 'data:image/png;base64,' + result.adjusted;
       await Promise.all([original.decode(),adjusted.decode()]);
-      decoded = true;
-      sync();
+      proof.hidden = false;
     },
     clear() {
-      decoded = false;
+      proof.hidden = true;
       original.removeAttribute('src');
       adjusted.removeAttribute('src');
-      sync();
     },
   };
 }
 
-export function mountPhotoAgent(panel,{request,command,run,canvas}) {
+export function mountPhotoAgent(panel,{request,command,run,canvas,connection}) {
   panel.innerHTML = `
-    <header class="photo-agent-heading"><h2>Photo agent</h2><span data-agent-connection role="status"></span></header>
     <button type="button" data-agent-retry hidden>Check connection</button>
-    <details data-agent-request open><summary hidden>Edit request</summary><form data-agent-form>
+    <details data-agent-request open><summary hidden>Edit request <span data-agent-brief-summary></span></summary><form data-agent-form>
       <label for="photo-agent-brief">Describe your edit</label>
-      <textarea id="photo-agent-brief" rows="4" maxlength="1000" required placeholder="Brighten the photo and warm the colors."></textarea>
+      <textarea id="photo-agent-brief" rows="2" maxlength="1000" required placeholder="Brighten the photo and warm the colors."></textarea>
       <label class="photo-finish" for="photo-agent-finish">Finish
         <select id="photo-agent-finish"><option value="natural">Natural</option><option value="creative">Creative</option></select>
       </label>
@@ -131,20 +103,20 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
     </form></details>
     <p role="status" data-agent-status></p>
     <section data-agent-review hidden aria-label="Proposed adjustments">
-      <h3>Adjustments</h3>
+      <div class="photo-layer-review"><h3>Adjustment layers</h3>
       <ol data-agent-edits></ol>
-      <label class="photo-proof-strength">Strength <output data-agent-strength-value>100%</output>
+      </div>
+      <div class="photo-review-settings"><label class="photo-proof-strength">Strength <output data-agent-strength-value>100%</output>
         <input type="range" min="0" max="100" value="100" aria-label="Adjustment strength" data-agent-strength>
       </label>
       <p role="status" data-agent-quality hidden></p>
-      <button type="button" data-agent-compare hidden>Show comparison</button>
-      <button type="button" data-agent-apply>Apply selected</button>
+      <button type="button" data-agent-apply>Apply selected</button></div>
     </section>
     <button type="button" data-agent-undo hidden>Undo agent edit</button>`;
   const $ = name => panel.querySelector('[data-agent-' + name + ']');
   const text = panel.querySelector('textarea');
   const finish = panel.querySelector('select');
-  const proof = mountProof(panel,visible => { $('compare').hidden = visible; });
+  const proof = mountProof(panel);
   const status = $('status');
   let connected = false;
   let checking;
@@ -164,7 +136,6 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
     $('plan').disabled = !connected || !activePhoto || Boolean(pending) || rendering || proofBusy;
     $('cancel').hidden = !pending;
     $('apply').disabled = !current || !proofReady || Number($('strength').value) === 0 || rendering || Boolean(pending);
-    $('compare').disabled = !proofReady;
     $('undo').hidden = !isSamePhoto(activePhoto,undo);
     $('undo').disabled = rendering;
     finish.disabled = rendering || Boolean(pending);
@@ -172,7 +143,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
 
   function checkConnection() {
     if (checking) return checking;
-    $('connection').textContent = 'Checking Ollama…';
+    connection.textContent = 'Checking Ollama…';
     $('retry').hidden = true;
     checking = (async () => {
       try {
@@ -180,11 +151,11 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
         if (!response.ok) throw Error();
         const setup = await response.json();
         connected = setup.ready === true;
-        $('connection').textContent = connected ? 'MCP connected · ' + setup.model
+        connection.textContent = connected ? 'MCP connected · ' + setup.model
           : (setup.running ? '' : 'Start Ollama. ') + 'Install the local model with ollama pull ' + setup.model + '.';
       } catch {
         connected = false;
-        $('connection').textContent = 'The local editing service is unavailable.';
+        connection.textContent = 'The local editing service is unavailable.';
       } finally {
         checking = undefined;
         $('retry').hidden = connected;
@@ -208,10 +179,6 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
 
   $('retry').onclick = () => void checkConnection();
   $('cancel').onclick = () => pending?.abort();
-  $('compare').onclick = () => {
-    proof.setVisible(true);
-    panel.querySelector('[data-proof-mode][aria-pressed="true"]').focus();
-  };
   function queueProof(immediate = false) {
     clearTimeout(proofTimer);
     proofReady = undefined;
@@ -321,7 +288,7 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
       $('review').hidden = false;
       $('request').querySelector('summary').hidden = false;
       $('request').open = false;
-      proof.setVisible(true);
+      $('brief-summary').textContent = brief;
       await queueProof(true);
       controller.signal.throwIfAborted();
       if (!proofReady) return {error:status.textContent || 'Noble could not render the preview.'};
@@ -392,11 +359,10 @@ export function mountPhotoAgent(panel,{request,command,run,canvas}) {
   controls();
   return {
     open:checkConnection,
-    dismissProof:() => proof.setVisible(false),
     async planFromMcp({brief,finish:style}) {
       if (pending || rendering || proofBusy) return {error:'A photo preview is already being prepared in Noble.'};
       if (!activePhoto) return {error:'Open a photo in Noble Image Studio first.'};
-      if (!await checkConnection()) return {error:$('connection').textContent};
+      if (!await checkConnection()) return {error:connection.textContent};
       const reply = await planEdit(brief,style);
       if (reply.result) {
         text.value = brief;

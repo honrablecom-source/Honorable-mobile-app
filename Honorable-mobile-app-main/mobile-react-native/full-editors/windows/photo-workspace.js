@@ -19,9 +19,13 @@ shell.innerHTML = `
     </div>
   </section>
   <aside id="photo-assistant" class="photo-inspector" aria-label="Noble AI" hidden>
-    <div class="photo-tabs" role="tablist" aria-label="Photo AI panels">
-      <button id="photo-agent-tab" type="button" role="tab" aria-controls="photo-agent">Editing agent</button>
-    </div>
+    <header class="photo-dock-bar">
+      <div class="photo-tabs" role="tablist" aria-label="Photo AI panels">
+        <button id="photo-agent-tab" type="button" role="tab" aria-controls="photo-agent">Editing agent</button>
+      </div>
+      <span class="photo-connection" role="status"></span>
+      <button type="button" data-close-dock aria-label="Close AI panel" title="Close AI panel">×</button>
+    </header>
     <section id="photo-agent" class="photo-pane photo-agent" role="tabpanel" aria-labelledby="photo-agent-tab" hidden></section>
   </aside>
   <footer class="photo-footer">
@@ -150,7 +154,7 @@ async function refresh() {
 const inspector = $('.photo-inspector');
 const tabs = $('.photo-tabs');
 const ai = configureAi();
-const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas});
+const agent = mountPhotoAgent($('#photo-agent'),{request,command,run,canvas,connection:$('.photo-connection')});
 const settings = mountPhotoSettings(bar,shell,preferences => {
   const theme = preferences.theme === 'warm' ? 'studio' : 'pro';
   if (theme !== engineTheme) {
@@ -180,12 +184,15 @@ function syncCanvasPanels() {
 }
 
 function closeAssistant() {
-  agent.dismissProof();
   if (ai && !ai.panel.hidden) ai.close.click();
   inspector.hidden = true;
   $('#photo-agent').hidden = true;
   assistantButton.setAttribute('aria-expanded','false');
 }
+$('[data-close-dock]').onclick = () => {
+  closeAssistant();
+  assistantButton.focus();
+};
 
 async function openAssistant() {
   if (canvasOnly) {
@@ -203,6 +210,7 @@ assistantButton.onclick = async () => {
 };
 
 function selectTab(tab) {
+  $('.photo-connection').hidden = tab.id !== 'photo-agent-tab';
   for (const button of tabs.querySelectorAll('[role=tab]')) {
     const active = button === tab;
     button.setAttribute('aria-selected', String(active));
@@ -227,8 +235,16 @@ function configureAi() {
   panel.setAttribute('role', 'tabpanel');
   panel.setAttribute('aria-labelledby', tab.id);
   panel.removeAttribute('aria-modal');
+  panel.onkeydown = event => {
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close.click();
+      $('#photo-agent-tab').focus();
+    }
+  };
   const close = part('close');
-  close.textContent = 'Back to edit';
+  panel.querySelector('header').hidden = true;
   const preview = document.createElement('div');
   preview.className = 'photo-ai-preview';
   preview.append(part('compare'), part('original-view'), part('result-view'));
@@ -253,7 +269,14 @@ function configureAi() {
     stop.onclick();
     part('tool').focus();
   };
-  part('review').append(another);
+  const corrections = document.createElement('div');
+  corrections.className = 'photo-ai-corrections';
+  const delivery = document.createElement('div');
+  delivery.className = 'photo-ai-delivery';
+  const copyNote = review.lastElementChild;
+  corrections.append(part('color'),part('refine'),another);
+  delivery.append(part('approve').closest('label'),part('apply').parentElement,copyNote);
+  review.append(corrections,delivery);
   let source;
   runOnPhoto.onclick = async () => {
     runOnPhoto.disabled = true;
@@ -267,7 +290,10 @@ function configureAi() {
       sync();
     }
   };
-  setup.append(part('tool').closest('label'), part('note'), runOnPhoto, stop);
+  const choices = document.createElement('div');
+  choices.className = 'photo-ai-commands';
+  choices.append(runOnPhoto,stop);
+  setup.append(part('tool').closest('label'), choices, part('note'));
   panel.prepend(setup);
   panel.prepend(panel.querySelector('header'));
   current.parentElement.hidden = true;
@@ -297,7 +323,7 @@ function configureAi() {
     sync();
     if (!panel.hidden) {
       selectTab(tab);
-      part('status').textContent = 'Choose a tool to preview on the open photo.';
+      part('status').textContent = '';
     } else if (!inspector.hidden && tab.getAttribute('aria-selected') === 'true') {
       selectTab($('#photo-agent-tab'));
       if (document.activeElement === tab) $('#photo-agent-tab').focus();
