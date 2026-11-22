@@ -9,57 +9,33 @@
 </head>
 <body>
   <div class="desktop-layout">
-    <aside class="desktop-nav">
-      <a class="brand" href="#studio" aria-label="Noble Studio home">
-        <img src="/desktop/noble.png" alt="" width="30" height="30"> <span>Noble Studio</span>
-      </a>
-      <span class="nav-label">Browse</span><nav class="main-nav" aria-label="Workspace">
-        <a href="#studio" aria-current="page"><span class="nav-icon icon-projects" aria-hidden="true"></span>Projects</a>
-        <a href="#library"><span class="nav-icon icon-library" aria-hidden="true"></span>Media library</a>
-      </nav>
-      <div class="workflow-group"><span class="nav-label">Create</span><nav class="create-nav" aria-label="Video workflows">
-        <a href="/video/?empty&amp;webgl&amp;entry=agent"><span class="nav-icon" aria-hidden="true">✦</span>AI editor</a>
-        <a href="/video/?empty&amp;webgl&amp;entry=story"><span class="nav-icon icon-story" aria-hidden="true"></span>Photo storyboard</a>
-      </nav>
-      </div><a class="export-action" href="/desktop/copy-export"><span class="nav-icon icon-copy" aria-hidden="true"></span>Copy exported file</a>
-    </aside>
+    <header class="mast">
+      <a class="brand" href="#studio" aria-label="Noble Studio home"><img src="/desktop/noble.png" alt="" width="32" height="32">Noble Studio</a>
+      <nav aria-label="Workspace"><a href="#studio" aria-current="page">Projects</a><a href="#library">Media library</a></nav>
+      <a class="transfer" href="/desktop/copy-export">Copy exported file</a>
+    </header>
     <main>
       <section id="studio" aria-labelledby="studio-title">
-        <header class="page-heading project-heading">
-          <h1 id="studio-title">Projects</h1>
-        </header>
-        <section class="editors" aria-label="Editing workspaces">
-          <article class="studio-card featured-studio">
-            <img class="featured-art" src="/desktop/image-studio-capuchin.jpg" width="1536" height="1024" alt="A capuchin monkey in a burnt-orange knit cap" fetchpriority="high">
-            <div class="featured-actions">
-              <div class="workspace-name">
-                <h2>Image Studio</h2>
-                <p>PhotoCraft tools and layered projects</p>
-              </div>
-              <div class="workspace-actions">
-                <a class="workspace-link" href="/desktop/native/image">Open Image Studio <span aria-hidden="true">›</span></a>
-                <a class="action" href="/desktop/native/image?entry=open">Open photos</a>
-              </div>
+        <h1 id="studio-title">Your workspaces</h1>
+        <div class="lighttable">
+          <article class="video-cover">
+            <img class="video-art" src="/desktop/video-studio-tiger.jpg" alt="Tiger walking toward the camera" fetchpriority="high">
+            <div class="cover-caption"><h2>Video Studio</h2>
+              <div class="launch"><a class="action" href="/desktop/native/video">Open Video Studio</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open project ›</a></div>
             </div>
           </article>
-          <article class="studio-card video-studio">
-            <img class="video-art" src="/desktop/video-studio-skate.jpg" width="1536" height="1024" alt="A skateboarder above a sunlit skate bowl">
-            <div class="featured-actions">
-              <div class="workspace-name">
-                <h2>Video Studio</h2>
-                <p>Timeline editing, color, and audio</p>
-              </div>
-              <div class="workspace-actions">
-                <a class="workspace-link" href="/desktop/native/video">Full video tools <span aria-hidden="true">›</span></a>
-                <a class="action secondary" href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a>
-              </div>
-            </div>
+          <article class="featured-studio photo-cover">
+            <img class="featured-art" src="/desktop/image-studio-capuchin.jpg" alt="Capuchin in an orange knit cap">
+            <div class="photo-caption"><h2>Image Studio</h2><div class="launch"><a class="action" href="/desktop/native/image?entry=open">Open photos</a><a href="/desktop/native/image">Open Image Studio ›</a></div></div>
           </article>
-        </section>
-        <nav class="ai-workspaces" aria-label="AI workspaces">
-          <a href="/image/?empty&amp;webgl">AI photo workspace <span aria-hidden="true">›</span></a>
-          <a href="/video/?empty&amp;webgl">AI video workspace <span aria-hidden="true">›</span></a>
-        </nav>
+          <nav class="tool-index" aria-label="Creative tools">
+            <h2>Creative tools</h2>
+            <a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a>
+            <a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a>
+            <a href="/image/?empty&amp;webgl">AI photo workspace</a>
+            <a href="/video/?empty&amp;webgl">AI video workspace</a>
+          </nav>
+        </div>
       </section>
       <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">
