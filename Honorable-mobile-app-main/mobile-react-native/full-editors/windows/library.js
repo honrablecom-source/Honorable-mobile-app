@@ -196,10 +196,18 @@ document.querySelector('#semantic').addEventListener('submit', async event => {
   worker.postMessage({query: term, files: sources});
 });
 if (window.nobleNavigation) {
-  for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"]')) {
+  for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"],[data-desktop-projects]')) {
     link.addEventListener('click', event => {
       event.preventDefault();
       window.nobleNavigation.openWorkspace(link.href);
     });
   }
+  const editorChrome = document.querySelector('.desktop-editor-chrome');
+  window.nobleNavigation.onDesktopEditor?.(kind=>{
+    document.body.classList.toggle('desktop-editing',Boolean(kind));
+    editorChrome.hidden = !kind;
+    if (!kind) return;
+    editorChrome.querySelector('[data-desktop-title]').textContent = kind === 'image' ? 'Image Studio' : 'Video Studio';
+    editorChrome.querySelector('[data-desktop-ai]').href = '/'+kind+'/?empty&webgl';
+  });
 }

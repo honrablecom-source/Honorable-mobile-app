@@ -17,6 +17,11 @@
       <a href="#library"><i class="nav-media" aria-hidden="true"></i>Media library</a>
     </nav>
   </header>
+  <header class="desktop-editor-chrome" hidden>
+    <a href="/desktop/home.html" data-desktop-projects>‹ Projects</a>
+    <strong data-desktop-title></strong>
+    <a href="/image/?empty&amp;webgl" data-desktop-ai>Noble AI workspace</a>
+  </header>
   <main>
     <section id="studio" aria-labelledby="studio-title">
       <header class="page-heading project-heading">
@@ -26,30 +31,39 @@
           <a class="action" href="/image/?empty&amp;webgl&amp;entry=open">Open photos</a>
         </div>
       </header>
-      <section class="editors" aria-label="Editing workspaces">
-        <article class="studio-card">
-          <a class="project-choice image-choice" href="/image/?empty&amp;webgl">
-            <span class="studio-icon photo-icon" aria-hidden="true"></span>
-            <div><h2>Image Studio</h2><p>Edit photos with layers, masks, and local AI.</p></div>
-            <span class="choice-arrow" aria-hidden="true">→</span>
-          </a>
-          <a class="native-launch" href="/desktop/native/image"><strong>Open PhotoCraft</strong><span>Native Windows editor</span><b aria-hidden="true">↗</b></a>
-        </article>
-        <article class="studio-card">
-          <a class="project-choice video-choice" href="/video/?empty&amp;webgl">
-            <span class="studio-icon video-icon" aria-hidden="true"></span>
-            <div><h2>Video Studio</h2><p>Cut footage, edit with AI, and export your timeline.</p></div>
-            <span class="choice-arrow" aria-hidden="true">→</span>
-          </a>
-          <a class="native-launch" href="/desktop/native/video"><strong>Open FilmCraft</strong><span>Native Windows editor</span><b aria-hidden="true">↗</b></a>
-        </article>
-      </section>
-      <section class="project-tasks" aria-labelledby="task-heading">
-        <h2 id="task-heading">Quick actions</h2>
-        <a href="/video/?empty&amp;webgl&amp;entry=agent"><i aria-hidden="true">✦</i><div><strong>AI editor</strong><span>Draft a cut from clips and music.</span></div></a>
-        <a href="/video/?empty&amp;webgl&amp;entry=story"><i aria-hidden="true">▤</i><div><strong>Photo storyboard</strong><span>Arrange photos and set their timing.</span></div></a>
-        <a href="#library"><i aria-hidden="true">⌕</i><div><strong>Search media</strong><span>Find files by name or description.</span></div></a>
-      </section>
+      <div class="project-board">
+        <section class="editor-directory" aria-labelledby="editor-heading">
+          <h2 id="editor-heading">Workspaces</h2>
+          <div class="editors">
+            <article class="studio-card">
+              <div class="workspace-name">
+                <span class="studio-icon photo-icon" aria-hidden="true"></span>
+                <div><h3>Image Studio</h3><p>Retouch photos, composite layers, and apply local AI.</p></div>
+              </div>
+              <div class="workspace-actions">
+                <a class="workspace-action workspace-action-primary" href="/desktop/native/image">Full photo tools <span aria-hidden="true">→</span></a>
+                <a class="workspace-action" href="/image/?empty&amp;webgl">AI photo workspace</a>
+              </div>
+            </article>
+            <article class="studio-card">
+              <div class="workspace-name">
+                <span class="studio-icon video-icon" aria-hidden="true"></span>
+                <div><h3>Video Studio</h3><p>Trim, color, and mix footage on an editable timeline.</p></div>
+              </div>
+              <div class="workspace-actions">
+                <a class="workspace-action workspace-action-primary" href="/desktop/native/video">Full video tools <span aria-hidden="true">→</span></a>
+                <a class="workspace-action" href="/video/?empty&amp;webgl">AI video workspace</a>
+              </div>
+            </article>
+          </div>
+        </section>
+        <section class="project-tasks" aria-labelledby="task-heading">
+          <h2 id="task-heading">Quick actions</h2>
+          <a href="/video/?empty&amp;webgl&amp;entry=agent"><i aria-hidden="true">✦</i><div><strong>AI editor</strong><span>Draft a cut from clips and music.</span></div></a>
+          <a href="/video/?empty&amp;webgl&amp;entry=story"><i aria-hidden="true">▤</i><div><strong>Photo storyboard</strong><span>Arrange photos and set their timing.</span></div></a>
+          <a href="#library"><i aria-hidden="true">⌕</i><div><strong>Search media</strong><span>Find files by name or description.</span></div></a>
+        </section>
+      </div>
     </section>
     <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">

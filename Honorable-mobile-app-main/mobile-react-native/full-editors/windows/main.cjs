@@ -1,5 +1,6 @@
 const {app, BrowserWindow, WebContentsView, Menu, ipcMain, dialog, session, utilityProcess, nativeTheme} = require('electron');
 const path = require('node:path');
+const {createInterface} = require('node:readline');
 const {execFile, spawn} = require('node:child_process');
 const {promisify} = require('node:util');
 const {mkdtempSync, readFileSync, renameSync, statSync, writeFileSync} = require('node:fs');
@@ -18,9 +19,12 @@ const model = process.argv.find(argument => argument.startsWith('--model='))?.sl
 const preload = path.join(__dirname, 'navigation.cjs');
 const icon = path.join(__dirname, '..', '..', 'Noble.ico');
 const workspaces = new Map();
+const desktopEditors = new Map();
 let studio, window, activeView;
 let closing = false;
 let choosingFile = false;
+let desktopEditor;
+let closeWhenEditorsFinish = false;
 app.setAppUserModelId('Honorable.NobleStudio');
 nativeTheme.themeSource = 'dark';
 
@@ -97,12 +101,13 @@ function detachWorkspace() {
 
 function routeWorkspace(target, fromEditor) {
   if (!windowAvailable() || target.origin !== origin) return false;
-  if (fromEditor && target.pathname === '/desktop/home.html') {
+  closeWhenEditorsFinish = false;
+  if ((fromEditor || desktopEditor) && target.pathname === '/desktop/home.html') {
     showHome();
     return true;
   }
   if (!fromEditor && ['/desktop/native/image','/desktop/native/video'].includes(target.pathname)) {
-    void openNativeStudio(target.pathname.split('/').at(-1)).catch(reportWorkspaceError);
+    void openDesktopEditor(target.pathname.split('/').at(-1)).catch(reportWorkspaceError);
     return true;
   }
   if (!fromEditor && ['/video/', '/image/'].includes(target.pathname)) {
@@ -203,20 +208,94 @@ function nativeStudioPath(kind, field = 'executable') {
   return path.join(process.resourcesPath,'native',kind,release.directory,release[field]);
 }
 
-async function openNativeStudio(kind) {
+function sendEditor(editor,command) {
+  if (editor?.process.stdin.writable) editor.process.stdin.write(command+'\n');
+}
+
+function showDesktopChrome(kind) {
+  desktopEditor = kind;
   if (!windowAvailable()) return;
+  window.webContents.send('noble:desktop-editor',kind ?? null);
+  if (kind) window.setTitle('Noble Studio — Full '+(kind === 'image' ? 'photo' : 'video')+' tools');
+}
+
+function hideDesktopEditor() {
+  if (!desktopEditor) return;
+  sendEditor(desktopEditors.get(desktopEditor),'hide');
+  showDesktopChrome();
+}
+
+async function openDesktopEditor(kind) {
+  if (!windowAvailable() || closeWhenEditorsFinish) return;
   const executable = nativeStudioPath(kind);
-  if (!await stat(executable).then(file=>file.isFile(),()=>false)) {
-    throw Error(nativeStudios[kind].name+' is not included in this installation.');
+  const host = path.join(__dirname,'NobleEditorHost.exe');
+  for (const file of [host,executable]) {
+    if (!await stat(file).then(entry=>entry.isFile(),()=>false)) throw Error('Full desktop tools are not installed.');
   }
-  await new Promise((resolve,reject)=>{
-    const launched = spawn(executable,[],{cwd:path.dirname(executable),stdio:'ignore',detached:true});
-    launched.once('error',reject);
-    launched.once('spawn',()=>{
-      launched.unref();
-      resolve();
+  if (!windowAvailable() || closeWhenEditorsFinish) return;
+  hideDesktopEditor();
+  detachWorkspace();
+  showDesktopChrome(kind);
+  let editor = desktopEditors.get(kind);
+  if (!editor) {
+    const config = path.join(app.getPath('userData'),'desktop-editor-'+kind);
+    const parent = window.getNativeWindowHandle().readBigUInt64LE().toString(16);
+    const args = kind === 'image' ? ['--new-instance','--in-window-menus'] : ['--empty','--data-dir',config];
+    const processHost = spawn(host,[parent,'54',executable,...args],{
+      windowsHide:true, stdio:['pipe','pipe','pipe'],
+      env:{...process.env,...(kind === 'image' ? {PHOTOCRAFT_CONFIG_DIR:config} : {})},
     });
-  });
+    editor = {process:processHost};
+    desktopEditors.set(kind,editor);
+    processHost.stdin.on('error',()=>{});
+    let startupError = '';
+    processHost.stderr.on('data',line=>{startupError = (startupError+line).slice(-800);});
+    editor.ready = new Promise((resolve,reject)=>{
+      const lines = createInterface({input:processHost.stdout});
+      lines.on('line',line=>{
+        if (line === 'ready') resolve();
+      });
+      processHost.once('error',reject);
+      processHost.once('exit',code=>reject(Error(startupError.trim() || 'The editor host stopped with code '+code+'.')));
+    });
+    processHost.once('close',()=>{
+      desktopEditors.delete(kind);
+      if (!windowAvailable()) return;
+      if (closeWhenEditorsFinish && desktopEditor === kind) closeDesktopEditors();
+      else if (desktopEditor === kind) showHome();
+    });
+  }
+  try {
+    await editor.ready;
+    if (desktopEditor === kind && windowAvailable()) sendEditor(editor,'show');
+  } catch (error) {
+    if (desktopEditor === kind) showHome();
+    throw error;
+  }
+}
+
+function requestDesktopEditorClose(event) {
+  if (!desktopEditors.size) return false;
+  event.preventDefault();
+  closeWhenEditorsFinish = true;
+  closeDesktopEditors();
+  return true;
+}
+
+function closeDesktopEditors() {
+  const kind = desktopEditors.has(desktopEditor) ? desktopEditor : desktopEditors.keys().next().value;
+  if (!kind) {
+    window.close();
+    return;
+  }
+  detachWorkspace();
+  showDesktopChrome(kind);
+  const editor = desktopEditors.get(kind);
+  void editor.ready.then(()=>{
+    if (!closeWhenEditorsFinish || desktopEditor !== kind) return;
+    sendEditor(editor,'show');
+    sendEditor(editor,'close');
+  }).catch(()=>{});
 }
 
 ipcMain.handle('noble:decode-phone-photo', async (event,name,bytes) => {
@@ -239,11 +318,11 @@ ipcMain.handle('noble:decode-phone-photo', async (event,name,bytes) => {
         cwd:path.dirname(decoder),windowsHide:true,timeout:45000,maxBuffer:65536,
       });
     } catch {
-      throw Error('PhotoCraft could not decode this HEIC or HEIF photo. Try opening the original in PhotoCraft.');
+      throw Error('This HEIC or HEIF photo could not be decoded. Try the original in Noble’s full photo workspace.');
     }
     const converted = await stat(output);
     if (!converted.size || converted.size > photoLimit) {
-      throw Error('This photo expands beyond 64 MB. Open the original in PhotoCraft.');
+      throw Error('This photo expands beyond 64 MB. Open the original in Noble’s full photo workspace.');
     }
     return await readFile(output);
   } finally {
@@ -331,6 +410,7 @@ async function openLocalVideoProject(file) {
 }
 async function showStudio(kind, url = origin + '/' + kind + '/?empty&webgl') {
   if (!windowAvailable()) throw Error('Noble Studio is closing.');
+  hideDesktopEditor();
   let view = workspaces.get(kind);
   const fresh = !view;
   if (fresh) {
@@ -395,6 +475,7 @@ function copyExportForSharing() {
 }
 function showHome() {
   if (!windowAvailable()) return;
+  hideDesktopEditor();
   detachWorkspace();
   window.setTitle('Noble Studio');
   window.webContents.focus();
@@ -639,7 +720,8 @@ if (!app.requestSingleInstanceLock()) {
     window.focus();
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', () => {
+  app.on('before-quit', event => {
+    if (requestDesktopEditorClose(event)) return;
     closing = true;
     studio?.kill();
   });
@@ -672,7 +754,9 @@ if (!app.requestSingleInstanceLock()) {
       webPreferences:{preload, sandbox:true, contextIsolation:true, nodeIntegration:false},
     });
     window.on('resize', fitWorkspace);
-    window.on('close', () => { closing = true; });
+    window.on('close', event => {
+      if (!requestDesktopEditorClose(event)) closing = true;
+    });
     window.on('closed', () => {
       for (const view of workspaces.values()) {
         if (!view.webContents.isDestroyed()) view.webContents.close();
@@ -687,8 +771,8 @@ if (!app.requestSingleInstanceLock()) {
         {label:'Home and media library', accelerator:'Ctrl+Shift+H', click:() => showHome()},
         {label:'Video Studio', click:() => showStudio('video').catch(reportWorkspaceError)},
         {label:'Image Studio', click:() => showStudio('image').catch(reportWorkspaceError)},
-        {label:'Open PhotoCraft', click:() => openNativeStudio('image').catch(reportWorkspaceError)},
-        {label:'Open FilmCraft', click:() => openNativeStudio('video').catch(reportWorkspaceError)},
+        {label:'Full photo tools', click:() => openDesktopEditor('image').catch(reportWorkspaceError)},
+        {label:'Full video tools', click:() => openDesktopEditor('video').catch(reportWorkspaceError)},
         {type:'separator'}, {role:'quit'},
       ]},
       {label:'Share', submenu:[{label:'Copy exported file', click:() => {

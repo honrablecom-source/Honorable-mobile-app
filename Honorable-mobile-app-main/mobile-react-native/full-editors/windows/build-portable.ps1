@@ -29,6 +29,9 @@ $editors = Split-Path $PSScriptRoot
 $mobile = Split-Path $editors
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'main.cjs'), (Join-Path $PSScriptRoot 'navigation.cjs'), (Join-Path $PSScriptRoot 'package.json'), (Join-Path $PSScriptRoot 'native-studios.json') -Destination $appDirectory
 if ($NativeArchiveDirectory) {
+    $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+    & $compiler /nologo /target:exe /platform:x64 "/out:$(Join-Path (Resolve-Path $appDirectory) 'NobleEditorHost.exe')" (Join-Path $PSScriptRoot 'EditorHost.cs')
+    if ($LASTEXITCODE) { throw 'Could not build the Noble native editor host.' }
     $native = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'native-studios.json') -Raw | ConvertFrom-Json
     foreach ($kind in @('image', 'video')) {
         $release = $native.$kind

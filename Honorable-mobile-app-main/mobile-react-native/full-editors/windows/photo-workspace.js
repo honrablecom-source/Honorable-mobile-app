@@ -145,8 +145,8 @@ async function run(action) {
   } catch (error) {
     setStatus(error.message || String(error));
   } finally {
-    busy = false;
     await refresh();
+    busy = false;
     setControls();
     void flushPhotoQueue();
   }
@@ -421,7 +421,7 @@ async function importPhoto(file) {
   let bytes = new Uint8Array(await file.arrayBuffer());
   if (/\.hei[cf]$/i.test(name)) {
     const decode = window.nobleNavigation?.decodePhonePhoto;
-    if (!decode) throw Error('Open this HEIC or HEIF photo in the Windows PhotoCraft editor.');
+    if (!decode) throw Error('Open this HEIC or HEIF photo in Noble’s full photo workspace.');
     bytes = new Uint8Array(await decode(name,bytes));
     name = name.replace(/\.hei[cf]$/i,'.png');
   }
@@ -430,7 +430,7 @@ async function importPhoto(file) {
 }
 
 async function finishImport(before) {
-  const deadline = Date.now() + 16000;
+  const deadline = Date.now() + 60000;
   while (Date.now() < deadline) {
     const result = await request('ui.inspect');
     const newDocument = result.session.documents.find(doc=>!before.session.documents.some(previous=>previous.id === doc.id && previous.index === doc.index));
