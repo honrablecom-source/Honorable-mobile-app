@@ -1,24 +1,18 @@
 (() => {
   const host = document.createElement('div');
   host.innerHTML = `
-    <style>
-      #story-open { position: fixed; bottom: 70px; right: 18px; z-index: 10; background: #fff; color: #111; border: 1px solid #333; border-radius: 12px; padding: 10px 16px; }
-      #storyboard { width: min(620px, calc(100vw - 30px)); max-height: 80vh; color: #111; background: #fff; font: 15px/1.5 system-ui; border: 1px solid #888; padding: 20px; border-radius: 12px; }
-      #storyboard::backdrop { background: #0008; }
-      #storyboard ol { padding-left: 24px; }
-      #storyboard li { margin-bottom: 8px; }
-      #storyboard img { width: 60px; height: 44px; object-fit: cover; vertical-align: middle; margin-right: 8px; }
-      #storyboard input[type=number] { width: 58px; }
-      #storyboard button { margin: 3px; }
-    </style>
     <button id="story-open" type="button">Photo storyboard</button>
-    <dialog id="storyboard" aria-labelledby="storyboard-title">
-      <h2 id="storyboard-title">Photo storyboard</h2>
-      <label>Choose 2–12 photos <input type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
-      <ol aria-label="Storyboard shots" role="list"></ol>
-      <p role="status"></p>
-      <button data-build type="button" disabled>Build timeline</button>
-      <button data-close type="button">Close</button>
+    <dialog id="storyboard" class="studio-dialog" aria-labelledby="storyboard-title">
+      <header class="studio-dialog-heading"><h2 id="storyboard-title">Photo storyboard</h2><button data-close type="button" aria-label="Close storyboard">×</button></header>
+      <div class="studio-dialog-body">
+        <label class="cinematic-file"><input type="file" accept="image/png,image/jpeg,image/webp" multiple aria-label="Choose photos">
+          <span class="source-icon" aria-hidden="true">▤</span><span><strong>Photos</strong><small data-selection>Choose 2–12 photos</small></span><span class="file-action">Browse</span>
+        </label>
+        <p class="story-instructions">Arrange your shots and set how long each stays on screen.</p>
+        <ol aria-label="Storyboard shots" role="list"></ol>
+        <p role="status"></p>
+      </div>
+      <footer class="studio-dialog-footer"><output data-story-length aria-label="Total duration"></output><button data-build type="button" disabled>Build timeline</button></footer>
     </dialog>`;
   document.body.append(host);
   const dialog = host.querySelector('dialog');
@@ -27,6 +21,8 @@
   const status = dialog.querySelector('[role=status]');
   const build = dialog.querySelector('[data-build]');
   const close = dialog.querySelector('[data-close]');
+  const selection = dialog.querySelector('[data-selection]');
+  const durationOutput = dialog.querySelector('[data-story-length]');
   let photos = [];
   let busy = false;
 
@@ -38,6 +34,8 @@
       frames += photos[index].frames || 0;
     }
     build.disabled = busy || photos.length < 2 || photos.some(photo => !photo.frames);
+    const seconds = frames/24;
+    durationOutput.textContent = photos.length ? photos.length+' shots · '+seconds+' s' : '';
   }
 
   function render() {
@@ -73,9 +71,10 @@
       for (const [offset, label] of [[-1, 'Move up'], [1, 'Move down']]) {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = label;
+        button.textContent = offset < 0 ? '↑' : '↓';
         button.dataset.offset = offset;
         button.setAttribute('aria-label', label + ' ' + photo.file.name);
+        button.title = label;
         const destination = index + offset;
         button.disabled = destination < 0 || destination >= photos.length;
         button.onclick = () => {
@@ -102,6 +101,7 @@
     } else {
       status.textContent = 'Choose 2–12 supported photos.';
     }
+    selection.textContent = photos.length ? photos.length+' photos selected' : 'Choose 2–12 photos';
     render();
   };
 

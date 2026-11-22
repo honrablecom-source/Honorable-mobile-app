@@ -360,6 +360,11 @@ async function runSmokeTest() {
       document.querySelector('#noble-agent [data-close]').click();
       const exportAction = toolbar.querySelector('[data-action=export]');
       exportAction.click();
+      const delivery = document.querySelector('#video-delivery');
+      const deliveryDeadline = Date.now() + 18000;
+      while (!delivery.open && Date.now() < deliveryDeadline) await new Promise(resolve=>setTimeout(resolve,70));
+      if (!delivery.open) throw Error('Export dialog did not open');
+      delivery.querySelector('[data-advanced]').click();
       const toggleDeadline = Date.now() + 18000;
       while (exportAction.getAttribute('aria-pressed') !== 'true' && Date.now() < toggleDeadline) {
         await new Promise(resolve => setTimeout(resolve, 70));

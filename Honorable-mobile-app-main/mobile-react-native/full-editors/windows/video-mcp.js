@@ -156,9 +156,9 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
         if (info.finished) {
           if (info.error || info.result?.error || !info.result?.bytes) throw Error(info.result?.error || info.error || 'Noble could not export this video.');
           const bytes = await editor.readFile(virtualPath);
-          const saved = await window.nobleNavigation.saveVideoExport(name,bytes);
+          const saved = window.nobleNavigation ? await window.nobleNavigation.saveVideoExport(name,bytes) : downloadVideo(name,bytes);
           Object.assign(job,{status:'finished',progress:1,path:saved,bytes:bytes.byteLength});
-          notify('Saved the MP4 to Videos / Noble Exports.');
+          notify(window.nobleNavigation ? 'Saved the MP4 to Videos / Noble Exports.' : 'The MP4 is ready in your browser downloads.');
           return;
         }
         await new Promise(resolve=>setTimeout(resolve,750));
@@ -169,6 +169,50 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
     } finally {
       exportingJob = undefined;
     }
+  }
+
+  function downloadVideo(name,bytes) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([bytes],{type:'video/mp4'}));
+    link.href = url;
+    link.download = (name || 'Noble video')+'.mp4';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    return link.download;
+  }
+
+  async function startExport(sequence,quality,{matchRate = false} = {}) {
+    if (exportingJob) throw Error('Wait for the current Noble video export to finish.');
+    const job = {job:++nextJob,status:'exporting',progress:0};
+    exportingJob = job.job;
+    try {
+      const native = await run('sequence.inspect',{item:sequence});
+      const {width,height,frames,fps} = timed(native);
+      if (!frames || frames > 2880 || width*height > 1920*1080) {
+        throw Error('Quick export supports up to two minutes at HD resolution. Open Advanced export for other settings.');
+      }
+      await run('sequence.open',{item:sequence});
+      const virtualPath = '/opfs/noble-mcp/export-'+job.job+'.mp4';
+      const started = await run('file.exportMedia',{
+        path:virtualPath,format:'h264',width,height,fps:matchRate ? fps : 24,
+        bitrateKbps:quality === 'high' ? 6200 : 3500,audio:true,
+        ...(matchRate ? {burnCaptions:true} : {}),
+      });
+      jobs.set(job.job,job);
+      if (jobs.size > 20) jobs.delete(jobs.keys().next().value);
+      void finishExport(job,started.job,virtualPath,native.name);
+      return {...job};
+    } catch (error) {
+      exportingJob = undefined;
+      throw error;
+    }
+  }
+
+  function exportStatus(job) {
+    if (!jobs.has(job)) throw Error('This video export is not available in the current Noble session.');
+    return {...jobs.get(job)};
   }
 
   const describe = async sequence=>({...timed(await run('sequence.inspect',{item:sequence})),...await currentRevision()});
@@ -244,26 +288,10 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
       return {data:{sequence,frame,playing:playback.playing === true}};
     },
     async export_video_edit({sequence,quality}) {
-      if (exportingJob) throw Error('Wait for the current Noble video export to finish.');
-      const native = await run('sequence.inspect',{item:sequence});
-      const {width,height,frames} = timed(native);
-      if (!frames || frames > 2880 || width*height > 1920*1080) throw Error('Export a timeline up to two minutes at HD resolution.');
-      await run('sequence.open',{item:sequence});
-      const job = {job:++nextJob,status:'exporting',progress:0};
-      const virtualPath = '/opfs/noble-mcp/export-'+job.job+'.mp4';
-      const started = await run('file.exportMedia',{
-        path:virtualPath,format:'h264',width,height,fps:24,
-        bitrateKbps:quality === 'high' ? 6200 : 3500,audio:true,
-      });
-      exportingJob = job.job;
-      jobs.set(job.job,job);
-      if (jobs.size > 20) jobs.delete(jobs.keys().next().value);
-      void finishExport(job,started.job,virtualPath,native.name);
-      return {data:{...job}};
+      return {data:await startExport(sequence,quality)};
     },
     async video_export_status({job}) {
-      if (!jobs.has(job)) throw Error('This video export is not available in the current Noble session.');
-      return {data:{...jobs.get(job)}};
+      return {data:exportStatus(job)};
     },
   };
 
@@ -290,4 +318,5 @@ export function mountVideoMcp(editor,{settings,notify,showTimeline}) {
       if (blocked) document.body.inert = false;
     }
   };
+  return {startExport,exportStatus};
 }

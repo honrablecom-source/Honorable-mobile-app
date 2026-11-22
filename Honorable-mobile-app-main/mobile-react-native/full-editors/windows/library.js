@@ -24,6 +24,12 @@ function showSection() {
 window.addEventListener('hashchange', showSection);
 showSection();
 document.querySelector('#choose-folder').onclick = () => folder.click();
+document.querySelector('[data-empty-folder]').onclick = () => folder.click();
+const emptyPanel = document.querySelector('[data-library-empty]');
+const libraryPanel = document.querySelector('.library-panel');
+const folderCaption = document.querySelector('[data-library-folder]');
+const previewTitle = document.querySelector('[data-preview-title]');
+const previewEmpty = document.querySelector('[data-preview-empty]');
 let files = [];
 let visibleCount = pageSize;
 let previewUrl;
@@ -38,10 +44,14 @@ function clearPreview() {
   preview.replaceChildren();
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = undefined;
+  previewTitle.textContent = 'Preview';
+  previewEmpty.hidden = false;
 }
 
 function openPreview(file) {
   clearPreview();
+  previewTitle.textContent = file.name;
+  previewEmpty.hidden = true;
   previewUrl = URL.createObjectURL(file);
   const isVideo = file.type.startsWith('video/');
   const media = document.createElement(isVideo ? 'video' : 'img');
@@ -65,12 +75,20 @@ let selectedFile;
 function render() {
   const term = query.value.trim().toLowerCase();
   const matches = rankedPhotos ?? files.filter(file => file.name.toLowerCase().includes(term));
+  if (selectedFile && !matches.includes(selectedFile)) {
+    selectedFile = undefined;
+    clearPreview();
+  }
   const visible = matches.slice(0, visibleCount);
   results.replaceChildren(...visible.map(file => {
     const row = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = file.webkitRelativePath || file.name;
+    button.textContent = file.name;
+    const path = file.webkitRelativePath;
+    if (path && path.split('/').length > 2) button.dataset.subfolder = path.split('/').slice(1,-1).join('/');
+    button.title = path || file.name;
+    button.dataset.mediaType = file.type.startsWith('video/') ? 'Video' : 'Photo';
     button.setAttribute('aria-pressed', String(file === selectedFile));
     button.addEventListener('click', () => {
       selectedFile = file;
@@ -95,6 +113,11 @@ folder.addEventListener('change', () => {
   searchWorker = rankedPhotos = photoIndex = undefined;
   busy = false;
   files = Array.from(folder.files).filter(file => /^(image|video)\//.test(file.type));
+  emptyPanel.hidden = true;
+  libraryPanel.hidden = false;
+  const root = folder.files[0]?.webkitRelativePath.split('/')[0];
+  folderCaption.textContent = root || 'Selected folder';
+  document.querySelector('#choose-folder').textContent = 'Change folder';
   files.sort((a, b) => a.name.localeCompare(b.name));
   query.disabled = files.length === 0;
   findPhotos.disabled = files.length === 0;

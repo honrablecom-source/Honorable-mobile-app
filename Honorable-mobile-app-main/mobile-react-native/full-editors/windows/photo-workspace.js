@@ -30,7 +30,7 @@ shell.innerHTML = `
     <div class="photo-tabs" role="tablist" aria-label="Editing panels">
       <button id="photo-adjust-tab" type="button" role="tab" aria-controls="photo-adjust">Adjust</button>
       <button id="photo-layers-tab" type="button" role="tab" aria-controls="photo-layers">Layers</button>
-      <button id="photo-agent-tab" type="button" role="tab" aria-controls="photo-agent">Agent</button>
+      <button id="photo-agent-tab" type="button" role="tab" aria-controls="photo-agent">AI agent</button>
     </div>
     <section id="photo-adjust" class="photo-pane" role="tabpanel" aria-labelledby="photo-adjust-tab">
       <form data-adjust="brightnessContrast" aria-label="Light adjustments">
@@ -90,9 +90,11 @@ actions.innerHTML = `
     <button type="button" data-history="edit.redo" disabled>Redo</button>
   </div>
   <button type="button" data-save title="Save layered project (Ctrl+S)" disabled>Save project</button>
-  <button type="button" popovertarget="photo-export" class="workspace-primary" disabled>Export photo</button>
-  <button type="button" popovertarget="photo-settings">Workspace</button>
-  <button type="button" data-full aria-pressed="false" disabled>Full tools</button>`;
+  <div class="photo-layout-actions" role="group" aria-label="Workspace layout">
+    <button type="button" popovertarget="photo-settings">Workspace</button>
+    <button type="button" data-full aria-pressed="false" disabled>Full tools</button>
+  </div>
+  <button type="button" popovertarget="photo-export" class="workspace-primary" disabled>Export photo</button>`;
 bar.append(actions);
 const documentPicker = document.createElement('select');
 documentPicker.className = 'photo-document-picker';
@@ -103,7 +105,7 @@ const exportMenu = document.createElement('div');
 exportMenu.id = 'photo-export';
 exportMenu.className = 'workspace-popover';
 exportMenu.setAttribute('popover', 'auto');
-exportMenu.innerHTML = '<button type="button" data-format="png">PNG <small>Lossless, with transparency</small></button><button type="button" data-format="jpg">JPEG <small>Smaller photo file</small></button>';
+exportMenu.innerHTML = '<h2>Export a copy</h2><button type="button" data-format="png">PNG <small>Preserves transparency</small></button><button type="button" data-format="jpg">JPEG <small>Smaller file for sharing</small></button>';
 bar.append(exportMenu);
 
 const open = actions.querySelector('[data-open]');
@@ -191,6 +193,7 @@ function drawLayers(layers, depth = 0) {
 function render() {
   const {document:doc, session, tool, views} = state;
   photoEmpty.hidden = Boolean(doc) || advanced;
+  shell.dataset.canvasTool = String(tool).toLowerCase();
   const zoom = views?.[session.active]?.zoom;
   $('[data-photo-info]').textContent = doc
     ? [doc.width + ' × ' + doc.height, doc.mode, Number.isFinite(zoom) && Math.round(100 * zoom) + '%'].filter(Boolean).join('  ·  ')
@@ -283,6 +286,7 @@ function configureAi() {
   const panel = document.querySelector('#noble-ai-dialog');
   if (!tab || !panel) return null;
   const part = name => panel.querySelector('[data-' + name + ']');
+  panel.querySelector('#noble-ai-title').textContent = 'Enhance photo';
   tab.id = 'photo-ai-tab';
   tab.textContent = 'AI tools';
   tab.setAttribute('role', 'tab');
@@ -491,9 +495,15 @@ full.onclick = () => void run(async () => {
   agent.dismissProof();
   if (ai && !ai.panel.hidden) ai.close.click();
   const useFull = !advanced;
-  await request('ui.set', {panels:useFull ? nativePanels : focusedPanels, fit:true});
+  shell.classList.toggle('photo-full-tools', useFull);
+  try {
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    await request('ui.set', {panels:useFull ? nativePanels : focusedPanels, fit:true});
+  } catch (error) {
+    shell.classList.toggle('photo-full-tools', advanced);
+    throw error;
+  }
   advanced = useFull;
-  shell.classList.toggle('photo-full-tools', advanced);
   full.textContent = advanced ? 'Photo layout' : 'Full tools';
   full.setAttribute('aria-pressed', String(advanced));
 });

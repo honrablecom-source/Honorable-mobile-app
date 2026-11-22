@@ -1,5 +1,6 @@
 import {mountVideoMcp} from './video-mcp.js';
 import {clearVideoChanges} from './video-changes.js';
+import {mountVideoExport} from './video-export.js';
 
 const bar = document.createElement('header');
 bar.id = 'noble-workspace-bar';
@@ -84,6 +85,43 @@ async function setupVideo() {
     createPopover.append(button);
   }
   bar.append(createPopover);
+  const quickDraft = document.querySelector('#noble-agent');
+  if (quickDraft) {
+    const heading = document.createElement('header');
+    heading.className = 'studio-dialog-heading';
+    const close = quickDraft.querySelector('[data-close]');
+    close.textContent = '×';
+    close.setAttribute('aria-label','Close quick draft');
+    heading.append(quickDraft.querySelector('h2'),close);
+    const files=quickDraft.querySelector('[data-files]');
+    const picker=files.closest('label');
+    picker.className='cinematic-file';
+    const name=document.createElement('small');
+    name.textContent='Choose 2–12 photos or clips';
+    picker.replaceChildren(files);
+    const icon=document.createElement('span');
+    icon.className='source-icon';
+    icon.textContent='▤';
+    icon.setAttribute('aria-hidden','true');
+    const text=document.createElement('span');
+    const title=document.createElement('strong');
+    title.textContent='Source media';
+    text.append(title,name);
+    const action=document.createElement('span');
+    action.className='file-action';
+    action.textContent='Browse';
+    picker.append(icon,text,action);
+    files.setAttribute('aria-label','Choose photos or video clips');
+    files.addEventListener('change',()=>{
+      name.textContent=files.files.length ? files.files.length+' files selected' : 'Choose 2–12 photos or clips';
+    });
+    quickDraft.querySelector('[data-labels]').placeholder='One description per line, in file order';
+    const footer = document.createElement('footer');
+    footer.className = 'quick-draft-actions';
+    footer.append(...quickDraft.querySelectorAll('[data-draft],[data-revise],[data-apply]'));
+    quickDraft.prepend(heading);
+    quickDraft.append(footer);
+  }
   const agentButton = document.querySelector('#cinematic-open');
   if (agentButton) {
     agentButton.innerHTML = '<span aria-hidden="true">✦</span> AI editor';
@@ -351,10 +389,12 @@ async function setupVideo() {
   action('save').onclick = () => { projectMenu.hidePopover(); void run(() => invoke('file.save')); };
   const exportButton = action('export');
   let returnToStarter = false;
-  exportButton.onclick = () => void run(async () => {
+  const openAdvancedExport = () => run(async () => {
     const desiredMode = !exporting;
     await editor.request('ui.set', {mode: desiredMode ? 'export' : 'edit'});
     exporting = desiredMode;
+    if (desiredMode) await resizeExport();
+    else await setEditorSize(currentSize);
     if (exporting) {
       returnToStarter = !start.hidden;
       start.hidden = true;
@@ -417,6 +457,13 @@ async function setupVideo() {
   const setTrackSize = (roomy, fit = false) => editor.request('ui.set', {timeline:{
     videoTrackHeight:roomy ? 64 : 46, audioTrackHeight:roomy ? 56 : 46, fit,
   }});
+  async function resizeExport() {
+    const scale = innerWidth < 950 ? 75 : innerWidth < 1220 ? 100 : Math.round(devicePixelRatio*100);
+    const size = [...scaleOptions].reverse().find(option=>option <= scale) ?? 75;
+    await editor.execute('prefs.set',{key:'appearance.uiScale',value:String(size)});
+    currentScale = size/100;
+    syncHeader();
+  }
   async function setEditorSize(size) {
     const target = devicePixelRatio * (size === 'large' ? 140 : 118);
     const scale = size === 'system' ? 'auto' : String(scaleOptions.find(level => level >= target) ?? 300);
@@ -436,6 +483,11 @@ async function setupVideo() {
   }
   let lastDpr = devicePixelRatio;
   window.addEventListener('resize', () => {
+    if (exporting) {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(()=>void run(resizeExport),110);
+      return;
+    }
     const scaleChanged = lastDpr !== devicePixelRatio;
     const roomy = roomyTracks();
     if (!scaleChanged && roomy === lastRoomy) return;
@@ -465,7 +517,13 @@ async function setupVideo() {
       await openProject(new File([bytes], name, {type:'application/json'}));
     },
   };
-  mountVideoMcp(editor,{settings:createPopover,notify:setStatus,showTimeline:()=>void showTimelineIfReady()});
+  const delivery=mountVideoMcp(editor,{settings:createPopover,notify:setStatus,showTimeline:()=>void showTimelineIfReady()});
+  const openExport=mountVideoExport({
+    editor,button:exportButton,
+    start:(sequence,quality)=>delivery.startExport(sequence,quality,{matchRate:true}),
+    lookup:delivery.exportStatus,advanced:openAdvancedExport,failed:error=>setStatus(error.message),
+  });
+  exportButton.onclick=()=>exporting ? void openAdvancedExport() : openExport();
   const entry = new URLSearchParams(location.search).get('entry');
   if (entry) openEntry(entry);
 }
