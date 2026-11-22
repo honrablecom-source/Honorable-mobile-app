@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory)][string]$ElectronDirectory,
+    [Parameter(Mandatory)][string]$RuntimeDirectory,
     [Parameter(Mandatory)][string]$Stage,
     [Parameter(Mandatory)][string]$SearchModules,
     [string]$DesktopVideoBundle,
@@ -8,18 +8,53 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$electronVersion = '45.4.1'
-$zipName = "electron-v$electronVersion-win32-x64.zip"
-$archive = Join-Path $ElectronDirectory $zipName
-$manifest = Get-Content -LiteralPath (Join-Path $ElectronDirectory 'SHASUMS256.txt')
-$pattern = '^([0-9a-f]{64})\s+\*?' + [regex]::Escape($zipName) + '$'
-$entry = $manifest | Where-Object { $_ -match $pattern }
-if (@($entry).Count -ne 1 -or $entry -notmatch $pattern -or (Get-FileHash -LiteralPath $archive).Hash -ine $Matches[1]) {
-    throw 'The Electron archive does not match the upstream checksum.'
-}
 if (Test-Path -LiteralPath $Stage) { throw 'Choose a new staging directory.' }
-Expand-Archive -LiteralPath $archive -DestinationPath $Stage
-Rename-Item -LiteralPath (Join-Path $Stage 'electron.exe') -NewName 'NobleStudio.exe'
+
+$nodeName = 'node-v24.22.3-win-x64'
+$nodeArchive = Join-Path $RuntimeDirectory "$nodeName.zip"
+$webViewPackage = Join-Path $RuntimeDirectory 'microsoft.web.webview2.1.0.3595.46.nupkg'
+$checks = @{
+    $nodeArchive = 'e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f'
+    $webViewPackage = 'f448c20859199ecd846a7d693710d143a8cd019ad1dcdc4cd6332d842d871054'
+}
+foreach ($file in $checks.Keys) {
+    if ((Get-FileHash -LiteralPath $file).Hash -ine $checks[$file]) { throw "Runtime checksum mismatch for $file." }
+}
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$null = New-Item -ItemType Directory -Path $Stage
+$Stage = (Resolve-Path -LiteralPath $Stage).Path
+$runtime = Join-Path $Stage 'resources/runtime'
+$null = New-Item -ItemType Directory -Path $runtime
+function Copy-RuntimeEntry($archive, $entry, $destination) {
+    $item = $archive.GetEntry($entry)
+    if (!$item) { throw "The runtime archive is missing $entry." }
+    [IO.Compression.ZipFileExtensions]::ExtractToFile($item, $destination)
+}
+$node = [IO.Compression.ZipFile]::OpenRead($nodeArchive)
+try {
+    foreach ($name in 'node.exe','LICENSE') {
+        Copy-RuntimeEntry $node "$nodeName/$name" (Join-Path $runtime $name)
+    }
+}
+finally { $node.Dispose() }
+$webView = [IO.Compression.ZipFile]::OpenRead($webViewPackage)
+try {
+    foreach ($name in 'Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll') {
+        Copy-RuntimeEntry $webView "lib/net462/$name" (Join-Path $Stage $name)
+    }
+    Copy-RuntimeEntry $webView 'runtimes/win-x64/native/WebView2Loader.dll' (Join-Path $Stage 'WebView2Loader.dll')
+    Copy-RuntimeEntry $webView 'LICENSE.txt' (Join-Path $Stage 'WebView2-LICENSE.txt')
+}
+finally { $webView.Dispose() }
+
+$compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+$references = @('System.Windows.Forms.dll','System.Drawing.dll','System.Web.dll','System.Web.Extensions.dll',
+    (Join-Path $Stage 'Microsoft.Web.WebView2.Core.dll'),(Join-Path $Stage 'Microsoft.Web.WebView2.WinForms.dll'))
+$referenceOptions = $references | ForEach-Object { "/reference:$_" }
+& $compiler /nologo /target:winexe /platform:x64 "/out:$(Join-Path $Stage 'NobleStudio.exe')" @referenceOptions `
+    "/win32icon:$(Join-Path $PSScriptRoot 'noble.ico')" "/win32manifest:$(Join-Path $PSScriptRoot 'NobleStudio.manifest')" `
+    (Join-Path $PSScriptRoot 'NobleStudio.cs') (Join-Path $PSScriptRoot 'NativeTransfers.cs')
+if ($LASTEXITCODE) { throw 'Could not compile Noble Studio.' }
 
 $appDirectory = Join-Path $Stage 'resources/app'
 $studio = Join-Path $appDirectory 'studio'
@@ -27,9 +62,8 @@ $appAssets = Join-Path $studio 'android/app/src/main/assets'
 New-Item -ItemType Directory -Path (Join-Path $studio 'full-editors'), $appAssets | Out-Null
 $editors = Split-Path $PSScriptRoot
 $mobile = Split-Path $editors
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'main.cjs'), (Join-Path $PSScriptRoot 'navigation.cjs'), (Join-Path $PSScriptRoot 'package.json'), (Join-Path $PSScriptRoot 'native-studios.json') -Destination $appDirectory
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'studio-service.mjs'), (Join-Path $PSScriptRoot 'native-bridge.js'), (Join-Path $PSScriptRoot 'native-studios.json') -Destination $appDirectory
 if ($NativeArchiveDirectory) {
-    $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     & $compiler /nologo /target:exe /platform:x64 "/out:$(Join-Path (Resolve-Path $appDirectory) 'NobleEditorHost.exe')" (Join-Path $PSScriptRoot 'EditorHost.cs')
     if ($LASTEXITCODE) { throw 'Could not build the Noble native editor host.' }
     $native = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'native-studios.json') -Raw | ConvertFrom-Json

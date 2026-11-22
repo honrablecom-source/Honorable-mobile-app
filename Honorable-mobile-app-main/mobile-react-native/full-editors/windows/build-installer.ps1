@@ -7,7 +7,9 @@ $ErrorActionPreference = 'Stop'
 $stagePath = (Resolve-Path -LiteralPath $Stage).Path
 $outputPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Output)
 if (Test-Path -LiteralPath $outputPath) { throw 'Choose a new installer output path.' }
-if (!(Test-Path -LiteralPath (Join-Path $stagePath 'NobleStudio.exe'))) { throw 'Provide a packaged Noble Studio staging directory.' }
+foreach ($file in 'NobleStudio.exe','WebView2Loader.dll','resources/runtime/node.exe','resources/app/studio-service.mjs') {
+    if (!(Test-Path -LiteralPath (Join-Path $stagePath $file) -PathType Leaf)) { throw "The native Noble package is missing $file." }
+}
 
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $scratch = Join-Path ([IO.Path]::GetTempPath()) ('noble-installer-' + [Guid]::NewGuid().ToString('N'))
@@ -19,7 +21,7 @@ try {
     $identity = Join-Path $scratch 'PackageIdentity.cs'
     $hash = (Get-FileHash -LiteralPath $payload).Hash.Substring(0, 16).ToLowerInvariant()
     Set-Content -LiteralPath $identity -Value ('static class PackageIdentity {{ public const string Folder = "app-{0}"; }}' -f $hash)
-    & $compiler /nologo /target:winexe /platform:x64 "/out:$outputPath" "/resource:$payload,NoblePayload" /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /reference:Microsoft.CSharp.dll (Join-Path $PSScriptRoot 'Installer.cs') $identity
+    & $compiler /nologo /target:winexe /platform:x64 "/out:$outputPath" "/win32icon:$(Join-Path $PSScriptRoot 'noble.ico')" "/resource:$payload,NoblePayload" /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /reference:Microsoft.CSharp.dll (Join-Path $PSScriptRoot 'Installer.cs') $identity
     if ($LASTEXITCODE -ne 0) { throw 'Could not compile the installer.' }
 }
 finally {

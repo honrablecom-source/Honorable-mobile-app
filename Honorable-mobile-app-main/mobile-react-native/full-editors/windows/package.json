@@ -1,7 +1,0 @@
-{
-  "name": "noble-studio",
-  "productName": "Noble Studio",
-  "version": "0.1.0",
-  "private": true,
-  "main": "main.cjs"
-}

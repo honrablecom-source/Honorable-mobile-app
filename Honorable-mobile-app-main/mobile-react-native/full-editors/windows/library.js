@@ -196,7 +196,7 @@ document.querySelector('#semantic').addEventListener('submit', async event => {
   worker.postMessage({query: term, files: sources});
 });
 if (window.nobleNavigation) {
-  for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"],[data-desktop-projects]')) {
+  for (const link of document.querySelectorAll('a[href^="/video/"],a[href^="/image/"],a[href^="/desktop/native/"],a[href="/desktop/copy-export"],[data-desktop-projects]')) {
     link.addEventListener('click', event => {
       event.preventDefault();
       window.nobleNavigation.openWorkspace(link.href);
