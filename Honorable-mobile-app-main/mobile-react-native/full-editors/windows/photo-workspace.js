@@ -20,7 +20,7 @@ shell.innerHTML = `
   <section id="photo-viewer" aria-label="Photo preview">
     <div class="photo-empty" hidden>
       <div class="photo-starter">
-        <h1>Open a photo</h1>
+        <span class="photo-open-icon" aria-hidden="true">&#xEB9F;</span><h1>Open a photo</h1>
         <p>Drop photos or layered projects here.</p>
         <button type="button" data-empty-open disabled>Browse files</button>
         <output data-empty-status role="status"></output>
@@ -35,15 +35,15 @@ shell.innerHTML = `
     </div>
     <section id="photo-adjust" class="photo-pane" role="tabpanel" aria-labelledby="photo-adjust-tab">
       <form data-adjust="brightnessContrast" aria-label="Light adjustments">
-        <h2>Light</h2>
+        <details class="adjust-section" open><summary>Light</summary>
         <label>Brightness <output>0</output><input data-photo name="brightness" aria-label="Brightness" type="range" min="-150" max="150" value="0"></label>
         <label>Contrast <output>0</output><input data-photo name="contrast" aria-label="Contrast" type="range" min="-50" max="100" value="0"></label>
-        <button data-photo type="submit">Add light adjustment</button>
+        <button data-photo type="submit">Add light adjustment</button></details>
       </form>
       <form data-adjust="hueSaturation" aria-label="Color adjustments">
-        <h2>Color</h2>
+        <details class="adjust-section" open><summary>Color</summary>
         <label>Saturation <output>0</output><input data-photo name="saturation" aria-label="Saturation" type="range" min="-100" max="100" value="0"></label>
-        <button data-photo type="submit">Add color adjustment</button>
+        <button data-photo type="submit">Add color adjustment</button></details>
       </form>
       <section class="photo-more" aria-label="More adjustments">
         <button data-photo data-menu="layer.newAdjustmentLayer.levels">Levels…</button>
@@ -102,6 +102,7 @@ bar.append(actions);
 const documentPicker = document.createElement('select');
 documentPicker.className = 'photo-document-picker';
 documentPicker.setAttribute('aria-label', 'Open documents');
+documentPicker.title = 'Open documents (Ctrl+Page Up or Ctrl+Page Down)';
 documentPicker.hidden = true;
 bar.insertBefore(documentPicker, actions);
 const exportMenu = document.createElement('div');
@@ -217,7 +218,7 @@ function render() {
   $('[data-photo-info]').textContent = doc
     ? [doc.width + ' × ' + doc.height, doc.mode, Number.isFinite(zoom) && Math.round(100 * zoom) + '%'].filter(Boolean).join('  ·  ')
     : 'No photo open';
-  const documents = JSON.stringify(session.documents.map(({name,dirty}) => [name,dirty]));
+  const documents = JSON.stringify(session.documents.map(({index,name,dirty}) => [index,name,dirty]));
   if (documents !== lastDocuments) {
     documentPicker.replaceChildren(...session.documents.map(({index,name,dirty}) => new Option(name + (dirty ? ' •' : ''), index)));
     lastDocuments = documents;
@@ -533,10 +534,11 @@ viewer.ondrop = event => {
   event.stopPropagation();
   queuePhotos(Array.from(event.dataTransfer.files));
 };
-documentPicker.onchange = () => void run(async () => {
+const activateDocument = index => void run(async () => {
   if (ai && !ai.panel.hidden) ai.close.click();
-  await command('document.activate', {document:Number(documentPicker.value)});
+  await command('document.activate', {document:Number(index)});
 });
+documentPicker.onchange = () => activateDocument(documentPicker.value);
 $('[data-edit-adjustment]').onclick = () => {
   showTab($('#photo-adjust-tab'));
   queueMicrotask(() => {
@@ -614,6 +616,17 @@ window.nobleNavigation?.onPhotoDelivery?.(({file,state:delivery}) => {
 document.addEventListener('keydown', event => {
   if (!ready || !event.ctrlKey || event.altKey || event.shiftKey) return;
   const key = event.key.toLowerCase();
+  if ((key === 'pageup' || key === 'pagedown') && state?.session.documents.length > 1) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!busy && !event.repeat) {
+      const {active, documents} = state.session;
+      const current = documents.findIndex(doc => doc.index === active);
+      const next = (current + documents.length + (key === 'pageup' ? -1 : 1)) % documents.length;
+      activateDocument(documents[next].index);
+    }
+    return;
+  }
   const button = key === 'o' ? open : key === 's' && !advanced ? actions.querySelector('[data-save]') : null;
   if (!button) return;
   event.preventDefault();

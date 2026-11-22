@@ -42,7 +42,7 @@ async function setupVideo() {
     </div>
     <div class="workspace-group workspace-adjust">
       <button type="button" popovertarget="noble-cut-tools">Tools</button>
-      <button type="button" popovertarget="noble-layouts">Layout</button>
+      <button type="button" popovertarget="noble-layouts"><span class="layout-current-label">Layout</span><span class="layout-options-label">Layout</span> ▾</button>
       <button type="button" popovertarget="noble-commands">Commands</button>
     </div>
     <div class="workspace-group workspace-review">
@@ -204,6 +204,21 @@ async function setupVideo() {
   if (!editor?.info?.().startupMs) return;
   const invoke = id => editor.request('ui.menu.invoke', {id});
   const layoutButtons = [...layouts.querySelectorAll('[data-layout]')];
+  const workspaceModes = document.createElement('div');
+  workspaceModes.className = 'workspace-modes';
+  workspaceModes.setAttribute('role','group');
+  workspaceModes.setAttribute('aria-label','Editing workspaces');
+  const layoutTrigger = actions.querySelector('[popovertarget=noble-layouts]');
+  const modeButtons = layoutButtons.map(option => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = option.dataset.layout;
+    button.dataset.mode = option.dataset.layout;
+    button.onclick = () => run(() => setLayout(button.dataset.mode));
+    workspaceModes.append(button);
+    return button;
+  });
+  bar.insertBefore(workspaceModes,actions);
   const fitTimeline = () => editor.request('ui.set', {timeline:{fit:true}});
   const transportActions = {
     play: async () => {await editor.request('ui.playback', {action:'toggle'});},
@@ -244,6 +259,9 @@ async function setupVideo() {
   async function setLayout(layout) {
     await editor.request('ui.set', {workspace:layout === 'Focused' ? 'Assembly' : layout});
     for (const button of layoutButtons) button.setAttribute('aria-pressed', String(button.dataset.layout === layout));
+    for (const button of modeButtons) button.setAttribute('aria-pressed',String(button.dataset.mode === layout));
+    layoutTrigger.querySelector('.layout-current-label').textContent = layout;
+    layoutTrigger.setAttribute('aria-label','Layout: '+layout);
     localStorage.setItem('noble-video-layout', layout);
   }
 

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Noble Studio</title>
   <link rel="stylesheet" href="/desktop/home.css">
+  <link rel="stylesheet" href="/desktop/studio-ui.css">
   <script src="/desktop/library.js" type="module"></script>
 </head>
 <body>
@@ -14,16 +15,16 @@
         <h1 id="page-title">Projects</h1>
         <button type="button" id="resume-file" hidden><span class="shell-icon" aria-hidden="true">&#xE823;</span><span>Resume</span><strong></strong><span aria-hidden="true">→</span></button>
       </div>
-      <div class="file-commands">
-        <button type="button" popovertarget="open-menu">Open…</button>
-        <button type="button" popovertarget="new-menu"><span aria-hidden="true">＋</span> New project</button>
-        <div id="new-menu" class="file-menu" popover><a href="/desktop/native/image?entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
-        <div id="open-menu" class="file-menu" popover><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
-      </div>
 
     </header>
     <aside class="desktop-nav">
       <a class="brand" href="#studio"><img src="/desktop/noble.png" width="28" height="28" alt="">Noble Studio</a>
+      <div class="file-commands">
+        <button type="button" popovertarget="open-menu" title="Open…" aria-label="Open…"><span class="shell-icon" aria-hidden="true">&#xE8DA;</span><span class="cmd-label">Open…</span></button>
+        <button type="button" popovertarget="new-menu" title="New project" aria-label="New project"><span class="shell-icon" aria-hidden="true">&#xE710;</span><span class="cmd-label">New project</span></button>
+        <div id="new-menu" class="file-menu" popover><a href="/desktop/native/image?entry=new">New photo project</a><a href="/video/?empty&amp;webgl&amp;entry=new">New video project</a></div>
+        <div id="open-menu" class="file-menu" popover><a href="/desktop/native/image?entry=open">Open photos</a><a href="/video/?empty&amp;webgl&amp;entry=open">Open video project</a></div>
+      </div>
       <nav class="places" aria-label="Navigation">
         <a href="#studio" title="Projects" aria-label="Projects" aria-current="page"><span class="shell-icon" aria-hidden="true">&#xE8FD;</span><span>Projects</span></a>
         <a href="#library" title="Media library" aria-label="Media library"><span class="shell-icon" aria-hidden="true">&#xE8B7;</span><span>Media library</span></a>
@@ -71,17 +72,20 @@
         <details class="extra-tools"><summary>All editing tools</summary><nav aria-label="Editing tools"><a href="/image/?empty&amp;webgl">AI photo workspace</a><a href="/video/?empty&amp;webgl&amp;entry=agent">AI editing agent</a><a href="/video/?empty&amp;webgl&amp;entry=story">Photo storyboard</a><a href="/video/?empty&amp;webgl">AI video workspace</a></nav></details>
       </section>
       <section id="history" hidden aria-labelledby="history-heading">
-        <header class="projects-head"><h2 id="history-heading">Recent workspace actions</h2></header>
+        <header class="panel-bar"><h2 id="history-heading">Workspace activity</h2><input type="search" id="history-filter" placeholder="Find an action" aria-label="Filter workspace activity"></header>
         <p id="empty-history">Your workspace actions will appear here.</p><ol id="activity-list"></ol>
       </section>
       <section id="settings" hidden aria-labelledby="settings-heading">
-        <header class="projects-head"><h2 id="settings-heading">Home preferences</h2></header>
-        <label class="setting"><span>Compact project covers</span><input type="checkbox" id="compact-covers"></label>
-        <label class="setting"><span>Remember workspace actions on this PC</span><input type="checkbox" id="remember-history"></label>
+        <header class="panel-bar"><h2 id="settings-heading">Preferences</h2></header>
+        <div class="preferences-layout">
+          <div class="pref-categories" role="group" aria-label="Preference categories"><button type="button" data-pref="appearance" aria-pressed="true">Appearance</button><button type="button" data-pref="activity" aria-pressed="false">History</button></div>
+          <section id="pref-appearance" class="pref-panel"><h3>Appearance</h3><label class="setting"><span>Compact project covers</span><input type="checkbox" id="compact-covers"></label><label class="setting"><span>Recent files view</span><select id="pref-layout"><option value="list">List</option><option value="grid">Grid</option></select></label></section>
+          <section id="pref-activity" class="pref-panel" hidden><h3>Activity history</h3><label class="setting"><span>Remember workspace actions on this PC</span><input type="checkbox" id="remember-history"></label></section>
+        </div>
       </section>
       <section id="library" aria-labelledby="library-title" hidden>
       <header class="page-heading library-heading">
-        <div><h2 id="library-title">Media folder</h2><p data-library-folder>Browse and search files on this PC.</p></div>
+        <div><h2 id="library-title">Folders</h2><p data-library-folder>Local media</p></div>
         <input id="folder" type="file" webkitdirectory multiple hidden>
         <button id="choose-folder" class="action" type="button">Choose folder</button>
       </header>
@@ -100,20 +104,24 @@
         </div>
         <p id="status" role="status"></p>
         <div class="media">
-          <ul id="results" aria-label="Media files"></ul>
+          <section class="library-content"><div class="panel-bar"><h2>Content</h2><div class="browser-views" role="group" aria-label="Media view"><button data-browser-view="thumbnails" aria-pressed="true">Thumbnails</button><button data-browser-view="details" aria-pressed="false">Details</button></div></div>
+            <ul id="results" aria-label="Media files"></ul>
+            <button id="more" type="button" hidden>Show more files</button>
+          </section>
           <section class="media-details" aria-label="Media preview">
-            <h2 data-preview-title>Preview</h2>
+            <div class="panel-bar"><h2>Preview</h2></div>
             <p data-preview-empty>Select a file to preview it here.</p>
             <div id="preview"></div>
+            <section class="file-properties" hidden><h3 data-preview-title>File properties</h3><dl></dl></section>
           </section>
         </div>
-        <button id="more" type="button" hidden>Show more files</button>
       </div>
       </section>
     </main>
   </div>
   <header class="desktop-editor-chrome" hidden>
     <a href="/desktop/home.html" data-desktop-projects><span aria-hidden="true">‹</span> Projects</a>
+    <strong data-docked-name></strong>
     <span class="dock-status" data-desktop-status role="status"></span>
     <a href="/image/?empty&amp;webgl" data-desktop-ai>AI workspace</a>
   </header>

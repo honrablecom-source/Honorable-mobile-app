@@ -27,13 +27,55 @@ compact.onchange = () => {
   localStorage.setItem('noble.home.compact',String(compact.checked));
 };
 remember.onchange = () => localStorage.setItem('noble.home.remember',String(remember.checked));
-document.querySelector('.desktop-layout').addEventListener('click', event => {
-  const link = event.target.closest('a');
-  if (!link || !link.closest('#studio,.file-menu') || !remember.checked) return;
-  activity.unshift({label:link.getAttribute('aria-label') || link.textContent.trim(),at:Date.now()});
+function recordAction(label) {
+  if (!remember.checked) return;
+  activity.unshift({label,at:Date.now()});
   activity = activity.slice(0,50);
   localStorage.setItem(activityKey,JSON.stringify(activity));
+}
+document.querySelector('.desktop-layout').addEventListener('click', event => {
+  const link = event.target.closest('a');
+  if (link?.closest('#studio,.file-menu,.editor-launchers')) recordAction(link.getAttribute('aria-label') || link.textContent.trim());
 });
+
+const historyFilter = document.querySelector('#history-filter');
+function renderHistory() {
+  const list = document.querySelector('#activity-list');
+  const term = historyFilter.value.trim().toLowerCase();
+  list.replaceChildren();
+  let lastDate, rows;
+  for (const item of activity) {
+    if (!item.label.toLowerCase().includes(term)) continue;
+    const at = new Date(item.at);
+    const date = at.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    if (lastDate !== date) {
+      const section = document.createElement('li');
+      const heading = document.createElement('h3');
+      heading.textContent = date;
+      rows = document.createElement('ol');
+      section.append(heading,rows);
+      list.append(section);
+      lastDate = date;
+    }
+    const row = document.createElement('li');
+    const time = document.createElement('time');
+    time.dateTime = at.toISOString();
+    time.textContent = at.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    row.append(item.label,time);
+    rows.append(row);
+  }
+  const empty = document.querySelector('#empty-history');
+  empty.hidden = Boolean(list.children.length);
+  empty.textContent = activity.length ? 'No matching actions.' : 'Your workspace actions will appear here.';
+}
+historyFilter.oninput = renderHistory;
+const categories = [...document.querySelectorAll('[data-pref]')];
+for (const category of categories) category.onclick = () => {
+  for (const item of categories) {
+    item.setAttribute('aria-pressed',String(item === category));
+    document.getElementById('pref-'+item.dataset.pref).hidden = item !== category;
+  }
+};
 
 function showSection() {
   const selected = tabs.find(tab => tab.hash === location.hash)?.hash || '#studio';
@@ -43,18 +85,7 @@ function showSection() {
     else tab.removeAttribute('aria-current');
   }
   document.querySelector('#page-title').textContent = tabs.find(tab => tab.hash === selected).getAttribute('aria-label');
-  if (selected === '#history') {
-    document.querySelector('#empty-history').hidden = Boolean(activity.length);
-    document.querySelector('#activity-list').replaceChildren(...activity.map(item => {
-      const row = document.createElement('li');
-      const time = document.createElement('time');
-      const at = new Date(item.at);
-      time.dateTime = at.toISOString();
-      time.textContent = at.toLocaleString();
-      row.append(item.label,time);
-      return row;
-    }));
-  }
+  if (selected === '#history') renderHistory();
 }
 
 window.addEventListener('hashchange', showSection);
@@ -69,6 +100,19 @@ const previewEmpty = document.querySelector('[data-preview-empty]');
 let files = [];
 let visibleCount = pageSize;
 let previewUrl;
+const properties = document.querySelector('.file-properties');
+const thumbnailUrls = new Map();
+const mediaViews = [...document.querySelectorAll('[data-browser-view]')];
+function setMediaView(value) {
+  results.dataset.view = value;
+  for (const button of mediaViews) button.setAttribute('aria-pressed',String(button.dataset.browserView === value));
+}
+setMediaView(localStorage.getItem('noble.library.view') === 'details' ? 'details' : 'thumbnails');
+for (const button of mediaViews) button.onclick = () => {
+  setMediaView(button.dataset.browserView);
+  localStorage.setItem('noble.library.view',button.dataset.browserView);
+  render();
+};
 const description = document.querySelector('#description');
 const findPhotos = document.querySelector('#find-photos');
 let searchWorker;
@@ -80,17 +124,33 @@ function clearPreview() {
   preview.replaceChildren();
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = undefined;
-  previewTitle.textContent = 'Preview';
+  properties.hidden = true;
   previewEmpty.hidden = false;
 }
 
 function openPreview(file) {
   clearPreview();
   previewTitle.textContent = file.name;
+  properties.hidden = false;
+  const metadata = properties.querySelector('dl');
+  metadata.replaceChildren();
+  const property = (label,value) => {
+    const key = document.createElement('dt');
+    const detail = document.createElement('dd');
+    key.textContent = label;
+    detail.textContent = value;
+    metadata.append(key,detail);
+  };
+  property('Size',file.size < 1048576 ? Math.ceil(file.size / 1024)+' KB' : (file.size / 1048576).toFixed(1)+' MB');
+  property('Folder',file.webkitRelativePath.split('/').slice(0,-1).join('/') || 'Selected folder');
   previewEmpty.hidden = true;
   previewUrl = URL.createObjectURL(file);
   const isVideo = file.type.startsWith('video/');
   const media = document.createElement(isVideo ? 'video' : 'img');
+  media.addEventListener(isVideo ? 'loadedmetadata' : 'load', () => {
+    if (media.parentElement !== preview) return;
+    property('Dimensions',(isVideo ? media.videoWidth : media.naturalWidth)+' × '+(isVideo ? media.videoHeight : media.naturalHeight)+' px');
+  },{once:true});
   if (isVideo) {
     media.controls = true;
     media.setAttribute('aria-label', file.name);
@@ -116,11 +176,31 @@ function render() {
     clearPreview();
   }
   const visible = matches.slice(0, visibleCount);
+  const keep = new Set(results.dataset.view === 'thumbnails' ? visible : []);
+  for (const [file,url] of thumbnailUrls) {
+    if (!keep.has(file)) { URL.revokeObjectURL(url); thumbnailUrls.delete(file); }
+  }
   results.replaceChildren(...visible.map(file => {
     const row = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = file.name;
+    button.setAttribute('aria-label',file.name);
+    if (results.dataset.view === 'thumbnails') {
+      const photo = file.type.startsWith('image/');
+      const cover = document.createElement(photo ? 'img' : 'span');
+      cover.className = 'browser-thumb';
+      if (photo) {
+        if (!thumbnailUrls.has(file)) thumbnailUrls.set(file,URL.createObjectURL(file));
+        cover.loading = 'lazy';
+        cover.alt = '';
+        cover.src = thumbnailUrls.get(file);
+      } else { cover.textContent = '▶'; cover.setAttribute('aria-hidden','true'); }
+      button.append(cover);
+    }
+    const filename = document.createElement('span');
+    filename.className = 'browser-filename';
+    filename.textContent = file.name;
+    button.append(filename);
     const path = file.webkitRelativePath;
     if (path && path.split('/').length > 2) button.dataset.subfolder = path.split('/').slice(1,-1).join('/');
     button.title = path || file.name;
@@ -143,6 +223,7 @@ function render() {
 }
 
 folder.addEventListener('change', () => {
+  if (!folder.files.length) return;
   clearPreview();
   selectedFile = undefined;
   searchWorker?.terminate();
@@ -153,6 +234,7 @@ folder.addEventListener('change', () => {
   libraryPanel.hidden = false;
   const root = folder.files[0]?.webkitRelativePath.split('/')[0];
   folderCaption.textContent = root || 'Selected folder';
+  recordAction('Opened media folder');
   document.querySelector('#choose-folder').textContent = 'Change folder';
   files.sort((a, b) => a.name.localeCompare(b.name));
   query.disabled = files.length === 0;
@@ -346,11 +428,16 @@ for (const button of fileTypes.querySelectorAll('button')) {
   };
 }
 function setLayout(layout) {
+  document.querySelector('#pref-layout').value = layout;
   recentContainer.classList.toggle('list',layout === 'list');
   for (const button of layoutButtons) button.setAttribute('aria-pressed',String(button.dataset.layout === layout));
   renderRecent();
 }
 setLayout(localStorage.getItem('noble.home.recentLayout') === 'grid' ? 'grid' : 'list');
+document.querySelector('#pref-layout').onchange = event => {
+  setLayout(event.target.value);
+  localStorage.setItem('noble.home.recentLayout',event.target.value);
+};
 for (const button of layoutButtons) button.onclick = () => {
   setLayout(button.dataset.layout);
   localStorage.setItem('noble.home.recentLayout',button.dataset.layout);
@@ -392,6 +479,7 @@ if (window.nobleNavigation) {
     document.body.classList.toggle('desktop-editing',Boolean(kind));
     editorChrome.hidden = !kind;
     if (!kind) return;
+    editorChrome.querySelector('[data-docked-name]').textContent = kind === 'image' ? 'Image Studio' : 'Video Studio';
     editorChrome.querySelector('[data-desktop-ai]').href = '/'+kind+'/?empty&webgl';
   });
 }
