@@ -1,3 +1,5 @@
+import {searchEditorCommands} from './native-skill.js';
+
 const clock = new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const point = value => Array.isArray(value) && value.length >= 2 && value.slice(0,2).every(Number.isFinite) ? value.slice(0,2).join(', ') : '';
 const short = value => String(value ?? '').replace(/[\r\n]+/g,' ').slice(0,160);
@@ -138,8 +140,7 @@ export function mountPhotoActivity(panel,button,catalog,documentName,submitEdit,
     finally{submitting=false;updateSend();}
   };
   function renderCatalog() {
-    const terms=search.value.toLowerCase().trim().split(/[\s._]+/).filter(Boolean);
-    const found=catalog.filter(row=>terms.every(word=>(row.name+' '+row.label+' '+row.id).toLowerCase().includes(word)));
+    const found=searchEditorCommands(catalog,search.value);
     const list=library.querySelector('ul');
     list.replaceChildren();
     for (const row of found.slice(0,limit)) {

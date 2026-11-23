@@ -151,6 +151,8 @@ internal sealed partial class NobleStudio : Form
         info.EnvironmentVariables.Remove("NODE_PATH");
         info.EnvironmentVariables["NOBLE_EDIT_MODEL"] = model;
         info.EnvironmentVariables["NOBLE_WINDOWS_DESKTOP"] = "1";
+        info.StandardOutputEncoding = new UTF8Encoding(false);
+        info.StandardErrorEncoding = new UTF8Encoding(false);
         service = Process.Start(info);
         string error = null;
         service.ErrorDataReceived += (_, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) error = e.Data; };
@@ -445,7 +447,12 @@ internal sealed partial class NobleStudio : Form
     private void WriteService(object response)
     {
         if (service == null || service.HasExited) return;
-        try { service.StandardInput.WriteLine(json.Serialize(response)); }
+        try {
+            byte[] bytes = Encoding.UTF8.GetBytes(json.Serialize(response) + "\n");
+            Stream input = service.StandardInput.BaseStream;
+            input.Write(bytes, 0, bytes.Length);
+            input.Flush();
+        }
         catch (IOException) { }
     }
 

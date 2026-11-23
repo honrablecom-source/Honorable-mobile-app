@@ -2,7 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {actionDetail,actionReply,geometryNote} from './photo-activity.js';
 import {photoToolCatalog} from '../editing-agent/desktop-mcp.mjs';
-import {editorSkills} from '../editing-agent/editor-skills.mjs';
+import {editorSkills,findSkills} from '../editing-agent/editor-skills.mjs';
+import {checkCommand,searchEditorCommands} from './native-skill.js';
+
+test('the catalog and MCP put named commands first and explain a missing brush target',()=>{
+  for (const [query,name] of [['layer new layer','photo_layer_new_layer'],['sumi-e','photo_filter_gallery_sumi_e']]) {
+    assert.equal(findSkills({studio:'photo',query}).items[0].tool,name);
+    assert.equal(searchEditorCommands(photoToolCatalog(),query)[0].name,name);
+  }
+  assert.throws(()=>checkCommand([{id:'paint.blur',enabled:false,disabledReason:'no active layer'}],'paint.blur'),/photo_layer_select/);
+});
 
 test('every published photo skill has a unique activity lookup and the proposal is discoverable',()=>{
   const catalog=photoToolCatalog();

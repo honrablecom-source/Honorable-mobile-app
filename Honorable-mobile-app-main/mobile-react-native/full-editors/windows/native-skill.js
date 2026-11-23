@@ -1,8 +1,31 @@
 // Both editors supply the command metadata of the engine currently loaded in the window.
+export function searchEditorCommands(rows,query) {
+  const words = value => value.replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const terms=words(query);
+  if (!terms.length) return rows;
+  const phrase=terms.join(' ');
+  const matches=[];
+  for (const row of rows) {
+    const id=words(row.id).join(' ');
+    const tool=words(row.tool || row.name || '').join(' ');
+    const label=words(row.label || '').join(' ');
+    const text=id+' '+tool+' '+label+' '+row.id.toLowerCase();
+    if (!terms.every(term=>text.includes(term))) continue;
+    const rank=id===phrase || tool===phrase ? 0 : label===phrase ? 1 : id.endsWith(' '+phrase) ? 2 : id.includes(phrase) ? 3 : 4;
+    matches.push({row,rank});
+  }
+  return matches.sort((a,b)=>a.rank-b.rank).map(match=>match.row);
+}
+
 export function checkCommand(commands,id) {
   const item=commands.find(entry=>entry.id===id);
   if (!item) throw Error('This command is missing from the installed editor.');
-  if (item.enabled===false) throw Error(item.disabledReason || item.label+' is disabled in the current editing context.');
+  if (item.enabled===false) {
+    if (id.startsWith('paint.') && item.disabledReason==='no active layer') {
+      throw Error('No layer is selected. Call get_photo_context, choose a visible pixel layer with photo_layer_select, then retry the stroke.');
+    }
+    throw Error(item.disabledReason || item.label+' is disabled in the current editing context.');
+  }
   return item;
 }
 

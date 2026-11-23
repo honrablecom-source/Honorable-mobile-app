@@ -331,3 +331,95 @@ index 27251b2..9aec4bb 100644
      }
  }
  
+diff --git a/crates/ui-egui/src/dialogs/rasterize_prompt.rs b/crates/ui-egui/src/dialogs/rasterize_prompt.rs
+index f637799..52fee9b 100644
+--- a/crates/ui-egui/src/dialogs/rasterize_prompt.rs
++++ b/crates/ui-egui/src/dialogs/rasterize_prompt.rs
+@@ -108,6 +108,9 @@ pub fn intercept(app: &mut PhotocraftApp, tool: Tool, x: f64, y: f64, pressure:
+     if !paints_pixels(app, tool) {
+         return false;
+     }
++    if prompt_for_missing_target(app, tool) {
++        return true;
++    }
+     let Some((kind, layer)) = needed(app) else { return false };
+     // The reference's Remove tool ignores a type layer: no prompt and no stroke (#12553).
+     if tool == Tool::Remove && kind == Kind::Type {
+@@ -119,12 +122,51 @@ pub fn intercept(app: &mut PhotocraftApp, tool: Tool, x: f64, y: f64, pressure:
+     true
+ }
+ 
++fn available_pixel_layer(doc: &photocraft_doc::Document) -> Option<&photocraft_doc::Layer> {
++    doc.walk().into_iter().rev().find_map(|(path, _, layer)| {
++        let locks = doc.effective_locks(layer.id);
++        (matches!(layer.content, photocraft_doc::LayerContent::Raster(_))
++            && !(locks.pixels || locks.all)
++            && (1..=path.len()).all(|n| doc.layer_at(&path[..n]).is_some_and(|parent| parent.visible)))
++            .then_some(layer)
++    })
++}
++
++/// When the selection has no paintable pixels, offer an editable layer before starting a stroke.
++/// Channel and mask strokes have their own target and stay on the ordinary tool path.
++fn prompt_for_missing_target(app: &mut PhotocraftApp, tool: Tool) -> bool {
++    let Some(st) = app.session.active() else { return false };
++    if crate::canvas::paint_target(app) != json!("pixels") {
++        return false;
++    }
++    let reason = match st.active_layer.and_then(|id| st.doc.layer(id)) {
++        None => "No layer is selected.",
++        Some(layer) if matches!(layer.content, photocraft_doc::LayerContent::Adjustment(_)) =>
++            "An adjustment changes the layers beneath it. Add a layer mask to brush where the adjustment applies.",
++        _ => return false,
++    };
++    if app.ui.dialogs.iter().any(|d| owns(&d.fields)) {
++        return true;
++    }
++    if let Some(layer) = available_pixel_layer(&st.doc) {
++        let fields = json!({
++            "__rasterize": "selectTarget", "__label": tool.label(),
++            "document": st.doc.id.0, "previous": st.active_layer.map(|id| id.0), "layer": layer.id.0,
++            "message": format!("{reason} Select “{}” to paint its pixels? Then draw your stroke again.", layer.name)
++        });
++        app.ui.open_dialog(DialogKind::Command, fields.as_object().unwrap().clone());
++    } else {
++        crate::brush_refusal::prompt(app, "Select a visible, unlocked pixel layer in Layers, or create a new pixel layer to paint on.");
++    }
++    true
++}
++
+ /// Open the prompt for `layer`; OK rasterizes it. `tool` and `at` (x, y, pressure) only record the press that opened it.
+ pub fn open(app: &mut PhotocraftApp, kind: Kind, layer: photocraft_doc::LayerId, tool: Tool, at: [f64; 3]) -> u64 {
+     let mut f = Map::new();
+     f.insert(MARK.into(), json!(kind.key()));
+     f.insert("__command".into(), json!(kind.command()));
+-    f.insert("__label".into(), json!("PhotoCraft"));
++    f.insert("__label".into(), json!("Noble Image Studio"));
+     f.insert("message".into(), json!(kind.message()));
+     f.insert("layer".into(), json!(layer.0));
+     f.insert("tool".into(), json!(format!("{tool:?}")));
+@@ -168,7 +210,7 @@ pub fn intercept_filter(app: &mut PhotocraftApp, id: &str, params: &Value) -> Op
+     }
+     let mut f = Map::new();
+     f.insert(MARK.into(), json!(Kind::Type.key()));
+-    f.insert("__label".into(), json!("PhotoCraft"));
++    f.insert("__label".into(), json!("Noble Image Studio"));
+     f.insert("message".into(), json!(Kind::Type.message()));
+     f.insert("layer".into(), json!(layer.0));
+     f.insert("filter".into(), json!(id));
+@@ -207,6 +249,15 @@ pub fn body(ui: &mut egui::Ui, f: &Map<String, Value>) {
+ 
+ /// OK: rasterize the layer. The click that opened the prompt does not paint.
+ pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
++    if f.get(MARK).and_then(Value::as_str) == Some("selectTarget") {
++        let st = app.session.active().ok_or("Open the document again.")?;
++        let layer = available_pixel_layer(&st.doc).ok_or("Select a visible, unlocked pixel layer in Layers.")?;
++        if Some(st.doc.id.0) != f["document"].as_u64() || st.active_layer.map(|id| id.0) != f["previous"].as_u64()
++            || Some(layer.id.0) != f["layer"].as_u64() || crate::canvas::paint_target(app) != json!("pixels") {
++            return Err("The layer selection changed. Choose the layer in Layers and draw again.".into());
++        }
++        return app.run("layer.select", json!({"layer": layer.id.0}));
++    }
+     let kind = f.get(MARK).and_then(Value::as_str).and_then(Kind::from_key).ok_or("not a rasterize prompt")?;
+     let layer = f.get("layer").and_then(Value::as_u64).ok_or("the prompt has no layer")?;
+     if let Some(filter) = f.get("filter").and_then(Value::as_str) {

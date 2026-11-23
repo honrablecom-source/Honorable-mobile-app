@@ -1,5 +1,11 @@
 # Noble session handoff
 
+## November 22 — Windows brush targeting and solar ink study
+
+Installed app-ec2b7e41c0931887 on Windows. With Blur selected and no active layer, a canvas press now offers a visible, unlocked pixel layer. Confirming selects the target, the next drag blurs pixels, Cancel preserves the selection and Undo restores the sampled pixels. Adjustment content and its mask have distinct targets. Photo MCP context waits for imports, native IPC preserves Unicode layer names, and exact tool searches rank first in the catalog and Activity.
+
+The local Qwen2.5 3B selected the Sumi-e filter and the pigment map over MCP for a five-layer solar print from NASA/SDO imagery. The saved 1032 × 1032 PNG matched seven sampled pixels in the reopened PCraft project. The brief, tool transcript and installer are in the November 20 task outputs under Noble Brush Repair. The Windows cinematic workflow exercised a live model, revision and undo, cold reopen and independent H.264/AAC decode. All 34 focused editor tests passed.
+
 ## November 22 — Image Studio conversation and ink painting
 
 One new Windows workflow. Activity shows submitted adjustment requests, chronological replies, expandable editor tool steps and a working composer. Connected clients can share their actual brief through record_photo_request. At desktop widths the conversation sits beside the canvas.

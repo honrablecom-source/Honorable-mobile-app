@@ -1,4 +1,5 @@
 // Normalized command metadata from Noble's pinned, installed Windows editors.
+import {searchEditorCommands} from '../windows/native-skill.js';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 
@@ -88,11 +89,10 @@ export const runSkill = {name:'run_editor_skill',description:'Run a named tool r
 export const searchSkills = {name:'find_editor_skills',description:'Find individual photo or video tools by native command ID, label or tool name. Includes editor-only commands when requested. Call the returned tool name with its documented parameters.',inputSchema:schema({studio:{type:'string',enum:['photo','video']},query:{type:'string',maxLength:100},offset:integer,includeManual:{type:'boolean'}},['studio']),annotations:{readOnlyHint:true,openWorldHint:false}};
 
 export function findSkills({studio,query='',offset=0,includeManual=false},builtins=[]) {
-  const terms=query.toLowerCase().split(/[\s._]+/).filter(Boolean);
   const available=[...tools.entries()].filter(([,s])=>s.studio===studio).map(([name,s])=>({id:s.id,tool:name,label:s.definition.description.split(' in the active Noble ')[0]}));
   available.push(...builtins.map(def=>({id:def.name,tool:def.name,label:def.description,inputSchema:def.inputSchema})));
   if(includeManual) available.push(...inventory.filter(row=>row.studio===studio&&!row.tool).map(row=>({...row,status:'studio_only'})));
-  const matches=available.filter(row=>terms.every(word=>(row.id+' '+row.label+' '+(row.tool??'')).toLowerCase().includes(word)));
+  const matches=searchEditorCommands(available,query);
   const items=matches.slice(offset,offset+20).map(row=>tools.has(row.tool)?{...row,inputSchema:tools.get(row.tool).definition.inputSchema}:row);
   return {total:matches.length,items,nextOffset:offset+20<matches.length?offset+20:null};
 }

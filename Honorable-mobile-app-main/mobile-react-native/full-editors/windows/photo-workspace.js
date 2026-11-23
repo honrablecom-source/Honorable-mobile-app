@@ -377,6 +377,11 @@ selectTab($('#photo-agent-tab'));
 
 window.noblePhotoMcp = input => activity.external(input,() => handlePhotoMcp(input));
 async function handlePhotoMcp(input) {
+  if (input.tool==='editor_skill' && input.args.route==='context') {
+    const deadline=Date.now()+7000;
+    while ((!ready || busy || photoQueue.length) && Date.now()<deadline) await wait(50);
+    if (photoQueue.length) throw Error('Finish opening the queued photo, then request its editing context again.');
+  }
   if (!ready || busy) return {error:'Image Studio is busy. Try again in a moment.'};
   if (input.tool==='editor_skill') {
     const {route,id,input:args}=input.args;
